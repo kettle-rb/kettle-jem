@@ -1,17 +1,57 @@
 # frozen_string_literal: true
 
 # External gems
+require "ast-merge"
+require "dotenv-merge"
+require "json-merge"
+require "markly-merge"
+require "prism-merge"
+require "psych-merge"
+require "rbs-merge"
 require "version_gem"
+
+# Shared merge infrastructure
+require "ast/merge"
 
 # This gem - only version can be required (never autoloaded)
 require_relative "jem/version"
 
 module Kettle
+  # Kettle::Jem provides MergerConfig presets for common file type merging scenarios.
+  #
+  # These presets encapsulate signature generators, node typing configurations,
+  # and section classifiers for merging various file types used in gem templating:
+  #
+  # - Ruby files (Gemfile, Appraisals, gemspec)
+  # - Markdown files (README.md, CHANGELOG.md)
+  # - YAML files (.github/workflows/*.yml, .rubocop.yml)
+  # - JSON files (package.json, .eslintrc.json)
+  # - RBS files (sig/*.rbs)
+  # - Dotenv files (.env, .env.example)
+  #
+  # @example Using a Gemfile preset
+  #   config = Kettle::Jem::Presets::Gemfile.destination_wins
+  #   merger = Prism::Merge::SmartMerger.new(template, dest, **config.to_h)
+  #
+  # @example Using a Markdown preset with fenced code block handling
+  #   config = Kettle::Jem::Presets::Markdown.template_wins
+  #   merger = Markly::Merge::SmartMerger.new(template, dest, **config.to_h)
+  #
+  # @see Kettle::Jem::Presets
+  # @see Ast::Merge::MergerConfig
   module Jem
     # Base error class for all kettle-jem operations.
-    # All *-merge gems should have their Error class inherit from this.
     # @api public
     class Error < StandardError; end
+
+    # Autoload presets module
+    autoload :Presets, "kettle/jem/presets"
+
+    # Autoload classifier helpers
+    autoload :Classifiers, "kettle/jem/classifiers"
+
+    # Autoload signature generators
+    autoload :Signatures, "kettle/jem/signatures"
   end
 end
 
