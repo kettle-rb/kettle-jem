@@ -100,6 +100,9 @@ Gem::Specification.new do |spec|
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
+  # Merge infrastructure
+  spec.add_dependency("ast-merge", "~> 1.0")                            # ruby >= 2.7.0
+
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
   #       However, development dependencies in gemspec will install on

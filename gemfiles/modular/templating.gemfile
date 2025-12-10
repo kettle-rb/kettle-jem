@@ -1,0 +1,20 @@
+# frozen_string_literal: true
+
+# To retain during kettle-dev templating:
+#     kettle-dev:freeze
+#     # ... your code
+#     kettle-dev:unfreeze
+#
+
+# Ruby parsing for advanced templating
+if false # released gems are not released yet!
+  gem "prism-merge", "~> 1.1", ">= 1.1.6"  # ruby >= 2.7.0
+else
+  gem "ast-merge", path: "../../../../"
+  gem "dotenv-merge", path: "../../../dotenv-merge"
+  gem "json-merge", path: "../../../json-merge"
+  gem "markly-merge", path: "../../../markly-merge"
+  gem "psych-merge", path: "../../../psych-merge"
+  gem "rbs-merge", path: "../../../rbs-merge"
+  gem "prism-merge", path: "../../../prism-merge"
+end

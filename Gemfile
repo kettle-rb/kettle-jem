@@ -7,6 +7,10 @@ git_source(:gitlab) { |repo_name| "https://gitlab.com/#{repo_name}" }
 
 # Specify your gem's dependencies in kettle-gem.gemspec
 gemspec
+
+# Templating
+eval_gemfile "gemfiles/modular/templating.gemfile"
+
 eval_gemfile "gemfiles/modular/debug.gemfile"
 eval_gemfile "gemfiles/modular/coverage.gemfile"
 eval_gemfile "gemfiles/modular/style.gemfile"
