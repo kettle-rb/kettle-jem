@@ -4,7 +4,7 @@
 require "version_gem"
 
 # This gem - only version can be required (never autoloaded)
-require_relative "gem/version"
+require_relative "jem/version"
 
 module Kettle
   module Jem
@@ -12,7 +12,6 @@ module Kettle
     # All *-merge gems should have their Error class inherit from this.
     # @api public
     class Error < StandardError; end
-    end
   end
 end
 
