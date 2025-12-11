@@ -21,7 +21,7 @@ Gem::Specification.new do |spec|
   spec.name = "kettle-jem"
   spec.version = gem_version
   spec.authors = ["Peter H. Boling"]
-  spec.email = ["peter.boling@gmail.com"]
+  spec.email = ["floss@galtzo.com"]
 
   spec.summary = "☯️ A collection of Ast::Merge::MergeConfig presets and utilities for gem templating."
   spec.description = "☯️ A collection of Ast::Merge::MergeConfig presets and utilities for gem templating."
