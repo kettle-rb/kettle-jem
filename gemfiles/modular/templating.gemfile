@@ -13,6 +13,7 @@ else
   gem "ast-merge", path: "../../../../"
   gem "dotenv-merge", path: "../../../dotenv-merge"
   gem "json-merge", path: "../../../json-merge"
+  gem "markdown-merge", path: "../../../markdown-merge"
   gem "markly-merge", path: "../../../markly-merge"
   gem "psych-merge", path: "../../../psych-merge"
   gem "rbs-merge", path: "../../../rbs-merge"
