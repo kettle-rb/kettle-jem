@@ -31,7 +31,7 @@ module Kettle
               add_template_only_nodes: false,
               freeze_token: freeze_token || default_freeze_token,
               signature_generator: signature_generator,
-              node_typing: node_typing || default_node_typing
+              node_typing: node_typing || default_node_typing,
             )
           end
 
@@ -48,7 +48,7 @@ module Kettle
               add_template_only_nodes: true,
               freeze_token: freeze_token || default_freeze_token,
               signature_generator: signature_generator,
-              node_typing: node_typing || default_node_typing
+              node_typing: node_typing || default_node_typing,
             )
           end
 
@@ -65,7 +65,7 @@ module Kettle
               add_template_only_nodes: add_template_only,
               freeze_token: freeze_token || default_freeze_token,
               signature_generator: signature_generator,
-              node_typing: node_typing || default_node_typing
+              node_typing: node_typing || default_node_typing,
             )
           end
 

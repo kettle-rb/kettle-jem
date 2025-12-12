@@ -50,7 +50,7 @@ module Kettle
             Ast::Merge::MergerConfig.new(
               preference: :template,
               add_template_only_nodes: true,
-              freeze_token: default_freeze_token
+              freeze_token: default_freeze_token,
             )
           end
 
@@ -63,7 +63,7 @@ module Kettle
             Ast::Merge::MergerConfig.new(
               preference: :destination,
               add_template_only_nodes: true, # Add new vars from template
-              freeze_token: default_freeze_token
+              freeze_token: default_freeze_token,
             )
           end
         end

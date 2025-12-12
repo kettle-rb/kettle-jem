@@ -19,11 +19,11 @@ module Kettle
         # @param node [Object] A Prism AST node
         # @return [Ast::Merge::SectionTyping::TypedSection, nil]
         def classify(node)
-          return nil unless defined?(Prism) && node.is_a?(Prism::CallNode)
-          return nil unless node.name == :source
+          return unless defined?(Prism) && node.is_a?(Prism::CallNode)
+          return unless node.name == :source
 
           first_arg = node.arguments&.arguments&.first
-          return nil unless first_arg.respond_to?(:unescaped)
+          return unless first_arg.respond_to?(:unescaped)
 
           source_url = first_arg.unescaped
 
@@ -31,7 +31,7 @@ module Kettle
             type: :source,
             name: :source, # Singleton - always matches
             node: node,
-            metadata: { url: source_url }
+            metadata: {url: source_url},
           )
         end
       end

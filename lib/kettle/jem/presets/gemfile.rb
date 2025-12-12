@@ -51,7 +51,7 @@ module Kettle
                 merge_type = categorize_gem(gem_name)
 
                 merge_type ? Ast::Merge::NodeTyping.with_merge_type(node, merge_type) : node
-              }
+              },
             }
           end
 

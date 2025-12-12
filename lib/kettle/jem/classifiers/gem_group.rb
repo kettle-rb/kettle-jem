@@ -19,25 +19,25 @@ module Kettle
         # @param node [Object] A Prism AST node
         # @return [Ast::Merge::SectionTyping::TypedSection, nil]
         def classify(node)
-          return nil unless defined?(Prism) && node.is_a?(Prism::CallNode)
-          return nil unless node.name == :group
-          return nil unless node.block # Must have a block
+          return unless defined?(Prism) && node.is_a?(Prism::CallNode)
+          return unless node.name == :group
+          return unless node.block # Must have a block
 
           first_arg = node.arguments&.arguments&.first
           group_name = case first_arg
-                       when Prism::SymbolNode
-                         first_arg.unescaped.to_sym
-                       when Prism::StringNode
-                         first_arg.unescaped
-                       else
-                         return nil
-                       end
+          when Prism::SymbolNode
+            first_arg.unescaped.to_sym
+          when Prism::StringNode
+            first_arg.unescaped
+          else
+            return
+          end
 
           Ast::Merge::SectionTyping::TypedSection.new(
             type: :gem_group,
             name: group_name,
             node: node,
-            metadata: extract_metadata(node)
+            metadata: extract_metadata(node),
           )
         end
 
@@ -83,12 +83,12 @@ module Kettle
           return unless body
 
           children = if body.respond_to?(:body)
-                       Array(body.body)
-                     elsif body.respond_to?(:child_nodes)
-                       body.child_nodes
-                     else
-                       []
-                     end
+            Array(body.body)
+          elsif body.respond_to?(:child_nodes)
+            body.child_nodes
+          else
+            []
+          end
 
           children.compact.each do |child|
             yield child

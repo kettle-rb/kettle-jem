@@ -19,11 +19,11 @@ module Kettle
         # @param node [Object] A Prism AST node
         # @return [Ast::Merge::SectionTyping::TypedSection, nil]
         def classify(node)
-          return nil unless defined?(Prism) && node.is_a?(Prism::CallNode)
-          return nil unless node.name == :gem
+          return unless defined?(Prism) && node.is_a?(Prism::CallNode)
+          return unless node.name == :gem
 
           first_arg = node.arguments&.arguments&.first
-          return nil unless first_arg.respond_to?(:unescaped)
+          return unless first_arg.respond_to?(:unescaped)
 
           gem_name = first_arg.unescaped
 
@@ -31,7 +31,7 @@ module Kettle
             type: :gem,
             name: gem_name,
             node: node,
-            metadata: extract_metadata(node, gem_name)
+            metadata: extract_metadata(node, gem_name),
           )
         end
 
@@ -43,7 +43,7 @@ module Kettle
         # @param gem_name [String] The gem name
         # @return [Hash] Metadata about the gem
         def extract_metadata(node, gem_name)
-          metadata = { category: categorize_gem(gem_name) }
+          metadata = {category: categorize_gem(gem_name)}
 
           # Extract version constraint if present
           args = node.arguments&.arguments

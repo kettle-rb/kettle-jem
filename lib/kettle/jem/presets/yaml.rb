@@ -60,11 +60,11 @@ module Kettle
                 default: :destination,
                 env: :template,           # Environment vars from template
                 permissions: :template,   # Permissions from template
-                concurrency: :template    # Concurrency settings from template
+                concurrency: :template,    # Concurrency settings from template
               },
               add_template_only_nodes: true, # Add new jobs from template
               freeze_token: freeze_token || default_freeze_token,
-              signature_generator: workflow_signature_generator
+              signature_generator: workflow_signature_generator,
             )
           end
 
@@ -80,14 +80,14 @@ module Kettle
           def rubocop_config(freeze_token: nil)
             Ast::Merge::MergerConfig.new(
               preference: {
-                default: :destination,
-                inherit_from: :template,      # Template controls inheritance
-                inherit_mode: :template,      # Template controls inherit mode
-                require: :template,           # Template controls required extensions
-                "AllCops" => :destination     # Local AllCops customizations preserved
+                :default => :destination,
+                :inherit_from => :template,      # Template controls inheritance
+                :inherit_mode => :template,      # Template controls inherit mode
+                :require => :template,           # Template controls required extensions
+                "AllCops" => :destination,     # Local AllCops customizations preserved
               },
               add_template_only_nodes: false, # Don't add new cops from template
-              freeze_token: freeze_token || default_freeze_token
+              freeze_token: freeze_token || default_freeze_token,
             )
           end
 

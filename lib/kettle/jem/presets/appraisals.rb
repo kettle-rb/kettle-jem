@@ -53,7 +53,7 @@ module Kettle
                 merge_type = categorize_appraisal(appraisal_name)
 
                 merge_type ? Ast::Merge::NodeTyping.with_merge_type(node, merge_type) : node
-              }
+              },
             }
           end
 

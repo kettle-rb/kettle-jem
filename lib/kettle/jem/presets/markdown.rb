@@ -126,7 +126,7 @@ module Kettle
             merger = Markly::Merge::SmartMerger.new(
               template,
               dest,
-              **config.to_h
+              **config.to_h,
             )
             result = merger.merge
 
@@ -145,7 +145,7 @@ module Kettle
               "rb" => method(:merge_ruby_code),
               "yaml" => method(:merge_yaml_code),
               "yml" => method(:merge_yaml_code),
-              "json" => method(:merge_json_code)
+              "json" => method(:merge_json_code),
             }
           end
 
@@ -197,12 +197,12 @@ module Kettle
             merger = Prism::Merge::SmartMerger.new(
               template_code,
               dest_code,
-              **gemfile_config.to_h
+              **gemfile_config.to_h,
             )
             merger.merge
           rescue StandardError
             # Fall back to preference-based selection on error
-            preference == :template ? template_code : dest_code
+            (preference == :template) ? template_code : dest_code
           end
 
           # Merge YAML code blocks using psych-merge.
@@ -212,11 +212,11 @@ module Kettle
             merger = Psych::Merge::SmartMerger.new(
               template_code,
               dest_code,
-              preference: preference
+              preference: preference,
             )
             merger.merge
           rescue StandardError
-            preference == :template ? template_code : dest_code
+            (preference == :template) ? template_code : dest_code
           end
 
           # Merge JSON code blocks using json-merge.
@@ -226,11 +226,11 @@ module Kettle
             merger = JSON::Merge::SmartMerger.new(
               template_code,
               dest_code,
-              preference: preference
+              preference: preference,
             )
             merger.merge
           rescue StandardError
-            preference == :template ? template_code : dest_code
+            (preference == :template) ? template_code : dest_code
           end
         end
       end

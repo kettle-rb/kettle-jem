@@ -49,14 +49,14 @@ RSpec.describe Kettle::Jem::Presets::Gemfile do
   describe ".custom" do
     subject(:config) do
       described_class.custom(
-        preference: { default: :destination, lint_gem: :template },
+        preference: {default: :destination, lint_gem: :template},
         add_template_only: true,
-        freeze_token: "custom-token"
+        freeze_token: "custom-token",
       )
     end
 
     it "accepts custom preference" do
-      expect(config.preference).to eq({ default: :destination, lint_gem: :template })
+      expect(config.preference).to eq({default: :destination, lint_gem: :template})
     end
 
     it "accepts custom freeze token" do

@@ -1,0 +1,5 @@
+{
+  "spec/kettle/version_spec.rb:1260763734": [
+    [3, 1, 35, "RSpec/SpecFilePathFormat: Spec path should end with `kettle/jem/version*_spec.rb`.", 4162043278]
+  ]
+}

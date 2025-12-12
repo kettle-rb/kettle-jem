@@ -41,19 +41,19 @@ module Kettle
 
                 first_arg = node.arguments&.arguments&.first
                 task_name = case first_arg
-                            when ->(a) { a.respond_to?(:unescaped) }
-                              first_arg.unescaped.to_s
-                            when ->(a) { a.respond_to?(:elements) }
-                              # Handle task :name => [:deps]
-                              elem = first_arg.elements.first
-                              elem&.key&.respond_to?(:unescaped) ? elem.key.unescaped.to_s : nil
-                            end
+                when ->(a) { a.respond_to?(:unescaped) }
+                  first_arg.unescaped.to_s
+                when ->(a) { a.respond_to?(:elements) }
+                  # Handle task :name => [:deps]
+                  elem = first_arg.elements.first
+                  elem&.key&.respond_to?(:unescaped) ? elem.key.unescaped.to_s : nil
+                end
 
                 return node unless task_name
 
                 merge_type = categorize_task(task_name)
                 merge_type ? Ast::Merge::NodeTyping.with_merge_type(node, merge_type) : node
-              }
+              },
             }
           end
 

@@ -54,12 +54,12 @@ module Kettle
           def package_json_config(add_template_scripts: true)
             Ast::Merge::MergerConfig.new(
               preference: {
-                default: :destination,
+                :default => :destination,
                 "engines" => :template,       # Engine requirements from template
                 "license" => :template,       # License from template
-                "repository" => :template     # Repository info from template
+                "repository" => :template,     # Repository info from template
               },
-              add_template_only_nodes: add_template_scripts
+              add_template_only_nodes: add_template_scripts,
             )
           end
 
@@ -71,7 +71,7 @@ module Kettle
           def vscode_settings_config
             Ast::Merge::MergerConfig.new(
               preference: :destination,
-              add_template_only_nodes: true # Add new recommended settings
+              add_template_only_nodes: true, # Add new recommended settings
             )
           end
         end

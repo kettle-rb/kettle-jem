@@ -19,7 +19,7 @@ module Kettle
         # @param node [Object] A Prism AST node
         # @return [Ast::Merge::SectionTyping::TypedSection, nil]
         def classify(node)
-          return nil unless defined?(Prism)
+          return unless defined?(Prism)
 
           case node
           when Prism::DefNode
@@ -43,8 +43,8 @@ module Kettle
             metadata: {
               visibility: infer_visibility(node),
               has_params: node.parameters ? true : false,
-              param_count: count_parameters(node.parameters)
-            }
+              param_count: count_parameters(node.parameters),
+            },
           )
         end
 
@@ -59,8 +59,8 @@ module Kettle
             node: node,
             metadata: {
               has_params: node.parameters ? true : false,
-              param_count: count_parameters(node.parameters)
-            }
+              param_count: count_parameters(node.parameters),
+            },
           )
         end
 
