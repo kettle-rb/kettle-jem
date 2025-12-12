@@ -50,7 +50,7 @@ PATH
 PATH
   remote: ../prism-merge
   specs:
-    prism-merge (1.1.6)
+    prism-merge (2.0.0)
       ast-merge (~> 1.0)
       prism (~> 1.6)
       version_gem (~> 1.1, >= 1.1.9)
@@ -76,6 +76,13 @@ PATH
   specs:
     kettle-jem (1.0.0)
       ast-merge (~> 1.0)
+      dotenv-merge (~> 1.0)
+      json-merge (~> 1.0)
+      markdown-merge (~> 1.0)
+      markly-merge (~> 1.0)
+      prism-merge (~> 2.0)
+      psych-merge (~> 1.0)
+      rbs-merge (~> 1.0)
       version_gem (~> 1.1, >= 1.1.9)
 
 GEM
@@ -483,7 +490,7 @@ CHECKSUMS
   prawn (2.5.0) sha256=f4e20e3b4f30bf5b9ae37dad15eb421831594553aa930b2391b0fa0a99c43cb6
   prettyprint (0.2.0) sha256=2bc9e15581a94742064a3cc8b0fb9d45aae3d03a1baa6ef80922627a0766f193
   prism (1.6.0) sha256=bfc0281a81718c4872346bc858dc84abd3a60cae78336c65ad35c8fbff641c6b
-  prism-merge (1.1.6)
+  prism-merge (2.0.0)
   psych (5.3.0) sha256=8976a41ae29ea38c88356e862629345290347e3bfe27caf654f7c5a920e95eeb
   psych-merge (1.0.0)
   public_suffix (7.0.0) sha256=f7090b5beb0e56f9f10d79eed4d5fbe551b3b425da65877e075dad47a6a1b095
