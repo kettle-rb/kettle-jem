@@ -169,11 +169,85 @@ NOTE: Be prepared to track down certs for signed gems and add them the same way 
 
 ## ⚙️ Configuration
 
+Kettle::Jem provides pre-configured `Ast::Merge::MergerConfig` presets for common gem templating scenarios.
 
+### Freeze Token
+
+The default freeze token for kettle-jem is `kettle-dev`. This means freeze markers look like:
+
+```ruby
+# kettle-dev:freeze
+# ... content to preserve ...
+# kettle-dev:unfreeze
+```
+
+### Freeze Blocks in Ruby Files
+
+When using kettle-jem's merge configurations with Ruby files (gemspecs, Gemfiles, etc.), you can protect sections from being overwritten by the template using freeze markers.
+
+#### Block-Style Freeze (with matching markers)
+
+```ruby
+# kettle-dev:freeze
+gem "my-custom-gem", path: "../local-fork"
+gem "another-local-gem", git: "https://github.com/my-org/gem.git"
+# kettle-dev:unfreeze
+```
+
+#### Inline Freeze Comments
+
+You can also freeze a **single Ruby statement** by placing a freeze comment immediately before it:
+
+```ruby
+# kettle-dev:freeze
+gem "my-custom-gem", "~> 1.0"
+```
+
+**⚠️ Important:** When a freeze comment precedes a block-based statement (like a class, module, method definition, or DSL block), the **entire block is frozen**, preventing any template updates to that section:
+
+```ruby
+# kettle-dev:freeze
+class MyCustomClass
+  # EVERYTHING inside this class is frozen!
+  # Template changes to this class will be ignored.
+  def custom_method
+    # ...
+  end
+end
+
+# kettle-dev:freeze
+Gem::Specification.new do |spec|
+  # The entire gemspec block is frozen
+  # Use this carefully - it prevents ALL template updates!
+end
+```
+
+#### Matching Behavior
+
+Frozen statements are matched by their **structural identity**, not their content:
+
+- A frozen `gem "example"` matches `gem "example"` in the template (by gem name)
+- A frozen `spec.add_dependency "foo"` matches the same dependency in the template
+- A frozen `class Foo` matches `class Foo` in the template (by class name)
+
+The destination's frozen version is always preserved, regardless of changes in the template.
 
 ## 🔧 Basic Usage
 
+Kettle::Jem is primarily used through [kettle-dev](https://github.com/kettle-rb/kettle-dev) for gem templating. It provides:
 
+- **Gemspec merge configurations** - Smart merging of `.gemspec` files with gem-name-aware matching
+- **Gemfile merge configurations** - Smart merging of `Gemfile` and `Gemfile.lock`
+- **Appraisals merge configurations** - Smart merging of Appraisals files
+
+```ruby
+require "kettle/jem"
+
+# Get a pre-configured merger for gemspec files
+config = Kettle::Jem::GemspecConfig.new(freeze_token: "kettle-dev")
+merger = config.build_merger(template_content, destination_content)
+result = merger.merge
+```
 
 ## 🦷 FLOSS Funding
 
