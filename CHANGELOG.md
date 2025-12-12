@@ -20,6 +20,8 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Added
 
+- Initial release
+
 ### Changed
 
 ### Deprecated
@@ -30,6 +32,6 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Security
 
-## [0.1.0] - 2025-12-09
-
-- Initial release
+[Unreleased]: https://github.com/kettle-rb/kettle-jem/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/kettle-rb/kettle-jem/compare/401785c4a8aba52c4eb5a75f734a7f383f1bbb0f...v1.0.0
+[1.0.0t]: https://github.com/kettle-rb/kettle-jem/tags/v1.0.0
