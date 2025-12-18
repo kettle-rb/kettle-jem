@@ -81,11 +81,14 @@ Gem::Specification.new do |spec|
   # Listed files are the relative paths from bindir above.
   spec.executables = []
 
-  # Utilities
-  spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+  # Shared merge infrastructure
+  spec.add_dependency("ast-merge", "~> 1.0")                            # ruby >= 3.2.0
+
+  # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
+  spec.add_dependency("tree_haver", "~> 3.0")                           # ruby >= 3.2.0
 
   # Merge infrastructure
-  spec.add_dependency("ast-merge", "~> 1.0")                            # ruby >= 3.2.0
+  spec.add_dependency("bash-merge", "~> 1.0")                           # ruby >= 3.2.0
   spec.add_dependency("dotenv-merge", "~> 1.0")                         # ruby >= 3.2.0
   spec.add_dependency("json-merge", "~> 1.0")                           # ruby >= 3.2.0
   spec.add_dependency("markdown-merge", "~> 1.0")                       # ruby >= 3.2.0
@@ -93,6 +96,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency("prism-merge", "~> 2.0")                          # ruby >= 3.2.0
   spec.add_dependency("psych-merge", "~> 1.0")                          # ruby >= 3.2.0
   spec.add_dependency("rbs-merge", "~> 1.0")                            # ruby >= 3.2.0
+
+  # Utilities
+  spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
