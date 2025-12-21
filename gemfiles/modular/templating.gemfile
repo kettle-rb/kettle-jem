@@ -19,7 +19,7 @@ if ENV.fetch("KETTLE_RB_DEV", "false").casecmp?("true")
   gem "prism-merge", path: "../../../prism-merge"       # Ruby code blocks
   gem "psych-merge", path: "../../../psych-merge"       # YAML code blocks
   gem "rbs-merge", path: "../../../rbs-merge"           # RBS code blocks
-  gem "toml-merge", path: "../../../toml-merge"
+  gem "toml-merge", path: "../../../toml-merge"         # TOML code blocks
 else
   gem "bash-merge"      # dotenv code blocks
   gem "dotenv-merge"    # dotenv code blocks
