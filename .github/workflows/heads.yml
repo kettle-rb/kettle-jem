@@ -34,8 +34,7 @@ jobs:
     env:
       # $BUNDLE_GEMFILE must be set at job level, so it is set for all steps
       BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}.gemfile
-      # Set LD_LIBRARY_PATH globally for the job to ensure the dynamic linker finds the library
-      LD_LIBRARY_PATH: "/usr/lib/x86_64-linux-gnu:/usr/lib"
+      # Note: LD_LIBRARY_PATH is set by ts-grammar-action
     strategy:
       fail-fast: true
       matrix:
@@ -70,8 +69,13 @@ jobs:
         if: ${{ !env.ACT || (! startsWith(matrix.ruby, 'jruby') && !startsWith(matrix.ruby, 'truffleruby')) }}
         uses: actions/checkout@v6
 
-      - name: Install tree-sitter system library
-        run: sudo apt-get update && sudo apt-get install -y libtree-sitter-dev
+      - name: Install tree-sitter library
+        if: ${{ !env.ACT || (! startsWith(matrix.ruby, 'jruby') && !startsWith(matrix.ruby, 'truffleruby')) }}
+        uses: kettle-rb/ts-grammar-action@main
+        with:
+          # Install jtreesitter for JRuby's Java backend
+          setup-jtreesitter: ${{ startsWith(matrix.ruby, 'jruby') }}
+          java-version: "23"
 
       - name: Setup Ruby & RubyGems
         if: ${{ !env.ACT || (! startsWith(matrix.ruby, 'jruby') && !startsWith(matrix.ruby, 'truffleruby')) }}
