@@ -1,0 +1,31 @@
+# Rakefile Merge Recipe
+#
+# Provides intelligent merging for Rakefile and .rake files using prism-merge.
+# This recipe uses signature-based matching to identify task definitions
+# and namespace blocks.
+#
+# Usage:
+#   recipe = Kettle::Jem.recipe(:rakefile)
+#   runner = Ast::Merge::Recipe::Runner.new(recipe, dry_run: true)
+#   runner.run
+
+name: rakefile
+description: Intelligent Rakefile merging with task and namespace matching
+
+# Parser to use (prism-merge for Ruby files)
+parser: prism
+
+# Default merge behavior
+merge:
+  # For matching nodes, prefer template content
+  preference: template
+
+  # Add tasks from template that don't exist in destination
+  add_missing: true
+
+  # Custom signature generator for Rakefile matching
+  signature_generator: signature_generator.rb
+
+# Freeze token for preserving sections
+freeze_token: kettle-dev
+

@@ -1,0 +1,35 @@
+# Gemfile Merge Recipe
+#
+# Provides intelligent merging for Gemfile/bundler files using prism-merge.
+# This recipe uses signature-based matching to identify gem declarations
+# and merge them intelligently.
+#
+# Usage:
+#   recipe = Kettle::Jem.recipe(:gemfile)
+#   runner = Ast::Merge::Recipe::Runner.new(recipe, dry_run: true)
+#   runner.run
+
+name: gemfile
+description: Intelligent Gemfile merging with signature-based gem matching
+
+# Parser to use (prism-merge for Ruby files)
+parser: prism
+
+# Default merge behavior
+merge:
+  # For matching nodes, prefer template content
+  preference: template
+
+  # Add gems from template that don't exist in destination
+  add_missing: true
+
+  # Custom signature generator for gem matching
+  signature_generator: signature_generator.rb
+
+  # Node typing for gem categorization
+  node_typing:
+    CallNode: typing/call_node.rb
+
+# Freeze token for preserving sections
+freeze_token: kettle-dev
+

@@ -1,0 +1,31 @@
+# Gemspec Merge Recipe
+#
+# Provides intelligent merging for .gemspec files using prism-merge.
+# This recipe uses signature-based matching to identify gemspec
+# attribute assignments and dependency declarations.
+#
+# Usage:
+#   recipe = Kettle::Jem.recipe(:gemspec)
+#   runner = Ast::Merge::Recipe::Runner.new(recipe, dry_run: true)
+#   runner.run
+
+name: gemspec
+description: Intelligent gemspec merging with attribute and dependency matching
+
+# Parser to use (prism-merge for Ruby files)
+parser: prism
+
+# Default merge behavior
+merge:
+  # For matching nodes, prefer template content
+  preference: template
+
+  # Add attributes/dependencies from template that don't exist in destination
+  add_missing: true
+
+  # Custom signature generator for gemspec matching
+  signature_generator: signature_generator.rb
+
+# Freeze token for preserving sections
+freeze_token: kettle-dev
+
