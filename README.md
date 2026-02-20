@@ -28,7 +28,7 @@ I've summarized my thoughts in [this blog post](https://dev.to/galtzo/hostile-ta
 
 ## 🌻 Synopsis
 
-A collection of Ast::Merge::MergeConfig presets and utilities for gem templating.
+A collection of `Ast::Merge::MergerConfig` presets, YAML-based merge recipes, signature generators, and node typing classifiers for gem templating with the `*-merge` gem family.
 
 ### The `*-merge` Gem Family
 
@@ -293,7 +293,107 @@ NOTE: Be prepared to track down certs for signed gems and add them the same way 
 
 ## ⚙️ Configuration
 
-Kettle::Jem provides pre-configured `Ast::Merge::MergerConfig` presets for common gem templating scenarios.
+Kettle::Jem provides two complementary systems for merge configuration:
+
+1. **Presets** (Ruby classes) — Programmatic API with factory methods for in-process use
+2. **Recipes** (YAML files) — Distributable, declarative merge configurations that any project can ship and any `*-merge` consumer can load without additional Ruby instrumentation
+
+### Presets
+
+Presets are Ruby classes under `Kettle::Jem::Presets::*` that provide factory methods for creating `Ast::Merge::MergerConfig` objects. Each preset bundles a signature generator, node typing configuration, and freeze token appropriate for its file type. [kettle-dev][kettle-dev] uses presets internally to power its gem templating workflow.
+
+#### Available Presets
+
+| Preset | File Types | Merger | Signature Matching | Node Typing |
+|--------|-----------|--------|-------------------|-------------|
+| `Presets::Gemfile` | `Gemfile`, `*.gemfile` | prism-merge | `gem()` by name, `source()` singleton, `eval_gemfile()` by path, `git_source()` by name, `ruby()` singleton | Gem categorization (lint/test/doc/dev) |
+| `Presets::Appraisals` | `Appraisals` | prism-merge | Extends Gemfile + `appraise()` by name | Appraisal categorization (ruby_version/deps/feature/runtime) |
+| `Presets::Gemspec` | `*.gemspec` | prism-merge | `spec.*=` by attribute, `add_dependency` by gem name, `Gem::Specification.new` singleton | Attribute categorization (identity/metadata/files/deps/requirements) |
+| `Presets::Rakefile` | `Rakefile`, `*.rake` | prism-merge | `task()` by name, `namespace()` by name, `desc()` singleton | Task categorization (build/test/release/lint/doc) |
+| `Presets::Markdown` | `*.md` | markly-merge | Headings by level+text, tables by header, code blocks by language | — |
+| `Presets::Yaml` | `*.yml`, `*.yaml` | psych-merge | Key-based (internal to psych-merge) | — |
+| `Presets::Json` | `*.json` | json-merge | Key-based (internal to json-merge) | — |
+| `Presets::Rbs` | `*.rbs` | rbs-merge | Declaration-based (internal to rbs-merge) | — |
+| `Presets::Dotenv` | `.env*` | dotenv-merge | Variable name matching (internal to dotenv-merge) | — |
+
+Each preset provides three factory methods:
+
+- **`destination_wins`** — Preserve destination customizations; template-only content is skipped
+- **`template_wins`** — Apply template updates; template-only content is added
+- **`custom`** — Full control over preference, add_template_only, freeze_token, and node_typing
+
+### Recipes
+
+Recipes are self-contained YAML files designed to be **distributable units of merge knowledge**. A project can ship a recipe alongside its templates, allowing any consumer of the `*-merge` gem family to perform intelligent merges without writing Ruby merge logic.
+
+A simple recipe is just a YAML file — no companion folder or Ruby scripts required:
+
+```yaml
+name: my_config
+description: Merge YAML config files with destination preference
+parser: psych
+merge:
+  preference: destination
+  add_missing: true
+freeze_token: my-project
+```
+
+For advanced recipes that need custom signature matching or node categorization, a companion folder can optionally contain small Ruby scripts (signature generators, node typing lambdas) that are loaded on demand. The consumer only needs `ast-merge` to load and use them.
+
+#### Available Recipes
+
+| Recipe | YAML File | Parser | Description |
+|--------|-----------|--------|-------------|
+| `:gemfile` | `recipes/gemfile.yml` | `prism` | Gemfile merging with gem-name-aware signature matching and gem categorization node typing |
+| `:gemspec` | `recipes/gemspec.yml` | `prism` | Gemspec merging with attribute assignment and dependency matching |
+| `:rakefile` | `recipes/rakefile.yml` | `prism` | Rakefile merging with task/namespace/require matching |
+| `:appraisals` | `recipes/appraisals.yml` | `prism` | Appraisals merging extending Gemfile signatures with `appraise()` block matching |
+| `:markdown` | `recipes/markdown.yml` | `markly` | Markdown merging with heading, table, and code block matching |
+
+#### Recipe YAML Schema
+
+Each recipe YAML defines:
+
+- **`name`** — Recipe identifier
+- **`description`** — Human-readable description
+- **`parser`** — Which `*-merge` parser to use (`prism`, `markly`, etc.)
+- **`merge.preference`** — Default merge preference (`:template` or `:destination`)
+- **`merge.add_missing`** — Whether to add template-only nodes to the result
+- **`merge.signature_generator`** — Path to companion Ruby script (relative to recipe folder)
+- **`merge.node_typing`** — Hash mapping node class names to companion Ruby scripts
+- **`freeze_token`** — Token for freeze block preservation
+
+#### Shipping Your Own Recipes
+
+Any project can create and distribute recipes. A minimal recipe is a single YAML file:
+
+```
+my-project/
+  recipes/
+    my_format.yml
+```
+
+For recipes that need custom signature matching or node categorization, add a companion folder with Ruby scripts. The folder name must match the recipe name (without the `.yml` extension):
+
+```
+my-project/
+  recipes/
+    my_format.yml
+    my_format/                     # Optional companion folder
+      signature_generator.rb       # Returns a lambda for node matching
+      typing/
+        call_node.rb               # Returns a lambda for node categorization
+```
+
+Then consumers load it directly:
+
+```ruby
+preset = Ast::Merge::Recipe::Preset.load("path/to/my_format.yml")
+merger = Prism::Merge::SmartMerger.new(template, destination, **preset.to_h)
+result = merger.merge
+```
+
+No dependency on kettle-jem is required — only `ast-merge` and the appropriate `*-merge` gem for parsing.
 
 ### Freeze Token
 
@@ -357,20 +457,65 @@ Frozen statements are matched by their **structural identity**, not their conten
 
 ## 🔧 Basic Usage
 
-Kettle::Jem is primarily used through [kettle-dev][kettle-dev] for gem templating. It provides:
+### Using Presets
 
-- **Gemspec merge configurations** - Smart merging of `.gemspec` files with gem-name-aware matching
-- **Gemfile merge configurations** - Smart merging of `Gemfile` and `Gemfile.lock`
-- **Appraisals merge configurations** - Smart merging of Appraisals files
-
-<!-- end list -->
+Presets are the programmatic Ruby API, used by [kettle-dev][kettle-dev] for in-process gem templating:
 
 ```ruby
 require "kettle/jem"
 
-# Get a pre-configured merger for gemspec files
-config = Kettle::Jem::GemspecConfig.new(freeze_token: "kettle-dev")
-merger = config.build_merger(template_content, destination_content)
+# Merge a Gemfile with template preference
+config = Kettle::Jem::Presets::Gemfile.template_wins
+merger = Prism::Merge::SmartMerger.new(template_content, destination_content, **config.to_h)
+result = merger.merge
+
+# Merge a gemspec preserving destination customizations
+config = Kettle::Jem::Presets::Gemspec.destination_wins(freeze_token: "my-project")
+merger = Prism::Merge::SmartMerger.new(template_content, destination_content, **config.to_h)
+result = merger.merge
+
+# Merge Markdown with template priority
+config = Kettle::Jem::Presets::Markdown.template_wins
+merger = Markly::Merge::SmartMerger.new(template_content, destination_content, **config.to_h)
+result = merger.merge
+
+# Custom merge with per-type preferences
+config = Kettle::Jem::Presets::Gemspec.custom(
+  preference: {
+    default: :destination,
+    spec_metadata: :template,  # Update metadata from template
+  },
+  add_template_only: true,
+  freeze_token: "kettle-dev",
+)
+merger = Prism::Merge::SmartMerger.new(template_content, destination_content, **config.to_h)
+result = merger.merge
+```
+
+### Using Recipes
+
+Recipes provide a declarative, distributable approach to merge configuration. A project ships a recipe YAML (and companion scripts), and consumers load it without needing to write merge instrumentation in Ruby:
+
+```ruby
+require "kettle/jem"
+
+# Load a built-in recipe by name
+preset = Kettle::Jem.recipe(:gemfile)
+
+# Use it with a SmartMerger
+merger = Prism::Merge::SmartMerger.new(
+  template_content,
+  destination_content,
+  **preset.to_h,
+)
+result = merger.merge
+
+# List available built-in recipes
+Kettle::Jem.available_recipes  # => [:appraisals, :gemfile, :gemspec, :markdown, :rakefile]
+
+# Load a recipe from any path (no kettle-jem dependency needed — only ast-merge)
+preset = Ast::Merge::Recipe::Preset.load("/path/to/third-party/recipe.yml")
+merger = Prism::Merge::SmartMerger.new(template, destination, **preset.to_h)
 result = merger.merge
 ```
 
