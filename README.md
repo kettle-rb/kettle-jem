@@ -368,20 +368,20 @@ Each recipe YAML defines:
 Any project can create and distribute recipes. A minimal recipe is a single YAML file:
 
 ```
-my-project/
-  recipes/
-    my_format.yml
+my - project /
+  recipes /
+  my_format.yml
 ```
 
 For recipes that need custom signature matching or node categorization, add a companion folder with Ruby scripts. The folder name must match the recipe name (without the `.yml` extension):
 
 ```
-my-project/
-  recipes/
-    my_format.yml
+my - project /
+  recipes /
+  my_format.yml
     my_format/                     # Optional companion folder
       signature_generator.rb       # Returns a lambda for node matching
-      typing/
+      typing /
         call_node.rb               # Returns a lambda for node categorization
 ```
 
