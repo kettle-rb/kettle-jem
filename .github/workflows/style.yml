@@ -54,13 +54,8 @@ jobs:
           bundler: ${{ matrix.bundler }}
           bundler-cache: true
 
-      # Raw `bundle` will use the BUNDLE_GEMFILE set to matrix.gemfile (i.e. Appraisal.root)
-      # We need to do this first to get appraisal installed.
-      # NOTE: This does not use the primary Gemfile at all.
-      - name: Install Root Appraisal
-        run: bundle install
       - name: Appraisal for ${{ matrix.appraisal }}
-        run: bundle exec appraisal ${{ matrix.appraisal }} bundle
+        run: bundle exec appraisal ${{ matrix.appraisal }} install
       - name: Run ${{ matrix.appraisal }} checks via ${{ matrix.exec_cmd }}
         run: bundle exec appraisal ${{ matrix.appraisal }} bundle exec ${{ matrix.exec_cmd }}
       - name: Validate RBS Types
