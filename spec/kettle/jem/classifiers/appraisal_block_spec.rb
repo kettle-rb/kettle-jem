@@ -72,7 +72,7 @@ RSpec.describe Kettle::Jem::Classifiers::AppraisalBlock do
       <<~RUBY
         # frozen_string_literal: true
 
-        source "https://rubygems.org"
+        source "https://gem.coop"
 
         appraise "ruby-3-2" do
           gem "test"

@@ -1,0 +1,31 @@
+# Markdown Merge Recipe
+#
+# Provides intelligent merging for Markdown files using markly-merge.
+# This recipe uses signature-based matching for headings, tables,
+# code blocks, and other Markdown elements.
+#
+# Usage:
+#   recipe = Kettle::Jem.recipe(:markdown)
+#   runner = Ast::Merge::Recipe::Runner.new(recipe, dry_run: true)
+#   runner.run
+
+name: markdown
+description: Intelligent Markdown merging with heading and section matching
+
+# Parser to use (markly-merge for Markdown files)
+parser: markly
+
+# Default merge behavior
+merge:
+  # For matching nodes, prefer template content
+  preference: template
+
+  # Add sections from template that don't exist in destination
+  add_missing: true
+
+  # Custom signature generator for Markdown matching
+  signature_generator: signature_generator.rb
+
+# Freeze token for preserving sections (HTML comment syntax)
+freeze_token: kettle-dev
+

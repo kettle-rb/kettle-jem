@@ -49,7 +49,7 @@ RSpec.describe "SmartMerger gemfile integration" do
     # Additional test: source should come before gemspec even with leading comments
     it "positions source before other code statements regardless of dest order" do
       src = <<~SRC
-        source "https://rubygems.org"
+        source "https://gem.coop"
       SRC
 
       dest = <<~DEST
@@ -188,7 +188,7 @@ RSpec.describe "SmartMerger gemfile integration" do
     # Test with minimal SmartMerger config to isolate the issue
     it "adds template-only source before dest-only gemspec with add_template_only_nodes" do
       src = <<~SRC
-        source "https://rubygems.org"
+        source "https://gem.coop"
       SRC
 
       dest = <<~DEST
@@ -213,7 +213,7 @@ RSpec.describe "SmartMerger gemfile integration" do
       result = merger.merge
 
       lines = result.lines.reject(&:empty?)
-      expect(lines.first.strip).to eq('source "https://rubygems.org"'),
+      expect(lines.first.strip).to eq('source "https://gem.coop"'),
         "Expected source first, got: #{lines.first}\n\nFull result:\n#{result}"
     end
   end

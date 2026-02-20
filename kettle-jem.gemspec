@@ -81,18 +81,25 @@ Gem::Specification.new do |spec|
   # Listed files are the relative paths from bindir above.
   spec.executables = []
 
-  # Utilities
-  spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+  # Shared merge infrastructure
+  spec.add_dependency("ast-merge", "~> 4.0", ">= 4.0.6")                # ruby >= 3.2.0
+
+  # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
+  spec.add_dependency("tree_haver", "~> 5.0", ">= 5.0.5")               # ruby >= 3.2.0
 
   # Merge infrastructure
-  spec.add_dependency("ast-merge", "~> 1.0")                            # ruby >= 3.2.0
-  spec.add_dependency("dotenv-merge", "~> 1.0")                         # ruby >= 3.2.0
-  spec.add_dependency("json-merge", "~> 1.0")                           # ruby >= 3.2.0
-  spec.add_dependency("markdown-merge", "~> 1.0")                       # ruby >= 3.2.0
+  spec.add_dependency("bash-merge", "~> 2.0", ">= 2.0.6")               # ruby >= 3.2.0
+  spec.add_dependency("dotenv-merge", "~> 1.0", ">= 1.0.3")             # ruby >= 3.2.0
+  spec.add_dependency("jsonc-merge", "~> 1.0", ">= 1.0.1")              # ruby >= 3.2.0
+  spec.add_dependency("json-merge", "~> 1.1", ">= 1.1.2")               # ruby >= 3.2.0
+  spec.add_dependency("markdown-merge", "~> 1.0", ">= 1.0.3")           # ruby >= 3.2.0
   spec.add_dependency("markly-merge", "~> 1.0")                         # ruby >= 3.2.0
   spec.add_dependency("prism-merge", "~> 2.0")                          # ruby >= 3.2.0
   spec.add_dependency("psych-merge", "~> 1.0")                          # ruby >= 3.2.0
-  spec.add_dependency("rbs-merge", "~> 1.0")                            # ruby >= 3.2.0
+  spec.add_dependency("rbs-merge", "~> 2.0")                            # ruby >= 3.2.0
+
+  # Utilities
+  spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
@@ -120,12 +127,12 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency("require_bench", "~> 1.0", ">= 1.0.4")            # ruby >= 2.2.0
 
   # Testing
-  spec.add_development_dependency("appraisal2", "~> 3.0")                           # ruby >= 1.8.7, for testing against multiple versions of dependencies
-  spec.add_development_dependency("kettle-test", "~> 1.0", ">= 1.0.6")              # ruby >= 2.3
+  spec.add_development_dependency("appraisal2", "~> 3.0", ">= 3.0.6")               # ruby >= 1.8.7, for testing against multiple versions of dependencies
+  spec.add_development_dependency("kettle-test", "~> 1.0", ">= 1.0.10")              # ruby >= 2.3
 
   # Releasing
   spec.add_development_dependency("ruby-progressbar", "~> 1.13")                    # ruby >= 0
-  spec.add_development_dependency("stone_checksums", "~> 1.0", ">= 1.0.2")          # ruby >= 2.2.0
+  spec.add_development_dependency("stone_checksums", "~> 1.0", ">= 1.0.3")          # ruby >= 2.2.0
 
   # Git integration (optional)
   # The 'git' gem is optional; kettle-jem falls back to shelling out to `git` if it is not present.

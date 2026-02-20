@@ -52,6 +52,27 @@ module Kettle
 
     # Autoload signature generators
     autoload :Signatures, "kettle/jem/signatures"
+
+    # Autoload recipe loader for YAML-based recipes
+    autoload :RecipeLoader, "kettle/jem/recipe_loader"
+
+    class << self
+      # Load a recipe by name.
+      #
+      # @param name [Symbol, String] Recipe name (e.g., :gemfile, :gemspec)
+      # @return [Ast::Merge::Recipe::Config] Loaded recipe configuration
+      # @raise [ArgumentError] If recipe not found
+      def recipe(name)
+        RecipeLoader.load(name)
+      end
+
+      # List all available recipes.
+      #
+      # @return [Array<Symbol>]
+      def available_recipes
+        RecipeLoader.available
+      end
+    end
   end
 end
 
