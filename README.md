@@ -9,7 +9,7 @@
 
 # ☯️ Kettle::Jem
 
-[![Version][👽versioni]][👽dl-rank] [![GitHub tag (latest SemVer)][⛳️tag-img]][⛳️tag] [![License: MIT][📄license-img]][📄license-ref] [![Downloads Rank][👽dl-ranki]][👽dl-rank] [![Open Source Helpers][👽oss-helpi]][👽oss-help] [![CodeCov Test Coverage][🏀codecovi]][🏀codecov] [![Coveralls Test Coverage][🏀coveralls-img]][🏀coveralls] [![QLTY Test Coverage][🏀qlty-covi]][🏀qlty-cov] [![QLTY Maintainability][🏀qlty-mnti]][🏀qlty-mnt] [![CI Heads][🚎3-hd-wfi]][🚎3-hd-wf] [![CI Runtime Dependencies @ HEAD][🚎12-crh-wfi]][🚎12-crh-wf] [![CI Current][🚎11-c-wfi]][🚎11-c-wf] [![CI Truffle Ruby][🚎9-t-wfi]][🚎9-t-wf] [![Deps Locked][🚎13-🔒️-wfi]][🚎13-🔒️-wf] [![Deps Unlocked][🚎14-🔓️-wfi]][🚎14-🔓️-wf] [![CI Supported][🚎6-s-wfi]][🚎6-s-wf] [![CI Test Coverage][🚎2-cov-wfi]][🚎2-cov-wf] [![CI Style][🚎5-st-wfi]][🚎5-st-wf] [![CodeQL][🖐codeQL-img]][🖐codeQL] [![Apache SkyWalking Eyes License Compatibility Check][🚎15-🪪-wfi]][🚎15-🪪-wf]
+[![Version][👽versioni]][👽dl-rank] [![GitHub tag (latest SemVer)][⛳️tag-img]][⛳️tag] [![License: MIT][📄license-img]][📄license-ref] [![Downloads Rank][👽dl-ranki]][👽dl-rank] [![Open Source Helpers][👽oss-helpi]][👽oss-help] [![CodeCov Test Coverage][🏀codecovi]][🏀codecov] [![Coveralls Test Coverage][🏀coveralls-img]][🏀coveralls] [![QLTY Test Coverage][🏀qlty-covi]][🏀qlty-cov] [![QLTY Maintainability][🏀qlty-mnti]][🏀qlty-mnt] [![CI Heads][🚎3-hd-wfi]][🚎3-hd-wf] [![CI Runtime Dependencies @ HEAD][🚎12-crh-wfi]][🚎12-crh-wf] [![CI Current][🚎11-c-wfi]][🚎11-c-wf] [![Deps Locked][🚎13-🔒️-wfi]][🚎13-🔒️-wf] [![Deps Unlocked][🚎14-🔓️-wfi]][🚎14-🔓️-wf] [![CI Supported][🚎6-s-wfi]][🚎6-s-wf] [![CI Test Coverage][🚎2-cov-wfi]][🚎2-cov-wf] [![CI Style][🚎5-st-wfi]][🚎5-st-wf] [![CodeQL][🖐codeQL-img]][🖐codeQL] [![Apache SkyWalking Eyes License Compatibility Check][🚎15-🪪-wfi]][🚎15-🪪-wf]
 
 `if ci_badges.map(&:color).detect { it != "green"}` ☝️ [let me know][🖼️galtzo-discord], as I may have missed the [discord notification][🖼️galtzo-discord].
 
@@ -179,38 +179,36 @@ tree_haver supports multiple parsing backends, but not all backends work on all 
 
 ## 💡 Info you can shake a stick at
 
-| Tokens to Remember | [![Gem name][⛳️name-img]][👽dl-rank] [![Gem namespace][⛳️namespace-img]][📜src-gh] |
-| --- | --- |
-| Works with JRuby | [![JRuby 10.0 Compat][💎jruby-c-i]][🚎11-c-wf] [![JRuby HEAD Compat][💎jruby-headi]][🚎3-hd-wf] |
-| Works with Truffle Ruby | [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] [![Truffle Ruby 24.1 Compat][💎truby-c-i]][🚎11-c-wf] |
-| Works with MRI Ruby 3 | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby 3.4 Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf] |
-| Support & Community | [![Join Me on Daily.dev's RubyFriends][✉️ruby-friends-img]][✉️ruby-friends] [![Live Chat on Discord][✉️discord-invite-img-ftb]][🖼️galtzo-discord] [![Get help from me on Upwork][👨🏼‍🏫expsup-upwork-img]][👨🏼‍🏫expsup-upwork] [![Get help from me on Codementor][👨🏼‍🏫expsup-codementor-img]][👨🏼‍🏫expsup-codementor] |
-| Source | [![Source on GitLab.com][📜src-gl-img]][📜src-gl] [![Source on CodeBerg.org][📜src-cb-img]][📜src-cb] [![Source on Github.com][📜src-gh-img]][📜src-gh] [![The best SHA: dQw4w9WgXcQ\!][🧮kloc-img]][🧮kloc] |
-| Documentation | [![Current release on RubyDoc.info][📜docs-cr-rd-img]][🚎yard-current] [![YARD on Galtzo.com][📜docs-head-rd-img]][🚎yard-head] [![Maintainer Blog][🚂maint-blog-img]][🚂maint-blog] [![GitLab Wiki][📜gl-wiki-img]][📜gl-wiki] [![GitHub Wiki][📜gh-wiki-img]][📜gh-wiki] |
-| Compliance | [![License: MIT][📄license-img]][📄license-ref] [![Compatible with Apache Software Projects: Verified by SkyWalking Eyes][📄license-compat-img]][📄license-compat] [![📄ilo-declaration-img][📄ilo-declaration-img]][📄ilo-declaration] [![Security Policy][🔐security-img]][🔐security] [![Contributor Covenant 2.1][🪇conduct-img]][🪇conduct] [![SemVer 2.0.0][📌semver-img]][📌semver] |
-| Style | [![Enforced Code Style Linter][💎rlts-img]][💎rlts] [![Keep-A-Changelog 1.0.0][📗keep-changelog-img]][📗keep-changelog] [![Gitmoji Commits][📌gitmoji-img]][📌gitmoji] [![Compatibility appraised by: appraisal2][💎appraisal2-img]][💎appraisal2] |
-| Maintainer 🎖️ | [![Follow Me on LinkedIn][💖🖇linkedin-img]][💖🖇linkedin] [![Follow Me on Ruby.Social][💖🐘ruby-mast-img]][💖🐘ruby-mast] [![Follow Me on Bluesky][💖🦋bluesky-img]][💖🦋bluesky] [![Contact Maintainer][🚂maint-contact-img]][🚂maint-contact] [![My technical writing][💖💁🏼‍♂️devto-img]][💖💁🏼‍♂️devto] |
-| `...` 💖 | [![Find Me on WellFound:][💖✌️wellfound-img]][💖✌️wellfound] [![Find Me on CrunchBase][💖💲crunchbase-img]][💖💲crunchbase] [![My LinkTree][💖🌳linktree-img]][💖🌳linktree] [![More About Me][💖💁🏼‍♂️aboutme-img]][💖💁🏼‍♂️aboutme] [🧊][💖🧊berg] [🐙][💖🐙hub]  [🛖][💖🛖hut] [🧪][💖🧪lab] |
+| Tokens to Remember    | [![Gem name][⛳️name-img]][👽dl-rank] [![Gem namespace][⛳️namespace-img]][📜src-gh]                                                                                                                                                                                                                                                                                                         |
+|-----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Works with MRI Ruby 3 | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby 3.4 Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf]                                                                                                                                                                                                         |
+| Support & Community   | [![Join Me on Daily.dev's RubyFriends][✉️ruby-friends-img]][✉️ruby-friends] [![Live Chat on Discord][✉️discord-invite-img-ftb]][🖼️galtzo-discord] [![Get help from me on Upwork][👨🏼‍🏫expsup-upwork-img]][👨🏼‍🏫expsup-upwork] [![Get help from me on Codementor][👨🏼‍🏫expsup-codementor-img]][👨🏼‍🏫expsup-codementor]                                                             |
+| Source                | [![Source on GitLab.com][📜src-gl-img]][📜src-gl] [![Source on CodeBerg.org][📜src-cb-img]][📜src-cb] [![Source on Github.com][📜src-gh-img]][📜src-gh] [![The best SHA: dQw4w9WgXcQ\!][🧮kloc-img]][🧮kloc]                                                                                                                                                                               |
+| Documentation         | [![Current release on RubyDoc.info][📜docs-cr-rd-img]][🚎yard-current] [![YARD on Galtzo.com][📜docs-head-rd-img]][🚎yard-head] [![Maintainer Blog][🚂maint-blog-img]][🚂maint-blog] [![GitLab Wiki][📜gl-wiki-img]][📜gl-wiki] [![GitHub Wiki][📜gh-wiki-img]][📜gh-wiki]                                                                                                                 |
+| Compliance            | [![License: MIT][📄license-img]][📄license-ref] [![Compatible with Apache Software Projects: Verified by SkyWalking Eyes][📄license-compat-img]][📄license-compat] [![📄ilo-declaration-img][📄ilo-declaration-img]][📄ilo-declaration] [![Security Policy][🔐security-img]][🔐security] [![Contributor Covenant 2.1][🪇conduct-img]][🪇conduct] [![SemVer 2.0.0][📌semver-img]][📌semver] |
+| Style                 | [![Enforced Code Style Linter][💎rlts-img]][💎rlts] [![Keep-A-Changelog 1.0.0][📗keep-changelog-img]][📗keep-changelog] [![Gitmoji Commits][📌gitmoji-img]][📌gitmoji] [![Compatibility appraised by: appraisal2][💎appraisal2-img]][💎appraisal2]                                                                                                                                         |
+| Maintainer 🎖️        | [![Follow Me on LinkedIn][💖🖇linkedin-img]][💖🖇linkedin] [![Follow Me on Ruby.Social][💖🐘ruby-mast-img]][💖🐘ruby-mast] [![Follow Me on Bluesky][💖🦋bluesky-img]][💖🦋bluesky] [![Contact Maintainer][🚂maint-contact-img]][🚂maint-contact] [![My technical writing][💖💁🏼‍♂️devto-img]][💖💁🏼‍♂️devto]                                                                             |
+| `...` 💖              | [![Find Me on WellFound:][💖✌️wellfound-img]][💖✌️wellfound] [![Find Me on CrunchBase][💖💲crunchbase-img]][💖💲crunchbase] [![My LinkTree][💖🌳linktree-img]][💖🌳linktree] [![More About Me][💖💁🏼‍♂️aboutme-img]][💖💁🏼‍♂️aboutme] [🧊][💖🧊berg] [🐙][💖🐙hub]  [🛖][💖🛖hut] [🧪][💖🧪lab]                                                                                          |
 
 ### Compatibility
 
-Compatible with MRI Ruby 3.2.0+, and concordant releases of JRuby, and TruffleRuby.
+Compatible with MRI Ruby 3.2.0+. Due to constraints of dependencies it will not install on JRuby or TruffleRuby.
 
-| 🚚 *Amazing* test matrix was brought to you by | 🔎 appraisal2 🔎 and the color 💚 green 💚 |
-| --- | --- |
-| 👟 Check it out\! | ✨ [github.com/appraisal-rb/appraisal2][💎appraisal2] ✨ |
+| 🚚 *Amazing* test matrix was brought to you by | 🔎 appraisal2 🔎 and the color 💚 green 💚             |
+|------------------------------------------------|--------------------------------------------------------|
+| 👟 Check it out\!                              | ✨ [github.com/appraisal-rb/appraisal2][💎appraisal2] ✨ |
 
 ### Federated DVCS
 
 <details markdown="1">
   <summary>Find this repo on federated forges (Coming soon!)</summary>
 
-| Federated [DVCS][💎d-in-dvcs] Repository | Status | Issues | PRs | Wiki | CI | Discussions |
-| --- | --- | --- | --- | --- | --- | --- |
-| 🧪 [kettle-rb/kettle-jem on GitLab][📜src-gl] | The Truth | [💚][🤝gl-issues] | [💚][🤝gl-pulls] | [💚][📜gl-wiki] | 🐭 Tiny Matrix | ➖ |
-| 🧊 [kettle-rb/kettle-jem on CodeBerg][📜src-cb] | An Ethical Mirror ([Donate][🤝cb-donate]) | [💚][🤝cb-issues] | [💚][🤝cb-pulls] | ➖ | ⭕️ No Matrix | ➖ |
-| 🐙 [kettle-rb/kettle-jem on GitHub][📜src-gh] | Another Mirror | [💚][🤝gh-issues] | [💚][🤝gh-pulls] | [💚][📜gh-wiki] | 💯 Full Matrix | [💚][gh-discussions] |
-| 🎮️ [Discord Server][🖼️galtzo-discord] | [![Live Chat on Discord][✉️discord-invite-img-ftb]][🖼️galtzo-discord] | [Let's][🖼️galtzo-discord] | [talk][🖼️galtzo-discord] | [about][🖼️galtzo-discord] | [this][🖼️galtzo-discord] | [library\!][🖼️galtzo-discord] |
+| Federated [DVCS][💎d-in-dvcs] Repository        | Status                                                                 | Issues                     | PRs                       | Wiki                       | CI                        | Discussions                    |
+|-------------------------------------------------|------------------------------------------------------------------------|----------------------------|---------------------------|----------------------------|---------------------------|--------------------------------|
+| 🧪 [kettle-rb/kettle-jem on GitLab][📜src-gl]   | The Truth                                                              | [💚][🤝gl-issues]          | [💚][🤝gl-pulls]          | [💚][📜gl-wiki]            | 🐭 Tiny Matrix            | ➖                              |
+| 🧊 [kettle-rb/kettle-jem on CodeBerg][📜src-cb] | An Ethical Mirror ([Donate][🤝cb-donate])                              | [💚][🤝cb-issues]          | [💚][🤝cb-pulls]          | ➖                          | ⭕️ No Matrix              | ➖                              |
+| 🐙 [kettle-rb/kettle-jem on GitHub][📜src-gh]   | Another Mirror                                                         | [💚][🤝gh-issues]          | [💚][🤝gh-pulls]          | [💚][📜gh-wiki]            | 💯 Full Matrix            | [💚][gh-discussions]           |
+| 🎮️ [Discord Server][🖼️galtzo-discord]         | [![Live Chat on Discord][✉️discord-invite-img-ftb]][🖼️galtzo-discord] | [Let's][🖼️galtzo-discord] | [talk][🖼️galtzo-discord] | [about][🖼️galtzo-discord] | [this][🖼️galtzo-discord] | [library\!][🖼️galtzo-discord] |
 
 </details>
 
@@ -304,17 +302,17 @@ Presets are Ruby classes under `Kettle::Jem::Presets::*` that provide factory me
 
 #### Available Presets
 
-| Preset | File Types | Merger | Signature Matching | Node Typing |
-|--------|-----------|--------|-------------------|-------------|
-| `Presets::Gemfile` | `Gemfile`, `*.gemfile` | prism-merge | `gem()` by name, `source()` singleton, `eval_gemfile()` by path, `git_source()` by name, `ruby()` singleton | Gem categorization (lint/test/doc/dev) |
-| `Presets::Appraisals` | `Appraisals` | prism-merge | Extends Gemfile + `appraise()` by name | Appraisal categorization (ruby_version/deps/feature/runtime) |
-| `Presets::Gemspec` | `*.gemspec` | prism-merge | `spec.*=` by attribute, `add_dependency` by gem name, `Gem::Specification.new` singleton | Attribute categorization (identity/metadata/files/deps/requirements) |
-| `Presets::Rakefile` | `Rakefile`, `*.rake` | prism-merge | `task()` by name, `namespace()` by name, `desc()` singleton | Task categorization (build/test/release/lint/doc) |
-| `Presets::Markdown` | `*.md` | markly-merge | Headings by level+text, tables by header, code blocks by language | — |
-| `Presets::Yaml` | `*.yml`, `*.yaml` | psych-merge | Key-based (internal to psych-merge) | — |
-| `Presets::Json` | `*.json` | json-merge | Key-based (internal to json-merge) | — |
-| `Presets::Rbs` | `*.rbs` | rbs-merge | Declaration-based (internal to rbs-merge) | — |
-| `Presets::Dotenv` | `.env*` | dotenv-merge | Variable name matching (internal to dotenv-merge) | — |
+| Preset                | File Types             | Merger       | Signature Matching                                                                                          | Node Typing                                                          |
+|-----------------------|------------------------|--------------|-------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
+| `Presets::Gemfile`    | `Gemfile`, `*.gemfile` | prism-merge  | `gem()` by name, `source()` singleton, `eval_gemfile()` by path, `git_source()` by name, `ruby()` singleton | Gem categorization (lint/test/doc/dev)                               |
+| `Presets::Appraisals` | `Appraisals`           | prism-merge  | Extends Gemfile + `appraise()` by name                                                                      | Appraisal categorization (ruby_version/deps/feature/runtime)         |
+| `Presets::Gemspec`    | `*.gemspec`            | prism-merge  | `spec.*=` by attribute, `add_dependency` by gem name, `Gem::Specification.new` singleton                    | Attribute categorization (identity/metadata/files/deps/requirements) |
+| `Presets::Rakefile`   | `Rakefile`, `*.rake`   | prism-merge  | `task()` by name, `namespace()` by name, `desc()` singleton                                                 | Task categorization (build/test/release/lint/doc)                    |
+| `Presets::Markdown`   | `*.md`                 | markly-merge | Headings by level+text, tables by header, code blocks by language                                           | —                                                                    |
+| `Presets::Yaml`       | `*.yml`, `*.yaml`      | psych-merge  | Key-based (internal to psych-merge)                                                                         | —                                                                    |
+| `Presets::Json`       | `*.json`               | json-merge   | Key-based (internal to json-merge)                                                                          | —                                                                    |
+| `Presets::Rbs`        | `*.rbs`                | rbs-merge    | Declaration-based (internal to rbs-merge)                                                                   | —                                                                    |
+| `Presets::Dotenv`     | `.env*`                | dotenv-merge | Variable name matching (internal to dotenv-merge)                                                           | —                                                                    |
 
 Each preset provides three factory methods:
 
@@ -342,13 +340,13 @@ For advanced recipes that need custom signature matching or node categorization,
 
 #### Available Recipes
 
-| Recipe | YAML File | Parser | Description |
-|--------|-----------|--------|-------------|
-| `:gemfile` | `recipes/gemfile.yml` | `prism` | Gemfile merging with gem-name-aware signature matching and gem categorization node typing |
-| `:gemspec` | `recipes/gemspec.yml` | `prism` | Gemspec merging with attribute assignment and dependency matching |
-| `:rakefile` | `recipes/rakefile.yml` | `prism` | Rakefile merging with task/namespace/require matching |
-| `:appraisals` | `recipes/appraisals.yml` | `prism` | Appraisals merging extending Gemfile signatures with `appraise()` block matching |
-| `:markdown` | `recipes/markdown.yml` | `markly` | Markdown merging with heading, table, and code block matching |
+| Recipe        | YAML File                | Parser   | Description                                                                               |
+|---------------|--------------------------|----------|-------------------------------------------------------------------------------------------|
+| `:gemfile`    | `recipes/gemfile.yml`    | `prism`  | Gemfile merging with gem-name-aware signature matching and gem categorization node typing |
+| `:gemspec`    | `recipes/gemspec.yml`    | `prism`  | Gemspec merging with attribute assignment and dependency matching                         |
+| `:rakefile`   | `recipes/rakefile.yml`   | `prism`  | Rakefile merging with task/namespace/require matching                                     |
+| `:appraisals` | `recipes/appraisals.yml` | `prism`  | Appraisals merging extending Gemfile signatures with `appraise()` block matching          |
+| `:markdown`   | `recipes/markdown.yml`   | `markly` | Markdown merging with heading, table, and code block matching                             |
 
 #### Recipe YAML Schema
 
@@ -538,8 +536,8 @@ You can support the development of kettle-rb tools via
 [Open Collective][🖇osc]
 and [Tidelift][🏙️entsup-tidelift].
 
-| 📍 NOTE |
-| --- |
+| 📍 NOTE                                                                                                                                                                                                              |
+|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | If doing a sponsorship in the form of donation is problematic for your company <br/> from an accounting standpoint, we'd recommend the use of Tidelift, <br/> where you can get a support-like subscription instead. |
 
 ### Open Collective for Individuals
@@ -675,7 +673,7 @@ See [LICENSE.txt][📄license] for the official [Copyright Notice][📄copyright
 
 <ul>
     <li>
-        Copyright (c) 2025 Peter H. Boling, of
+        Copyright (c) 2025 - 2026 Peter H. Boling, of
         <a href="https://discord.gg/3qme4XHNKN">
             Galtzo.com
             <picture>
