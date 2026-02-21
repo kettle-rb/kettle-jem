@@ -385,12 +385,21 @@ module Kettle
         result_prefix + new_call + result_suffix
       end
 
+      # Escape a string for safe inclusion in a Ruby double-quoted literal.
+      # Backslashes are escaped first so they cannot act as escape prefixes
+      # for the subsequent quote-escaping pass.
+      # @param str [#to_s]
+      # @return [String]
+      def escape_double_quoted_string(str)
+        str.to_s.gsub('\\', '\\\\').gsub('"', '\\"')
+      end
+
       def build_literal_value(v)
         if v.is_a?(Array)
-          arr = v.compact.map(&:to_s).map { |e| '"' + e.gsub('\\', '\\\\').gsub('"', '\\"') + '"' }
+          arr = v.compact.map { |e| '"' + escape_double_quoted_string(e) + '"' }
           "[" + arr.join(", ") + "]"
         else
-          '"' + v.to_s.gsub('\\', '\\\\').gsub('"', '\\"') + '"'
+          '"' + escape_double_quoted_string(v) + '"'
         end
       end
 
