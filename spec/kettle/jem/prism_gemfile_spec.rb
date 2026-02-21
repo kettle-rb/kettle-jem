@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require "spec_helper"
-require "kettle/dev/prism_gemfile"
+require "kettle/jem/prism_gemfile"
 
 RSpec.describe Kettle::Jem::PrismGemfile do
   describe ".merge_gem_calls" do

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require "spec_helper"
-require "kettle/dev/prism_gemspec"
+require "kettle/jem/prism_gemspec"
 
 RSpec.describe Kettle::Jem::PrismGemspec do
   describe ".replace_gemspec_fields" do

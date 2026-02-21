@@ -43,6 +43,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -84,6 +87,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
               end
             GEMSPEC
@@ -103,15 +109,15 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "replaces {TARGET|GEM|NAME} token in .envrc files" do
+      it "replaces {KJ|GEM_NAME} token in .envrc files" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             # Create .envrc.example with the token
             File.write(File.join(gem_root, ".envrc.example"), <<~ENVRC)
               export DEBUG=false
-              # If {TARGET|GEM|NAME} does not have an open source collective set these to false.
-              export OPENCOLLECTIVE_HANDLE={OPENCOLLECTIVE|ORG_NAME}
-              export FUNDING_ORG={OPENCOLLECTIVE|ORG_NAME}
+              # If {KJ|GEM_NAME} does not have an open source collective set these to false.
+              export OPENCOLLECTIVE_HANDLE={KJ|OPENCOLLECTIVE_ORG}
+              export FUNDING_ORG={KJ|OPENCOLLECTIVE_ORG}
               dotenv_if_exists .env.local
             ENVRC
 
@@ -119,6 +125,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "my-awesome-gem.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "my-awesome-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/coolorg/my-awesome-gem"
               end
@@ -140,10 +149,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             envrc_dest = File.join(project_root, ".envrc")
             expect(File).to exist(envrc_dest)
 
-            # Assert {TARGET|GEM|NAME} was replaced with the actual gem name
+            # Assert {KJ|GEM_NAME} was replaced with the actual gem name
             envrc_content = File.read(envrc_dest)
             expect(envrc_content).to include("# If my-awesome-gem does not have an open source collective")
-            expect(envrc_content).not_to include("{TARGET|GEM|NAME}")
+            expect(envrc_content).not_to include("{KJ|GEM_NAME}")
 
             # Assert other tokens were also replaced (from apply_common_replacements)
             expect(envrc_content).to include("export OPENCOLLECTIVE_HANDLE=coolorg")
@@ -162,11 +171,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
                 gem "rubocop-lts", path: "src/rubocop-lts/rubocop-lts"
                 gem "rubocop-lts-rspec", path: "src/rubocop-lts/rubocop-lts-rspec"
-                gem "{RUBOCOP|RUBY|GEM}", path: "src/rubocop-lts/{RUBOCOP|RUBY|GEM}"
+                gem "{KJ|RUBOCOP_RUBY_GEM}", path: "src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
                 gem "standard-rubocop-lts", path: "src/rubocop-lts/standard-rubocop-lts"
               else
-                gem "rubocop-lts", "{RUBOCOP|LTS|CONSTRAINT}"
-                gem "{RUBOCOP|RUBY|GEM}"
+                gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+                gem "{KJ|RUBOCOP_RUBY_GEM}"
                 gem "rubocop-rspec", "~> 3.6"
               end
             GEMFILE
@@ -174,6 +183,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.2"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -206,11 +218,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
                 gem "rubocop-lts", path: "src/rubocop-lts/rubocop-lts"
                 gem "rubocop-lts-rspec", path: "src/rubocop-lts/rubocop-lts-rspec"
-                gem "{RUBOCOP|RUBY|GEM}", path: "src/rubocop-lts/{RUBOCOP|RUBY|GEM}"
+                gem "{KJ|RUBOCOP_RUBY_GEM}", path: "src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
                 gem "standard-rubocop-lts", path: "src/rubocop-lts/standard-rubocop-lts"
               else
-                gem "rubocop-lts", "{RUBOCOP|LTS|CONSTRAINT}"
-                gem "{RUBOCOP|RUBY|GEM}"
+                gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+                gem "{KJ|RUBOCOP_RUBY_GEM}"
                 gem "rubocop-rspec", "~> 3.6"
               end
             GEMFILE
@@ -260,6 +272,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~G)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -299,6 +314,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -334,6 +352,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
               end
             GEMSPEC
@@ -401,6 +422,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -427,15 +451,15 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "copies kettle-dev.gemspec.example to <gem_name>.gemspec with substitutions" do
+      it "copies kettle-jem.gemspec.example to <gem_name>.gemspec with substitutions" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Provide a kettle-dev.gemspec.example with tokens to be replaced
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            # Provide a kettle-jem.gemspec.example with tokens to be replaced
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
-                spec.name = "kettle-dev"
+                spec.name = "{KJ|GEM_NAME}"
                 # Namespace token example
-                Kettle::Dev
+                {KJ|NAMESPACE}
               end
             GEMSPEC
 
@@ -443,6 +467,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/my-gem"
               end
@@ -470,7 +497,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             # Template gemspec includes dependencies on the template gem name
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.add_dependency("kettle-dev", "~> 1.0")
@@ -485,6 +512,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/my-gem"
               end
@@ -514,11 +544,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "when gem_name is missing, falls back to first existing *.gemspec in project" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Provide template gemspec example
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            # Provide template gemspec example with tokens
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
-                spec.name = "kettle-dev"
-                Kettle::Dev
+                spec.name = "{KJ|GEM_NAME}"
+                {KJ|NAMESPACE}
               end
             GEMSPEC
 
@@ -526,6 +556,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "existing.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "existing"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
                 spec.homepage = "https://github.com/acme/existing"
               end
             GEMSPEC
@@ -544,11 +577,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             dest = File.join(project_root, "existing.gemspec")
             expect(File).to exist(dest)
             txt = File.read(dest)
-            # Replacements applied (namespace, org, etc.). With no gem_name, namespace remains derived from empty -> should still replace Kettle::Dev
+            # Token replacements applied
             expect(txt).to include("existing")
-            # Allow "kettle-dev" in freeze reminder comments, but verify actual code was replaced
-            expect(txt).not_to include('spec.name = "kettle-dev"')
-            expect(txt).not_to include("Kettle::Dev")
+            # Tokens should be resolved
+            expect(txt).not_to include('{KJ|GEM_NAME}')
+            expect(txt).not_to include("{KJ|NAMESPACE}")
           end
         end
       end
@@ -557,7 +590,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             # Provide template example only
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 Kettle::Dev
@@ -574,11 +607,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             described_class.run
 
-            # Should write kettle-dev.gemspec (no .example)
-            dest = File.join(project_root, "kettle-dev.gemspec")
+            # Should write kettle-jem.gemspec (no .example)
+            dest = File.join(project_root, "kettle-jem.gemspec")
             expect(File).to exist(dest)
             txt = File.read(dest)
-            expect(txt).not_to include("kettle-dev.gemspec.example")
+            expect(txt).not_to include("kettle-jem.gemspec.example")
             # Note: when gem_name is unknown, namespace/gem replacements depending on gem_name may not occur.
             # This test verifies the destination file name logic only.
           end
@@ -596,6 +629,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -630,6 +666,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -665,6 +704,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -782,13 +824,16 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "applies replacements for special root files like CHANGELOG.md and .opencollective.yml and FUNDING.md" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "CHANGELOG.md.example"), "kettle-rb kettle-dev Kettle::Dev Kettle%3A%3ADev kettle--dev\n")
-            File.write(File.join(gem_root, ".opencollective.yml"), "org: kettle-rb project: kettle-dev\n")
+            File.write(File.join(gem_root, "CHANGELOG.md.example"), "{KJ|GH_ORG} {KJ|GEM_NAME} {KJ|NAMESPACE} {KJ|NAMESPACE_SHIELD} {KJ|GEM_SHIELD}\n")
+            File.write(File.join(gem_root, ".opencollective.yml"), "org: {KJ|GH_ORG} project: {KJ|GEM_NAME}\n")
             # FUNDING with org placeholder to be replaced
-            File.write(File.join(gem_root, "FUNDING.md"), "Support org kettle-rb and project kettle-dev\n")
+            File.write(File.join(gem_root, "FUNDING.md"), "Support org {KJ|GH_ORG} and project {KJ|GEM_NAME}\n")
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/my-gem"
               end
@@ -807,7 +852,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # FUNDING.md should be copied and have org replaced with funding org (acme)
             funding = File.read(File.join(project_root, "FUNDING.md"))
             expect(funding).to include("acme")
-            expect(funding).not_to include("kettle-rb")
+            expect(funding).not_to include("{KJ|GH_ORG}")
           end
         end
       end
@@ -1155,6 +1200,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -1224,6 +1272,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -1253,17 +1304,17 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "replaces {KETTLE|DEV|GEM} token after normal replacements" do
+      it "replaces {KJ|KETTLE_DEV_GEM} token after normal replacements" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             # Template gemspec example contains both normal tokens and the special token
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
-                spec.name = "kettle-dev"
-                # This should become the actual destination gem name via normal replacement
-                spec.summary = "kettle-dev summary"
-                # This token should be replaced AFTER normal replacements with the literal string
-                spec.add_development_dependency("{KETTLE|DEV|GEM}", "~> 1.0.0")
+                spec.name = "{KJ|GEM_NAME}"
+                # This should become the actual destination gem name via token replacement
+                spec.summary = "{KJ|GEM_NAME} summary"
+                # This token should resolve to the literal string "kettle-dev"
+                spec.add_development_dependency("{KJ|KETTLE_DEV_GEM}", "~> 1.0.0")
               end
             GEMSPEC
 
@@ -1271,6 +1322,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/my-gem"
               end
@@ -1288,9 +1342,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             dest = File.join(project_root, "my-gem.gemspec")
             expect(File).to exist(dest)
             txt = File.read(dest)
-            # Normal replacement happened: occurrences of kettle-dev became my-gem
-            expect(txt).to match(/spec\.summary\s*=\s*"my-gem summary"/)
-            # Special token replacement happened AFTER, yielding literal kettle-dev
+            # Token replacement happened: {KJ|GEM_NAME} became my-gem (name carried over from destination)
+            expect(txt).to include('spec.name = "my-gem"')
+            # No unresolved tokens remain
+            expect(txt).not_to include("{KJ|")
+            # {KJ|KETTLE_DEV_GEM} resolved to literal "kettle-dev"
             expect(txt).to include('spec.add_development_dependency("kettle-dev", "~> 1.0.0")')
           end
         end
@@ -1310,6 +1366,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~G)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -1345,6 +1404,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(project_root, "demo.gemspec"), <<~G)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -1375,7 +1437,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "carries over key fields from original gemspec when overwriting with example (after replacements)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.version = "1.0.0"
@@ -1530,6 +1592,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
             Gem::Specification.new do |spec|
               spec.name = "my-gem"
+              spec.version = "0.1.0"
+              spec.summary = "test gem"
+              spec.authors = ["Test"]
               spec.required_ruby_version = ">= 3.1"
               spec.homepage = "https://github.com/acme/my-gem"
             end
@@ -1569,6 +1634,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
             Gem::Specification.new do |spec|
               spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test gem"
+              spec.authors = ["Test"]
               spec.required_ruby_version = ">= 3.1"
               spec.homepage = "https://github.com/acme/demo"
             end
@@ -1619,6 +1687,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, "demo.gemspec"), <<~G)
             Gem::Specification.new do |spec|
               spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test gem"
+              spec.authors = ["Test"]
               spec.required_ruby_version = ">= 3.1"
               spec.homepage = "https://github.com/acme/demo"
             end
@@ -1644,8 +1715,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           template_dir = File.join(gem_root, "gemfiles", "modular")
           FileUtils.mkdir_p(template_dir)
           File.write(File.join(template_dir, "style.gemfile.example"), <<~GEMFILE)
-            gem "rubocop-lts", "{RUBOCOP|LTS|CONSTRAINT}"
-            gem "{RUBOCOP|RUBY|GEM}"
+            gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+            gem "{KJ|RUBOCOP_RUBY_GEM}"
           GEMFILE
           dest_dir = File.join(project_root, "gemfiles", "modular")
           FileUtils.mkdir_p(dest_dir)
@@ -1656,6 +1727,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, "demo.gemspec"), <<~G)
             Gem::Specification.new do |spec|
               spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test gem"
+              spec.authors = ["Test"]
               spec.required_ruby_version = ">= 3.2"
               spec.homepage = "https://github.com/acme/demo"
             end
@@ -1687,7 +1761,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "preserves original project's gemspec field values after template replacements" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "kettle-dev.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.version = "1.0.0"

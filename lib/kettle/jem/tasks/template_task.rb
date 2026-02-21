@@ -239,7 +239,7 @@ module Kettle
           # 7a) Special-case: gemspec example must be renamed to destination gem's name
           begin
             # Prefer the .example variant when present
-            gemspec_template_src = helpers.prefer_example(File.join(gem_checkout_root, "kettle-dev.gemspec"))
+            gemspec_template_src = helpers.prefer_example(File.join(gem_checkout_root, "kettle-jem.gemspec"))
             if File.exist?(gemspec_template_src)
               dest_gemspec = if gem_name && !gem_name.to_s.empty?
                 File.join(project_root, "#{gem_name}.gemspec")

@@ -81,7 +81,7 @@ module Kettle
           #
           # @return [String, nil] The freeze token or nil for gem default
           def default_freeze_token
-            "kettle-dev"
+            "kettle-jem"
           end
 
           # Returns the default node typing configuration.

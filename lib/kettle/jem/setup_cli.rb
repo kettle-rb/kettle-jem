@@ -178,13 +178,17 @@ module Kettle
 
       # 3. Sync dev dependencies from this gem's example gemspec into target gemspec
       def ensure_dev_deps!
-        source_example = installed_path("kettle-jem.gemspec.example")
-        abort!("Internal error: kettle-jem.gemspec.example not found within the installed gem.") unless source_example && File.exist?(source_example)
+        source_example = installed_path("gem.gemspec.example")
+        abort!("Internal error: gem.gemspec.example not found within the installed gem.") unless source_example && File.exist?(source_example)
 
         example = File.read(source_example)
-        example = example.gsub("{KETTLE|JEM|GEM}", "kettle-jem")
+        doc = Token::Resolver::Document.new(example)
+        resolver = Token::Resolver::Resolve.new(on_missing: :keep)
+        example = resolver.resolve(doc, {"KJ|KETTLE_DEV_GEM" => "kettle-dev"})
 
-        wanted_lines = example.each_line.map(&:rstrip).select { |line| line =~ /add_development_dependency\s*\(?/ }
+        wanted_lines = example.each_line.map(&:rstrip).select { |line|
+          line =~ /add_development_dependency\s*\(?/ && !line.strip.start_with?("#")
+        }
         return if wanted_lines.empty?
 
         target = File.read(@gemspec_path)
@@ -201,10 +205,18 @@ module Kettle
         begin
           modified = Kettle::Jem::PrismGemspec.ensure_development_dependencies(target, wanted)
           # Check if any actual changes were made to development dependency declarations.
-          # Extract dependency lines from both and compare sets to avoid false positives
-          # from whitespace/formatting differences.
+          # Extract gem name + version args from dependency lines to compare semantically,
+          # ignoring whitespace, comments, and formatting differences.
           extract_deps = lambda do |content|
-            content.to_s.lines.select { |ln| ln =~ /add_development_dependency\s*\(?/ }.map(&:strip).sort
+            content.to_s.lines
+              .select { |ln| ln =~ /add_development_dependency\s*\(?/ }
+              .reject { |ln| ln.strip.start_with?("#") }
+              .filter_map { |ln|
+                if (m = ln.match(/add_development_dependency\s*\(?\s*(.+?)\s*\)?\s*(#.*)?$/))
+                  m[1].strip
+                end
+              }
+              .sort
           end
           target_deps = extract_deps.call(target)
           modified_deps = extract_deps.call(modified)
@@ -388,13 +400,20 @@ module Kettle
       # @param rel [String]
       # @return [String, nil]
       def installed_path(rel)
+        roots = []
         if defined?(Gem) && (spec = Gem.loaded_specs["kettle-jem"])
-          path = File.join(spec.full_gem_path, rel)
-          return path if File.exist?(path)
+          roots << spec.full_gem_path
         end
-        here = File.expand_path(File.join(__dir__, "..", "..", "..")) # lib/kettle/dev/ -> project root
-        path = File.join(here, rel)
-        return path if File.exist?(path)
+        roots << File.expand_path(File.join(__dir__, "..", "..", "..")) # lib/kettle/jem/ -> project root
+
+        # Check template/ subdirectory first, then gem root
+        roots.each do |root|
+          template_path = File.join(root, "template", rel)
+          return template_path if File.exist?(template_path)
+
+          direct_path = File.join(root, rel)
+          return direct_path if File.exist?(direct_path)
+        end
 
         nil
       end

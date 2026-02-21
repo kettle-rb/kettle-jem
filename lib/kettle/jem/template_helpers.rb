@@ -34,10 +34,16 @@ module Kettle
       end
 
       # Root of this gem's checkout (repository root when working from source)
-      # Calculated relative to lib/kettle/dev/
+      # Calculated relative to lib/kettle/jem/
       # @return [String]
       def gem_checkout_root
         File.expand_path("../../..", __dir__)
+      end
+
+      # Root of the template/ directory containing tokenized .example files.
+      # @return [String]
+      def template_root
+        File.join(gem_checkout_root, "template")
       end
 
       # Simple yes/no prompt.
@@ -272,15 +278,6 @@ module Kettle
 
         content = File.read(src_path)
         content = yield(content) if block_given?
-        # Replace the explicit template token with the literal "kettle-jem"
-        # after upstream/template-specific replacements (i.e. after the yield),
-        # so the token itself is not altered by those replacements.
-        begin
-          token = "{KETTLE|JEM|GEM}"
-          content = content.gsub(token, "kettle-jem") if content.include?(token)
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-        end
 
         basename = File.basename(dest_path.to_s)
         content = apply_appraisals_merge(content, dest_path) if basename == "Appraisals"
@@ -535,7 +532,13 @@ module Kettle
         end
       end
 
-      # Apply common token replacements used when templating text files
+      # Apply common token replacements used when templating text files.
+      #
+      # Uses Token::Resolver to resolve all {KJ|...} tokens in the content.
+      # Unresolved tokens are kept as-is (on_missing: :keep) so that tokens
+      # resolved at a different stage (e.g. {KJ|RUBOCOP_RUBY_GEM} in
+      # ModularGemfiles) are not prematurely removed.
+      #
       # @param content [String]
       # @param org [String, nil]
       # @param gem_name [String]
@@ -543,27 +546,27 @@ module Kettle
       # @param namespace_shield [String]
       # @param gem_shield [String]
       # @param funding_org [String, nil]
+      # @param min_ruby [String, nil]
       # @return [String]
       def apply_common_replacements(content, org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org: nil, min_ruby: nil)
         raise Error, "Org could not be derived" unless org && !org.empty?
         raise Error, "Gem name could not be derived" unless gem_name && !gem_name.empty?
 
         funding_org ||= org
-        # Derive min_ruby if not provided
+
+        # Derive min_ruby from gemspec if not provided
         mr = begin
           meta = gemspec_metadata
           meta[:min_ruby]
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
-          # leave min_ruby as-is (possibly nil)
+          nil
         end
         if min_ruby.nil? || min_ruby.to_s.strip.empty?
           min_ruby = mr.respond_to?(:to_s) ? mr.to_s : mr
         end
 
-        # Derive min_dev_ruby from min_ruby
-        # min_dev_ruby is the greater of min_dev_ruby and ruby 2.3,
-        #   because ruby 2.3 is the minimum ruby supported by setup-ruby GHA
+        # Derive min_dev_ruby: the greater of min_ruby and 2.3 (minimum for setup-ruby GHA)
         min_dev_ruby = begin
           [mr, MIN_SETUP_RUBY].max
         rescue StandardError => e
@@ -571,56 +574,29 @@ module Kettle
           MIN_SETUP_RUBY
         end
 
-        c = content.dup
-        c = c.gsub("kettle-rb", org.to_s)
-        c = c.gsub("{OPENCOLLECTIVE|ORG_NAME}", funding_org || "opencollective")
-        # Replace min ruby token if present
-        begin
-          if min_ruby && !min_ruby.to_s.empty? && c.include?("{K_D_MIN_RUBY}")
-            c = c.gsub("{K_D_MIN_RUBY}", min_ruby.to_s)
-          end
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          # ignore
-        end
+        dashed = gem_name.tr("_", "-")
+        ft = (kettle_config.dig("defaults", "freeze_token") || "kettle-jem").to_s
 
-        # Replace min ruby dev token if present
-        begin
-          if min_dev_ruby && !min_dev_ruby.to_s.empty? && c.include?("{K_D_MIN_DEV_RUBY}")
-            c = c.gsub("{K_D_MIN_DEV_RUBY}", min_dev_ruby.to_s)
-          end
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          # ignore
-        end
+        # Build the token replacement map
+        replacements = {
+          "KJ|GEM_NAME" => gem_name,
+          "KJ|GEM_NAME_PATH" => gem_name.tr("-", "/"),
+          "KJ|GEM_SHIELD" => gem_shield,
+          "KJ|GH_ORG" => org.to_s,
+          "KJ|NAMESPACE" => namespace,
+          "KJ|NAMESPACE_SHIELD" => namespace_shield,
+          "KJ|OPENCOLLECTIVE_ORG" => funding_org || "opencollective",
+          "KJ|FREEZE_TOKEN" => ft,
+          "KJ|KETTLE_DEV_GEM" => "kettle-dev",
+          "KJ|YARD_HOST" => "#{dashed}.galtzo.com",
+        }
+        replacements["KJ|MIN_RUBY"] = min_ruby.to_s if min_ruby && !min_ruby.to_s.empty?
+        replacements["KJ|MIN_DEV_RUBY"] = min_dev_ruby.to_s if min_dev_ruby && !min_dev_ruby.to_s.empty?
 
-        # Replace target gem name token if present
-        begin
-          token = "{TARGET|GEM|NAME}"
-          c = c.gsub(token, gem_name) if c.include?(token)
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          # If replacement fails unexpectedly, proceed with content as-is
-        end
-
-        # Special-case: yard-head link uses the gem name as a subdomain and must be dashes-only.
-        # Apply this BEFORE other generic replacements so it isn't altered incorrectly.
-        begin
-          dashed = gem_name.tr("_", "-")
-          c = c.gsub("[🚎yard-head]: https://kettle-jem.galtzo.com", "[🚎yard-head]: https://#{dashed}.galtzo.com")
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          # ignore
-        end
-
-        # Replace occurrences of the literal template gem name ("kettle-jem")
-        # with the destination gem name.
-        c = c.gsub("kettle-jem", gem_name)
-        c = c.gsub(/\bKettle::Jem\b/u, namespace) unless namespace.empty?
-        c = c.gsub("Kettle%3A%3AJem", namespace_shield) unless namespace_shield.empty?
-        c = c.gsub("kettle--jem", gem_shield)
-        # Replace require and path structures with gem_name, modifying - to / if needed
-        c.gsub("kettle/jem", gem_name.tr("-", "/"))
+        # Resolve all {KJ|...} tokens; unresolved ones kept for later-stage resolution
+        doc = Token::Resolver::Document.new(content)
+        resolver = Token::Resolver::Resolve.new(on_missing: :keep)
+        resolver.resolve(doc, replacements)
       end
 
       # Parse gemspec metadata and derive useful strings

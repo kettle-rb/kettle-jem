@@ -8,7 +8,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   describe ".kettle_config" do
-    it "loads the .kettle-dev.yml configuration file" do
+    it "loads the .kettle-jem.yml configuration file" do
       config = described_class.kettle_config
       expect(config).to be_a(Hash)
       expect(config).to have_key("defaults")
@@ -20,7 +20,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       defaults = described_class.kettle_config["defaults"]
       expect(defaults["preference"]).to eq("template")
       expect(defaults["add_template_only_nodes"]).to be(true)
-      expect(defaults["freeze_token"]).to eq("kettle-dev")
+      expect(defaults["freeze_token"]).to eq("kettle-jem")
     end
   end
 
@@ -85,7 +85,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(config[:strategy]).to eq(:merge)
       expect(config[:preference]).to eq("template")
       expect(config[:add_template_only_nodes]).to be(true)
-      expect(config[:freeze_token]).to eq("kettle-dev")
+      expect(config[:freeze_token]).to eq("kettle-jem")
     end
 
     it "returns config without merge options for skip strategy" do

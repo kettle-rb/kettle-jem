@@ -42,7 +42,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
         write("example.gemspec", gemspec)
 
         # Stub installed_path to point to the example shipped with repo
-        example_path = File.expand_path("../../../kettle-dev.gemspec.example", __dir__)
+        example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
 
         cli = described_class.allocate
         cli.instance_variable_set(:@argv, [])
@@ -54,7 +54,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
         allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
           # Only intercept the example gemspec lookup
-          if rel == "kettle-dev.gemspec.example"
+          if rel == "gem.gemspec.example"
             example_path
           else
             orig.call(rel)
@@ -86,7 +86,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "run_kettle_install! includes include=... in the rake command" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["include=foo/bar/**"])
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:dev:install include\\=foo/bar/\\*\\*"))
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"))
       cli.send(:run_kettle_install!)
     end
   end
@@ -127,7 +127,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@passthrough, [])
       cli.send(:parse!)
       allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
-        if rel == "kettle-dev.gemspec.example"
+        if rel == "gem.gemspec.example"
           example_path
         else
           orig.call(rel)
@@ -139,7 +139,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "appends wanted lines when target gemspec lacks closing end (no rindex match)" do
       # Create an empty gemspec to force the append code path
       File.write("target.gemspec", "")
-      example_path = File.expand_path("../../../kettle-dev.gemspec.example", __dir__)
+      example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
       cli = setup_cli_for_deps(example_path)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "target.gemspec"))
 
@@ -153,8 +153,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "prints up-to-date message when no changes are needed", :check_output do
       # Make the target match the example exactly (after placeholder substitution)
-      example_path = File.expand_path("../../../kettle-dev.gemspec.example", __dir__)
-      text = File.read(example_path).gsub("{KETTLE|DEV|GEM}", "kettle-dev")
+      example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
+      text = File.read(example_path).gsub("{KJ|KETTLE_DEV_GEM}", "kettle-dev")
       File.write("target.gemspec", text)
 
       cli = setup_cli_for_deps(example_path)
@@ -282,7 +282,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       argv = ["--allowed=foo", "--force", "--hook_templates=bar", "--only=baz", "-h"]
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
-      end.to output(/Usage: kettle-dev-setup/).to_stdout
+      end.to output(/Usage: kettle-jem-setup/).to_stdout
     end
 
     it "rescues parse errors, prints usage, and exits 2", :check_output do
@@ -292,7 +292,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       # call private parse! directly to isolate behavior
       expect do
         expect { cli.send(:parse!) }.to raise_error(MockSystemExit, /exit status 2/)
-      end.to output(/Usage: kettle-dev-setup/).to_stdout.and output(/OptionParser/).to_stderr
+      end.to output(/Usage: kettle-jem-setup/).to_stdout.and output(/OptionParser/).to_stderr
     end
 
     it "appends remaining argv into @passthrough when no special flags" do
@@ -326,7 +326,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
   describe "#say and #abort!" do
     it "say prints with prefix", :check_output do
       cli = described_class.allocate
-      expect { cli.send(:say, "msg") }.to output(/\[kettle-dev-setup\] msg/).to_stdout
+      expect { cli.send(:say, "msg") }.to output(/\[kettle-jem-setup\] msg/).to_stdout
     end
 
     it "abort! uses ExitAdapter and raises MockSystemExit with message" do
@@ -379,7 +379,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.send(:parse!)
 
       # Stub installed_path to return the repo's Gemfile.example
-      example_path = File.expand_path("../../../Gemfile.example", __dir__)
+      example_path = File.expand_path("../../../template/Gemfile.example", __dir__)
       allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
         if rel == "Gemfile.example"
           example_path
@@ -564,7 +564,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "run_kettle_install! builds rake cmd with passthrough" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:dev:install only\\=hooks"))
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"))
       cli.send(:run_kettle_install!)
     end
   end
@@ -573,7 +573,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "resolves within installed gem when loaded spec present" do
       cli = described_class.allocate
       spec = instance_double(Gem::Specification, full_gem_path: File.expand_path("../../../../", __dir__))
-      allow(Gem).to receive(:loaded_specs).and_return({"kettle-dev" => spec})
+      allow(Gem).to receive(:loaded_specs).and_return({"kettle-jem" => spec})
       path = cli.send(:installed_path, "Rakefile.example")
       expect(path).to end_with("Rakefile.example")
       expect(File.exist?(path)).to be true

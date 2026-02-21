@@ -92,9 +92,9 @@ module Kettle
               rubocop_ruby_gem_version ||= ruby1_8[0].segments.join("_")
             end
             if new_constraint && rubocop_ruby_gem_version
-              token = "{RUBOCOP|LTS|CONSTRAINT}"
+              token = "{KJ|RUBOCOP_LTS_CONSTRAINT}"
               content.gsub!(token, new_constraint) if content.include?(token)
-              token = "{RUBOCOP|RUBY|GEM}"
+              token = "{KJ|RUBOCOP_RUBY_GEM}"
               content.gsub!(token, "rubocop-ruby#{rubocop_ruby_gem_version}") if content.include?(token)
             end
             # Use apply_strategy for proper AST-based merging with Prism

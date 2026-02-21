@@ -14,7 +14,7 @@ RSpec.describe "ModularGemfiles Integration" do
         FileUtils.mkdir_p(src_dir)
 
         # Copy the actual style.gemfile.example from the gem
-        actual_example = File.join(__dir__, "../../gemfiles/modular/style.gemfile.example")
+        actual_example = File.join(__dir__, "../../template/gemfiles/modular/style.gemfile.example")
         FileUtils.cp(actual_example, File.join(src_dir, "style.gemfile.example"))
 
         # Create empty subdirectories required by sync!
@@ -68,8 +68,8 @@ RSpec.describe "ModularGemfiles Integration" do
         # Verify tokens were replaced for Ruby 2.7
         expect(result).to include('"rubocop-lts", "~> 18.0"')
         expect(result).to include('"rubocop-ruby2_7"')
-        expect(result).not_to include("{RUBOCOP|LTS|CONSTRAINT}")
-        expect(result).not_to include("{RUBOCOP|RUBY|GEM}")
+        expect(result).not_to include("{KJ|RUBOCOP_LTS_CONSTRAINT}")
+        expect(result).not_to include("{KJ|RUBOCOP_RUBY_GEM}")
 
         # Verify new gems from template were added
         expect(result).to include("rubocop-packaging")

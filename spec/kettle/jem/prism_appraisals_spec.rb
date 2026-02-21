@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require "spec_helper"
-require "kettle/dev/prism_appraisals"
+require "kettle/jem/prism_appraisals"
 
 RSpec.describe Kettle::Jem::PrismAppraisals do
   describe ".merge" do

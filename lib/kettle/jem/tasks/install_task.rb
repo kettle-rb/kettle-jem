@@ -176,7 +176,7 @@ module Kettle
 
               # If no grapheme found in README H1, either use a default in force mode, or ask the user.
               if chosen_grapheme.nil? || chosen_grapheme.empty?
-                if ENV.fetch("force", "").to_s =~ ENV_TRUE_RE
+                if ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
                   # Non-interactive install: default to pizza slice to match template style.
                   chosen_grapheme = "🍕"
                 else
@@ -374,7 +374,7 @@ module Kettle
                   puts "Suggested literal homepage: \"#{suggested}\""
                   print("Update #{File.basename(gemspec_path)} to use this homepage? [Y/n]: ")
                   do_update =
-                    if ENV.fetch("force", "").to_s =~ ENV_TRUE_RE
+                    if ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
                       true
                     else
                       ans = Kettle::Dev::InputAdapter.gets&.strip
@@ -483,7 +483,7 @@ module Kettle
           end
 
           if defined?(updated_envrc_by_install) && updated_envrc_by_install
-            allowed_truthy = ENV.fetch("allowed", "").to_s =~ ENV_TRUE_RE
+            allowed_truthy = ENV.fetch("allowed", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
             if allowed_truthy
               puts "Proceeding after .envrc update because allowed=true."
             else
@@ -522,7 +522,7 @@ module Kettle
               # Respect an explicit negative answer even when force=true
               add_it = if answer && answer =~ /\An(o)?\z/i
                 false
-              elsif ENV.fetch("force", "").to_s =~ ENV_TRUE_RE
+              elsif ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
                 true
               else
                 answer.nil? || answer.empty? || answer =~ /\Ay(es)?\z/i

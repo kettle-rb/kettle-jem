@@ -11,7 +11,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
         %w[coverage debug documentation injected optional runtime_heads templating x_std_libs].each do |base|
           File.write(File.join(src_dir, "#{base}.gemfile"), "# #{base}\n")
         end
-        File.write(File.join(src_dir, "style.gemfile"), "gem 'rubocop-lts', '{RUBOCOP|LTS|CONSTRAINT}'\n# {RUBOCOP|RUBY|GEM}\n")
+        File.write(File.join(src_dir, "style.gemfile"), "gem 'rubocop-lts', '{KJ|RUBOCOP_LTS_CONSTRAINT}'\n# {KJ|RUBOCOP_RUBY_GEM}\n")
         %w[erb mutex_m stringio x_std_libs].each do |dir|
           FileUtils.mkdir_p(File.join(src_dir, dir))
           File.write(File.join(src_dir, dir, "placeholder"), "ok\n")
@@ -63,11 +63,11 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
             home = ENV["HOME"] || Dir.home
             gem "rubocop-lts", path: "\#{home}/src/rubocop-lts/rubocop-lts"
             gem "rubocop-lts-rspec", path: "\#{home}/src/rubocop-lts/rubocop-lts-rspec"
-            gem "{RUBOCOP|RUBY|GEM}", path: "\#{home}/src/rubocop-lts/{RUBOCOP|RUBY|GEM}"
+            gem "{KJ|RUBOCOP_RUBY_GEM}", path: "\#{home}/src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
             gem "standard-rubocop-lts", path: "\#{home}/src/rubocop-lts/standard-rubocop-lts"
           else
-            gem "rubocop-lts", "{RUBOCOP|LTS|CONSTRAINT}"
-            gem "{RUBOCOP|RUBY|GEM}"
+            gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+            gem "{KJ|RUBOCOP_RUBY_GEM}"
             gem "rubocop-rspec", "~> 3.6"
           end
         RUBY
@@ -119,8 +119,8 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
         # Verify tokens were replaced for Ruby 2.3
         expect(result).to include('gem "rubocop-lts", "~> 10.0"')
         expect(result).to include('gem "rubocop-ruby2_3"')
-        expect(result).not_to include("{RUBOCOP|LTS|CONSTRAINT}")
-        expect(result).not_to include("{RUBOCOP|RUBY|GEM}")
+        expect(result).not_to include("{KJ|RUBOCOP_LTS_CONSTRAINT}")
+        expect(result).not_to include("{KJ|RUBOCOP_RUBY_GEM}")
 
         # Verify new gems from template were added
         expect(result).to include("rubocop-packaging")

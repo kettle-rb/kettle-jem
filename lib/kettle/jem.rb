@@ -4,6 +4,7 @@
 require "ast-merge"
 require "dotenv-merge"
 require "json-merge"
+require "kettle-dev"
 require "markly-merge"
 require "prism-merge"
 require "psych-merge"
