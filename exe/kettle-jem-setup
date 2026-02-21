@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "kettle/jem"
+
+# TODO: Wire up Kettle::Jem::SetupCLI once it is migrated from kettle-dev
+warn "kettle-jem-setup: not yet implemented — migration from kettle-dev in progress"
+exit 1

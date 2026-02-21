@@ -29,11 +29,13 @@ PATH
       dotenv-merge (~> 1.0, >= 1.0.3)
       json-merge (~> 1.1, >= 1.1.2)
       jsonc-merge (~> 1.0, >= 1.0.1)
+      kettle-dev (~> 1.1)
       markdown-merge (~> 1.0, >= 1.0.3)
       markly-merge (~> 1.0)
       prism-merge (~> 2.0)
       psych-merge (~> 1.0)
       rbs-merge (~> 2.0)
+      token-resolver (~> 1.0)
       tree_haver (~> 5.0, >= 5.0.5)
       version_gem (~> 1.1, >= 1.1.9)
 
@@ -362,6 +364,9 @@ GEM
       delegate (~> 0.1)
       rspec (~> 3.0)
       timecop (>= 0.7, < 1)
+    token-resolver (1.0.0)
+      parslet (~> 2.0)
+      version_gem (~> 1.1, >= 1.1.9)
     toml (0.3.0)
       parslet (>= 1.8.0, < 3.0.0)
     toml-rb (4.1.0)
@@ -412,7 +417,6 @@ DEPENDENCIES
   gem_bench (~> 2.0, >= 2.0.5)
   gitmoji-regex (~> 1.0, >= 1.0.3)
   irb (~> 1.15, >= 1.15.2)
-  kettle-dev (~> 1.1)
   kettle-jem!
   kettle-soup-cover (~> 1.0, >= 1.0.10)
   kettle-test (~> 1.0, >= 1.0.10)
@@ -570,6 +574,7 @@ CHECKSUMS
   thor (1.5.0) sha256=e3a9e55fe857e44859ce104a84675ab6e8cd59c650a49106a05f55f136425e73
   timecop (0.9.10) sha256=12ba45ce57cdcf6b1043cb6cdffa6381fd89ce10d369c28a7f6f04dc1b0cd8eb
   timecop-rspec (1.0.3) sha256=005f14841bb606dcaefb060e321b5388e2e59537742bee8b3a9a9a40e598fab9
+  token-resolver (1.0.0) sha256=8e3666a7ac14d872850f4e4341bc51dc29b7ca88e2d3a0c28379e8d3b7a29a3a
   toml (0.3.0) sha256=0a91d0f76a9036e84e44f95693b12f58d358c1df3ac8e3b5271f2056ecc6e4b9
   toml-rb (4.1.0) sha256=14456ec4549e4703881bf04b83a56f3264ef99884880092d83c98a2058d95846
   tree_haver (5.0.5) sha256=727717dd13b628f3c48d0ad8cabb7ceaa0a33476ff7f7a61234b855c75ece3a3

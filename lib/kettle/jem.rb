@@ -8,6 +8,7 @@ require "markly-merge"
 require "prism-merge"
 require "psych-merge"
 require "rbs-merge"
+require "token-resolver"
 require "version_gem"
 
 # Shared merge infrastructure
