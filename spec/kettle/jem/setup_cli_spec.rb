@@ -95,8 +95,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "calls ModularGemfiles.sync! and rescues metadata errors (min_ruby=nil)" do
       cli = described_class.allocate
       helpers = class_double(Kettle::Jem::TemplateHelpers)
-      allow(helpers).to receive(:project_root).and_return("/tmp/project")
-      allow(helpers).to receive(:gem_checkout_root).and_return("/tmp/checkout")
+      allow(helpers).to receive_messages(project_root: "/tmp/project", gem_checkout_root: "/tmp/checkout")
       allow(helpers).to receive(:gemspec_metadata).and_raise(StandardError)
       stub_const("Kettle::Jem::TemplateHelpers", helpers)
 
@@ -214,8 +213,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       # Provide a git adapter that would otherwise set the env if called
       fake_ga = instance_double(Kettle::Dev::GitAdapter)
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(fake_ga)
-      allow(fake_ga).to receive(:clean?).and_return(true)
-      allow(fake_ga).to receive(:remote_url).and_return("git@github.com:acme/thing.git")
+      allow(fake_ga).to receive_messages(clean?: true, remote_url: "git@github.com:acme/thing.git")
 
       cli.send(:derive_funding_org_from_git_if_missing!)
 
@@ -347,7 +345,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "passes env to capture3 and succeeds", :check_output do
       cli = described_class.allocate
       status = instance_double(Process::Status, success?: true)
-      expect(Open3).to receive(:capture3).with({"A" => "1"}, "cmd").and_return(["", "", status])
+      allow(Open3).to receive(:capture3).with({"A" => "1"}, "cmd").and_return(["", "", status])
       expect { cli.send(:sh!, "cmd", env: {"A" => "1"}) }.to output(/exec: cmd/).to_stdout
     end
   end

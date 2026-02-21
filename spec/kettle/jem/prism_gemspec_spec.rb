@@ -35,7 +35,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         end
       RUBY
 
-      out = Kettle::Jem::PrismGemspec.replace_gemspec_fields(src, {_remove_self_dependency: "kettle-dev"})
+      out = described_class.replace_gemspec_fields(src, {_remove_self_dependency: "kettle-dev"})
       expect(out).not_to include('add_dependency "kettle-dev"')
       expect(out).to include("add_development_dependency")
     end

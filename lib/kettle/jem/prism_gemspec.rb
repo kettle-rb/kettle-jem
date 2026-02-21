@@ -155,13 +155,12 @@ module Kettle
 
           found_node = find_field_node(stmt_nodes, blk_param, field)
 
-          if found_node
-            edit = build_replacement_edit(found_node, body_node, blk_param, field, field_sym, value, build_literal)
-            edits << edit if edit
+          edit = if found_node
+            build_replacement_edit(found_node, body_node, blk_param, field, field_sym, value, build_literal)
           else
-            edit = build_insertion_edit(stmt_nodes, body_node, body_src, blk_param, field, field_sym, value, build_literal)
-            edits << edit if edit
+            build_insertion_edit(stmt_nodes, body_node, body_src, blk_param, field, field_sym, value, build_literal)
           end
+          edits << edit if edit
         end
 
         # Handle removal of self-dependency
@@ -273,9 +272,8 @@ module Kettle
         stmt_nodes.find do |n|
           next false unless n.is_a?(Prism::CallNode)
 
-          recv = n.receiver
-          recv_name = recv ? recv.slice.strip : nil
-          recv_name && recv_name.end_with?(blk_param) && n.name.to_s.start_with?(field)
+          recv_name = n.receiver&.slice&.strip
+          recv_name&.end_with?(blk_param) && n.name.to_s.start_with?(field)
         end
       end
 
@@ -391,7 +389,7 @@ module Kettle
       # @param str [#to_s]
       # @return [String]
       def escape_double_quoted_string(str)
-        str.to_s.gsub('\\', '\\\\').gsub('"', '\\"')
+        str.to_s.gsub("\\", "\\\\").gsub('"', '\\"')
       end
 
       def build_literal_value(v)

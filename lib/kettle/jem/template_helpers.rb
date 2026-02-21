@@ -174,7 +174,9 @@ module Kettle
 
         # Prefer GitAdapter for cleanliness check; fallback to porcelain output
         clean = begin
-          Dir.chdir(root.to_s) { Kettle::Dev::GitAdapter.new.clean? }
+          ga = Kettle::Dev::GitAdapter.new
+          out, ok = ga.capture(["-C", root.to_s, "status", "--porcelain"])
+          ok ? out.to_s.strip.empty? : nil
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           nil
@@ -191,7 +193,6 @@ module Kettle
             ""
           end
           return if status_output.strip.empty?
-          preview = status_output.lines.take(10).map(&:rstrip)
         else
           return if clean
           # For messaging, provide a small preview using GitAdapter even when using the adapter
@@ -203,8 +204,9 @@ module Kettle
             Kettle::Dev.debug_error(e, __method__)
             ""
           end
-          preview = status_output.lines.take(10).map(&:rstrip)
         end
+
+        preview = status_output.lines.take(10).map(&:rstrip)
 
         puts "ERROR: Your git working tree has uncommitted changes."
         puts "#{task_label} may modify files (e.g., .github/, .gitignore, *.gemspec)."
