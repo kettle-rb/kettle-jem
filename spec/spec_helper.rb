@@ -24,6 +24,9 @@ end
 # this library
 require "kettle/jem"
 
+# Support files (shared contexts, fixtures, etc.)
+Dir[File.join(__dir__, "support", "**", "*.rb")].each { |f| require f }
+
 RSpec.configure do |config|
   config.before do
     # Speed up polling loops

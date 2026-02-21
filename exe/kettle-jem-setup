@@ -1,9 +1,64 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require "bundler/setup"
-require "kettle/jem"
+# vim: set syntax=ruby
 
-# TODO: Wire up Kettle::Jem::SetupCLI once it is migrated from kettle-dev
-warn "kettle-jem-setup: not yet implemented — migration from kettle-dev in progress"
-exit 1
+# kettle-jem-setup: initialize a target gem repo to use kettle-jem tooling.
+# This script is installed into PATH when the kettle-jem gem is installed.
+# It is designed to be run from inside the target gem's repository working
+# directory. It will not assume kettle-jem is already a dependency.
+
+require "fileutils"
+require "shellwords"
+require "open3"
+require "optparse"
+require "rubygems"
+
+# Ensure output is flushed promptly even if we exit early
+$stdout.sync = true
+$stderr.sync = true
+
+script_basename = File.basename(__FILE__)
+
+begin
+  require "kettle/jem"
+  puts "== #{script_basename} v#{Kettle::Jem::Version::VERSION} begin =="
+rescue StandardError => e
+  warn("[kettle-jem-setup] Warning: could not fully load kettle/jem (#{e.class}: #{e.message}). Proceeding with limited features.")
+end
+
+# Always execute when this file is loaded (e.g., via a Bundler binstub).
+# Do not guard with __FILE__ == $PROGRAM_NAME because binstubs use Kernel.load.
+if ARGV.include?("-h") || ARGV.include?("--help")
+  puts <<~USAGE
+    Usage: kettle-jem-setup [options]
+
+    Bootstraps a host gem repository to use kettle-jem tooling.
+
+    Options (passed through to rake kettle:jem:install):
+      --allowed=VAL
+      --force
+      --hook_templates=VAL
+      --only=VAL
+      --include=VAL
+
+    Environment:
+      DEBUG=true                    # print backtraces on errors
+  USAGE
+  exit 0
+end
+
+begin
+  Kettle::Jem::SetupCLI.new(ARGV).run!
+rescue LoadError => e
+  warn("#{script_basename}: could not load dependency: #{e.class}: #{e.message}")
+  warn(e.backtrace.join("\n")) if ENV["DEBUG"]
+  exit(1)
+rescue SystemExit => e
+  warn("#{script_basename}: exited (status=#{e.status}, msg=#{e.message})") if e.status != 0
+  raise
+rescue StandardError => e
+  warn("#{script_basename}: unexpected error: #{e.class}: #{e.message}")
+  warn(e.backtrace.join("\n")) if ENV["DEBUG"]
+  exit(1)
+end
