@@ -16,7 +16,7 @@ module Kettle
       #
       # @param helpers [Kettle::Dev::TemplateHelpers] helper API
       # @param project_root [String] destination project root
-      # @param gem_checkout_root [String] kettle-dev checkout root (source)
+      # @param gem_checkout_root [String] kettle-jem checkout root (source)
       # @param min_ruby [Gem::Version, nil] minimum Ruby version (for style.gemfile tuning)
       # @return [void]
       def sync!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil)

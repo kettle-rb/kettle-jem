@@ -74,10 +74,10 @@ RSpec.describe "Gemfile parsing idempotency" do
       <<~GEMFILE
         # frozen_string_literal: true
 
-        # To retain during kettle-dev templating:
-        #     kettle-dev:freeze
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
         #     # ... your code
-        #     kettle-dev:unfreeze
+        #     kettle-jem:unfreeze
 
         # We run code coverage on the latest version of Ruby only.
 
@@ -133,7 +133,7 @@ RSpec.describe "Gemfile parsing idempotency" do
       coverage_count = fourth_run.scan("# Coverage").count
       expect(coverage_count).to eq(1), "Should maintain single Coverage comment after multiple runs"
 
-      reminder_count = fourth_run.scan("# To retain during kettle-dev templating:").count
+      reminder_count = fourth_run.scan("# To retain during kettle-jem templating:").count
       expect(reminder_count).to eq(1), "Should maintain single reminder block after multiple runs"
     end
   end

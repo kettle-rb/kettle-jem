@@ -84,28 +84,28 @@ RSpec.describe "SmartMerger gemfile integration" do
 
         # Coverage
         # See gemspec
-        # To retain during kettle-dev templating:
-        #     kettle-dev:freeze
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
         #     # ... your code
-        #     kettle-dev:unfreeze
+        #     kettle-jem:unfreeze
 
         # We run code coverage on the latest version of Ruby only.
 
         # Coverage
 
-        # To retain during kettle-dev templating:
-        #     kettle-dev:freeze
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
         #     # ... your code
-        #     kettle-dev:unfreeze
+        #     kettle-jem:unfreeze
 
         # We run code coverage on the latest version of Ruby only.
 
         # Coverage
 
-        # To retain during kettle-dev templating:
-        #     kettle-dev:freeze
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
         #     # ... your code
-        #     kettle-dev:unfreeze
+        #     kettle-jem:unfreeze
         # We run code coverage on the latest version of Ruby only.
         # Coverage
 

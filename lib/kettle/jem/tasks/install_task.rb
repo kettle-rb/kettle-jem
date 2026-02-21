@@ -440,7 +440,7 @@ module Kettle
           puts "   git config --global core.hooksPath .git-hooks"
           puts
           puts "2) Install binstubs for this gem so the commit-msg tool is available in ./bin:"
-          puts "   bundle binstubs kettle-dev --path bin"
+          puts "   bundle binstubs kettle-jem --path bin"
           puts "   # After running, you should have bin/kettle-commit-msg (wrapper)."
           puts
           # Step 3: direnv and .envrc

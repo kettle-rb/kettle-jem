@@ -10,7 +10,7 @@ module Kettle
     # - Optional section classifiers for AST-aware section handling
     #
     # @example Using the Gemfile preset
-    #   config = Presets::Gemfile.destination_wins(freeze_token: "kettle-dev")
+    #   config = Presets::Gemfile.destination_wins(freeze_token: "kettle-jem")
     #   merger = Prism::Merge::SmartMerger.new(template, dest, **config.to_h)
     #
     # @see Ast::Merge::MergerConfig

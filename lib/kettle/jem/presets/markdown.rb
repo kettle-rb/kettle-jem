@@ -94,11 +94,11 @@ module Kettle
 
           # Returns the default freeze token for Markdown files.
           #
-          # Uses HTML comment syntax: <!-- kettle-dev:freeze -->
+          # Uses HTML comment syntax: <!-- kettle-jem:freeze -->
           #
           # @return [String] The freeze token
           def default_freeze_token
-            "kettle-dev"
+            "kettle-jem"
           end
 
           # Returns node typing for categorizing Markdown elements.

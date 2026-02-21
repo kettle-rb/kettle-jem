@@ -27,5 +27,5 @@ merge:
   signature_generator: signature_generator.rb
 
 # Freeze token for preserving sections
-freeze_token: kettle-dev
+freeze_token: kettle-jem
 

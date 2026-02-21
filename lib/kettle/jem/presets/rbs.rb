@@ -32,11 +32,11 @@ module Kettle
 
           # Returns the default freeze token for RBS files.
           #
-          # Uses RBS comment syntax: # kettle-dev:freeze
+          # Uses RBS comment syntax: # kettle-jem:freeze
           #
           # @return [String] The freeze token
           def default_freeze_token
-            "kettle-dev"
+            "kettle-jem"
           end
         end
       end

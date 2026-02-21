@@ -131,10 +131,10 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
       buggy_result = <<~'GEMFILE'
         # frozen_string_literal: true
 
-        # To retain during kettle-dev templating:
-        #     kettle-dev:freeze
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
         #     # ... your code
-        #     kettle-dev:unfreeze
+        #     kettle-jem:unfreeze
         #
         # We run rubocop on the latest version of Ruby,
         #   but in support of the oldest supported version of Ruby

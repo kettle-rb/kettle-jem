@@ -33,11 +33,11 @@ module Kettle
 
           # Returns the default freeze token for dotenv files.
           #
-          # Uses shell comment syntax: # kettle-dev:freeze
+          # Uses shell comment syntax: # kettle-jem:freeze
           #
           # @return [String] The freeze token
           def default_freeze_token
-            "kettle-dev"
+            "kettle-jem"
           end
 
           # Create a config preset for .env.example files.

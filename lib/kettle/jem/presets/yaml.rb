@@ -38,11 +38,11 @@ module Kettle
 
           # Returns the default freeze token for YAML files.
           #
-          # Uses YAML comment syntax: # kettle-dev:freeze
+          # Uses YAML comment syntax: # kettle-jem:freeze
           #
           # @return [String] The freeze token
           def default_freeze_token
-            "kettle-dev"
+            "kettle-jem"
           end
 
           # Create a config preset optimized for GitHub Actions workflow files.

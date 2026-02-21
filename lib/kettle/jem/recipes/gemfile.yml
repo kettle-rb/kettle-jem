@@ -31,5 +31,5 @@ merge:
     CallNode: typing/call_node.rb
 
 # Freeze token for preserving sections
-freeze_token: kettle-dev
+freeze_token: kettle-jem
 
