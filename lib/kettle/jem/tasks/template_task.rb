@@ -3,7 +3,7 @@
 module Kettle
   module Jem
     module Tasks
-      # Thin wrapper to expose the kettle:dev:template task logic as a callable API
+      # Thin wrapper to expose the kettle:jem:template task logic as a callable API
       # for testability. The rake task should only call this method.
       module TemplateTask
         MODULAR_GEMFILE_DIR = "gemfiles/modular"
@@ -20,7 +20,7 @@ module Kettle
           fence_re = /^\s*```/
           heading_re = /^\s*#+\s+.+/
           lines.each_with_index do |ln, idx|
-            if ln =~ fence_re
+            if ln&.match?(fence_re)
               in_fence = !in_fence
               out << ln
               next
@@ -66,7 +66,7 @@ module Kettle
           gem_checkout_root = helpers.gem_checkout_root
 
           # Ensure git working tree is clean before making changes (when run standalone)
-          helpers.ensure_clean_git!(root: project_root, task_label: "kettle:dev:template")
+          helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")
 
           meta = helpers.gemspec_metadata(project_root)
           gem_name = meta[:gem_name]
@@ -415,7 +415,7 @@ module Kettle
                       cluster = s[/\A\X/u]
                       break if cluster.nil? || cluster.empty?
 
-                      if emoji_re =~ cluster
+                      if emoji_re&.match?(cluster)
                         out << cluster
                         s = s[cluster.length..-1].to_s
                       else
@@ -464,7 +464,7 @@ module Kettle
                     fence_re = /^\s*```/ # start or end of fenced block
 
                     lines.each_with_index do |ln, i|
-                      if ln =~ fence_re
+                      if ln&.match?(fence_re)
                         in_code = !in_code
                         next
                       end
@@ -683,7 +683,7 @@ module Kettle
                               # Break if a new section heading appears and we're not in a fence
                               break if !in_fence && l2.start_with?("### ")
 
-                              if l2 =~ fence_re
+                              if l2&.match?(fence_re)
                                 in_fence = !in_fence
                                 result[cur] << l2.rstrip
                                 i += 1
@@ -748,7 +748,7 @@ module Kettle
                     # Collapse repeated whitespace in release headers only
                     lines = c.split("\n", -1)
                     lines.map! do |ln|
-                      if ln =~ /^##\s+\[.*\]/
+                      if /^##\s+\[.*\]/.match?(ln)
                         ln.gsub(/[ \t]+/, " ")
                       else
                         ln
@@ -813,7 +813,7 @@ module Kettle
             changed_env_files << envrc_path if helpers.modified_by_template?(envrc_path)
             changed_env_files << envlocal_example_path if helpers.modified_by_template?(envlocal_example_path)
             if !changed_env_files.empty?
-              if ENV.fetch("allowed", "").to_s =~ /\A(1|true|y|yes)\z/i
+              if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("allowed", "").to_s)
                 puts "Detected updates to #{changed_env_files.map { |p| File.basename(p) }.join(" and ")}. Proceeding because allowed=true."
               else
                 puts
@@ -824,9 +824,9 @@ module Kettle
                 puts "  direnv allow"
                 puts
                 puts "After that, re-run to resume:"
-                puts "  bundle exec rake kettle:dev:template allowed=true"
+                puts "  bundle exec rake kettle:jem:template allowed=true"
                 puts "  # or to run the full install afterwards:"
-                puts "  bundle exec rake kettle:dev:install allowed=true"
+                puts "  bundle exec rake kettle:jem:install allowed=true"
                 task_abort("Aborting: review of environment files required before continuing.")
               end
             end
@@ -937,25 +937,11 @@ module Kettle
               next unless File.file?(src)
 
               hook_dests.each do |dstdir|
-                begin
-                  FileUtils.mkdir_p(dstdir)
-                  dest = File.join(dstdir, base)
-                  # Create without prompt if missing; if exists, ask to replace
-                  if File.exist?(dest)
-                    if helpers.ask("Overwrite existing #{dest}?", true)
-                      content = File.read(src)
-                      helpers.write_file(dest, content)
-                      begin
-                        File.chmod(mode, dest)
-                      rescue StandardError => e
-                        Kettle::Dev.debug_error(e, __method__)
-                        # ignore permission issues
-                      end
-                      puts "Replaced #{dest}"
-                    else
-                      puts "Kept existing #{dest}"
-                    end
-                  else
+                FileUtils.mkdir_p(dstdir)
+                dest = File.join(dstdir, base)
+                # Create without prompt if missing; if exists, ask to replace
+                if File.exist?(dest)
+                  if helpers.ask("Overwrite existing #{dest}?", true)
                     content = File.read(src)
                     helpers.write_file(dest, content)
                     begin
@@ -964,11 +950,23 @@ module Kettle
                       Kettle::Dev.debug_error(e, __method__)
                       # ignore permission issues
                     end
-                    puts "Installed #{dest}"
+                    puts "Replaced #{dest}"
+                  else
+                    puts "Kept existing #{dest}"
                   end
-                rescue StandardError => e
-                  puts "WARNING: Could not install hook #{base} to #{dstdir}: #{e.class}: #{e.message}"
+                else
+                  content = File.read(src)
+                  helpers.write_file(dest, content)
+                  begin
+                    File.chmod(mode, dest)
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                    # ignore permission issues
+                  end
+                  puts "Installed #{dest}"
                 end
+              rescue StandardError => e
+                puts "WARNING: Could not install hook #{base} to #{dstdir}: #{e.class}: #{e.message}"
               end
             end
           end

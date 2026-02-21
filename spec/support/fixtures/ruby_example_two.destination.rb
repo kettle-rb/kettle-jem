@@ -4,11 +4,11 @@
 # This is a "preamble" destination comment.
 
 # This is a "frozen" destination comment.
-# kettle-dev:freeze
-# To retain chunks of destination comments & code during kettle-dev templating:
+# kettle-jem:freeze
+# To retain chunks of destination comments & code during kettle-jem templating:
 # Wrap custom sections with freeze markers (e.g., as above and below this comment chunk).
 # The content between those markers will be preserved across template runs.
-# kettle-dev:unfreeze
+# kettle-jem:unfreeze
 
 # This is a multi-line destination header comment attached to code.
 # Hello Banana!

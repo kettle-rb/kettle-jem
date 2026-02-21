@@ -52,7 +52,7 @@ module Kettle
       # @return [Boolean]
       def ask(prompt, default)
         # Force mode: any prompt resolves to Yes when ENV["force"] is set truthy
-        if ENV.fetch("force", "").to_s =~ /\A(1|true|y|yes)\z/i
+        if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("force", "").to_s)
           puts "#{prompt} #{default ? "[Y/n]" : "[y/N]"}: Y (forced)"
           return true
         end
@@ -60,7 +60,7 @@ module Kettle
         ans = Kettle::Dev::InputAdapter.gets&.strip
         ans = "" if ans.nil?
         # Normalize explicit no first
-        return false if ans =~ /\An(o)?\z/i
+        return false if /\An(o)?\z/i.match?(ans)
         if default
           # Empty -> default true; explicit yes -> true; anything else -> false
           ans.empty? || ans =~ /\Ay(es)?\z/i
@@ -161,7 +161,7 @@ module Kettle
       # Ensure git working tree is clean before making changes in a task.
       # If not a git repo, this is a no-op.
       # @param root [String] project root to run git commands in
-      # @param task_label [String] name of the rake task for user-facing messages (e.g., "kettle:dev:install")
+      # @param task_label [String] name of the rake task for user-facing messages (e.g., "kettle:jem:install")
       # @return [void]
       def ensure_clean_git!(root:, task_label:)
         inside_repo = begin
@@ -306,7 +306,7 @@ module Kettle
         write_file(dest_path, content)
         begin
           # Ensure executable bit for git hook scripts when writing under .git-hooks
-          if EXECUTABLE_GIT_HOOKS_RE =~ dest_path.to_s
+          if EXECUTABLE_GIT_HOOKS_RE.match?(dest_path.to_s)
             File.chmod(0o755, dest_path) if File.exist?(dest_path)
           end
         rescue StandardError => e
@@ -326,12 +326,10 @@ module Kettle
       # @param dest_content [String]
       # @return [String] merged content
       def merge_gemfile_dependencies(src_content, dest_content)
-        begin
-          Kettle::Jem::PrismGemfile.merge_gem_calls(src_content.to_s, dest_content.to_s)
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          dest_content
-        end
+        Kettle::Jem::PrismGemfile.merge_gem_calls(src_content.to_s, dest_content.to_s)
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        dest_content
       end
 
       def apply_appraisals_merge(content, dest_path)

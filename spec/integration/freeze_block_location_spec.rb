@@ -13,10 +13,10 @@ RSpec.describe "Freeze Block Location Preservation" do
             spec.name = "test-gem"
             spec.bindir = "exe"
             
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Custom dependencies
             # spec.add_dependency("custom-gem")
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
             
             spec.require_paths = ["lib"]
           end
@@ -33,7 +33,7 @@ RSpec.describe "Freeze Block Location Preservation" do
 
         # Verify freeze block stays inside Gem::Specification block
         gem_spec_line = lines.find_index { |l| l.include?("Gem::Specification.new") }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
         end_line = lines.find_index { |l| l.strip == "end" }
 
         expect(gem_spec_line).not_to be_nil
@@ -42,7 +42,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         expect(freeze_line).to be < end_line
 
         # Verify no freeze reminder was added
-        expect(result).not_to include("To retain during kettle-dev templating")
+        expect(result).not_to include("To retain during kettle-jem templating")
       end
 
       it "does not capture unrelated comments before freeze block" do
@@ -55,9 +55,9 @@ RSpec.describe "Freeze Block Location Preservation" do
             # Listed files are relative paths
             spec.files = []
 
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Custom content
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
           end
         RUBY
 
@@ -72,7 +72,7 @@ RSpec.describe "Freeze Block Location Preservation" do
 
         # "Listed files" comment should appear before freeze block
         listed_line = lines.find_index { |l| l.include?("Listed files are relative paths") }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
 
         expect(listed_line).not_to be_nil
         expect(freeze_line).not_to be_nil
@@ -87,16 +87,16 @@ RSpec.describe "Freeze Block Location Preservation" do
         input = <<~RUBY
           # frozen_string_literal: true
           
-          # kettle-dev:freeze
+          # kettle-jem:freeze
           # Top-level frozen content
-          # kettle-dev:unfreeze
+          # kettle-jem:unfreeze
 
           Gem::Specification.new do |spec|
             spec.name = "test"
             
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Block-level frozen content
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
             
             spec.require_paths = ["lib"]
           end
@@ -112,7 +112,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         lines = result.lines
 
         # Find both freeze blocks
-        freeze_indices = lines.each_index.select { |i| lines[i].include?("# kettle-dev:freeze") }
+        freeze_indices = lines.each_index.select { |i| lines[i].include?("# kettle-jem:freeze") }
 
         expect(freeze_indices.length).to eq(2)
 
@@ -124,7 +124,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         expect(freeze_indices[1]).to be > gem_spec_line
 
         # No freeze reminder added
-        expect(result).not_to include("To retain during kettle-dev templating")
+        expect(result).not_to include("To retain during kettle-jem templating")
       end
 
       it "preserves contiguous header comments with freeze block" do
@@ -134,9 +134,9 @@ RSpec.describe "Freeze Block Location Preservation" do
           Gem::Specification.new do |spec|
             # Important context comment
             # More context about dependencies
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Frozen dependencies
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
           end
         RUBY
 
@@ -152,7 +152,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         # Header comments should be preserved with freeze block
         important_line = lines.find_index { |l| l.include?("Important context comment") }
         more_context_line = lines.find_index { |l| l.include?("More context about dependencies") }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
 
         expect(important_line).not_to be_nil
         expect(more_context_line).not_to be_nil
@@ -170,9 +170,9 @@ RSpec.describe "Freeze Block Location Preservation" do
           Gem::Specification.new do |spec|
             # Unrelated comment
             
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Frozen content
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
           end
         RUBY
 
@@ -187,7 +187,7 @@ RSpec.describe "Freeze Block Location Preservation" do
 
         # Unrelated comment should appear before blank line, not part of freeze block
         unrelated_line = lines.find_index { |l| l.include?("Unrelated comment") }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
 
         expect(unrelated_line).not_to be_nil
         expect(freeze_line).not_to be_nil
@@ -204,9 +204,9 @@ RSpec.describe "Freeze Block Location Preservation" do
           Gem::Specification.new do |spec|
             # Comment about name
             spec.name = "test"
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Frozen content
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
           end
         RUBY
 
@@ -222,7 +222,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         # Comment about name should not be part of freeze block
         name_comment_line = lines.find_index { |l| l.include?("Comment about name") }
         spec_name_line = lines.find_index { |l| l.include?('spec.name = "test"') }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
 
         expect(name_comment_line).not_to be_nil
         expect(spec_name_line).not_to be_nil
@@ -254,10 +254,10 @@ RSpec.describe "Freeze Block Location Preservation" do
             # Configuration comment
             spec.executables = []
             
-            # kettle-dev:freeze
+            # kettle-jem:freeze
             # Frozen dependencies
             # spec.add_dependency("frozen-gem")
-            # kettle-dev:unfreeze
+            # kettle-jem:unfreeze
             
             spec.require_paths = ["lib"]
           end
@@ -283,14 +283,14 @@ RSpec.describe "Freeze Block Location Preservation" do
 
         # Verify configuration comment before freeze block
         config_line = lines.find_index { |l| l.include?("Configuration comment") }
-        freeze_line = lines.find_index { |l| l.include?("# kettle-dev:freeze") }
+        freeze_line = lines.find_index { |l| l.include?("# kettle-jem:freeze") }
         expect(config_line).to be < freeze_line
 
         # Verify freeze block inside Gem::Specification
         expect(freeze_line).to be > gem_spec_line
 
         # No freeze reminder
-        expect(result).not_to include("To retain during kettle-dev templating")
+        expect(result).not_to include("To retain during kettle-jem templating")
       end
     end
 
@@ -299,10 +299,10 @@ RSpec.describe "Freeze Block Location Preservation" do
         input = <<~RUBY
           # frozen_string_literal: true
 
-          # To retain during kettle-dev templating:
-          #     kettle-dev:freeze
+          # To retain during kettle-jem templating:
+          #     kettle-jem:freeze
           #     # ... your code
-          #     kettle-dev:unfreeze
+          #     kettle-jem:unfreeze
           #
 
           gem "foo"
@@ -316,7 +316,7 @@ RSpec.describe "Freeze Block Location Preservation" do
         )
 
         # Should not duplicate the reminder
-        reminder_count = result.lines.count { |l| l.include?("To retain during kettle-dev templating") }
+        reminder_count = result.lines.count { |l| l.include?("To retain during kettle-jem templating") }
         expect(reminder_count).to eq(1)
       end
     end

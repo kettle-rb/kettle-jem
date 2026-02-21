@@ -69,7 +69,7 @@ module Kettle
           oc_path = File.join(Dir.pwd, ".opencollective.yml")
           if File.file?(oc_path)
             txt = File.read(oc_path)
-            return if txt =~ /\borg:\s*([\w\-]+)/i
+            return if /\borg:\s*([\w\-]+)/i.match?(txt)
           end
         rescue StandardError => e
           debug("Reading .opencollective.yml failed: #{e.class}: #{e.message}")

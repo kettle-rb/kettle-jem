@@ -1,11 +1,11 @@
 # coding: utf-8
 # frozen_string_literal: true
 
-# kettle-dev:freeze
-# To retain chunks of comments & code during kettle-dev templating:
+# kettle-jem:freeze
+# To retain chunks of comments & code during kettle-jem templating:
 # Wrap custom sections with freeze markers (e.g., as above and below this comment chunk).
 # The content between those markers will be preserved across template runs.
-# kettle-dev:unfreeze
+# kettle-jem:unfreeze
 
 gem_version =
   if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
@@ -148,7 +148,7 @@ Gem::Specification.new do |spec|
   # Listed files are the relative paths from bindir above.
   spec.executables = ["kettle-changelog", "kettle-commit-msg", "kettle-dev-setup", "kettle-pre-release", "kettle-readme-backers", "kettle-release", "kettle-dvcs"]
 
-  # kettle-dev:freeze
+  # kettle-jem:freeze
   # NOTE: This gem has "runtime" dependencies,
   #       but this gem will always be used in the context of other libraries.
   #       At runtime, this gem depends on its dependencies being direct dependencies of those other libraries.
@@ -156,7 +156,7 @@ Gem::Specification.new do |spec|
 
   # Utilities
   # spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
-  # kettle-dev:unfreeze
+  # kettle-jem:unfreeze
 
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.

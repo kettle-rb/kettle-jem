@@ -11,7 +11,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
   before do
     # Prevent invoking the real rake task; stub it to a no-op
-    allow(Rake::Task).to receive(:[]).with("kettle:dev:template").and_return(double(invoke: nil))
+    allow(Rake::Task).to receive(:[]).with("kettle:jem:template").and_return(double(invoke: nil))
     # Bypass funding org requirement during these unit tests unless a test sets it explicitly
     stub_env("FUNDING_ORG" => "false")
   end
@@ -748,14 +748,14 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           # frozen_string_literal: true
           source "https://gem.coop"
           gem "rake"
-          gem "kettle-dev", path: "#{repo_root}"
+          gem "kettle-jem", path: "#{repo_root}"
         GEMFILE
-        # Minimal Rakefile that loads kettle-dev tasks from this checkout
+        # Minimal Rakefile that loads kettle-jem tasks from this checkout
         File.write(File.join(project_root, "Rakefile"), <<~RAKE)
           $LOAD_PATH.unshift(File.expand_path("#{File.join(repo_root, "lib")}"))
-          require "kettle/dev"
-          load File.expand_path("#{File.join(repo_root, "lib/kettle/dev/rakelib/template.rake")}")
-          load File.expand_path("#{File.join(repo_root, "lib/kettle/dev/rakelib/install.rake")}")
+          require "kettle/jem"
+          load File.expand_path("#{File.join(repo_root, "lib/kettle/jem/rakelib/template.rake")}")
+          load File.expand_path("#{File.join(repo_root, "lib/kettle/jem/rakelib/install.rake")}")
         RAKE
         bin_rake = File.join(repo_root, "bin", "rake")
         require "open3"
@@ -789,7 +789,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           warn "bundle install failed for repo Gemfile:\n#{bund_out}\n#{bund_err}"
         end
         # 3) Run the task
-        stdout, stderr, status = Open3.capture3(env.merge("BUNDLE_GEMFILE" => File.join(project_root, "Gemfile")), bin_rake, "kettle:dev:install", chdir: project_root)
+        stdout, stderr, status = Open3.capture3(env.merge("BUNDLE_GEMFILE" => File.join(project_root, "Gemfile")), bin_rake, "kettle:jem:install", chdir: project_root)
         unless status.success?
           warn "bin/rake output:\n#{stdout}\n#{stderr}"
         end

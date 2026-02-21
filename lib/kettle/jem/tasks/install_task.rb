@@ -18,7 +18,7 @@ module Kettle
           project_root = helpers.project_root
 
           # Run file templating via dedicated task first
-          Rake::Task["kettle:dev:template"].invoke
+          Rake::Task["kettle:jem:template"].invoke
 
           # .tool-versions cleanup offers
           tool_versions_path = File.join(project_root, ".tool-versions")
@@ -75,17 +75,17 @@ module Kettle
                     if badge_cell.strip == "<br/>"
                       cells[2] = " "
                       cells.join("|")
-                    elsif badge_cell =~ /\A\s*<br\/>/i
+                    elsif /\A\s*<br\/>/i.match?(badge_cell)
                       # If badge cell starts with <br/> and there are no badges before it, strip the leading <br/>
                       # We consider "no badges before" as any leading whitespace followed immediately by <br/>
                       cleaned = badge_cell.sub(/\A\s*<br\/>\s*/i, "")
                       cells[2] = " #{cleaned}" # prefix with a single space
                       cells.join("|")
-                    elsif badge_cell =~ /\A[ \t]{2,}\S/
+                    elsif /\A[ \t]{2,}\S/.match?(badge_cell)
                       # Collapse multiple leading spaces/tabs to exactly one
                       cells[2] = " " + badge_cell.lstrip
                       cells.join("|")
-                    elsif badge_cell =~ /\A[ \t]+\S/
+                    elsif /\A[ \t]+\S/.match?(badge_cell)
                       # If there is any leading whitespace at all, normalize it to exactly one space
                       cells[2] = " " + badge_cell.lstrip
                       cells.join("|")
@@ -163,7 +163,7 @@ module Kettle
                 begin
                   emoji_re = Kettle::EmojiRegex::REGEX
                   # Extract first emoji grapheme cluster if present
-                  if tail =~ /\A#{emoji_re.source}/u
+                  if /\A#{emoji_re.source}/u.match?(tail)
                     cluster = tail[/\A\X/u]
                     chosen_grapheme = cluster unless cluster.to_s.empty?
                   end
@@ -176,7 +176,7 @@ module Kettle
 
               # If no grapheme found in README H1, either use a default in force mode, or ask the user.
               if chosen_grapheme.nil? || chosen_grapheme.empty?
-                if ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
+                if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
                   # Non-interactive install: default to pizza slice to match template style.
                   chosen_grapheme = "🍕"
                 else
@@ -336,7 +336,7 @@ module Kettle
                       v
                     end
                   end
-                  return false unless v =~ %r{\Ahttps?://github\.com/}i
+                  return false unless %r{\Ahttps?://github\.com/}i.match?(v)
 
                   !!github_repo_from_url.call(v)
                 end
@@ -363,7 +363,7 @@ module Kettle
                     puts "Example:"
                     puts "  git remote rename origin something_else"
                     puts "  git remote add origin https://github.com/<org>/<repo>.git"
-                    puts "After fixing, re-run: rake kettle:dev:install"
+                    puts "After fixing, re-run: rake kettle:jem:install"
                     task_abort("Aborting: homepage cannot be corrected without a GitHub origin remote.")
                   end
 
@@ -374,7 +374,7 @@ module Kettle
                   puts "Suggested literal homepage: \"#{suggested}\""
                   print("Update #{File.basename(gemspec_path)} to use this homepage? [Y/n]: ")
                   do_update =
-                    if ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
+                    if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
                       true
                     else
                       ans = Kettle::Dev::InputAdapter.gets&.strip
@@ -406,7 +406,7 @@ module Kettle
             puts
             puts "Summary of templating changes:"
             if meaningful.empty?
-              puts "  (no files were created or replaced by kettle:dev:template)"
+              puts "  (no files were created or replaced by kettle:jem:template)"
             else
               action_labels = {
                 create: "Created",
@@ -448,7 +448,7 @@ module Kettle
           puts "3) Install direnv (if not already):"
           puts "   brew install direnv"
           if helpers.modified_by_template?(envrc_path)
-            puts "   Your .envrc was created/updated by kettle:dev:template."
+            puts "   Your .envrc was created/updated by kettle:jem:template."
             puts "   It includes PATH_add bin so that executables in ./bin are on PATH when direnv is active."
             puts "   This allows running tools without the bin/ prefix inside the project directory."
           else
@@ -488,12 +488,12 @@ module Kettle
               puts "Proceeding after .envrc update because allowed=true."
             else
               puts
-              puts "IMPORTANT: .envrc was updated during kettle:dev:install."
+              puts "IMPORTANT: .envrc was updated during kettle:jem:install."
               puts "Please review it and then run:"
               puts "  direnv allow"
               puts
               puts "After that, re-run to resume:"
-              puts "  bundle exec rake kettle:dev:install allowed=true"
+              puts "  bundle exec rake kettle:jem:install allowed=true"
               task_abort("Aborting: direnv allow required after .envrc changes.")
             end
           end
@@ -522,7 +522,7 @@ module Kettle
               # Respect an explicit negative answer even when force=true
               add_it = if answer && answer =~ /\An(o)?\z/i
                 false
-              elsif ENV.fetch("force", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
+              elsif Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
                 true
               else
                 answer.nil? || answer.empty? || answer =~ /\Ay(es)?\z/i
@@ -545,7 +545,7 @@ module Kettle
           end
 
           puts
-          puts "kettle:dev:install complete."
+          puts "kettle:jem:install complete."
         end
       end
     end

@@ -10,14 +10,14 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(result).to include("gem \"foo\"")
     end
 
-    it "preserves kettle-dev:freeze blocks from the destination", :prism_merge_only do
+    it "preserves kettle-jem:freeze blocks from the destination", :prism_merge_only do
       src = <<~RUBY
         source "https://example.com"
         gem "foo"
       RUBY
       dest = <<~RUBY
         source "https://gem.coop"
-        # kettle-dev:freeze
+        # kettle-jem:freeze
         gem "bar", "~> 1.0"
       RUBY
       merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
@@ -25,7 +25,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       # But freeze blocks from destination are preserved
       expect(merged).to include("source \"https://example.com\"")
       expect(merged).to include("gem \"foo\"")
-      expect(merged).to include("# kettle-dev:freeze")
+      expect(merged).to include("# kettle-jem:freeze")
       expect(merged).to include("gem \"bar\", \"~> 1.0\"")
     end
 
@@ -69,9 +69,9 @@ RSpec.describe Kettle::Jem::SourceMerger do
       dest = <<~RUBY
         Gem::Specification.new do |spec|
           spec.name = "original-name"
-          # kettle-dev:freeze
+          # kettle-jem:freeze
           spec.metadata["custom"] = "1"
-          # kettle-dev:unfreeze
+          # kettle-jem:unfreeze
           spec.add_dependency "existing"
         end
       RUBY
@@ -151,11 +151,11 @@ RSpec.describe Kettle::Jem::SourceMerger do
           gem "foo"
         RUBY
         dest = <<~RUBY
-          # kettle-dev:freeze
+          # kettle-jem:freeze
           # Custom configuration
           gem "custom", path: "../custom"
           gem "another" # local override
-          # kettle-dev:unfreeze
+          # kettle-jem:unfreeze
         RUBY
         merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
         expect(merged).to include("# Custom configuration")
@@ -305,21 +305,21 @@ RSpec.describe Kettle::Jem::SourceMerger do
 
     context "when merging gemspec fixtures" do
       let(:fixture_dir) { File.expand_path("../../support/fixtures", __dir__) }
-      let(:dest_fixture) { File.read(File.join(fixture_dir, "example-kettle-dev.gemspec")) }
-      let(:template_fixture) { File.read(File.join(fixture_dir, "example-kettle-dev.template.gemspec")) }
+      let(:dest_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.gemspec")) }
+      let(:template_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.template.gemspec")) }
 
-      it "keeps kettle-dev freeze blocks in their relative position", :prism_merge_only do
+      it "keeps kettle-jem freeze blocks in their relative position", :prism_merge_only do
         merged = described_class.apply(
           strategy: :merge,
           src: template_fixture,
           dest: dest_fixture,
-          path: "example-kettle-dev.gemspec",
+          path: "example-kettle-jem.gemspec",
         )
 
-        dest_block = dest_fixture[/#\s*kettle-dev:freeze.*?#\s*kettle-dev:unfreeze/m]
+        dest_block = dest_fixture[/#\s*kettle-jem:freeze.*?#\s*kettle-jem:unfreeze/m]
         expect(dest_block).not_to be_nil
 
-        freeze_count = merged.scan(/#\s*kettle-dev:freeze/i).length
+        freeze_count = merged.scan(/#\s*kettle-jem:freeze/i).length
         expect(freeze_count).to eq(2)
         expect(merged).to include(dest_block)
 

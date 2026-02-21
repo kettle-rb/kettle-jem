@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# These tests isolate issues discovered in kettle-dev to determine if the problem
-# is in kettle-jem/prism-merge layer or kettle-dev layer.
+# These tests isolate issues discovered during kettle-dev → kettle-jem migration
+# to determine if the problem is in the kettle-jem/prism-merge layer.
 #
-# See kettle-dev failing tests:
+# Originally derived from kettle-dev specs:
 # - spec/kettle/dev/template_helpers_spec.rb:104 - "inserts source at top"
 # - spec/integration/real_world_modular_gemfile_spec.rb:39 - coverage comments
 

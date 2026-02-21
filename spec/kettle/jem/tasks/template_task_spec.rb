@@ -580,7 +580,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # Token replacements applied
             expect(txt).to include("existing")
             # Tokens should be resolved
-            expect(txt).not_to include('{KJ|GEM_NAME}')
+            expect(txt).not_to include("{KJ|GEM_NAME}")
             expect(txt).not_to include("{KJ|NAMESPACE}")
           end
         end

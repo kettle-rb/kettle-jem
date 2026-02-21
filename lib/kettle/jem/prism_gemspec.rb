@@ -387,10 +387,10 @@ module Kettle
 
       def build_literal_value(v)
         if v.is_a?(Array)
-          arr = v.compact.map(&:to_s).map { |e| '"' + e.gsub('"', '\\"') + '"' }
+          arr = v.compact.map(&:to_s).map { |e| '"' + e.gsub('\\', '\\\\').gsub('"', '\\"') + '"' }
           "[" + arr.join(", ") + "]"
         else
-          '"' + v.to_s.gsub('"', '\\"') + '"'
+          '"' + v.to_s.gsub('\\', '\\\\').gsub('"', '\\"') + '"'
         end
       end
 
