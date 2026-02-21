@@ -4,10 +4,12 @@
 require "ast-merge"
 require "dotenv-merge"
 require "json-merge"
+require "kettle-dev"
 require "markly-merge"
 require "prism-merge"
 require "psych-merge"
 require "rbs-merge"
+require "token-resolver"
 require "version_gem"
 
 # Shared merge infrastructure
@@ -55,6 +57,24 @@ module Kettle
 
     # Autoload recipe loader for YAML-based recipes
     autoload :RecipeLoader, "kettle/jem/recipe_loader"
+
+    # Prism AST utilities (moved from kettle-dev)
+    autoload :PrismUtils, "kettle/jem/prism_utils"
+    autoload :PrismGemspec, "kettle/jem/prism_gemspec"
+    autoload :PrismGemfile, "kettle/jem/prism_gemfile"
+    autoload :PrismAppraisals, "kettle/jem/prism_appraisals"
+    autoload :SourceMerger, "kettle/jem/source_merger"
+
+    # Templating and setup (moved from kettle-dev)
+    autoload :TemplateHelpers, "kettle/jem/template_helpers"
+    autoload :ModularGemfiles, "kettle/jem/modular_gemfiles"
+    autoload :SetupCLI, "kettle/jem/setup_cli"
+
+    # Task modules (moved from kettle-dev)
+    module Tasks
+      autoload :InstallTask, "kettle/jem/tasks/install_task"
+      autoload :TemplateTask, "kettle/jem/tasks/template_task"
+    end
 
     class << self
       # Load a recipe by name.

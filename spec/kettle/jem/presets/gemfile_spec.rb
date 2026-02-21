@@ -16,8 +16,8 @@ RSpec.describe Kettle::Jem::Presets::Gemfile do
       expect(config.add_template_only_nodes).to be false
     end
 
-    it "has kettle-dev freeze token" do
-      expect(config.freeze_token).to eq("kettle-dev")
+    it "has kettle-jem freeze token" do
+      expect(config.freeze_token).to eq("kettle-jem")
     end
 
     it "has a signature generator" do

@@ -1,0 +1,31 @@
+# frozen_string_literal: true
+
+# To retain during {KJ|GEM_NAME} templating:
+#     {KJ|FREEZE_TOKEN}:freeze
+#     # ... your code
+#     {KJ|FREEZE_TOKEN}:unfreeze
+#
+
+# We run rubocop on the latest version of Ruby,
+#   but in support of the oldest supported version of Ruby
+
+gem "reek", "~> 6.5"
+
+platform :mri do
+  # gem "rubocop", "~> 1.73", ">= 1.73.2" # constrained by standard
+  gem "rubocop-packaging", "~> 0.6", ">= 0.6.0"
+  gem "standard", ">= 1.50"
+  gem "rubocop-on-rbs", "~> 1.8"                    # ruby >= 3.1.0
+
+  if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+    home = ENV["HOME"] || Dir.home
+    gem "rubocop-lts", path: "#{home}/src/rubocop-lts/rubocop-lts"
+    gem "rubocop-lts-rspec", path: "#{home}/src/rubocop-lts/rubocop-lts-rspec"
+    gem "{KJ|RUBOCOP_RUBY_GEM}", path: "#{home}/src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
+    gem "standard-rubocop-lts", path: "#{home}/src/rubocop-lts/standard-rubocop-lts"
+  else
+    gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+    gem "{KJ|RUBOCOP_RUBY_GEM}"
+    gem "rubocop-rspec", "~> 3.6"
+  end
+end

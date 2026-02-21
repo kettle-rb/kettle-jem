@@ -7,8 +7,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Peter H. Boling"]
   spec.email = ["floss@galtzo.com"]
 
-  spec.summary = "☯️ A collection of Ast::Merge::MergeConfig presets and utilities for gem templating."
-  spec.description = "☯️ A collection of Ast::Merge::MergeConfig presets and utilities for gem templating."
+  spec.summary = "☯️ Gem templating engine using AST-based merging and configurable token resolution."
+  spec.description = "☯️ Kettle::Jem provides gem scaffolding, templating, and setup automation using the *-merge gem family for AST-based file merging and token-resolver for template token resolution. Includes MergerConfig presets, YAML recipes, and a complete gem template scaffold."
   spec.homepage = "https://github.com/kettle-rb/kettle-jem"
   spec.licenses = ["MIT"]
   spec.required_ruby_version = ">= 3.2.0"
@@ -47,6 +47,10 @@ Gem::Specification.new do |spec|
     # Code / tasks / data (NOTE: exe/ is specified via spec.bindir and spec.executables below)
     "lib/**/*.rb",
     "lib/**/*.rake",
+    "lib/**/*.yml",
+    # Template scaffold for gem templating
+    "template/**/*",
+    "template/**/.*",
     # Signatures
     "sig/**/*.rbs",
   ]
@@ -79,10 +83,13 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.bindir = "exe"
   # Listed files are the relative paths from bindir above.
-  spec.executables = []
+  spec.executables = ["kettle-jem-setup"]
 
   # Shared merge infrastructure
   spec.add_dependency("ast-merge", "~> 4.0", ">= 4.0.6")                # ruby >= 3.2.0
+
+  # Token parsing and resolution for template ETL
+  spec.add_dependency("token-resolver", "~> 1.0")                        # ruby >= 3.2.0
 
   # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
   spec.add_dependency("tree_haver", "~> 5.0", ">= 5.0.5")               # ruby >= 3.2.0
@@ -101,6 +108,9 @@ Gem::Specification.new do |spec|
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
+  # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
+  spec.add_dependency("kettle-dev", "~> 1.1")                            # ruby >= 2.3.0
+
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
   #       However, development dependencies in gemspec will install on
@@ -113,9 +123,6 @@ Gem::Specification.new do |spec|
   #
   #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
   #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-
-  # Dev, Test, & Release Tasks
-  spec.add_development_dependency("kettle-dev", "~> 1.1")                           # ruby >= 2.3.0
 
   # Security
   spec.add_development_dependency("bundler-audit", "~> 0.9.2")                      # ruby >= 2.0.0
