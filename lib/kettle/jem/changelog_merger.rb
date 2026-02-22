@@ -76,10 +76,15 @@ module Kettle
         merged_lines << "" if tail_after_unrel.any?
         merged_lines.concat(tail_after_unrel)
 
-        normalize_release_headers(merged_lines.join("\n"))
+        result = normalize_release_headers(merged_lines.join("\n"))
+        # Ensure trailing newline (standard for text files)
+        result.end_with?("\n") ? result : "#{result}\n"
       end
 
       # Find the end index of the Unreleased section (exclusive).
+      # Stops at the next version heading (`## [version]`), a top-level heading,
+      # or a block of link reference definitions at the bottom of the file
+      # (e.g., `[Unreleased]: https://...`).
       #
       # @param lines [Array<String>] All CHANGELOG lines
       # @param unrel_idx [Integer, nil] Index of the Unreleased heading
@@ -90,7 +95,14 @@ module Kettle
         j = unrel_idx + 1
         while j < lines.length
           ln = lines[j]
+          # Stop at the next version heading or top-level heading
           if ln.match?(/^##\s+\[/) || ln.match?(/^#\s+/) || ln.match?(/^##\s+[^\[]/)
+            return j - 1
+          end
+          # Stop at link reference definitions (e.g., [Unreleased]: https://...)
+          # These live at the bottom of the file, outside any section.
+          # Skip blank lines first, then check for a contiguous block of link refs.
+          if ln.match?(/^\[.+\]:\s/)
             return j - 1
           end
           j += 1

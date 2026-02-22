@@ -49,6 +49,16 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- Add `spec.metadata["key"] = value` handler to `Signatures.gemspec` — matching
+  the logic already in the recipe's `signature_generator.rb`. Without this,
+  `spec.metadata[]=` calls fell through to the generic handler and failed to
+  match between template and destination during gemspec merging.
+- Fix `Performance/RegexpMatch` lint in `markdown_merger.rb` (=~ → .match?)
+- Fix `ChangelogMerger` stripping link reference definitions at the bottom of
+  CHANGELOG files. `find_section_end` now stops before lines matching
+  `[name]: url` patterns, preserving version comparison links.
+- Fix `ChangelogMerger` missing trailing newline in merged output.
+
 ### Security
 
 [Unreleased]: https://github.com/kettle-rb/kettle-jem/compare/v1.0.0...HEAD

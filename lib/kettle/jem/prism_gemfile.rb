@@ -58,7 +58,11 @@ module Kettle
         dest_content
       end
 
-      # Filter source content to only include top-level gem-related calls
+      # Filter source content to only include top-level gem-related calls.
+      #
+      # Magic comments (frozen_string_literal, encoding, etc.) are NOT preserved
+      # in the filtered output — SmartMerger handles them by always preserving
+      # destination magic comments regardless of preference.
       def filter_to_top_level_gems(content)
         parse_result = PrismUtils.parse_with_comments(content)
         return content unless parse_result.success?
@@ -75,6 +79,9 @@ module Kettle
 
         return "" if filtered_stmts.empty?
 
+        # Join statements with single newline. The trailing blank line ensures
+        # SmartMerger's trailing blank detection emits a gap after the last
+        # filtered statement, preserving separation from dest-only nodes.
         filtered_stmts.map do |stmt|
           src = stmt.slice.rstrip
           inline = begin

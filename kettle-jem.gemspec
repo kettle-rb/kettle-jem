@@ -101,7 +101,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("json-merge", "~> 1.1", ">= 1.1.2")               # ruby >= 3.2.0
   spec.add_dependency("markdown-merge", "~> 1.0", ">= 1.0.3")           # ruby >= 3.2.0
   spec.add_dependency("markly-merge", "~> 1.0")                         # ruby >= 3.2.0
-  spec.add_dependency("prism-merge", "~> 2.0", ">= 2.0.1")              # ruby >= 3.2.0
+  spec.add_dependency("prism-merge", "~> 2.0", ">= 2.0.4")              # ruby >= 3.2.0
   spec.add_dependency("psych-merge", "~> 1.0")                          # ruby >= 3.2.0
   spec.add_dependency("rbs-merge", "~> 2.0")                            # ruby >= 3.2.0
 

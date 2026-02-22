@@ -214,5 +214,101 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
       result = described_class.find_section_end(["line"], nil)
       expect(result).to be_nil
     end
+
+    it "stops before link reference definitions" do
+      lines = [
+        "## [Unreleased]",
+        "### Added",
+        "- Thing",
+        "",
+        "### Security",
+        "",
+        "[Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD",
+        "[1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0",
+      ]
+      result = described_class.find_section_end(lines, 0)
+      expect(result).to eq(5)
+    end
+  end
+
+  describe "link reference preservation" do
+    it "preserves destination link references at the bottom of the file" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Security
+
+        [Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD
+        [1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0
+        [1.0.0t]: https://github.com/org/repo/tags/v1.0.0
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Security
+
+        [Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD
+        [1.0.0]: https://github.com/org/repo/compare/deadbeef...v1.0.0
+        [1.0.0t]: https://github.com/org/repo/tags/v1.0.0
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      expect(result).to include("[Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD")
+      expect(result).to include("[1.0.0]: https://github.com/org/repo/compare/deadbeef...v1.0.0")
+      expect(result).to include("[1.0.0t]: https://github.com/org/repo/tags/v1.0.0")
+    end
+
+    it "preserves link references when destination has no version headings" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Security
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Fixed
+        - Some fix
+
+        ### Security
+
+        [Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD
+        [1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      expect(result).to include("### Security")
+      expect(result).to include("[Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD")
+      expect(result).to include("[1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0")
+      expect(result).to include("- Some fix")
+    end
+  end
+
+  describe "trailing newline" do
+    it "ensures output ends with a newline" do
+      result = described_class.merge(
+        template_content: "# Changelog\n\n## [Unreleased]\n### Added\n### Security\n",
+        destination_content: "# Changelog\n\n## [Unreleased]\n### Added\n### Security\n",
+      )
+      expect(result).to end_with("\n")
+    end
   end
 end

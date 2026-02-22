@@ -144,6 +144,14 @@ module Kettle
               return [:gem_specification_new]
             end
 
+            # spec.metadata["key"] = value
+            if actual.name == :[]= && receiver_name&.include?("metadata")
+              first_arg = actual.arguments&.arguments&.first
+              if first_arg.is_a?(Prism::StringNode)
+                return [:spec_metadata, first_arg.unescaped]
+              end
+            end
+
             node
           end
         end
