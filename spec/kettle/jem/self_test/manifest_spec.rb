@@ -52,7 +52,7 @@ RSpec.describe Kettle::Jem::SelfTest::Manifest do
   describe ".compare" do
     it "classifies identical files as matched" do
       before = {"a.txt" => "abc123", "b.txt" => "def456"}
-      after  = {"a.txt" => "abc123", "b.txt" => "def456"}
+      after = {"a.txt" => "abc123", "b.txt" => "def456"}
 
       result = manifest.compare(before, after)
       expect(result[:matched]).to contain_exactly("a.txt", "b.txt")
@@ -63,7 +63,7 @@ RSpec.describe Kettle::Jem::SelfTest::Manifest do
 
     it "classifies files with different digests as changed" do
       before = {"a.txt" => "abc123"}
-      after  = {"a.txt" => "xyz789"}
+      after = {"a.txt" => "xyz789"}
 
       result = manifest.compare(before, after)
       expect(result[:changed]).to eq(["a.txt"])
@@ -72,7 +72,7 @@ RSpec.describe Kettle::Jem::SelfTest::Manifest do
 
     it "classifies files only in after as added" do
       before = {}
-      after  = {"new.txt" => "abc123"}
+      after = {"new.txt" => "abc123"}
 
       result = manifest.compare(before, after)
       expect(result[:added]).to eq(["new.txt"])
@@ -83,7 +83,7 @@ RSpec.describe Kettle::Jem::SelfTest::Manifest do
 
     it "classifies files only in before as removed" do
       before = {"old.txt" => "abc123"}
-      after  = {}
+      after = {}
 
       result = manifest.compare(before, after)
       expect(result[:removed]).to eq(["old.txt"])
@@ -110,7 +110,7 @@ RSpec.describe Kettle::Jem::SelfTest::Manifest do
 
     it "returns sorted keys" do
       before = {"z.txt" => "1", "a.txt" => "2"}
-      after  = {"z.txt" => "1", "a.txt" => "2"}
+      after = {"z.txt" => "1", "a.txt" => "2"}
 
       result = manifest.compare(before, after)
       expect(result[:matched]).to eq(["a.txt", "z.txt"])

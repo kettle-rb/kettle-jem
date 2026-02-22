@@ -491,7 +491,6 @@ module Kettle
             end
           end
 
-
           # 7b) certs/pboling.pem
           begin
             cert_src = File.join(gem_checkout_root, "certs", "pboling.pem")

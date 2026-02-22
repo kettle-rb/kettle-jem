@@ -56,10 +56,10 @@ module Kettle
           gem_root = helpers.gem_checkout_root
           base_dir = File.join(gem_root, "tmp", "template_test")
 
-          dest_dir   = File.join(base_dir, "destination")
+          dest_dir = File.join(base_dir, "destination")
           output_dir = File.join(base_dir, "output")
           report_dir = File.join(base_dir, "report")
-          diffs_dir  = File.join(report_dir, "diffs")
+          diffs_dir = File.join(report_dir, "diffs")
 
           threshold = (ENV["KJ_SELFTEST_THRESHOLD"] || DEFAULT_THRESHOLD).to_f
 
@@ -111,8 +111,8 @@ module Kettle
           report_path = File.join(report_dir, "summary.md")
           File.write(report_path, report)
 
-          total   = comparison[:matched].size + comparison[:changed].size + comparison[:added].size
-          score   = total.zero? ? 0.0 : (comparison[:matched].size.to_f / total * 100).round(1)
+          total = comparison[:matched].size + comparison[:changed].size + comparison[:added].size
+          score = total.zero? ? 0.0 : (comparison[:matched].size.to_f / total * 100).round(1)
 
           puts
           puts report
@@ -227,7 +227,7 @@ module Kettle
         def git_ls_files(dir)
           require "open3"
           out, status = Open3.capture2("git", "-C", dir, "ls-files", "-z")
-          return nil unless status.success?
+          return unless status.success?
 
           out.split("\0").reject(&:empty?)
         rescue StandardError

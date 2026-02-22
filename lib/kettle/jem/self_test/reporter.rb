@@ -44,11 +44,11 @@ module Kettle
         def summary(comparison, output_dir:)
           matched = comparison.fetch(:matched, [])
           changed = comparison.fetch(:changed, [])
-          added   = comparison.fetch(:added, [])
+          added = comparison.fetch(:added, [])
           removed = comparison.fetch(:removed, [])
 
-          total   = matched.size + changed.size + added.size
-          score   = total.zero? ? 0.0 : (matched.size.to_f / total * 100).round(1)
+          total = matched.size + changed.size + added.size
+          score = total.zero? ? 0.0 : (matched.size.to_f / total * 100).round(1)
 
           lines = []
           lines << "# Template Self-Test Report"
@@ -87,13 +87,12 @@ module Kettle
 
           if changed.empty? && added.empty? && removed.empty?
             lines << "## All files match! :tada:"
-            lines << ""
           else
             lines << "## Detailed Diffs"
             lines << ""
             lines << "See `report/diffs/` directory."
-            lines << ""
           end
+          lines << ""
 
           lines.join("\n")
         end

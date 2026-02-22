@@ -50,7 +50,7 @@ module Kettle
 
           matched = []
           changed = []
-          added   = []
+          added = []
           removed = []
 
           all_keys.each do |key|

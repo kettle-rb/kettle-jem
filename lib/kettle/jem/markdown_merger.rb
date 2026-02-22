@@ -61,7 +61,7 @@ module Kettle
 
         # Also preserve any "Note:*" sections found in the merged content
         src_sections[:sections].each do |sec|
-          preserve_targets << sec[:base] if sec[:base] =~ NOTE_PATTERN
+          preserve_targets << sec[:base] if sec[:base].match?(NOTE_PATTERN)
         end
 
         return merged if src_sections[:sections].empty?
