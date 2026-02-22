@@ -1,0 +1,162 @@
+# GitHub Copilot Instructions
+
+This document contains important information for AI assistants working on this codebase.
+
+## Tool Usage Preferences
+
+### Prefer Internal Tools Over Terminal Commands
+
+**IMPORTANT**: Copilot cannot see terminal output. Every terminal command requires the user to manually copy/paste the output back to the chat. This is slow and frustrating.
+
+✅ **PREFERRED** - Use internal tools:
+- `grep_search` instead of `grep` command
+- `file_search` instead of `find` command
+- `read_file` instead of `cat` command
+- `list_dir` instead of `ls` command
+- `replace_string_in_file` or `create_file` instead of `sed` / manual editing
+
+❌ **AVOID** when possible:
+- `run_in_terminal` for information gathering
+- Running grep/find/cat in terminal
+
+Only use terminal for:
+- Running tests (`bundle exec rspec`)
+- Installing dependencies (`bundle install`)
+- Git operations that require interaction
+- Commands that actually need to execute (not just gather info)
+
+## Search Tool Limitations
+
+### grep_search and Nested Git Projects
+
+**CRITICAL**: The `vendor/*` directories in this workspace may be **nested git projects** (they have their own `.git/` directory). The `grep_search` tool **CANNOT search inside nested git projects** - it only searches the main workspace.
+
+To search inside vendor gems:
+1. Use `read_file` to read specific files directly (this always works)
+2. Use `list_dir` to explore the directory structure
+3. Do NOT rely on `grep_search` with `includePattern: "vendor/**"` - it will return no results
+
+### grep_search includePattern
+
+**IMPORTANT**: The `includePattern` parameter uses glob patterns relative to the workspace root.
+
+✅ **WORKS** - Use these patterns:
+```
+includePattern: "lib/**"              # All files under lib/
+includePattern: "spec/**"             # All spec files recursively
+includePattern: "lib/my_gem/foo.rb"   # A specific file
+```
+
+❌ **DOES NOT WORK** - Avoid these:
+```
+# The | character does NOT work for alternation
+includePattern: "lib/**|spec/**"
+```
+
+### replace_string_in_file and Unicode Characters
+
+**IMPORTANT**: The `replace_string_in_file` tool can fail silently when files contain special Unicode characters like:
+- Curly apostrophes (`'` U+2019 instead of `'`)
+- Em-dashes (`—` U+2014 instead of `-`)
+- Emoji (🔧, 🎨, etc.)
+
+When `replace_string_in_file` fails with "Could not find matching text":
+1. The file likely contains Unicode characters that don't match what you're sending
+2. Try using a smaller, more unique portion of the text
+3. Avoid including lines with emojis or special punctuation in your oldString
+4. Use `read_file` to see the exact content, but be aware the display may normalize characters
+
+## API Conventions
+
+### Forward Compatibility with **options
+
+**CRITICAL DESIGN PRINCIPLE**: All constructors and public API methods that accept keyword arguments MUST include `**options` (or similar catch-all) as the final parameter to capture unknown options.
+
+### Naming Conventions
+- File paths must match class paths (Ruby convention)
+- Example: `MyGem::Foo::Bar` → `lib/my_gem/foo/bar.rb`
+
+## Testing
+
+### kettle-test RSpec Helpers
+
+**IMPORTANT**: All spec files load `require "kettle/test/rspec"` which provides extensive RSpec helpers and configuration from the kettle-test gem. DO NOT recreate these helpers - they already exist.
+
+**Environment Variable Helpers** (from `rspec-stubbed_env` gem):
+- `stub_env(hash)` - Temporarily set environment variables in a block
+- `hide_env(*keys)` - Temporarily hide environment variables
+
+**Example usage**:
+```ruby
+before do
+   stub_env("MY_ENV_VAR" => "Bla Blah Blu")
+end
+it "should see MY_ENV_VAR" do
+   # code that reads ENV["MY_ENV_VAR"]
+end
+
+# hide_env("HOME", "USER")
+# is used the same way, but hides the variable so it acts as it if isn't set at all.
+```
+
+**Other Helpers** (loaded by kettle-test):
+- `block_is_expected` - Enhanced block expectations (from `rspec-block_is_expected`)
+- `capture` - Capture output during tests (from `silent_stream`)
+- Timecop integration for time manipulation
+
+### Running Tests
+
+```bash
+bundle exec rspec spec/
+```
+
+### Coverage Reports
+
+```bash
+bin/rake coverage && bin/kettle-soup-cover -d
+```
+
+This runs tests with coverage instrumentation and generates detailed coverage reports in the `coverage/` directory.
+
+## Common Pitfalls
+
+1. **NEVER add backward compatibility** - No shims, aliases, or deprecation layers. Make clean breaks.
+2. **`spec_helper` is loaded by `.rspec`** - `require "spec_helper"` in spec files is always redundant.
+
+## Terminal Command Restrictions
+
+### Terminal Session Management
+
+**How `run_in_terminal` works**:
+- The tool sends commands to a **single persistent Copilot terminal**
+- Use `isBackground=false` for `run_in_terminal`. Sometimes it works, but if it fails/hangs, use the file redirection method, and then read back with `read_file` tool.
+- Commands run in sequence in the same terminal session
+- Environment variables and working directory persist between calls
+
+**When things go wrong**:
+- If output shows only shell banner/motd without command results, the command most likely worked, but the tool has lost the ability to see terminal output. This happens FREQUENTLY.
+- EVERY TIME you do not see output, STOP and switch immediately to file redirection, and read the file back with `read_file` tool.
+- **ALWAYS use project's `tmp/` directory for temporary files** - NEVER use `/tmp` or other system directories
+
+**Best practices**:
+1. **Redirect output to files** - `bundle exec rspec > tmp/test_output.txt 2>&1`
+2. **Use `read_file`** to check redirected output
+3. **Prefer internal tools** - Use `grep_search`, `read_file`, `list_dir` instead of terminal for information gathering
+
+### direnv Requires Separate `cd` Command
+
+**CRITICAL**: Never chain `cd` with other commands via `&&`. The `direnv` environment won't initialize until after all chained commands finish. Run `cd` alone first.
+
+### NEVER Pipe Test Commands Through head/tail
+
+**CRITICAL**: NEVER use `head`, `tail`, or any output truncation with test commands.
+
+❌ **ABSOLUTELY FORBIDDEN**:
+```bash
+bundle exec rspec 2>&1 | tail -50
+```
+
+✅ **CORRECT** - Redirect to file:
+```bash
+bundle exec rspec > tmp/test_output.txt 2>&1
+```

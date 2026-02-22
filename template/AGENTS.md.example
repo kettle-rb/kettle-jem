@@ -1,0 +1,222 @@
+# AGENTS.md - Development Guide
+
+## 🎯 Project Overview
+
+This project is a **RubyGem** managed with the [kettle-rb](https://github.com/kettle-rb) toolchain.
+
+**Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
+**Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
+
+## ⚠️ AI Agent Terminal Limitations
+
+### Terminal Output Is Not Visible
+
+**CRITICAL**: AI agents using `run_in_terminal` almost never see the command output. The terminal tool sends commands to a persistent Copilot terminal, but output is frequently lost or invisible to the agent.
+
+**Workaround**: Always redirect output to a file in the project's local `tmp/` directory, then read it back:
+
+```bash
+bundle exec rspec spec/some_spec.rb > tmp/test_output.txt 2>&1
+```
+Then use `read_file` to see `tmp/test_output.txt`.
+
+**NEVER** use `/tmp` or other system directories — always use the project's own `tmp/` directory.
+
+### direnv Requires Separate `cd` Command
+
+**CRITICAL**: The project uses `direnv` to load environment variables from `.envrc`. When you `cd` into the project directory, `direnv` initializes **after** the shell prompt returns. If you chain `cd` with other commands via `&&`, the subsequent commands run **before** `direnv` has loaded the environment.
+
+✅ **CORRECT** — Run `cd` alone, then run commands separately:
+```bash
+cd /path/to/project
+```
+```bash
+bundle exec rspec
+```
+
+❌ **WRONG** — Never chain `cd` with `&&`:
+```bash
+cd /path/to/project && bundle exec rspec
+```
+
+### Prefer Internal Tools Over Terminal
+
+✅ **PREFERRED** — Use internal tools:
+- `grep_search` instead of `grep` command
+- `file_search` instead of `find` command
+- `read_file` instead of `cat` command
+- `list_dir` instead of `ls` command
+- `replace_string_in_file` or `create_file` instead of `sed` / manual editing
+
+❌ **AVOID** when possible:
+- `run_in_terminal` for information gathering
+
+Only use terminal for:
+- Running tests (`bundle exec rspec`)
+- Installing dependencies (`bundle install`)
+- Git operations that require interaction
+- Commands that actually need to execute (not just gather info)
+
+### NEVER Pipe Test Commands Through head/tail
+
+❌ **ABSOLUTELY FORBIDDEN**:
+```bash
+bundle exec rspec 2>&1 | tail -50
+```
+
+✅ **CORRECT** — Redirect to file:
+```bash
+bundle exec rspec > tmp/test_output.txt 2>&1
+```
+
+## 🏗️ Architecture
+
+### Toolchain Dependencies
+
+This gem is part of the **kettle-rb** ecosystem. Key development tools:
+
+| Tool | Purpose |
+|------|---------|
+| `kettle-dev` | Development dependency: Rake tasks, release tooling, CI helpers |
+| `kettle-test` | Test infrastructure: RSpec helpers, stubbed_env, timecop |
+| `kettle-jem` | Template management and gem scaffolding |
+
+### Executables (from kettle-dev)
+
+| Executable | Purpose |
+|-----------|---------|
+| `kettle-release` | Full gem release workflow |
+| `kettle-pre-release` | Pre-release validation |
+| `kettle-changelog` | Changelog generation |
+| `kettle-dvcs` | DVCS (git) workflow automation |
+| `kettle-commit-msg` | Commit message validation |
+| `kettle-check-eof` | EOF newline validation |
+
+## 📁 Project Structure
+
+```
+lib/
+├── <gem_namespace>/           # Main library code
+│   └── version.rb             # Version constant (managed by kettle-release)
+spec/
+├── fixtures/                  # Test fixture files (NOT auto-loaded)
+├── support/
+│   ├── classes/               # Helper classes for specs
+│   └── shared_contexts/       # Shared RSpec contexts
+├── spec_helper.rb             # RSpec configuration (loaded by .rspec)
+gemfiles/
+├── modular/                   # Modular Gemfile components
+│   ├── coverage.gemfile       # SimpleCov dependencies
+│   ├── debug.gemfile          # Debugging tools
+│   ├── documentation.gemfile  # YARD/documentation
+│   ├── optional.gemfile       # Optional dependencies
+│   ├── rspec.gemfile          # RSpec testing
+│   ├── style.gemfile          # RuboCop/linting
+│   └── x_std_libs.gemfile     # Extracted stdlib gems
+├── ruby_*.gemfile             # Per-Ruby-version Appraisal Gemfiles
+└── Appraisal.root.gemfile     # Root Gemfile for Appraisal builds
+.git-hooks/
+├── commit-msg                 # Commit message validation hook
+├── prepare-commit-msg         # Commit message preparation
+├── commit-subjects-goalie.txt # Commit subject prefix filters
+└── footer-template.erb.txt    # Commit footer ERB template
+```
+
+## 🔧 Development Workflows
+
+### Running Tests
+
+```bash
+bundle exec rspec > tmp/test_output.txt 2>&1
+```
+
+Single file (disable coverage threshold):
+```bash
+K_SOUP_COV_MIN_HARD=false bundle exec rspec spec/path/to/spec.rb > tmp/test_output.txt 2>&1
+```
+
+### Coverage Reports
+
+```bash
+bin/rake coverage > tmp/coverage_output.txt 2>&1
+bin/kettle-soup-cover -d
+```
+
+**Key ENV variables** (set in `.envrc`):
+- `K_SOUP_COV_DO=true` – Enable coverage
+- `K_SOUP_COV_MIN_LINE` – Line coverage threshold
+- `K_SOUP_COV_MIN_BRANCH` – Branch coverage threshold
+- `K_SOUP_COV_MIN_HARD=true` – Fail if thresholds not met
+
+### Code Quality
+
+```bash
+bundle exec rake reek > tmp/reek_output.txt 2>&1
+bundle exec rubocop-gradual > tmp/rubocop_output.txt 2>&1
+```
+
+### Releasing
+
+```bash
+bin/kettle-pre-release    # Validate everything before release
+bin/kettle-release        # Full release workflow
+```
+
+## 📝 Project Conventions
+
+### Freeze Block Preservation
+
+Template updates preserve custom code wrapped in freeze blocks:
+
+```ruby
+# kettle-jem:freeze
+# ... custom code preserved across template runs ...
+# kettle-jem:unfreeze
+```
+
+### Modular Gemfile Architecture
+
+Gemfiles are split into modular components under `gemfiles/modular/`. Each component handles a specific concern (coverage, style, debug, etc.). The main `Gemfile` loads these modular components via `eval_gemfile`.
+
+### Forward Compatibility with `**options`
+
+**CRITICAL**: All constructors and public API methods that accept keyword arguments MUST include `**options` as the final parameter for forward compatibility.
+
+## 🧪 Testing Patterns
+
+### Test Infrastructure
+
+- Uses `kettle-test` for RSpec helpers (stubbed_env, block_is_expected, silent_stream, timecop)
+- Uses `Dir.mktmpdir` for isolated filesystem tests
+- Spec helper is loaded by `.rspec` — never add `require "spec_helper"` to spec files
+
+### Environment Variable Helpers
+
+```ruby
+before do
+  stub_env("MY_ENV_VAR" => "value")
+end
+
+before do
+  hide_env("HOME", "USER")
+end
+```
+
+### Dependency Tags
+
+Use dependency tags to conditionally skip tests when optional dependencies are not available:
+
+```ruby
+RSpec.describe SomeClass, :prism_merge do
+  # Skipped if prism-merge is not available
+end
+```
+
+## 🚫 Common Pitfalls
+
+1. **NEVER add backward compatibility** — No shims, aliases, or deprecation layers. Bump major version instead.
+2. **NEVER chain `cd` with `&&`** — `direnv` won't initialize until after all chained commands finish.
+3. **NEVER pipe test output through `head`/`tail`** — Redirect to `tmp/` files instead.
+4. **Terminal output is invisible** — Always redirect to `tmp/` and read back with `read_file`.
+5. **Use `tmp/` for temporary files** — Never use `/tmp` or other system directories.
+6. **`spec_helper` is loaded by `.rspec`** — `require "spec_helper"` is always redundant and misleading.

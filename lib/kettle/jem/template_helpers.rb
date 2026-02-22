@@ -18,6 +18,47 @@ module Kettle
       # The minimum Ruby supported by setup-ruby GHA
       MIN_SETUP_RUBY = Gem::Version.create("2.3")
 
+      # Multi-separator token config: {KJ|SECTION:NAME}
+      TOKEN_CONFIG = Token::Resolver::Config.new(separators: ["|", ":"]).freeze
+
+      # ENV variable names for forge user tokens.
+      # Each maps a forge prefix to its ENV key.
+      FORGE_USER_ENV_KEYS = {
+        "GH" => "KJ_GH_USER",
+        "GL" => "KJ_GL_USER",
+        "CB" => "KJ_CB_USER",
+        "SH" => "KJ_SH_USER",
+      }.freeze
+
+      # ENV variable names for author identity tokens.
+      AUTHOR_ENV_KEYS = {
+        "NAME" => "KJ_AUTHOR_NAME",
+        "GIVEN_NAMES" => "KJ_AUTHOR_GIVEN_NAMES",
+        "FAMILY_NAMES" => "KJ_AUTHOR_FAMILY_NAMES",
+        "EMAIL" => "KJ_AUTHOR_EMAIL",
+        "ORCID" => "KJ_AUTHOR_ORCID",
+        "DOMAIN" => "KJ_AUTHOR_DOMAIN",
+      }.freeze
+
+      # ENV variable names for funding platform tokens.
+      FUNDING_ENV_KEYS = {
+        "PATREON" => "KJ_FUNDING_PATREON",
+        "KOFI" => "KJ_FUNDING_KOFI",
+        "PAYPAL" => "KJ_FUNDING_PAYPAL",
+        "BUYMEACOFFEE" => "KJ_FUNDING_BUYMEACOFFEE",
+        "POLAR" => "KJ_FUNDING_POLAR",
+        "LIBERAPAY" => "KJ_FUNDING_LIBERAPAY",
+        "ISSUEHUNT" => "KJ_FUNDING_ISSUEHUNT",
+      }.freeze
+
+      # ENV variable names for social/community platform tokens.
+      SOCIAL_ENV_KEYS = {
+        "MASTODON" => "KJ_SOCIAL_MASTODON",
+        "BLUESKY" => "KJ_SOCIAL_BLUESKY",
+        "LINKTREE" => "KJ_SOCIAL_LINKTREE",
+        "DEVTO" => "KJ_SOCIAL_DEVTO",
+      }.freeze
+
       KETTLE_JEM_CONFIG_PATH = File.expand_path("../../..", __dir__) + "/.kettle-jem.yml"
       RUBY_BASENAMES = %w[Gemfile Rakefile Appraisals Appraisal.root.gemfile .simplecov].freeze
       RUBY_SUFFIXES = %w[.gemspec .gemfile].freeze
@@ -576,6 +617,8 @@ module Kettle
 
         dashed = gem_name.tr("_", "-")
         ft = (kettle_config.dig("defaults", "freeze_token") || "kettle-jem").to_s
+        author_domain = ENV["KJ_AUTHOR_DOMAIN"]
+        author_domain = nil if author_domain.to_s.strip.empty?
 
         # Build the token replacement map
         replacements = {
@@ -588,13 +631,37 @@ module Kettle
           "KJ|OPENCOLLECTIVE_ORG" => funding_org || "opencollective",
           "KJ|FREEZE_TOKEN" => ft,
           "KJ|KETTLE_DEV_GEM" => "kettle-dev",
-          "KJ|YARD_HOST" => "#{dashed}.galtzo.com",
+          "KJ|YARD_HOST" => "#{dashed}.#{author_domain || "example.com"}",
         }
         replacements["KJ|MIN_RUBY"] = min_ruby.to_s if min_ruby && !min_ruby.to_s.empty?
         replacements["KJ|MIN_DEV_RUBY"] = min_dev_ruby.to_s if min_dev_ruby && !min_dev_ruby.to_s.empty?
 
-        # Resolve all {KJ|...} tokens; unresolved ones kept for later-stage resolution
-        doc = Token::Resolver::Document.new(content)
+        # Forge user tokens: {KJ|GH:USER}, {KJ|GL:USER}, {KJ|CB:USER}, {KJ|SH:USER}
+        FORGE_USER_ENV_KEYS.each do |forge, env_key|
+          value = ENV[env_key]
+          replacements["KJ|#{forge}:USER"] = value if value && !value.strip.empty?
+        end
+
+        # Author identity tokens: {KJ|AUTHOR:NAME}, {KJ|AUTHOR:EMAIL}, etc.
+        AUTHOR_ENV_KEYS.each do |field, env_key|
+          value = ENV[env_key]
+          replacements["KJ|AUTHOR:#{field}"] = value if value && !value.strip.empty?
+        end
+
+        # Funding platform tokens: {KJ|FUNDING:PATREON}, {KJ|FUNDING:KOFI}, {KJ|FUNDING:PAYPAL}
+        FUNDING_ENV_KEYS.each do |platform, env_key|
+          value = ENV[env_key]
+          replacements["KJ|FUNDING:#{platform}"] = value if value && !value.strip.empty?
+        end
+
+        # Social/community platform tokens: {KJ|SOCIAL:MASTODON}, {KJ|SOCIAL:BLUESKY}, etc.
+        SOCIAL_ENV_KEYS.each do |platform, env_key|
+          value = ENV[env_key]
+          replacements["KJ|SOCIAL:#{platform}"] = value if value && !value.strip.empty?
+        end
+
+        # Resolve all {KJ|...} and {KJ|XX:YY} tokens; unresolved ones kept for later-stage resolution
+        doc = Token::Resolver::Document.new(content, config: TOKEN_CONFIG)
         resolver = Token::Resolver::Resolve.new(on_missing: :keep)
         resolver.resolve(doc, replacements)
       end

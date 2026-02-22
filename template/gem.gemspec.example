@@ -26,8 +26,8 @@ gem_version =
 Gem::Specification.new do |spec|
   spec.name = "{KJ|GEM_NAME}"
   spec.version = gem_version
-  spec.authors = ["Peter H. Boling"]
-  spec.email = ["floss@galtzo.com"]
+  spec.authors = ["{KJ|AUTHOR:NAME}"]
+  spec.email = ["{KJ|AUTHOR:EMAIL}"]
 
   spec.summary = "🍲 "
   spec.description = "🍲 "
@@ -53,12 +53,12 @@ Gem::Specification.new do |spec|
     end
   end
 
-  spec.metadata["homepage_uri"] = "https://#{spec.name.tr("_", "-")}.galtzo.com/"
+  spec.metadata["homepage_uri"] = "https://{KJ|YARD_HOST}/"
   spec.metadata["source_code_uri"] = "#{spec.homepage}/tree/v#{spec.version}"
   spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/v#{spec.version}/CHANGELOG.md"
   spec.metadata["bug_tracker_uri"] = "#{spec.homepage}/issues"
   spec.metadata["documentation_uri"] = "https://www.rubydoc.info/gems/#{spec.name}/#{spec.version}"
-  spec.metadata["funding_uri"] = "https://github.com/sponsors/pboling"
+  spec.metadata["funding_uri"] = "https://github.com/sponsors/{KJ|GH:USER}"
   spec.metadata["wiki_uri"] = "#{spec.homepage}/wiki"
   spec.metadata["news_uri"] = "https://www.railsbling.com/tags/#{spec.name}"
   spec.metadata["discord_uri"] = "https://discord.gg/3qme4XHNKN"

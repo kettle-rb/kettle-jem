@@ -351,20 +351,23 @@ module Kettle
           files_to_copy = %w[
             .aiignore
             .envrc
+            .gemrc
             .gitignore
-            .idea/.gitignore
             .gitlab-ci.yml
-            .junie/guidelines-rbs.md
             .junie/guidelines.md
+            .junie/guidelines-rbs.md
+            .junie/TASK_NOTE.md
             .licenserc.yaml
             .opencollective.yml
             .rspec
+            .rubocop
             .rubocop.yml
             .rubocop_rspec.yml
             .simplecov
             .tool-versions
-            .yardopts
             .yardignore
+            .yardopts
+            AGENTS.md
             Appraisal.root.gemfile
             Appraisals
             CHANGELOG.md
@@ -373,10 +376,30 @@ module Kettle
             CONTRIBUTING.md
             FUNDING.md
             Gemfile
+            LICENSE.txt
+            OPENCOLLECTIVE_DISABLE_IMPLEMENTATION.md
             README.md
+            REEK
             RUBOCOP.md
             Rakefile
             SECURITY.md
+            .github/COPILOT_INSTRUCTIONS.md
+            gemfiles/audit.gemfile
+            gemfiles/coverage.gemfile
+            gemfiles/current.gemfile
+            gemfiles/dep_heads.gemfile
+            gemfiles/head.gemfile
+            gemfiles/ruby_2_3.gemfile
+            gemfiles/ruby_2_4.gemfile
+            gemfiles/ruby_2_5.gemfile
+            gemfiles/ruby_2_6.gemfile
+            gemfiles/ruby_2_7.gemfile
+            gemfiles/ruby_3_0.gemfile
+            gemfiles/ruby_3_1.gemfile
+            gemfiles/ruby_3_2.gemfile
+            gemfiles/ruby_3_3.gemfile
+            gemfiles/style.gemfile
+            gemfiles/unlocked_deps.gemfile
           ]
 
           files_to_copy.each do |rel|
@@ -419,7 +442,7 @@ module Kettle
                 c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
                 c
               end
-            elsif ["CHANGELOG.md", "CITATION.cff", "CONTRIBUTING.md", ".opencollective.yml", "FUNDING.md", ".junie/guidelines.md", ".envrc"].include?(rel)
+            elsif File.basename(rel) == "CHANGELOG.md"
               helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                 c = helpers.apply_common_replacements(
                   content,
@@ -431,27 +454,40 @@ module Kettle
                   gem_shield: gem_shield,
                   min_ruby: min_ruby,
                 )
-                if File.basename(rel) == "CHANGELOG.md"
-                  begin
-                    dest_content = File.file?(dest) ? File.read(dest) : ""
-                    c = ChangelogMerger.merge(
-                      template_content: c,
-                      destination_content: dest_content,
-                    )
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    # Fallback: whitespace normalization only
-                    lines = c.split("\n", -1)
-                    lines.map! { |ln| ln.match?(/^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
-                    c = lines.join("\n")
-                  end
+                begin
+                  dest_content = File.file?(dest) ? File.read(dest) : ""
+                  c = ChangelogMerger.merge(
+                    template_content: c,
+                    destination_content: dest_content,
+                  )
+                rescue StandardError => e
+                  Kettle::Dev.debug_error(e, __method__)
+                  # Fallback: whitespace normalization only
+                  lines = c.split("\n", -1)
+                  lines.map! { |ln| ln.match?(/^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
+                  c = lines.join("\n")
                 end
                 # Normalize spacing around Markdown headings for broad renderer compatibility
                 c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
                 c
               end
             else
-              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
+              # All other files: apply token replacements (unresolved tokens are kept as-is)
+              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                c = helpers.apply_common_replacements(
+                  content,
+                  org: forge_org,
+                  funding_org: funding_org,
+                  gem_name: gem_name,
+                  namespace: namespace,
+                  namespace_shield: namespace_shield,
+                  gem_shield: gem_shield,
+                  min_ruby: min_ruby,
+                )
+                # Normalize spacing around Markdown headings for broad renderer compatibility
+                c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
+                c
+              end
             end
           end
 
