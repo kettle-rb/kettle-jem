@@ -77,7 +77,14 @@ module Kettle
     # Task modules (moved from kettle-dev)
     module Tasks
       autoload :InstallTask, "kettle/jem/tasks/install_task"
+      autoload :SelfTestTask, "kettle/jem/tasks/self_test_task"
       autoload :TemplateTask, "kettle/jem/tasks/template_task"
+    end
+
+    # Self-test tooling for validating the templating process
+    module SelfTest
+      autoload :Manifest, "kettle/jem/self_test/manifest"
+      autoload :Reporter, "kettle/jem/self_test/reporter"
     end
 
     class << self

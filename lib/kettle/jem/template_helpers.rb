@@ -14,6 +14,13 @@ module Kettle
       # Values: Hash with keys: :action (Symbol, one of :create, :replace, :skip, :dir_create, :dir_replace), :timestamp (Time)
       @@template_results = {}
 
+      # When set, write operations are redirected to this directory instead of
+      # modifying files under project_root.  The merge logic still *reads* from
+      # the real destination so it has authentic content to merge against — only
+      # the *write* is redirected.
+      # @see #output_path
+      @@output_dir = nil
+
       EXECUTABLE_GIT_HOOKS_RE = %r{[\\/]\.git-hooks[\\/](commit-msg|prepare-commit-msg)\z}
       # The minimum Ruby supported by setup-ruby GHA
       MIN_SETUP_RUBY = Gem::Version.create("2.3")
@@ -65,13 +72,45 @@ module Kettle
       RUBY_EXTENSIONS = %w[.rb .rake].freeze
       @@manifestation = nil
       @@kettle_config = nil
+      @@project_root_override = nil
 
       module_function
 
-      # Root of the host project where Rake was invoked
+      # Root of the host project where Rake was invoked.
+      # When +@@project_root_override+ is set (by SelfTestTask), that value
+      # is returned instead of the real project root.
       # @return [String]
       def project_root
-        Kettle::Dev::CIHelpers.project_root
+        @@project_root_override || Kettle::Dev::CIHelpers.project_root
+      end
+
+      # Directory to redirect write operations to (nil = write in-place).
+      # @return [String, nil]
+      def output_dir
+        @@output_dir
+      end
+
+      # Set the output directory for write redirection.
+      # When set, +write_file+ and +copy_dir_with_prompt+ will write results
+      # under this directory instead of under +project_root+. Pass +nil+ to
+      # restore in-place write behaviour.
+      # @param dir [String, nil]
+      # @return [void]
+      def output_dir=(dir)
+        @@output_dir = dir
+      end
+
+      # Compute the actual filesystem path to write to.
+      # When +@@output_dir+ is nil the original +dest_path+ is returned
+      # unchanged. When set, the path is rewritten so that the portion
+      # relative to +project_root+ is placed under +@@output_dir+ instead.
+      # @param dest_path [String] logical destination path (relative to project_root)
+      # @return [String]
+      def output_path(dest_path)
+        return dest_path unless @@output_dir
+
+        rel = dest_path.to_s.sub(/^#{Regexp.escape(project_root.to_s)}\/?/, "")
+        File.join(@@output_dir, rel)
       end
 
       # Root of this gem's checkout (repository root when working from source)
@@ -111,13 +150,15 @@ module Kettle
         end
       end
 
-      # Write file content creating directories as needed
+      # Write file content creating directories as needed.
+      # When +output_dir+ is set the write is redirected via +output_path+.
       # @param dest_path [String]
       # @param content [String]
       # @return [void]
       def write_file(dest_path, content)
-        FileUtils.mkdir_p(File.dirname(dest_path))
-        File.open(dest_path, "w") { |f| f.write(content) }
+        actual = output_path(dest_path)
+        FileUtils.mkdir_p(File.dirname(actual))
+        File.open(actual, "w") { |f| f.write(content) }
       end
 
       # Prefer an .example variant for a given source path when present
@@ -350,7 +391,8 @@ module Kettle
         begin
           # Ensure executable bit for git hook scripts when writing under .git-hooks
           if EXECUTABLE_GIT_HOOKS_RE.match?(dest_path.to_s)
-            File.chmod(0o755, dest_path) if File.exist?(dest_path)
+            actual = output_path(dest_path)
+            File.chmod(0o755, actual) if File.exist?(actual)
           end
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
@@ -484,12 +526,13 @@ module Kettle
               next if rel.empty?
               target = File.join(dest_dir, rel)
               if File.directory?(path)
-                FileUtils.mkdir_p(target)
+                FileUtils.mkdir_p(output_path(target))
               else
                 # Per-file inclusion filter
                 next unless matches_only.call(target)
 
-                FileUtils.mkdir_p(File.dirname(target))
+                actual_target = output_path(target)
+                FileUtils.mkdir_p(File.dirname(actual_target))
                 if File.exist?(target)
 
                   # Skip only if contents are identical. If source and target paths are the same,
@@ -499,7 +542,7 @@ module Kettle
                       next
                     elsif path == target
                       data = File.binread(path)
-                      File.open(target, "wb") { |f| f.write(data) }
+                      File.open(actual_target, "wb") { |f| f.write(data) }
                       next
                     end
                   rescue StandardError => e
@@ -507,12 +550,12 @@ module Kettle
                     # ignore compare errors; fall through to copy
                   end
                 end
-                FileUtils.cp(path, target)
+                FileUtils.cp(path, actual_target)
                 begin
                   # Ensure executable bit for git hook scripts when copying under .git-hooks
                   if target.end_with?("/.git-hooks/commit-msg", "/.git-hooks/prepare-commit-msg") ||
                       EXECUTABLE_GIT_HOOKS_RE =~ target
-                    File.chmod(0o755, target)
+                    File.chmod(0o755, actual_target)
                   end
                 rescue StandardError => e
                   Kettle::Dev.debug_error(e, __method__)
@@ -527,18 +570,19 @@ module Kettle
             record_template_result(dest_dir, :skip)
           end
         elsif ask("Create directory #{dest_dir}?", true)
-          FileUtils.mkdir_p(dest_dir)
+          FileUtils.mkdir_p(output_path(dest_dir))
           Find.find(src_dir) do |path|
             rel = path.sub(/^#{Regexp.escape(src_dir)}\/?/, "")
             next if rel.empty?
             target = File.join(dest_dir, rel)
             if File.directory?(path)
-              FileUtils.mkdir_p(target)
+              FileUtils.mkdir_p(output_path(target))
             else
               # Per-file inclusion filter
               next unless matches_only.call(target)
 
-              FileUtils.mkdir_p(File.dirname(target))
+              actual_target = output_path(target)
+              FileUtils.mkdir_p(File.dirname(actual_target))
               if File.exist?(target)
                 # Skip only if contents are identical. If source and target paths are the same,
                 # avoid FileUtils.cp (which raises) and do an in-place rewrite to satisfy "copy".
@@ -547,7 +591,7 @@ module Kettle
                     next
                   elsif path == target
                     data = File.binread(path)
-                    File.open(target, "wb") { |f| f.write(data) }
+                    File.open(actual_target, "wb") { |f| f.write(data) }
                     next
                   end
                 rescue StandardError => e
@@ -555,12 +599,12 @@ module Kettle
                   # ignore compare errors; fall through to copy
                 end
               end
-              FileUtils.cp(path, target)
+              FileUtils.cp(path, actual_target)
               begin
                 # Ensure executable bit for git hook scripts when copying under .git-hooks
                 if target.end_with?("/.git-hooks/commit-msg", "/.git-hooks/prepare-commit-msg") ||
                     EXECUTABLE_GIT_HOOKS_RE =~ target
-                  File.chmod(0o755, target)
+                  File.chmod(0o755, actual_target)
                 end
               rescue StandardError => e
                 Kettle::Dev.debug_error(e, __method__)
