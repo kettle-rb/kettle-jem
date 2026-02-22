@@ -1,0 +1,38 @@
+# CHANGELOG Merge Recipe
+#
+# Provides intelligent merging for CHANGELOG.md files using markly-merge.
+#
+# Strategy:
+#   - Template header (title, description, links) replaces destination header
+#   - Template provides canonical Unreleased section structure
+#     (Added/Changed/Deprecated/Removed/Fixed/Security subheadings)
+#   - Destination's Unreleased list items are preserved under their headings
+#   - Destination's version history (## [x.y.z] entries) is fully preserved
+#
+# Usage:
+#   preset = Kettle::Jem.recipe(:changelog)
+#   merged = Kettle::Jem::ChangelogMerger.merge(
+#     template_content: resolved_template,
+#     destination_content: existing_changelog,
+#     preset: preset,
+#   )
+
+name: changelog
+description: CHANGELOG.md merging with Unreleased section and version history preservation
+
+# Parser to use (markly-merge for Markdown files)
+parser: markly
+
+# Default merge behavior
+merge:
+  # Template provides structure; destination provides content
+  preference: template
+
+  # Ensure all six standard subheadings exist
+  add_missing: true
+
+  # Custom signature generator for changelog section matching
+  signature_generator: signature_generator.rb
+
+# Freeze token for preserving sections (HTML comment syntax)
+freeze_token: kettle-jem

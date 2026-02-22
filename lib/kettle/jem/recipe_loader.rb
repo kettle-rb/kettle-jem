@@ -32,7 +32,7 @@ module Kettle
       RECIPES_DIR = File.expand_path("recipes", __dir__)
 
       # Available recipe names
-      AVAILABLE_RECIPES = %i[gemfile gemspec rakefile appraisals markdown].freeze
+      AVAILABLE_RECIPES = %i[gemfile gemspec rakefile appraisals markdown readme changelog dotenv].freeze
 
       class << self
         # Load a preset by name.

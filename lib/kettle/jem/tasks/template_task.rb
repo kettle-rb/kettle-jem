@@ -379,15 +379,6 @@ module Kettle
             SECURITY.md
           ]
 
-          # Snapshot existing README content once (for H1 prefix preservation after write)
-          existing_readme_before = begin
-            path = File.join(project_root, "README.md")
-            File.file?(path) ? File.read(path) : nil
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
-            nil
-          end
-
           files_to_copy.each do |rel|
             # Skip opencollective-specific files when Open Collective is disabled
             if helpers.skip_for_disabled_opencollective?(rel)
@@ -400,43 +391,9 @@ module Kettle
             next unless File.exist?(src)
 
             if File.basename(rel) == "README.md"
-              # Precompute destination README H1 prefix (emoji(s) or first grapheme) before any overwrite occurs
               prev_readme = File.exist?(dest) ? File.read(dest) : nil
-              begin
-                if prev_readme
-                  first_h1_prev = prev_readme.lines.find { |ln| ln =~ /^#\s+/ }
-                  if first_h1_prev
-                    emoji_re = Kettle::EmojiRegex::REGEX
-                    tail = first_h1_prev.sub(/^#\s+/, "")
-                    # Extract consecutive leading emoji graphemes
-                    out = +""
-                    s = tail.dup
-                    loop do
-                      cluster = s[/\A\X/u]
-                      break if cluster.nil? || cluster.empty?
-
-                      if emoji_re&.match?(cluster)
-                        out << cluster
-                        s = s[cluster.length..-1].to_s
-                      else
-                        break
-                      end
-                    end
-                    if !out.empty?
-                      out
-                    else
-                      # Fallback to first grapheme
-                      tail[/\A\X/u]
-                    end
-                  end
-                end
-              rescue StandardError => e
-                Kettle::Dev.debug_error(e, __method__)
-                # ignore, leave dest_preserve_prefix as nil
-              end
 
               helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                # 1) Do token replacements on the template content (org/gem/namespace/shields)
                 c = helpers.apply_common_replacements(
                   content,
                   org: forge_org,
@@ -448,141 +405,18 @@ module Kettle
                   min_ruby: min_ruby,
                 )
 
-                # 2) Merge specific sections from destination README, if present
                 begin
-                  dest_existing = prev_readme
-
-                  # Parse Markdown headings while ignoring fenced code blocks (``` ... ```)
-                  build_sections = lambda do |md|
-                    return {lines: [], sections: [], line_count: 0} unless md
-
-                    lines = md.split("\n", -1)
-                    line_count = lines.length
-
-                    sections = []
-                    in_code = false
-                    fence_re = /^\s*```/ # start or end of fenced block
-
-                    lines.each_with_index do |ln, i|
-                      if ln&.match?(fence_re)
-                        in_code = !in_code
-                        next
-                      end
-                      next if in_code
-
-                      if (m = ln.match(/^(#+)\s+.+/))
-                        level = m[1].length
-                        title = ln.sub(/^#+\s+/, "")
-                        base = title.sub(/\A[^\p{Alnum}]+/u, "").strip.downcase
-                        sections << {start: i, level: level, heading: ln, base: base}
-                      end
-                    end
-
-                    # Compute stop indices based on next heading of same or higher level
-                    sections.each_with_index do |sec, i|
-                      j = i + 1
-                      stop = line_count - 1
-                      while j < sections.length
-                        if sections[j][:level] <= sec[:level]
-                          stop = sections[j][:start] - 1
-                          break
-                        end
-                        j += 1
-                      end
-                      sec[:stop_to_next_any] = stop
-                      body_lines_any = lines[(sec[:start] + 1)..stop] || []
-                      sec[:body_to_next_any] = body_lines_any.join("\n")
-                    end
-
-                    {lines: lines, sections: sections, line_count: line_count}
-                  end
-
-                  # Helper: Compute the branch end (inclusive) for a section at index i
-                  branch_end_index = lambda do |sections_arr, i, total_lines|
-                    current = sections_arr[i]
-                    j = i + 1
-                    while j < sections_arr.length
-                      return sections_arr[j][:start] - 1 if sections_arr[j][:level] <= current[:level]
-
-                      j += 1
-                    end
-                    total_lines - 1
-                  end
-
-                  src_parsed = build_sections.call(c)
-                  dest_parsed = build_sections.call(dest_existing)
-
-                  # Build lookup for destination sections by base title, using full branch body (to next heading of same or higher level)
-                  dest_lookup = {}
-                  if dest_parsed && dest_parsed[:sections]
-                    dest_parsed[:sections].each_with_index do |s, idx|
-                      base = s[:base]
-                      # Only set once (first occurrence wins)
-                      next if dest_lookup.key?(base)
-
-                      be = branch_end_index.call(dest_parsed[:sections], idx, dest_parsed[:line_count])
-                      body_lines = dest_parsed[:lines][(s[:start] + 1)..be] || []
-                      dest_lookup[base] = {body_branch: body_lines.join("\n"), level: s[:level]}
-                    end
-                  end
-
-                  # Build targets to merge: existing curated list plus any NOTE sections at any level
-                  note_bases = []
-                  if src_parsed && src_parsed[:sections]
-                    note_bases = src_parsed[:sections]
-                      .select { |s| s[:heading] =~ /^#+\s+note:.*/i }
-                      .map { |s| s[:base] }
-                  end
-                  targets = ["synopsis", "configuration", "basic usage"] + note_bases
-
-                  # Replace matching sections in src using full branch ranges
-                  if src_parsed && src_parsed[:sections] && !src_parsed[:sections].empty?
-                    lines = src_parsed[:lines].dup
-                    # Iterate in reverse to keep indices valid
-                    src_parsed[:sections].reverse_each.with_index do |sec, rev_i|
-                      next unless targets.include?(sec[:base])
-
-                      # Determine branch range in src for this section
-                      # rev_i is reverse index; compute forward index
-                      i = src_parsed[:sections].length - 1 - rev_i
-                      src_end = branch_end_index.call(src_parsed[:sections], i, src_parsed[:line_count])
-                      dest_entry = dest_lookup[sec[:base]]
-                      new_body = dest_entry ? dest_entry[:body_branch] : "\n\n"
-                      new_block = [sec[:heading], new_body].join("\n")
-                      range_start = sec[:start]
-                      range_end = src_end
-                      # Remove old range
-                      lines.slice!(range_start..range_end)
-                      # Insert new block (split preserves potential empty tail)
-                      insert_lines = new_block.split("\n", -1)
-                      lines.insert(range_start, *insert_lines)
-                    end
-                    c = lines.join("\n")
-                  end
-
-                  # 3) Preserve entire H1 line from destination README, if any
-                  begin
-                    if dest_existing
-                      dest_h1 = dest_existing.lines.find { |ln| ln =~ /^#\s+/ }
-                      if dest_h1
-                        lines_new = c.split("\n", -1)
-                        src_h1_idx = lines_new.index { |ln| ln =~ /^#\s+/ }
-                        if src_h1_idx
-                          # Replace the entire H1 line with the destination's H1 exactly
-                          lines_new[src_h1_idx] = dest_h1.chomp
-                          c = lines_new.join("\n")
-                        end
-                      end
-                    end
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    # ignore H1 preservation errors
-                  end
+                  c = MarkdownMerger.merge(
+                    template_content: c,
+                    destination_content: prev_readme,
+                  )
                 rescue StandardError => e
                   Kettle::Dev.debug_error(e, __method__)
                   # Best effort; if anything fails, keep c as-is
                 end
 
+                # Normalize spacing around Markdown headings for broad renderer compatibility
+                c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
                 c
               end
             elsif ["CHANGELOG.md", "CITATION.cff", "CONTRIBUTING.md", ".opencollective.yml", "FUNDING.md", ".junie/guidelines.md", ".envrc"].include?(rel)
@@ -599,167 +433,16 @@ module Kettle
                 )
                 if File.basename(rel) == "CHANGELOG.md"
                   begin
-                    # Special handling for CHANGELOG.md
-                    # 1) Take template header through Unreleased section (inclusive)
-                    src_lines = c.split("\n", -1)
-                    tpl_unrel_idx = src_lines.index { |ln| ln =~ /^##\s*\[\s*Unreleased\s*\]/i }
-                    if tpl_unrel_idx
-                      # Find end of Unreleased in template (next ## or # heading)
-                      tpl_end_idx = src_lines.length - 1
-                      j = tpl_unrel_idx + 1
-                      while j < src_lines.length
-                        if src_lines[j] =~ /^##\s+\[/ || src_lines[j] =~ /^#\s+/ || src_lines[j] =~ /^##\s+[^\[]/
-                          tpl_end_idx = j - 1
-                          break
-                        end
-                        j += 1
-                      end
-                      tpl_header_pre = src_lines[0...tpl_unrel_idx] # lines before Unreleased heading
-                      tpl_unrel_heading = src_lines[tpl_unrel_idx]
-                      src_lines[(tpl_unrel_idx + 1)..tpl_end_idx] || []
-
-                      # 2) Extract destination Unreleased content, preserving list items under any standard headings
-                      dest_content = File.file?(dest) ? File.read(dest) : ""
-                      dest_lines = dest_content.split("\n", -1)
-                      dest_unrel_idx = dest_lines.index { |ln| ln =~ /^##\s*\[\s*Unreleased\s*\]/i }
-                      dest_end_idx = if dest_unrel_idx
-                        k = dest_unrel_idx + 1
-                        e = dest_lines.length - 1
-                        while k < dest_lines.length
-                          if dest_lines[k] =~ /^##\s+\[/ || dest_lines[k] =~ /^#\s+/ || dest_lines[k] =~ /^##\s+[^\[]/
-                            e = k - 1
-                            break
-                          end
-                          k += 1
-                        end
-                        e
-                      end
-                      dest_unrel_body = dest_unrel_idx ? (dest_lines[(dest_unrel_idx + 1)..dest_end_idx] || []) : []
-
-                      # Helper: parse body into map of heading=>items (only '- ' markdown items)
-                      std_heads = [
-                        "### Added",
-                        "### Changed",
-                        "### Deprecated",
-                        "### Removed",
-                        "### Fixed",
-                        "### Security",
-                      ]
-
-                      parse_items = lambda do |body_lines|
-                        result = {}
-                        cur = nil
-                        i = 0
-                        while i < body_lines.length
-                          ln = body_lines[i]
-                          if ln.start_with?("### ")
-                            cur = ln.strip
-                            result[cur] ||= []
-                            i += 1
-                            next
-                          end
-
-                          # Detect a list item bullet (allow optional indentation)
-                          if (m = ln.match(/^(\s*)[-*]\s/))
-                            result[cur] ||= []
-                            base_indent = m[1].length
-                            # Start a new item: include the bullet line
-                            result[cur] << ln.rstrip
-                            i += 1
-
-                            # Include subsequent lines that belong to this list item:
-                            # - blank lines
-                            # - lines with indentation greater than the bullet's indentation
-                            # - any lines inside fenced code blocks (```), regardless of indentation until fence closes
-                            in_fence = false
-                            fence_re = /^\s*```/
-                            while i < body_lines.length
-                              l2 = body_lines[i]
-                              # Stop if next sibling/top-level bullet of same or smaller indent and not inside a fence
-                              if !in_fence && l2 =~ /^(\s*)[-*]\s/
-                                ind = Regexp.last_match(1).length
-                                break if ind <= base_indent
-                              end
-                              # Break if a new section heading appears and we're not in a fence
-                              break if !in_fence && l2.start_with?("### ")
-
-                              if l2&.match?(fence_re)
-                                in_fence = !in_fence
-                                result[cur] << l2.rstrip
-                                i += 1
-                                next
-                              end
-
-                              # Include blanks and lines indented more than base indent, or anything while in fence
-                              if in_fence || l2.strip.empty? || (l2[/^\s*/].length > base_indent)
-                                result[cur] << l2.rstrip
-                                i += 1
-                                next
-                              end
-
-                              # Otherwise, this line does not belong to the current list item
-                              break
-                            end
-
-                            next
-                          end
-
-                          # Non-bullet, non-heading line: just advance
-                          i += 1
-                        end
-                        result
-                      end
-
-                      dest_items = parse_items.call(dest_unrel_body)
-
-                      # 3) Build a single canonical Unreleased section: heading + the six standard subheads in order
-                      new_unrel_block = []
-                      new_unrel_block << tpl_unrel_heading
-                      std_heads.each do |h|
-                        new_unrel_block << h
-                        if dest_items[h] && !dest_items[h].empty?
-                          new_unrel_block.concat(dest_items[h])
-                        end
-                      end
-
-                      # 4) Compose final content: template preface + new unreleased + rest of destination (after its unreleased)
-                      tail_after_unrel = []
-                      if dest_unrel_idx
-                        tail_after_unrel = dest_lines[(dest_end_idx + 1)..-1] || []
-                      end
-
-                      # Ensure exactly one blank line between the Unreleased chunk and the next version chunk
-                      #  - Strip trailing blanks from the newly built Unreleased block
-                      while new_unrel_block.any? && new_unrel_block.last.to_s.strip == ""
-                        new_unrel_block.pop
-                      end
-                      #  - Strip leading blanks from the tail
-                      while tail_after_unrel.any? && tail_after_unrel.first.to_s.strip == ""
-                        tail_after_unrel.shift
-                      end
-                      merged_lines = tpl_header_pre + new_unrel_block
-                      # Insert a single separator blank line if there is any tail content
-                      merged_lines << "" if tail_after_unrel.any?
-                      merged_lines.concat(tail_after_unrel)
-
-                      c = merged_lines.join("\n")
-                    end
-
-                    # Collapse repeated whitespace in release headers only
-                    lines = c.split("\n", -1)
-                    lines.map! do |ln|
-                      if /^##\s+\[.*\]/.match?(ln)
-                        ln.gsub(/[ \t]+/, " ")
-                      else
-                        ln
-                      end
-                    end
-                    c = lines.join("\n")
+                    dest_content = File.file?(dest) ? File.read(dest) : ""
+                    c = ChangelogMerger.merge(
+                      template_content: c,
+                      destination_content: dest_content,
+                    )
                   rescue StandardError => e
                     Kettle::Dev.debug_error(e, __method__)
-                    # Fallback: whitespace normalization
+                    # Fallback: whitespace normalization only
                     lines = c.split("\n", -1)
-                    lines.map! { |ln| (ln =~ /^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
+                    lines.map! { |ln| ln.match?(/^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
                     c = lines.join("\n")
                   end
                 end
@@ -772,27 +455,6 @@ module Kettle
             end
           end
 
-          # Post-process README H1 preservation using snapshot (replace entire H1 line)
-          begin
-            if existing_readme_before
-              readme_path = File.join(project_root, "README.md")
-              if File.file?(readme_path)
-                prev = existing_readme_before
-                newc = File.read(readme_path)
-                prev_h1 = prev.lines.find { |ln| ln =~ /^#\s+/ }
-                lines = newc.split("\n", -1)
-                cur_h1_idx = lines.index { |ln| ln =~ /^#\s+/ }
-                if prev_h1 && cur_h1_idx
-                  # Replace the entire H1 line with the previous README's H1 exactly
-                  lines[cur_h1_idx] = prev_h1.chomp
-                  File.open(readme_path, "w") { |f| f.write(lines.join("\n")) }
-                end
-              end
-            end
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
-            # ignore post-processing errors
-          end
 
           # 7b) certs/pboling.pem
           begin

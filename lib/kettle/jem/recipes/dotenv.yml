@@ -1,0 +1,29 @@
+# Dotenv Merge Recipe
+#
+# Provides intelligent merging for .envrc and .env files using psych-merge.
+# This recipe uses key-based matching — environment variable assignments
+# are matched by their variable name.
+#
+# Usage:
+#   preset = Kettle::Jem.recipe(:dotenv)
+#   merger = Psych::Merge::SmartMerger.new(
+#     template, destination,
+#     **preset.to_h
+#   )
+
+name: dotenv
+description: Intelligent .envrc / .env merging with key-based matching
+
+# Parser to use
+parser: bash
+
+# Default merge behavior
+merge:
+  # Prefer destination values (user's local config wins)
+  preference: destination
+
+  # Add variables from template that don't exist in destination
+  add_missing: true
+
+# Freeze token for preserving sections
+freeze_token: kettle-jem

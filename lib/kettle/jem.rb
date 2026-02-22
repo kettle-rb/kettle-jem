@@ -70,6 +70,10 @@ module Kettle
     autoload :ModularGemfiles, "kettle/jem/modular_gemfiles"
     autoload :SetupCLI, "kettle/jem/setup_cli"
 
+    # Recipe-driven mergers
+    autoload :MarkdownMerger, "kettle/jem/markdown_merger"
+    autoload :ChangelogMerger, "kettle/jem/changelog_merger"
+
     # Task modules (moved from kettle-dev)
     module Tasks
       autoload :InstallTask, "kettle/jem/tasks/install_task"

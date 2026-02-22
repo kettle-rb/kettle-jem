@@ -1,0 +1,43 @@
+# README Merge Recipe
+#
+# Provides intelligent merging for README.md files using markly-merge.
+# The template provides structure and standard sections, while certain
+# user-customized sections are preserved from the destination:
+#
+#   - H1 heading (title + emoji): destination wins
+#   - Synopsis: destination wins
+#   - Configuration: destination wins
+#   - Basic Usage: destination wins
+#   - Any "Note:*" sections: destination wins
+#   - Everything else: template wins
+#
+# Usage:
+#   preset = Kettle::Jem.recipe(:readme)
+#   merged = Kettle::Jem::MarkdownMerger.merge(
+#     template_content: resolved_template,
+#     destination_content: existing_readme,
+#     preset: preset,
+#   )
+
+name: readme
+description: README.md merging with section-level destination preservation
+
+# Parser to use (markly-merge for Markdown files)
+parser: markly
+
+# Default merge behavior
+merge:
+  # Template provides the structural skeleton
+  preference: template
+
+  # Add sections from template that don't exist in destination
+  add_missing: true
+
+  # Custom signature generator for heading-based matching
+  signature_generator: signature_generator.rb
+
+  # Normalize blank lines around headings
+  normalize_whitespace: true
+
+# Freeze token for preserving sections (HTML comment syntax)
+freeze_token: kettle-jem
