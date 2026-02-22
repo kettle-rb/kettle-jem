@@ -2,7 +2,7 @@
 
 RSpec.describe "Real-world modular gemfile deduplication" do
   let(:fixture_content) do
-    File.read("spec/support/fixtures/modular_gemfile_with_duplicates.gemfile")
+    File.read("spec/fixtures/modular_gemfile_with_duplicates.gemfile")
   end
 
   let(:template_source_content) do

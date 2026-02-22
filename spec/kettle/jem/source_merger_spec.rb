@@ -304,7 +304,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
     end
 
     context "when merging gemspec fixtures" do
-      let(:fixture_dir) { File.expand_path("../../support/fixtures", __dir__) }
+      let(:fixture_dir) { File.expand_path("../../fixtures", __dir__) }
       let(:dest_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.gemspec")) }
       let(:template_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.template.gemspec")) }
 

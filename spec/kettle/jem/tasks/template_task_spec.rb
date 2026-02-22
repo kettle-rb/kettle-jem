@@ -1552,7 +1552,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
           # Use the DEFAULT_CHANGELOG.md fixture as the template CHANGELOG
-          fixture_path = File.join(__dir__, "..", "..", "..", "support", "fixtures", "DEFAULT_CHANGELOG.md")
+          fixture_path = File.join(__dir__, "..", "..", "..", "fixtures", "DEFAULT_CHANGELOG.md")
           default_changelog = if File.file?(fixture_path)
             content = File.read(fixture_path)
             content.strip.empty? ? nil : content

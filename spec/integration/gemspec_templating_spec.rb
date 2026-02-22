@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe "Gemspec Templating Integration" do
-  let(:fixture_path) { File.expand_path("../support/fixtures/example-kettle-soup-cover.gemspec", __dir__) }
+  let(:fixture_path) { File.expand_path("../fixtures/example-kettle-soup-cover.gemspec", __dir__) }
   let(:fixture_content) { File.read(fixture_path) }
   let(:template_gemspec_path) { File.expand_path("../../kettle-dev.gemspec.example", __dir__) }
   let(:template_content) { File.read(template_gemspec_path) }

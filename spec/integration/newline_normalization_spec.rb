@@ -62,7 +62,7 @@ RSpec.describe "Newline normalization in templating" do
     end
 
     it "handles irregular empty lines fixture correctly" do
-      fixture_content = File.read("spec/support/fixtures/modular_gemfile_with_irregular_empty_lines.rb")
+      fixture_content = File.read("spec/fixtures/modular_gemfile_with_irregular_empty_lines.rb")
 
       result = Kettle::Jem::SourceMerger.apply(
         strategy: :skip,

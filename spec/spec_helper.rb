@@ -24,8 +24,10 @@ end
 # this library
 require "kettle/jem"
 
-# Support files (shared contexts, fixtures, etc.)
-Dir[File.join(__dir__, "support", "**", "*.rb")].each { |f| require f }
+# Support files (shared contexts, helper classes, etc.)
+# NOTE: Fixture files live in spec/fixtures/ — those .rb files are
+# source code samples read as strings by merge tests, not loaded.
+Dir[File.join(__dir__, "support", "{classes,shared_contexts}", "**", "*.rb")].each { |f| require f }
 
 RSpec.configure do |config|
   config.before do

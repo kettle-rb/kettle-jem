@@ -72,7 +72,7 @@ RSpec.describe "Emoji/Grapheme Extraction and Synchronization" do
   # These tests document the expected behavior without a separate normalize_with_emoji method
 
   describe "Integration: full gemspec templating with emoji sync" do
-    let(:fixture_path) { File.expand_path("../support/fixtures/example-kettle-soup-cover.gemspec", __dir__) }
+    let(:fixture_path) { File.expand_path("../fixtures/example-kettle-soup-cover.gemspec", __dir__) }
     let(:fixture_content) { File.read(fixture_path) }
     let(:readme_with_matching_emoji) do
       <<~MD
