@@ -89,7 +89,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("ast-merge", "~> 4.0", ">= 4.0.6")                # ruby >= 3.2.0
 
   # Token parsing and resolution for template ETL
-  spec.add_dependency("token-resolver", "~> 1.0")                        # ruby >= 3.2.0
+  spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.1")           # ruby >= 3.2.0
 
   # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
   spec.add_dependency("tree_haver", "~> 5.0", ">= 5.0.5")               # ruby >= 3.2.0
