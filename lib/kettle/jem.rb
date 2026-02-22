@@ -103,6 +103,16 @@ module Kettle
       def available_recipes
         RecipeLoader.available
       end
+
+      # Install Rake tasks shipped by kettle-jem.
+      #
+      # Loads the gem-shipped rakelib directory so host projects that depend
+      # on kettle-jem automatically get the kettle:jem:* tasks (template,
+      # install, selftest, etc.).
+      # @return [void]
+      def install_tasks
+        load("kettle/jem/tasks.rb")
+      end
     end
   end
 end
@@ -110,3 +120,7 @@ end
 Kettle::Jem::Version.class_eval do
   extend VersionGem::Basic
 end
+
+# Auto-install Rake tasks when loaded under the rake executable,
+# mirroring the pattern used by kettle-dev.
+Kettle::Jem.install_tasks if Kettle::Dev::RUNNING_AS == "rake"

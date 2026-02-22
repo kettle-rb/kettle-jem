@@ -55,6 +55,7 @@ end
 
 # External gems that define tasks - add here!
 require "kettle/dev"
+require "kettle/jem"
 
 ### RELEASE TASKS
 # Setup stone_checksums

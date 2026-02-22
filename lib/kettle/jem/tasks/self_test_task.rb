@@ -180,11 +180,14 @@ module Kettle
             # Configure redirection
             helpers.send(:output_dir=, output_dir)
 
-            # Force mode: skip all interactive prompts
+            # Force mode: skip all interactive prompts and git-clean check
             prev_force = ENV["force"]
             prev_allowed = ENV["allowed"]
             ENV["force"] = "true"
             ENV["allowed"] = "true"
+
+            # Bypass ensure_clean_git! — the sandbox is a disposable copy
+            helpers.define_singleton_method(:ensure_clean_git!) { |**_| nil }
 
             # Redirect project_root to the sandbox copy
             allow_project_root(helpers, dest_dir) do
@@ -196,6 +199,11 @@ module Kettle
             ENV["allowed"] = prev_allowed
             helpers.send(:output_dir=, prior_output_dir)
             helpers.send(:class_variable_set, :@@template_results, prior_results)
+
+            # Restore ensure_clean_git! from the module's instance method
+            class << helpers
+              remove_method :ensure_clean_git! if method_defined?(:ensure_clean_git!)
+            end
           end
         end
 

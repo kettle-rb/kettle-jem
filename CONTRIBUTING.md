@@ -120,6 +120,69 @@ bundle exec rake test
 - One spec file per class/module. For each class or module under `lib/`, keep all of its unit tests in a single spec file under `spec/` that mirrors the path and file name exactly: `lib/kettle/jem/my_class.rb` -> `spec/kettle/jem/my_class_spec.rb`.
 - Exception: Integration specs that intentionally span multiple classes. Place these under `spec/integration/` (or a clearly named integration folder), and do not directly mirror a single class. Name them after the scenario, not a class.
 
+## Self-Test (Template Validation)
+
+kettle-jem includes a self-test rake task that validates the templating pipeline by running it against its own source tree. Since kettle-jem was originally set up by this very toolchain, re-running the template should produce output that closely matches the existing files.
+
+### Running the self-test
+
+```console
+bundle exec rake kettle:jem:selftest
+```
+
+This will:
+
+1. Copy the gem tree into `tmp/template_test/destination/` (excluding `.git/`, `tmp/`, `coverage/`, etc.)
+2. Snapshot file checksums (SHA-256 manifest) as the "before" state
+3. Run the full template task with writes redirected to `tmp/template_test/output/`
+4. Snapshot the output as the "after" state
+5. Compare the two manifests, classifying every file as **matched**, **changed**, **added**, or **removed**
+6. Generate unified diffs for any changed files
+7. Write a markdown summary report
+
+### Reading the results
+
+After the task completes, find the report at:
+
+```
+tmp/template_test/
+  destination/      # Pristine copy of the gem (the "before" snapshot)
+  output/           # Templated result (the "after" state)
+  report/
+    before.json     # SHA-256 manifest of destination/
+    after.json      # SHA-256 manifest of output/
+    summary.md      # Markdown report with score and file tables
+    diffs/          # Per-file unified diffs for changed files
+```
+
+The **score** (percentage of unchanged files) is printed to the terminal and recorded in `summary.md`.
+
+### Setting a pass/fail threshold
+
+By default the threshold is 0% (the task always passes). To enforce a minimum score:
+
+```console
+KJ_SELFTEST_THRESHOLD=80 bundle exec rake kettle:jem:selftest
+```
+
+If the score falls below the threshold the task will raise an error.
+
+### When to use it
+
+- **After modifying template files** in `template/` or merge logic in `lib/` — run the self-test to confirm the changes produce expected output.
+- **After updating merge presets or recipes** — verify that existing files are not unintentionally altered.
+- **In CI** — add the self-test task to your pipeline as a smoke test for the templating system.
+
+### Interpreting changes
+
+Not every changed file is a bug. Common expected differences include:
+
+- **Token replacements** — files containing `{KJ|...}` tokens will be resolved with values from your environment (`.env.local`).
+- **Merge strategy effects** — files configured with `strategy: merge` in `.kettle-jem.yml` may have nodes reordered or deduplicated.
+- **Markdown normalization** — heading spacing and formatting may be normalized.
+
+Review the diffs in `tmp/template_test/report/diffs/` to determine whether changes are intentional.
+
 ## Lint It
 
 Run all the default tasks, which includes running the gradually autocorrecting linter, `rubocop-gradual`.
