@@ -30,15 +30,17 @@ module Kettle
         # @return [Proc] Signature generator lambda
         def gemfile
           ->(node) do
-            return node unless defined?(Prism) && node.is_a?(Prism::CallNode)
+            # Unwrap NodeTyping::Wrapper so is_a? checks work correctly
+            actual = Ast::Merge::NodeTyping.unwrap(node)
+            return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
 
-            case node.name
+            case actual.name
             when :source
               # source() should be singleton
               [:source]
             when :gem
               # gem() matches by gem name
-              first_arg = node.arguments&.arguments&.first
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::StringNode)
                 [:gem, first_arg.unescaped]
               else
@@ -46,7 +48,7 @@ module Kettle
               end
             when :eval_gemfile
               # eval_gemfile() matches by path
-              first_arg = node.arguments&.arguments&.first
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::StringNode)
                 [:eval_gemfile, first_arg.unescaped]
               else
@@ -57,7 +59,7 @@ module Kettle
               [:ruby]
             when :git_source
               # git_source() matches by source name
-              first_arg = node.arguments&.arguments&.first
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::SymbolNode)
                 [:git_source, first_arg.unescaped]
               else
@@ -65,16 +67,16 @@ module Kettle
               end
             else
               # Handle assignment methods and other calls
-              method_name = node.name.to_s
-              receiver_name = extract_receiver_name(node)
+              method_name = actual.name.to_s
+              receiver_name = extract_receiver_name(actual)
 
               if method_name.end_with?("=")
                 # Assignment methods match by receiver and method
-                [:call, node.name, receiver_name]
+                [:call, actual.name, receiver_name]
               else
                 # Other methods with arguments match by first arg
-                first_arg_value = extract_first_arg_value(node)
-                first_arg_value ? [node.name, first_arg_value] : node
+                first_arg_value = extract_first_arg_value(actual)
+                first_arg_value ? [actual.name, first_arg_value] : node
               end
             end
           end
@@ -90,10 +92,12 @@ module Kettle
           gemfile_gen = gemfile
 
           ->(node) do
-            return node unless defined?(Prism) && node.is_a?(Prism::CallNode)
+            # Unwrap NodeTyping::Wrapper so is_a? checks work correctly
+            actual = Ast::Merge::NodeTyping.unwrap(node)
+            return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
 
-            if node.name == :appraise
-              first_arg = node.arguments&.arguments&.first
+            if actual.name == :appraise
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::StringNode)
                 return [:appraise, first_arg.unescaped]
               end
@@ -115,26 +119,28 @@ module Kettle
         # @return [Proc] Signature generator lambda
         def gemspec
           ->(node) do
-            return node unless defined?(Prism) && node.is_a?(Prism::CallNode)
+            # Unwrap NodeTyping::Wrapper so is_a? checks work correctly
+            actual = Ast::Merge::NodeTyping.unwrap(node)
+            return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
 
-            method_name = node.name.to_s
-            receiver_name = extract_receiver_name(node)
+            method_name = actual.name.to_s
+            receiver_name = extract_receiver_name(actual)
 
             # spec.foo = "value" assignments
             if method_name.end_with?("=") && receiver_name == "spec"
-              return [:spec_attr, node.name]
+              return [:spec_attr, actual.name]
             end
 
             # spec.add_dependency and spec.add_development_dependency
-            if %i[add_dependency add_development_dependency add_runtime_dependency].include?(node.name)
-              first_arg = node.arguments&.arguments&.first
+            if %i[add_dependency add_development_dependency add_runtime_dependency].include?(actual.name)
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::StringNode)
-                return [node.name, first_arg.unescaped]
+                return [actual.name, first_arg.unescaped]
               end
             end
 
             # Gem::Specification.new block
-            if receiver_name&.include?("Gem::Specification") && node.name == :new
+            if receiver_name&.include?("Gem::Specification") && actual.name == :new
               return [:gem_specification_new]
             end
 
@@ -152,11 +158,13 @@ module Kettle
         # @return [Proc] Signature generator lambda
         def rakefile
           ->(node) do
-            return node unless defined?(Prism) && node.is_a?(Prism::CallNode)
+            # Unwrap NodeTyping::Wrapper so is_a? checks work correctly
+            actual = Ast::Merge::NodeTyping.unwrap(node)
+            return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
 
-            case node.name
+            case actual.name
             when :task
-              first_arg = node.arguments&.arguments&.first
+              first_arg = actual.arguments&.arguments&.first
               case first_arg
               when Prism::SymbolNode
                 [:task, first_arg.unescaped]
@@ -173,7 +181,7 @@ module Kettle
                 node
               end
             when :namespace
-              first_arg = node.arguments&.arguments&.first
+              first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::SymbolNode)
                 [:namespace, first_arg.unescaped]
               else
