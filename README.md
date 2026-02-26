@@ -79,7 +79,7 @@ tree_haver supports multiple parsing backends, but not all backends work on all 
 
 | Gem                      | Purpose         | Description                                   |
 |--------------------------|-----------------|-----------------------------------------------|
-| [kettle-dev][kettle-dev] | Gem Development | Gem templating tool using `*-merge` gems      |
+| [kettle-dev][kettle-dev] | Gem Development  | Development tooling, CI automation, and release workflows |
 | [kettle-jem][kettle-jem] | Gem Templating  | Gem template library with smart merge support |
 
 [tree_haver]: https://github.com/kettle-rb/tree_haver
@@ -395,12 +395,12 @@ No dependency on kettle-jem is required — only `ast-merge` and the appropriate
 
 ### Freeze Token
 
-The default freeze token for kettle-jem is `kettle-dev`. This means freeze markers look like:
+The default freeze token for kettle-jem is `kettle-jem`. This means freeze markers look like:
 
 ```ruby
-# kettle-dev:freeze
+# kettle-jem:freeze
 # ... content to preserve ...
-# kettle-dev:unfreeze
+# kettle-jem:unfreeze
 ```
 
 ### Freeze Blocks in Ruby Files
@@ -410,10 +410,10 @@ When using kettle-jem's merge configurations with Ruby files (gemspecs, Gemfiles
 #### Block-Style Freeze (with matching markers)
 
 ```ruby
-# kettle-dev:freeze
+# kettle-jem:freeze
 gem "my-custom-gem", path: "../local-fork"
 gem "another-local-gem", git: "https://github.com/my-org/gem.git"
-# kettle-dev:unfreeze
+# kettle-jem:unfreeze
 ```
 
 #### Inline Freeze Comments
@@ -421,14 +421,14 @@ gem "another-local-gem", git: "https://github.com/my-org/gem.git"
 You can also freeze a **single Ruby statement** by placing a freeze comment immediately before it:
 
 ```ruby
-# kettle-dev:freeze
+# kettle-jem:freeze
 gem "my-custom-gem", "~> 1.0"
 ```
 
 **⚠️ Important:** When a freeze comment precedes a block-based statement (like a class, module, method definition, or DSL block), the **entire block is frozen**, preventing any template updates to that section:
 
 ```ruby
-# kettle-dev:freeze
+# kettle-jem:freeze
 class MyCustomClass
   # EVERYTHING inside this class is frozen!
   # Template changes to this class will be ignored.
@@ -437,7 +437,7 @@ class MyCustomClass
   end
 end
 
-# kettle-dev:freeze
+# kettle-jem:freeze
 Gem::Specification.new do |spec|
   # The entire gemspec block is frozen
   # Use this carefully - it prevents ALL template updates!
@@ -452,6 +452,70 @@ Frozen statements are matched by their **structural identity**, not their conten
 - A frozen `spec.add_dependency "foo"` matches the same dependency in the template
 - A frozen `class Foo` matches `class Foo` in the template (by class name)
   The destination's frozen version is always preserved, regardless of changes in the template.
+
+### Template Manifest and AST Strategies
+
+`kettle:jem:template` looks at `.kettle-jem.yml` to determine how each file should be updated. The config supports a hybrid format: a list of ordered glob `patterns` used as fallbacks and a `files` nested map for per-file configurations. Each entry ultimately exposes a `strategy` (and optional merge options for Ruby files).
+
+| Strategy  | Behavior                                                                                                          |
+|-----------|-------------------------------------------------------------------------------------------------------------------|
+| `skip`    | Legacy behavior: template content is copied with token replacements and any bespoke merge logic already in place. |
+| `replace` | Template AST replaces the destination outside of `kettle-jem:freeze` sections.                                    |
+| `append`  | Only missing AST nodes (e.g., `gem` or `task` declarations) are appended; existing nodes remain untouched.        |
+| `merge`   | Destination nodes are updated in-place using the template AST (used for `Gemfile`, `*.gemspec`, and `Rakefile`).  |
+
+All Ruby files receive this reminder (inserted after shebang/frozen-string-literal lines):
+
+    # To force retention during kettle-jem templating:
+    #     kettle-jem:freeze
+    #     # ... your code
+    #     kettle-jem:unfreeze
+
+Wrap any code you never want rewritten between `kettle-jem:freeze` / `kettle-jem:unfreeze` comments. When an AST merge fails, the task emits an error asking you to file an issue at https://github.com/kettle-rb/kettle-jem/issues and then aborts—there is no regex fallback.
+
+### Template .example files are preferred
+
+- The templating step dynamically prefers any `*.example` file present in this gem's templates. When a `*.example` exists alongside the non-example template, the `.example` content is used, and the destination file is written without the `.example` suffix.
+- This applies across all templated files, including:
+    - Root files like `.gitlab-ci.yml` (copied from `.gitlab-ci.yml.example` when present).
+    - Nested files like `.github/workflows/coverage.yml` (copied from `.github/workflows/coverage.yml.example` when present).
+- This behavior is automatic for any future `*.example` files added to the templates.
+- Exception: `.env.local` is handled specially for safety. Regardless of whether the template provides `.env.local` or `.env.local.example`, the installer copies it to `.env.local.example` in your project, and will never create or overwrite `.env.local`.
+
+### Template Config Example
+
+Here is an example `.kettle-jem.yml` (hybrid format):
+
+```yaml
+# Defaults applied to per-file merge options when strategy: merge
+defaults:
+  preference: "template"
+  add_template_only_nodes: true
+
+# Ordered glob patterns (first match wins)
+patterns:
+  - path: "*.gemspec"
+    strategy: merge
+  - path: "gemfiles/modular/erb/**"
+    strategy: merge
+  - path: ".github/**/*.yml"
+    strategy: skip
+
+# Per-file nested configuration (overrides patterns)
+files:
+  "Gemfile":
+    strategy: merge
+    add_template_only_nodes: true
+
+  "Rakefile":
+    strategy: merge
+
+  "README.md":
+    strategy: replace
+
+  ".env.local":
+    strategy: skip
+```
 
 ## 🔧 Basic Usage
 

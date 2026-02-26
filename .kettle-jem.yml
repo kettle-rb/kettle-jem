@@ -21,7 +21,7 @@
 #   add_template_only_nodes: true | false
 #     - true: Add nodes that exist only in template to destination
 #     - false: Only merge/replace existing nodes
-#   freeze_token: string (default: "kettle-dev")
+#   freeze_token: string (default: "kettle-jem")
 #     - Token used to mark frozen sections that should not be modified
 #   max_recursion_depth: number (default: Infinity)
 #     - Maximum depth for recursive merging
@@ -145,7 +145,7 @@ files:
     "guidelines.md":
       strategy: skip
 
-  ".kettle-dev.yml":
+  ".kettle-jem.yml":
     strategy: skip
 
   ".licenserc.yaml":
@@ -236,7 +236,7 @@ files:
         strategy: merge
 
       "templating.gemfile":
-        strategy: merge
+        strategy: skip
 
       "x_std_libs.gemfile":
         strategy: merge
