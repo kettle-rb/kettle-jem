@@ -78,12 +78,46 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
       expect(result).to include("| new.txt |")
     end
 
-    it "includes removed files section" do
-      comparison = {matched: [], changed: [], added: [], removed: %w[old.txt]}
+    it "includes unexpected removals section" do
+      comparison = {matched: [], changed: [], added: [], removed: %w[old.txt], skipped: []}
       result = reporter.summary(comparison, output_dir: output_dir)
 
-      expect(result).to include("## Removed Files (1)")
+      expect(result).to include("## Unexpected Removals (1)")
       expect(result).to include("| old.txt |")
+    end
+
+    it "does not include unexpected removals section when removed is empty" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: [], skipped: %w[lib/foo.rb]}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).not_to include("Unexpected Removals")
+    end
+
+    it "includes skipped files in a collapsed details section" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: [], skipped: %w[lib/foo.rb spec/foo_spec.rb]}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).to include("<details>")
+      expect(result).to include("Not Templated (2 files)")
+      expect(result).to include("| lib/foo.rb |")
+      expect(result).to include("| spec/foo_spec.rb |")
+      expect(result).to include("</details>")
+    end
+
+    it "omits skipped section when no skipped files" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: [], skipped: []}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).not_to include("Not Templated")
+      expect(result).not_to include("<details>")
+    end
+
+    it "defaults skipped to empty when key is missing" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: []}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).not_to include("Not Templated")
+      expect(result).to include("All files match!")
     end
 
     it "includes the output_dir in the report" do

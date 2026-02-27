@@ -1,31 +1,43 @@
 # frozen_string_literal: true
 
-# To retain during kettle-jem templating:
-#     kettle-jem:freeze
-#     # ... your code
-#     kettle-jem:unfreeze
+# NOTE: tree-sitter-toml parser must be installed separately via your package manager
+#       e.g., `apt install libtree-sitter-toml-dev` or built from source
 #
+# TreeHaver (vendored in vendor/tree_haver) provides a unified interface to tree-sitter
+# that works across MRI, JRuby, and TruffleRuby. It uses ruby_tree_sitter on MRI and
+# FFI on other platforms.
+#
+# These platform-specific gems are the backends that TreeHaver uses:
+# Only specifying for mri, to reduce complexity
+platform :mri do
+  gem "ffi", require: false # DO NOT LOAD, because conflicts with MRI
+  gem "toml-rb"
+  gem "citrus"
+  gem "toml"
+  gem "parslet"
+  gem "prism", "~> 1.6"
+  gem "unparser", "~> 0.8", ">= 0.8.1"
+
+  # On JRuby only the :java and :ffi backends are available.
+  # On Truffleruby it seems that no backends are available (yet)
+  # MRI only Parsers:
+  # kettle-jem currently uses markly instead of commonmarker, but these can easily be swapped.
+  # gem "commonmarker"
+  gem "markly", "~> 0.15", ">= 0.15.2"
+  gem "rbs", ">= 3.10"   # ruby >= 3.1.0
+
+  # MRI Backend
+  gem "ruby_tree_sitter",
+    require: false # DO NOT LOAD, because conflicts with FFI
+  # Rust Backend
+  gem "tree_stump", "~> 0.2"
+end
 
 # AST parsing for advanced templating
-if ENV.fetch("KETTLE_RB_DEV", "false").casecmp?("true")
-  # Inner-merge dependencies for CodeBlockMerger
-  # These are loaded on-demand when merging fenced code blocks
-  gem "bash-merge", path: "../../../bash-merge"         # dotenv code blocks
-  gem "dotenv-merge", path: "../../../dotenv-merge"     # dotenv code blocks
-  gem "json-merge", path: "../../../json-merge"         # JSON code blocks
-  gem "jsonc-merge", path: "../../../jsonc-merge"       # JSONC code blocks
-  gem "markdown-merge", path: "../../../markdown-merge" # generic markdown tools
-  gem "prism-merge", path: "../../../prism-merge"       # Ruby code blocks
-  gem "psych-merge", path: "../../../psych-merge"       # YAML code blocks
-  gem "rbs-merge", path: "../../../rbs-merge"           # RBS code blocks
-  gem "toml-merge", path: "../../../toml-merge"         # TOML code blocks
-
-  gem "kettle-jem", path: "../../../kettle-jem"         # Kettle-rb's Merge Recipes
-
-  platform :mri do
-    gem "markly-merge", path: "../../../markly-merge"     # markly markdown merging
-  end
-else
+# Only specifying for mri, to reduce complexity
+platform :mri do
+  gem "tree_haver", "~> 5.0", ">= 5.0.6"
+  gem "ast-merge", "~> 4.0", ">= 4.0.5"
   gem "bash-merge"      # dotenv code blocks
   gem "dotenv-merge"    # dotenv code blocks
   gem "json-merge"      # JSON code blocks
@@ -35,12 +47,6 @@ else
   gem "psych-merge"     # YAML code blocks
   gem "rbs-merge"       # RBS code blocks
   gem "toml-merge"      # TOML code blocks
-
-  # Not released yet
-  # gem "kettle-jem"      # Kettle-rb's Merge Recipes
-  gem "kettle-jem", path: "../../../kettle-jem"         # Kettle-rb's Merge Recipes
-
-  platform :mri do
-    gem "markly-merge"    # markly markdown merging
-  end
+  gem "markly-merge"    # markly markdown merging
+  gem "kettle-jem"      # Kettle-rb's Merge Recipes
 end

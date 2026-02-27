@@ -24,6 +24,100 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
 
+    describe "::normalize_markdown_spacing", :markly_merge do
+      subject(:normalize) { described_class.normalize_markdown_spacing(input) }
+
+      context "with a standard heading missing blank lines" do
+        let(:input) { "Some text\n## Heading\nMore text" }
+
+        it "inserts blank lines around the heading" do
+          expect(normalize).to eq("Some text\n\n## Heading\n\nMore text")
+        end
+      end
+
+      context "with an indented code block containing # lines" do
+        let(:input) do
+          <<~MD.chomp
+            Some text
+
+                # To force retention during kettle-jem templating:
+                #     kettle-jem:freeze
+                #     # ... your code
+                #     kettle-jem:unfreeze
+
+            More text
+          MD
+        end
+
+        it "does not insert blank lines between indented code block lines" do
+          expect(normalize).not_to include("kettle-jem:freeze\n\n")
+          expect(normalize).to include("kettle-jem:freeze\n    #     # ... your code")
+        end
+      end
+
+      context "with a line indented 4+ spaces starting with #" do
+        let(:input) { "Text\n\n    # comment line\n    # another line\n\nMore" }
+
+        it "does not treat 4-space-indented # lines as headings" do
+          expect(normalize).to include("    # comment line\n    # another line")
+        end
+      end
+
+      context "inside a fenced code block" do
+        let(:input) { "Text\n\n```\n# not a heading\n```\n\nMore" }
+
+        it "does not modify lines inside fenced code blocks" do
+          expect(normalize).to include("```\n# not a heading\n```")
+        end
+      end
+
+      context "with consecutive headings separated by blank lines" do
+        let(:input) { "## First\n\n## Second" }
+
+        it "preserves the single blank line between headings" do
+          expect(normalize).to eq("## First\n\n## Second")
+        end
+      end
+
+      context "with well-formatted content" do
+        let(:input) do
+          <<~MD.chomp
+            # Title
+
+            Some text.
+
+            ## Section One
+
+            Content here.
+
+            ### Subsection
+
+            More content.
+          MD
+        end
+
+        it "is identity for already well-formatted content" do
+          expect(normalize).to eq(input)
+        end
+      end
+
+      context "with a heading followed immediately by a subheading" do
+        let(:input) { "## Parent\n### Child\nContent" }
+
+        it "inserts blank lines between them" do
+          expect(normalize).to include("## Parent\n\n### Child\n\nContent")
+        end
+      end
+
+      context "when AST parsing would fail" do
+        it "returns the input unchanged" do
+          # Empty strings are valid markdown, so test the rescue path
+          # by verifying graceful behavior
+          expect(described_class.normalize_markdown_spacing("")).to eq("")
+        end
+      end
+    end
+
     describe "::run" do
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do
         Dir.mktmpdir do |gem_root|

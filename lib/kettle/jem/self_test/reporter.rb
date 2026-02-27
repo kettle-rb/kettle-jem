@@ -39,6 +39,11 @@ module Kettle
         # Generate a markdown summary report from a manifest comparison.
         #
         # @param comparison [Hash{Symbol => Array<String>}] output of +Manifest.compare+
+        #   Standard keys: +:matched+, +:changed+, +:added+, +:removed+.
+        #   Optional key: +:skipped+ — files present in the source gem but not
+        #   expected to be produced by the template task (lib/, spec/, template/, etc.).
+        #   When +:skipped+ is provided, only truly unexpected removals appear under
+        #   "Removed Files"; skipped files get an informational collapsed section.
         # @param output_dir [String] path to the output directory (for the report header)
         # @return [String] markdown report
         def summary(comparison, output_dir:)
@@ -46,6 +51,7 @@ module Kettle
           changed = comparison.fetch(:changed, [])
           added = comparison.fetch(:added, [])
           removed = comparison.fetch(:removed, [])
+          skipped = comparison.fetch(:skipped, [])
 
           total = matched.size + changed.size + added.size
           score = total.zero? ? 0.0 : (matched.size.to_f / total * 100).round(1)
@@ -77,7 +83,10 @@ module Kettle
           end
 
           if removed.any?
-            lines << "## Removed Files (#{removed.size})"
+            lines << "## Unexpected Removals (#{removed.size})"
+            lines << ""
+            lines << "These files exist in the source gem and appear to be within the template's"
+            lines << "scope, but were not produced by the template task."
             lines << ""
             lines << "| File |"
             lines << "|------|"
@@ -91,6 +100,21 @@ module Kettle
             lines << "## Detailed Diffs"
             lines << ""
             lines << "See `report/diffs/` directory."
+          end
+
+          if skipped.any?
+            lines << ""
+            lines << "<details>"
+            lines << "<summary>Not Templated (#{skipped.size} files) — source-only files not produced by the template task</summary>"
+            lines << ""
+            lines << "These files are part of the gem source (lib/, spec/, template/, exe/, etc.)"
+            lines << "and are not expected to appear in the template output. This is normal."
+            lines << ""
+            lines << "| File |"
+            lines << "|------|"
+            skipped.each { |f| lines << "| #{f} |" }
+            lines << ""
+            lines << "</details>"
           end
           lines << ""
 

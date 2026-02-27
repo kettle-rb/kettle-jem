@@ -19,7 +19,7 @@ PATH
       dotenv-merge (~> 1.0, >= 1.0.3)
       json-merge (~> 1.1, >= 1.1.2)
       jsonc-merge (~> 1.0, >= 1.0.1)
-      kettle-dev (~> 1.1)
+      kettle-dev (~> 2.0)
       markdown-merge (~> 1.0, >= 1.0.3)
       markly-merge (~> 1.0)
       prism-merge (~> 2.0, >= 2.0.4)
@@ -119,7 +119,7 @@ GEM
       ast-merge (~> 4.0, >= 4.0.6)
       tree_haver (~> 5.0, >= 5.0.5)
       version_gem (~> 1.1, >= 1.1.9)
-    kettle-dev (1.2.4)
+    kettle-dev (2.0.0)
     kettle-soup-cover (1.1.1)
       simplecov (~> 0.22)
       simplecov-cobertura (~> 3.0)
@@ -481,7 +481,7 @@ CHECKSUMS
   json (2.18.1) sha256=fe112755501b8d0466b5ada6cf50c8c3f41e897fa128ac5d263ec09eedc9f986
   json-merge (1.1.2) sha256=98c8dc08047dc456fd267e62d52c1f0bb52829e0e05a175a5c8fa689465d237e
   jsonc-merge (1.0.1) sha256=f51312acf358eb9c55cbe312f5224dad64cab3792663e323e7e551956e9a4136
-  kettle-dev (1.2.4) sha256=71373c67fe7eb0a9656e70dfd10cf226a15083b6d1be18dafcb5360f21ee98b6
+  kettle-dev (2.0.0) sha256=f3cd1a2f8cc4f1fcc573d7e9177644873cfdfe455e26365416b4290ea09490b5
   kettle-jem (1.0.0)
   kettle-soup-cover (1.1.1) sha256=2303885a9d8485d8d43cb250bcf73570f6b6fb997526beeaef3ef54e3501d445
   kettle-test (1.0.10) sha256=ddefc5d54b290ee6dbe5a3983128f6948fa63f624ca676c1e6cfffc9b6878179

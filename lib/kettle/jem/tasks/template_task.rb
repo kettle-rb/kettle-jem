@@ -11,39 +11,30 @@ module Kettle
 
         module_function
 
-        # Ensure every Markdown atx-style heading line has exactly one blank line
-        # before and after, skipping content inside fenced code blocks.
-        def normalize_heading_spacing(text)
-          lines = text.split("\n", -1)
-          out = []
-          in_fence = false
-          fence_re = /^\s*```/
-          heading_re = /^\s*#+\s+.+/
-          lines.each_with_index do |ln, idx|
-            if ln&.match?(fence_re)
-              in_fence = !in_fence
-              out << ln
-              next
-            end
-            if !in_fence && ln =~ heading_re
-              prev_blank = out.empty? ? false : out.last.to_s.strip == ""
-              out << "" unless out.empty? || prev_blank
-              out << ln
-              nxt = lines[idx + 1]
-              out << "" unless nxt.to_s.strip == ""
-            else
-              out << ln
-            end
-          end
-          # Collapse accidental multiple blanks
-          collapsed = []
-          out.each do |l|
-            if l.strip == "" && collapsed.last.to_s.strip == ""
-              next
-            end
-            collapsed << l
-          end
-          collapsed.join("\n")
+        # Normalize whitespace in Markdown content using AST-based processing.
+        #
+        # Performs a self-merge through Markdown::Merge::SmartMerger which:
+        # 1. Parses the content into a proper AST (via Markly/Commonmarker)
+        # 2. Rebuilds via OutputBuilder with auto_spacing, ensuring blank lines
+        #    around headings, tables, code blocks, and other structural elements
+        # 3. Applies WhitespaceNormalizer to collapse excessive blank lines
+        #
+        # Unlike a regex-based approach, the AST correctly identifies heading
+        # nodes vs indented code blocks containing '#' characters.
+        #
+        # @param text [String] Markdown content to normalize
+        # @return [String] Normalized content
+        def normalize_markdown_spacing(text)
+          Markdown::Merge::SmartMerger.new(
+            text,
+            text,
+            preference: :destination,
+            normalize_whitespace: :basic,
+          ).merge
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          # If AST parsing fails, return content unchanged
+          text
         end
 
         def markdown_heading_file?(relative_path)
@@ -438,8 +429,8 @@ module Kettle
                   # Best effort; if anything fails, keep c as-is
                 end
 
-                # Normalize spacing around Markdown headings for broad renderer compatibility
-                c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
+                # Normalize spacing around Markdown structural elements using AST
+                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                 c
               end
             elsif File.basename(rel) == "CHANGELOG.md"
@@ -467,8 +458,8 @@ module Kettle
                   lines.map! { |ln| ln.match?(/^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
                   c = lines.join("\n")
                 end
-                # Normalize spacing around Markdown headings for broad renderer compatibility
-                c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
+                # Normalize spacing around Markdown structural elements using AST
+                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                 c
               end
             else
@@ -484,8 +475,8 @@ module Kettle
                   gem_shield: gem_shield,
                   min_ruby: min_ruby,
                 )
-                # Normalize spacing around Markdown headings for broad renderer compatibility
-                c = normalize_heading_spacing(c) if markdown_heading_file?(rel)
+                # Normalize spacing around Markdown structural elements using AST
+                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                 c
               end
             end

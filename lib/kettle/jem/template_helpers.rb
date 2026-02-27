@@ -533,14 +533,17 @@ module Kettle
 
                 actual_target = output_path(target)
                 FileUtils.mkdir_p(File.dirname(actual_target))
-                if File.exist?(target)
+                if File.exist?(actual_target)
 
-                  # Skip only if contents are identical. If source and target paths are the same,
-                  # avoid FileUtils.cp (which raises) and do an in-place rewrite to satisfy "copy".
+                  # Skip only if the actual output already has identical contents.
+                  # Compare against actual_target (not target) so that when output_dir
+                  # is set the check looks at the real write destination.
+                  # If source and actual_target are the same path, avoid FileUtils.cp
+                  # (which raises) and do an in-place rewrite to satisfy "copy".
                   begin
-                    if FileUtils.compare_file(path, target)
+                    if FileUtils.compare_file(path, actual_target)
                       next
-                    elsif path == target
+                    elsif path == actual_target
                       data = File.binread(path)
                       File.open(actual_target, "wb") { |f| f.write(data) }
                       next
@@ -583,13 +586,14 @@ module Kettle
 
               actual_target = output_path(target)
               FileUtils.mkdir_p(File.dirname(actual_target))
-              if File.exist?(target)
-                # Skip only if contents are identical. If source and target paths are the same,
-                # avoid FileUtils.cp (which raises) and do an in-place rewrite to satisfy "copy".
+              if File.exist?(actual_target)
+                # Skip only if the actual output already has identical contents.
+                # Compare against actual_target (not target) so that when output_dir
+                # is set the check looks at the real write destination.
                 begin
-                  if FileUtils.compare_file(path, target)
+                  if FileUtils.compare_file(path, actual_target)
                     next
-                  elsif path == target
+                  elsif path == actual_target
                     data = File.binread(path)
                     File.open(actual_target, "wb") { |f| f.write(data) }
                     next
