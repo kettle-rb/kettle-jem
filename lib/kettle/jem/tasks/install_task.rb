@@ -458,26 +458,62 @@ module Kettle
               Kettle::Dev.debug_error(e, __method__)
               current = ""
             end
-            has_path_add = current.lines.any? { |l| l.strip =~ /^PATH_add\s+bin\b/ }
-            if has_path_add
-              puts "   Your .envrc already contains PATH_add bin."
-            else
-              puts "   Adding PATH_add bin to your project's .envrc is recommended to expose ./bin on PATH."
-              if helpers.ask("Add PATH_add bin to #{envrc_path}?", false)
-                content = current.dup
-                insertion = "# Run any command in this project's bin/ without the bin/ prefix\nPATH_add bin\n"
-                if content.empty?
-                  content = insertion
-                else
-                  content = insertion + "\n" + content unless content.start_with?(insertion)
-                end
-                # Ensure a stale directory at .envrc is removed so the file can be written
+
+            # Use Bash::Merge to ensure the destination .envrc has at least the essential
+            # PATH_add lines from a minimal snippet. The full template .envrc was already
+            # copied/merged by the template task; this is a supplementary check for cases
+            # where the user has a custom .envrc that predates the template.
+            essential_envrc = <<~BASH
+              # Run any command in this project's bin/ without the bin/ prefix
+              PATH_add exe
+              PATH_add bin
+            BASH
+
+            if current.empty?
+              puts "   No .envrc found."
+              if helpers.ask("Create #{envrc_path} with PATH_add bin?", false)
                 FileUtils.rm_rf(envrc_path) if File.directory?(envrc_path)
-                File.open(envrc_path, "w") { |f| f.write(content) }
-                puts "   Updated #{envrc_path} with PATH_add bin"
+                File.open(envrc_path, "w") { |f| f.write(essential_envrc) }
+                puts "   Created #{envrc_path}"
                 updated_envrc_by_install = true
               else
-                puts "   Skipping modification of .envrc. You may add 'PATH_add bin' manually at the top."
+                puts "   Skipping creation of .envrc."
+              end
+            else
+              begin
+                merged = Bash::Merge::SmartMerger.new(
+                  essential_envrc,
+                  current,
+                  preference: :destination,
+                  add_template_only_nodes: true,
+                  freeze_token: "kettle-jem",
+                ).merge
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+                # Fallback: simple line-presence check when Bash::Merge isn't available
+                # (e.g., tree-sitter-bash grammar not installed)
+                missing_lines = essential_envrc.lines.reject do |line|
+                  line.strip.empty? || line.strip.start_with?("#") || current.include?(line.strip)
+                end
+                merged = if missing_lines.any?
+                  essential_envrc + "\n" + current
+                else
+                  nil # Nothing to add
+                end
+              end
+
+              if merged && merged != current
+                puts "   Your .envrc is missing some recommended entries."
+                if helpers.ask("Update #{envrc_path} with merged content?", false)
+                  FileUtils.rm_rf(envrc_path) if File.directory?(envrc_path)
+                  File.open(envrc_path, "w") { |f| f.write(merged) }
+                  puts "   Updated #{envrc_path}"
+                  updated_envrc_by_install = true
+                else
+                  puts "   Skipping modification of .envrc."
+                end
+              else
+                puts "   Your .envrc is up to date."
               end
             end
           end

@@ -486,7 +486,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "prepends PATH_add bin to non-empty .envrc content" do
+    it "merges essential PATH_add lines into non-empty .envrc content" do
       Dir.mktmpdir do |project_root|
         envrc = File.join(project_root, ".envrc")
         File.write(envrc, "export FOO=bar\n")
@@ -499,8 +499,9 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         stub_env("allowed" => "true")
         described_class.run
         txt = File.read(envrc)
-        expect(txt).to start_with("# Run any command in this project's bin/ without the bin/ prefix\nPATH_add bin\n\n")
         expect(txt).to include("export FOO=bar")
+        expect(txt).to include("PATH_add exe")
+        expect(txt).to include("PATH_add bin")
       end
     end
 

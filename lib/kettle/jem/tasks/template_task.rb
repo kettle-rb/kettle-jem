@@ -139,21 +139,12 @@ module Kettle
 
               if File.basename(rel) == "FUNDING.yml"
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                  c = content.dup
                   # Effective funding handle should fall back to forge_org when funding_org is nil.
                   # This allows tests to stub FUNDING_ORG=false to bypass explicit funding detection
                   # while still templating the line with the derived organization (e.g., from homepage URL).
                   effective_funding = funding_org || forge_org
-                  c = if helpers.opencollective_disabled?
-                    c.gsub(/^open_collective:\s+.*$/i) { |line| "open_collective: # Replace with a single Open Collective username" }
-                  else
-                    c.gsub(/^open_collective:\s+.*$/i) { |line| effective_funding ? "open_collective: #{effective_funding}" : line }
-                  end
-                  if gem_name && !gem_name.empty?
-                    c = c.gsub(/^tidelift:\s+.*$/i, "tidelift: rubygems/#{gem_name}")
-                  end
-                  helpers.apply_common_replacements(
-                    c,
+                  c = helpers.apply_common_replacements(
+                    content,
                     org: forge_org,
                     funding_org: effective_funding, # pass effective funding for downstream tokens
                     gem_name: gem_name,
@@ -162,6 +153,23 @@ module Kettle
                     gem_shield: gem_shield,
                     min_ruby: min_ruby,
                   )
+                  # Merge resolved template with existing destination FUNDING.yml using psych-merge.
+                  # Template preference ensures updated funding values propagate while preserving
+                  # any custom keys the destination has added.
+                  if File.exist?(dest)
+                    begin
+                      c = Psych::Merge::SmartMerger.new(
+                        c,
+                        File.read(dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                      # Fall through with token-resolved content on merge failure
+                    end
+                  end
+                  c
                 end
               else
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
@@ -214,12 +222,29 @@ module Kettle
             end
           end
 
-          # 6) .env.local special case: never read or touch .env.local from source; only copy .env.local.example to .env.local.example
+          # 6) .env.local.example: merge template env vars with existing destination using dotenv-merge
           begin
             envlocal_src = File.join(gem_checkout_root, ".env.local.example")
             envlocal_dest = File.join(project_root, ".env.local.example")
             if File.exist?(envlocal_src)
-              helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true)
+              helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true) do |content|
+                if File.exist?(envlocal_dest)
+                  begin
+                    Dotenv::Merge::SmartMerger.new(
+                      content,
+                      File.read(envlocal_dest),
+                      preference: :destination,
+                      add_template_only_nodes: true,
+                      freeze_token: "kettle-jem",
+                    ).merge
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                    content # Fall back to template content on merge failure
+                  end
+                else
+                  content
+                end
+              end
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
@@ -453,10 +478,8 @@ module Kettle
                   )
                 rescue StandardError => e
                   Kettle::Dev.debug_error(e, __method__)
-                  # Fallback: whitespace normalization only
-                  lines = c.split("\n", -1)
-                  lines.map! { |ln| ln.match?(/^##\s+\[.*\]/) ? ln.gsub(/[ \t]+/, " ") : ln }
-                  c = lines.join("\n")
+                  # On merge failure, keep token-resolved content;
+                  # normalize_markdown_spacing below handles whitespace via AST
                 end
                 # Normalize spacing around Markdown structural elements using AST
                 c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)

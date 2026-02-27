@@ -127,10 +127,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             FileUtils.mkdir_p(gh_src)
             File.write(File.join(gh_src, "ci.yml"), "name: REAL\n")
             File.write(File.join(gh_src, "ci.yml.example"), "name: EXAMPLE\n")
-            # FUNDING.yml example with placeholders
+            # FUNDING.yml example with token placeholders (matches real template format)
             File.write(File.join(gem_root, ".github", "FUNDING.yml.example"), <<~YAML)
-              open_collective: placeholder
-              tidelift: rubygems/placeholder
+              open_collective: {KJ|OPENCOLLECTIVE_ORG}
+              tidelift: rubygems/{KJ|GEM_NAME}
             YAML
 
             # Provide gemspec in project to satisfy metadata scanner
