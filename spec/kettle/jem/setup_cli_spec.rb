@@ -280,7 +280,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       argv = ["--allowed=foo", "--force", "--hook_templates=bar", "--only=baz", "-h"]
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
-      end.to output(/Usage: kettle-jem-setup/).to_stdout
+      end.to output(/Usage: kettle-jem/).to_stdout
     end
 
     it "rescues parse errors, prints usage, and exits 2", :check_output do
@@ -290,7 +290,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       # call private parse! directly to isolate behavior
       expect do
         expect { cli.send(:parse!) }.to raise_error(MockSystemExit, /exit status 2/)
-      end.to output(/Usage: kettle-jem-setup/).to_stdout.and output(/OptionParser/).to_stderr
+      end.to output(/Usage: kettle-jem/).to_stdout.and output(/OptionParser/).to_stderr
     end
 
     it "appends remaining argv into @passthrough when no special flags" do
@@ -324,7 +324,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
   describe "#say and #abort!" do
     it "say prints with prefix", :check_output do
       cli = described_class.allocate
-      expect { cli.send(:say, "msg") }.to output(/\[kettle-jem-setup\] msg/).to_stdout
+      expect { cli.send(:say, "msg") }.to output(/\[kettle-jem\] msg/).to_stdout
     end
 
     it "abort! uses ExitAdapter and raises MockSystemExit with message" do

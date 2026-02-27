@@ -47,7 +47,7 @@ module Kettle
       def debug(msg)
         return if ENV.fetch("DEBUG", "false").casecmp("true").nonzero?
 
-        $stderr.puts("[kettle-jem-setup] DEBUG: #{msg}")
+        $stderr.puts("[kettle-jem] DEBUG: #{msg}")
       end
 
       # Attempt to derive a funding organization from the git remote 'origin' when
@@ -105,7 +105,7 @@ module Kettle
 
       def parse!
         parser = OptionParser.new do |opts|
-          opts.banner = "Usage: kettle-jem-setup [options]"
+          opts.banner = "Usage: kettle-jem [options]"
           opts.on("--allowed=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "allowed=#{v}" }
           opts.on("--force", "Pass through to kettle:jem:install") do
             # Ensure in-process helpers (TemplateHelpers.ask) also see force mode
@@ -123,7 +123,7 @@ module Kettle
         begin
           parser.parse!(@argv)
         rescue OptionParser::ParseError => e
-          warn("[kettle-jem-setup] #{e.class}: #{e.message}")
+          warn("[kettle-jem] #{e.class}: #{e.message}")
           puts parser
           Kettle::Dev::ExitAdapter.exit(2)
         end
@@ -131,11 +131,11 @@ module Kettle
       end
 
       def say(msg)
-        puts "[kettle-jem-setup] #{msg}"
+        puts "[kettle-jem] #{msg}"
       end
 
       def abort!(msg)
-        Kettle::Dev::ExitAdapter.abort("[kettle-jem-setup] ERROR: #{msg}")
+        Kettle::Dev::ExitAdapter.abort("[kettle-jem] ERROR: #{msg}")
       end
 
       def sh!(cmd, env: {})
@@ -385,7 +385,7 @@ module Kettle
           return
         end
         sh!(Shellwords.join(["git", "add", "-A"]))
-        msg = "🎨 Template bootstrap by kettle-jem-setup v#{Kettle::Jem::Version::VERSION}"
+        msg = "🎨 Template bootstrap by kettle-jem v#{Kettle::Jem::Version::VERSION}"
         sh!(Shellwords.join(["git", "commit", "-m", msg]))
         say("Committed template bootstrap changes.")
       end

@@ -83,7 +83,7 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
   spec.bindir = "exe"
   # Listed files are the relative paths from bindir above.
-  spec.executables = ["kettle-jem-setup"]
+  spec.executables = ["kettle-jem"]
 
   # Shared merge infrastructure
   spec.add_dependency("ast-merge", "~> 4.0", ">= 4.0.6")                # ruby >= 3.2.0

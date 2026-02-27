@@ -20,44 +20,13 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Added
 
-- **RecipeLoader**: YAML-based preset loading for merge configurations
-  - Load presets via `Kettle::Jem.recipe(:gemfile)` or `RecipeLoader.load(:gemfile)`
-  - Returns `Ast::Merge::Recipe::Preset` instances (not Config, since no template required)
-  - Presets stored in `lib/kettle/jem/recipes/` directory
-  - Each preset has a companion folder for Ruby scripts (signature generators, node typing)
-  - Use with SmartMerger: `merger = Prism::Merge::SmartMerger.new(template, dest, **preset.to_h)`
-- **Presets**: YAML-based presets for common file types
-  - `gemfile.yml` - Gemfile merging with gem name matching and categorization
-  - `gemspec.yml` - gemspec merging with attribute and dependency matching
-  - `rakefile.yml` - Rakefile merging with task and namespace matching
-  - `appraisals.yml` - Appraisals merging with appraise block matching
-  - `markdown.yml` - Markdown merging with heading and section matching
-- **Preset Scripts**: Ruby scripts for each preset
-  - Signature generators for intelligent node matching
-  - Node typing scripts for gem categorization (lint, test, doc, dev, coverage, kettle gems)
-  - Scripts return lambdas that are evaluated by `ScriptLoader`
-- Initial release of programmatic presets (`Presets::*`) and classifiers (`Classifiers::*`)
-
 ### Changed
-
-- Updated documentation on hostile takeover of RubyGems
-  - https://dev.to/galtzo/hostile-takeover-of-rubygems-my-thoughts-5hlo
 
 ### Deprecated
 
 ### Removed
 
 ### Fixed
-
-- Add `spec.metadata["key"] = value` handler to `Signatures.gemspec` — matching
-  the logic already in the recipe's `signature_generator.rb`. Without this,
-  `spec.metadata[]=` calls fell through to the generic handler and failed to
-  match between template and destination during gemspec merging.
-- Fix `Performance/RegexpMatch` lint in `markdown_merger.rb` (=~ → .match?)
-- Fix `ChangelogMerger` stripping link reference definitions at the bottom of
-  CHANGELOG files. `find_section_end` now stops before lines matching
-  `[name]: url` patterns, preserving version comparison links.
-- Fix `ChangelogMerger` missing trailing newline in merged output.
 
 ### Security
 

@@ -289,6 +289,7 @@ NOTE: Be prepared to track down certs for signed gems and add them the same way 
 
 </details>
 
+
 ## ⚙️ Configuration
 
 Kettle::Jem provides two complementary systems for merge configuration:
@@ -518,6 +519,81 @@ files:
 ```
 
 ## 🔧 Basic Usage
+
+### The `kettle-jem` command
+
+kettle-jem ships a single executable, `kettle-jem`, that bootstraps a host gem repository to use kettle-jem tooling. Run it from inside the target gem's repository working directory.
+
+```console
+kettle-jem [options]
+# e.g., kettle-dev-setup --allowed=true --force
+```
+
+#### What it does
+
+The `kettle-jem` command performs the following steps in order:
+
+1. **Prechecks** — Verifies you're inside a git repo with a clean working tree, a gemspec, and a Gemfile
+2. **Sync dev dependencies** — Updates your gemspec's `add_development_dependency` entries to match the kettle-jem template
+3. **Sync Gemfile** — Ensures your Gemfile contains required `source`, `git_source`, `gemspec`, and `eval_gemfile` directives from the template
+4. **Sync modular gemfiles** — Copies `gemfiles/modular/*.gemfile` files from the template
+5. **Ensure bin/setup** — Copies `bin/setup` from the template if missing
+6. **Ensure Rakefile** — Replaces your Rakefile with the kettle-jem template Rakefile
+7. **Run bin/setup** — Executes `bin/setup` to install dependencies
+8. **Generate binstubs** — Runs `bundle binstubs --all`
+9. **Commit bootstrap changes** — Commits any changes from the above steps
+10. **Run kettle:jem:install** — Invokes the full template merge via `rake kettle:jem:install`, which performs AST-based smart merging of all template files according to `.kettle-jem.yml`
+
+#### Options
+
+All options are passed through to the underlying `rake kettle:jem:install` task:
+
+| Option | Description |
+|--------|-------------|
+| `--allowed=VAL` | Acknowledge prior direnv allow, etc. Passed as `allowed=VAL` to the rake task. |
+| `--force` | Accept all prompts non-interactively (sets `force=true`). Useful for CI or scripted setups. |
+| `--hook_templates=VAL` | Control git hook templating. Values: `local` (install to `.git/hooks`), `global` (install to `~/.git-templates`), `skip` (do not install hooks). |
+| `--only=VAL` | Restrict install scope to a specific subset of files. |
+| `--include=VAL` | Include optional files by glob pattern. |
+| `-h`, `--help` | Show help and exit. |
+
+#### Environment variables
+
+| Variable | Description |
+|----------|-------------|
+| `DEBUG=true` | Print full backtraces on errors |
+| `FUNDING_ORG=org_name` | Override the GitHub org used for FUNDING.yml generation. Auto-derived from git remote `origin` when not set. Set to `false` to disable. |
+
+#### Examples
+
+Bootstrap a new gem repository with all defaults (interactive prompts):
+
+```console
+cd my-gem
+kettle-jem
+```
+
+Non-interactive setup for CI:
+
+```console
+kettle-jem --force
+```
+
+Only install git hooks locally:
+
+```console
+kettle-jem --hook_templates=local
+```
+
+#### Rake tasks
+
+After initial setup, the following rake tasks are available for ongoing use:
+
+| Task | Description |
+|------|-------------|
+| `rake kettle:jem:install` | Full template merge (same as what `kettle-jem` runs at the end) |
+| `rake kettle:jem:template` | File templating only (AST-based smart merge of all template files) |
+| `rake kettle:jem:selftest` | Validate that templating kettle-jem against itself produces expected output |
 
 ### Using Presets
 
