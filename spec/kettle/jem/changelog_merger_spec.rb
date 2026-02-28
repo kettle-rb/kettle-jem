@@ -138,6 +138,117 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
       expect(result).to include("## [1.0.0] - 2025-01-01")
       expect(result).not_to include("## [1.0.0]  -  2025-01-01")
     end
+
+    it "inserts blank lines between subheadings in the Unreleased section" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Changed
+        ### Deprecated
+        ### Removed
+        ### Fixed
+        ### Security
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+
+        ### Added
+
+        ### Changed
+
+        ### Deprecated
+
+        ### Removed
+
+        ### Fixed
+
+        ### Security
+
+        ## [1.0.0] - 2025-01-01
+        ### Added
+        - Initial release
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      # Each subheading should be preceded by a blank line
+      expect(result).to include("## [Unreleased]\n\n### Added"),
+        "Expected blank line between ## [Unreleased] and ### Added, got:\n#{result}"
+      expect(result).to include("### Added\n\n### Changed"),
+        "Expected blank line between ### Added and ### Changed, got:\n#{result}"
+      expect(result).to include("### Changed\n\n### Deprecated"),
+        "Expected blank line between ### Changed and ### Deprecated, got:\n#{result}"
+      expect(result).to include("### Deprecated\n\n### Removed"),
+        "Expected blank line between ### Deprecated and ### Removed, got:\n#{result}"
+      expect(result).to include("### Removed\n\n### Fixed"),
+        "Expected blank line between ### Removed and ### Fixed, got:\n#{result}"
+      expect(result).to include("### Fixed\n\n### Security"),
+        "Expected blank line between ### Fixed and ### Security, got:\n#{result}"
+    end
+
+    it "inserts blank lines between subheadings that have content" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Changed
+        ### Deprecated
+        ### Removed
+        ### Fixed
+        ### Security
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+
+        ### Added
+
+        - New feature
+
+        ### Changed
+
+        ### Deprecated
+
+        ### Removed
+
+        ### Fixed
+
+        - Bug fix
+
+        ### Security
+
+        ## [1.0.0] - 2025-01-01
+        ### Added
+        - Initial release
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      # Subheadings with items: items follow heading directly
+      expect(result).to include("### Added\n- New feature"),
+        "Expected items to follow heading directly, got:\n#{result}"
+      expect(result).to include("### Fixed\n- Bug fix"),
+        "Expected items to follow heading directly, got:\n#{result}"
+      # Blank lines between sections (after items, before next heading)
+      expect(result).to include("- New feature\n\n### Changed"),
+        "Expected blank line after items before next heading, got:\n#{result}"
+      expect(result).to include("- Bug fix\n\n### Security"),
+        "Expected blank line after items before next heading, got:\n#{result}"
+    end
   end
 
   describe ".parse_items" do

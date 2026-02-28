@@ -28,6 +28,12 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- `ChangelogMerger` now inserts blank lines between subheadings in the Unreleased
+  section, following Keep-a-Changelog convention. Previously, the canonical
+  headings (Added/Changed/Deprecated/Removed/Fixed/Security) were emitted with
+  no blank lines between them. Also strips trailing blank lines from item groups
+  to prevent double blank lines between populated sections.
+
 ### Security
 
 [Unreleased]: https://github.com/kettle-rb/kettle-jem/compare/v1.0.0...HEAD

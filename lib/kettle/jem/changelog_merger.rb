@@ -61,8 +61,15 @@ module Kettle
         # 4) Build canonical Unreleased section with destination items
         new_unrel_block = [tpl_unrel_heading]
         STD_HEADS.each do |h|
+          new_unrel_block << ""
           new_unrel_block << h
-          new_unrel_block.concat(dest_items[h]) if dest_items[h]&.any?
+          if dest_items[h]&.any?
+            items = dest_items[h].dup
+            # Strip trailing blank lines from items — our blank line before the
+            # next heading provides the inter-section spacing.
+            items.pop while items.any? && items.last.to_s.strip.empty?
+            new_unrel_block.concat(items)
+          end
         end
 
         # 5) Compose: template header + new unreleased + destination history
