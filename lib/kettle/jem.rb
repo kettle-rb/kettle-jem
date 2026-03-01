@@ -12,9 +12,6 @@ require "rbs-merge"
 require "token-resolver"
 require "version_gem"
 
-# Shared merge infrastructure
-require "ast/merge"
-
 # This gem - only version can be required (never autoloaded)
 require_relative "jem/version"
 

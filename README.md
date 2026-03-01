@@ -525,7 +525,7 @@ kettle-jem ships a single executable, `kettle-jem`, that bootstraps a host gem r
 
 ```console
 kettle-jem [options]
-# e.g., kettle-dev-setup --allowed=true --force
+# e.g., kettle-jem --allowed=true --force
 ```
 
 #### What it does

@@ -8,22 +8,24 @@
 # It is designed to be run from inside the target gem's repository working
 # directory. It will not assume kettle-jem is already a dependency.
 
-require "fileutils"
-require "shellwords"
-require "open3"
-require "optparse"
-require "rubygems"
-
 # Ensure output is flushed promptly even if we exit early
 $stdout.sync = true
 $stderr.sync = true
 
+require "rubygems"
+
 script_basename = File.basename(__FILE__)
 
 begin
+  # Standard Library
+  require "fileutils"
+  require "shellwords"
+  require "open3"
+  require "optparse"
+
   require "kettle/jem"
   puts "== #{script_basename} v#{Kettle::Jem::Version::VERSION} begin =="
-rescue StandardError => e
+rescue LoadError => e
   warn("[kettle-jem] Warning: could not fully load kettle/jem (#{e.class}: #{e.message}). Proceeding with limited features.")
 end
 
