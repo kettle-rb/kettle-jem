@@ -40,6 +40,49 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
       expect(result).to include("---")
       expect(result).to include("-only in a")
     end
+
+    context "when the diff command is unavailable" do
+      before do
+        allow(Open3).to receive(:capture2).and_raise(Errno::ENOENT, "No such file or directory - diff")
+      end
+
+      it "falls back to line-by-line comparison for differing files" do
+        File.write(file_a, "line one\nline two\n")
+        File.write(file_b, "line one\nline three\n")
+
+        result = reporter.diff(file_a, file_b)
+        expect(result).to include("---")
+        expect(result).to include("+++")
+        expect(result).to include("-line one")
+        expect(result).to include("-line two")
+        expect(result).to include("+line one")
+        expect(result).to include("+line three")
+      end
+
+      it "returns empty string for identical files" do
+        File.write(file_a, "same content\n")
+        File.write(file_b, "same content\n")
+
+        result = reporter.diff(file_a, file_b)
+        expect(result).to eq("")
+      end
+
+      it "handles one missing file" do
+        File.write(file_a, "only in a\n")
+        # file_b does not exist
+
+        result = reporter.diff(file_a, file_b)
+        expect(result).to include("-only in a")
+        # No content-level additions (lines starting with + that aren't the +++ header)
+        content_additions = result.lines.select { |l| l.start_with?("+") && !l.start_with?("+++") }
+        expect(content_additions).to be_empty
+      end
+
+      it "handles both files missing" do
+        result = reporter.diff("/nonexistent/a", "/nonexistent/b")
+        expect(result).to eq("")
+      end
+    end
   end
 
   describe ".summary" do
@@ -82,15 +125,27 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
       comparison = {matched: [], changed: [], added: [], removed: %w[old.txt], skipped: []}
       result = reporter.summary(comparison, output_dir: output_dir)
 
-      expect(result).to include("## Unexpected Removals (1)")
+      expect(result).to include("## Not Templated — Unexpected (1)")
       expect(result).to include("| old.txt |")
+    end
+
+    # BUG REPRO: The "Unexpected Removals" section heading and description
+    # don't explain what action to take. Files listed here need either a
+    # template/*.example file, dedicated handling in the template task,
+    # or an entry in SKIPPED_FILES/SKIPPED_PREFIXES.
+    it "provides actionable guidance in the removals section" do
+      comparison = {matched: [], changed: [], added: [], removed: %w[.kettle-jem.yml], skipped: []}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).to include("SKIPPED_FILES")
+      expect(result).to include("SKIPPED_PREFIXES")
     end
 
     it "does not include unexpected removals section when removed is empty" do
       comparison = {matched: %w[a.txt], changed: [], added: [], removed: [], skipped: %w[lib/foo.rb]}
       result = reporter.summary(comparison, output_dir: output_dir)
 
-      expect(result).not_to include("Unexpected Removals")
+      expect(result).not_to include("Not Templated — Unexpected")
     end
 
     it "includes skipped files in a collapsed details section" do
@@ -141,6 +196,14 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
       expect(result).to include("0.0%")
       expect(result).to include("0/2 files unchanged")
+    end
+
+    it "handles zero total files (no matched, changed, or added)" do
+      comparison = {matched: [], changed: [], added: [], removed: []}
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).to include("0.0%")
+      expect(result).to include("0/0 files unchanged")
     end
 
     it "links to diffs directory when there are changes" do

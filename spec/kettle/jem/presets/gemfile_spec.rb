@@ -116,4 +116,56 @@ RSpec.describe Kettle::Jem::Presets::Gemfile do
       result.value.statements.body.first
     end
   end
+
+  describe ".default_node_typing" do
+    let(:typing) { described_class.default_node_typing }
+    let(:callable) { typing[:CallNode] }
+
+    def parse_call(code)
+      Prism.parse(code).value.statements.body.first
+    end
+
+    it "categorizes rubocop as :lint_gem" do
+      node = parse_call('gem "rubocop"')
+      result = callable.call(node)
+      expect(result).to respond_to(:merge_type)
+      expect(result.merge_type).to eq(:lint_gem)
+    end
+
+    it "categorizes standardrb as :lint_gem" do
+      node = parse_call('gem "standard"')
+      result = callable.call(node)
+      expect(result.merge_type).to eq(:lint_gem)
+    end
+
+    it "categorizes rspec as :test_gem" do
+      node = parse_call('gem "rspec"')
+      result = callable.call(node)
+      expect(result.merge_type).to eq(:test_gem)
+    end
+
+    it "categorizes yard as :doc_gem" do
+      node = parse_call('gem "yard"')
+      result = callable.call(node)
+      expect(result.merge_type).to eq(:doc_gem)
+    end
+
+    it "categorizes debug as :dev_gem" do
+      node = parse_call('gem "debug"')
+      result = callable.call(node)
+      expect(result.merge_type).to eq(:dev_gem)
+    end
+
+    it "returns node unchanged for uncategorized gem" do
+      node = parse_call('gem "my-custom-gem"')
+      result = callable.call(node)
+      expect(result).to eq(node)
+    end
+
+    it "returns node unchanged for non-gem calls" do
+      node = parse_call('source "https://rubygems.org"')
+      result = callable.call(node)
+      expect(result).to eq(node)
+    end
+  end
 end

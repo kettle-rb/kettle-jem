@@ -289,7 +289,6 @@ NOTE: Be prepared to track down certs for signed gems and add them the same way 
 
 </details>
 
-
 ## ⚙️ Configuration
 
 Kettle::Jem provides two complementary systems for merge configuration:

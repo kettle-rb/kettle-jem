@@ -121,9 +121,12 @@ module Kettle
       end
 
       # Root of the template/ directory containing tokenized .example files.
+      # Uses explicit module-level call to gem_checkout_root so that RSpec stubs
+      # on gem_checkout_root are visible (module_function creates private instance
+      # method copies that bypass singleton-method stubs).
       # @return [String]
       def template_root
-        File.join(gem_checkout_root, "template")
+        File.join(Kettle::Jem::TemplateHelpers.gem_checkout_root, "template")
       end
 
       # Simple yes/no prompt.

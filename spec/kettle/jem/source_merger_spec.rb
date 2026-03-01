@@ -346,4 +346,96 @@ RSpec.describe Kettle::Jem::SourceMerger do
       end
     end
   end
+
+  describe ".detect_file_type" do
+    it "detects Gemfile" do
+      expect(described_class.detect_file_type("Gemfile")).to eq(:gemfile)
+    end
+
+    it "detects Gemfile.lock-like paths" do
+      expect(described_class.detect_file_type("gemfiles/modular/test.gemfile")).to eq(:gemfile)
+    end
+
+    it "detects Appraisals" do
+      expect(described_class.detect_file_type("Appraisals")).to eq(:appraisals)
+    end
+
+    it "detects gemspec files" do
+      expect(described_class.detect_file_type("my-gem.gemspec")).to eq(:gemspec)
+    end
+
+    it "detects Rakefile" do
+      expect(described_class.detect_file_type("Rakefile")).to eq(:rakefile)
+    end
+
+    it "detects .rake files" do
+      expect(described_class.detect_file_type("lib/tasks/test.rake")).to eq(:rakefile)
+    end
+
+    it "defaults to :ruby for unknown extensions" do
+      expect(described_class.detect_file_type("lib/foo.rb")).to eq(:ruby)
+    end
+  end
+
+  describe ".normalize_strategy" do
+    it "returns :skip for nil" do
+      expect(described_class.normalize_strategy(nil)).to eq(:skip)
+    end
+
+    it "converts string to symbol" do
+      expect(described_class.normalize_strategy("merge")).to eq(:merge)
+    end
+
+    it "normalizes mixed case and whitespace" do
+      expect(described_class.normalize_strategy(" Replace ")).to eq(:replace)
+    end
+
+    it "returns symbol unchanged" do
+      expect(described_class.normalize_strategy(:append)).to eq(:append)
+    end
+  end
+
+  describe ".ensure_trailing_newline" do
+    it "returns empty string for nil" do
+      expect(described_class.ensure_trailing_newline(nil)).to eq("")
+    end
+
+    it "adds newline when missing" do
+      expect(described_class.ensure_trailing_newline("hello")).to eq("hello\n")
+    end
+
+    it "keeps existing newline" do
+      expect(described_class.ensure_trailing_newline("hello\n")).to eq("hello\n")
+    end
+  end
+
+  describe ".apply with unknown strategy" do
+    it "raises an error" do
+      expect {
+        described_class.apply(strategy: :banana, src: "", dest: "", path: "test.rb")
+      }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/)
+    end
+  end
+
+  describe ".preset_for" do
+    it "returns Gemfile preset for :gemfile" do
+      expect(described_class.preset_for(:gemfile)).to eq(Kettle::Jem::Presets::Gemfile)
+    end
+
+    it "returns Appraisals preset for :appraisals" do
+      expect(described_class.preset_for(:appraisals)).to eq(Kettle::Jem::Presets::Appraisals)
+    end
+
+    it "returns Gemspec preset for :gemspec" do
+      expect(described_class.preset_for(:gemspec)).to eq(Kettle::Jem::Presets::Gemspec)
+    end
+
+    it "returns Rakefile preset for :rakefile" do
+      expect(described_class.preset_for(:rakefile)).to eq(Kettle::Jem::Presets::Rakefile)
+    end
+
+    it "defaults to Gemfile preset for unknown types" do
+      expect(described_class.preset_for(:unknown)).to eq(Kettle::Jem::Presets::Gemfile)
+    end
+  end
 end

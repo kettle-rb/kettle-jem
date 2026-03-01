@@ -72,55 +72,7 @@ Please file a bug if you notice a violation of semantic versioning.</p>
 
 <h3 id="added">Added</h3>
 
-<ul>
-  <li>
-<strong>RecipeLoader</strong>: YAML-based preset loading for merge configurations
-    <ul>
-      <li>Load presets via <code>Kettle::Jem.recipe(:gemfile)</code> or <code>RecipeLoader.load(:gemfile)</code>
-</li>
-      <li>Returns <code>Ast::Merge::Recipe::Preset</code> instances (not Config, since no template required)</li>
-      <li>Presets stored in <code>lib/kettle/jem/recipes/</code> directory</li>
-      <li>Each preset has a companion folder for Ruby scripts (signature generators, node typing)</li>
-      <li>Use with SmartMerger: <code>merger = Prism::Merge::SmartMerger.new(template, dest, **preset.to_h)</code>
-</li>
-    </ul>
-  </li>
-  <li>
-<strong>Presets</strong>: YAML-based presets for common file types
-    <ul>
-      <li>
-<code>gemfile.yml</code> - Gemfile merging with gem name matching and categorization</li>
-      <li>
-<code>gemspec.yml</code> - gemspec merging with attribute and dependency matching</li>
-      <li>
-<code>rakefile.yml</code> - Rakefile merging with task and namespace matching</li>
-      <li>
-<code>appraisals.yml</code> - Appraisals merging with appraise block matching</li>
-      <li>
-<code>markdown.yml</code> - Markdown merging with heading and section matching</li>
-    </ul>
-  </li>
-  <li>
-<strong>Preset Scripts</strong>: Ruby scripts for each preset
-    <ul>
-      <li>Signature generators for intelligent node matching</li>
-      <li>Node typing scripts for gem categorization (lint, test, doc, dev, coverage, kettle gems)</li>
-      <li>Scripts return lambdas that are evaluated by <code>ScriptLoader</code>
-</li>
-    </ul>
-  </li>
-  <li>Initial release of programmatic presets (<code>Presets::*</code>) and classifiers (<code>Classifiers::*</code>)</li>
-</ul>
-
 <h3 id="changed">Changed</h3>
-
-<ul>
-  <li>Updated documentation on hostile takeover of RubyGems
-    <ul>
-      <li>https://dev.to/galtzo/hostile-takeover-of-rubygems-my-thoughts-5hlo</li>
-    </ul>
-  </li>
-</ul>
 
 <h3 id="deprecated">Deprecated</h3>
 
@@ -128,12 +80,21 @@ Please file a bug if you notice a violation of semantic versioning.</p>
 
 <h3 id="fixed">Fixed</h3>
 
+<ul>
+  <li>
+<code>ChangelogMerger</code> now inserts blank lines between subheadings in the Unreleased<br>
+section, following Keep-a-Changelog convention. Previously, the canonical<br>
+headings (Added/Changed/Deprecated/Removed/Fixed/Security) were emitted with<br>
+no blank lines between them. Also strips trailing blank lines from item groups<br>
+to prevent double blank lines between populated sections.</li>
+</ul>
+
 <h3 id="security">Security</h3>
 
 </div></div>
 
       <div id="footer">
-  Generated on Fri Feb 20 07:28:56 2026 by
+  Generated on Sun Mar  1 06:13:14 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.9.38 (ruby-4.0.1).
 </div>

@@ -129,6 +129,30 @@ RSpec.describe Kettle::Jem::PrismUtils do
       value = described_class.extract_literal_value(nil)
       expect(value).to be_nil
     end
+
+    it "extracts values from array literal" do
+      source = '["foo", "bar"]'
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      value = described_class.extract_literal_value(node)
+      expect(value).to eq(%w[foo bar])
+    end
+
+    it "extracts symbol values from array literal" do
+      source = "[:foo, :bar]"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      value = described_class.extract_literal_value(node)
+      expect(value).to eq(%w[foo bar])
+    end
+
+    it "returns nil for mixed array with non-literal elements" do
+      source = "[:foo, 1 + 2]"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      value = described_class.extract_literal_value(node)
+      expect(value).to be_nil
+    end
   end
 
   describe ".extract_const_name" do
@@ -359,6 +383,74 @@ RSpec.describe Kettle::Jem::PrismUtils do
       result = described_class.parse_with_comments(source)
       node = result.value.statements.body.first
       expect(described_class.block_call_to?(node, :gem)).to be false
+    end
+  end
+
+  describe ".normalize_call_node" do
+    it "normalizes a simple method call with parentheses" do
+      source = 'gem "foo"'
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_call_node(node)
+      expect(normalized).to eq('gem("foo")')
+    end
+
+    it "normalizes a call with keyword args" do
+      source = 'gem "foo", require: false'
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_call_node(node)
+      expect(normalized).to include("gem(")
+      expect(normalized).to include("require:")
+    end
+
+    it "returns slice for non-CallNode" do
+      source = "42"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_call_node(node)
+      expect(normalized).to eq("42")
+    end
+
+    it "handles call with no arguments" do
+      source = "exit"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_call_node(node)
+      expect(normalized).to eq("exit()")
+    end
+  end
+
+  describe ".normalize_argument" do
+    it "normalizes a StringNode" do
+      source = '"foo"'
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      expect(described_class.normalize_argument(node)).to eq('"foo"')
+    end
+
+    it "normalizes a SymbolNode" do
+      source = ":bar"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      expect(described_class.normalize_argument(node)).to eq(":bar")
+    end
+
+    it "normalizes a HashNode" do
+      source = "{a: 1, b: 2}"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_argument(node)
+      expect(normalized).to include("{")
+      expect(normalized).to include("}")
+    end
+
+    it "falls back to slice for unknown node types" do
+      source = "1 + 2"
+      result = described_class.parse_with_comments(source)
+      node = result.value.statements.body.first
+      normalized = described_class.normalize_argument(node)
+      expect(normalized).to eq("1 + 2")
     end
   end
 end

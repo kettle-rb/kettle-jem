@@ -118,5 +118,108 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       # ci-only should not be appended to top-level
       expect(out).not_to include('gem "ci-only"')
     end
+
+    it "returns dest_content on Prism::Merge::Error", :prism_merge_only do
+      dest = "gem \"existing\"\n"
+      allow(Prism::Merge::SmartMerger).to receive(:new).and_raise(Prism::Merge::Error, "test failure")
+
+      result = described_class.merge_gem_calls("gem \"new\"\n", dest)
+      expect(result).to eq(dest)
+    end
+  end
+
+  describe ".filter_to_top_level_gems" do
+    it "extracts only top-level gem/source/git_source calls" do
+      content = <<~RUBY
+        source "https://rubygems.org"
+        gem "foo"
+        group :development do
+          gem "dev-only"
+        end
+      RUBY
+
+      result = described_class.filter_to_top_level_gems(content)
+      expect(result).to include('source "https://rubygems.org"')
+      expect(result).to include('gem "foo"')
+      expect(result).not_to include("dev-only")
+      expect(result).not_to include("group")
+    end
+
+    it "filters out eval_gemfile calls but includes git_source" do
+      content = <<~'RUBY'
+        source "https://rubygems.org"
+        eval_gemfile "modular/test.gemfile"
+        git_source(:github) { |repo| "https://github.com/#{repo}.git" }
+        gem "a"
+      RUBY
+
+      result = described_class.filter_to_top_level_gems(content)
+      expect(result).to include("eval_gemfile")
+      expect(result).to include("git_source(:github)")
+      expect(result).to include('gem "a"')
+    end
+
+    it "returns empty string when no gem-related calls found" do
+      content = <<~RUBY
+        if ENV['CI']
+          gem "ci-only"
+        end
+      RUBY
+
+      result = described_class.filter_to_top_level_gems(content)
+      expect(result).to eq("")
+    end
+
+    it "includes inline comments on gem lines" do
+      content = <<~RUBY
+        gem "foo" # important
+      RUBY
+
+      result = described_class.filter_to_top_level_gems(content)
+      expect(result).to include('gem "foo" # important')
+    end
+
+    it "returns content unchanged on parse error" do
+      content = "this is not valid ruby {{{"
+      result = described_class.filter_to_top_level_gems(content)
+      # On parse error, returns original content
+      expect(result).to be_a(String)
+    end
+  end
+
+  describe ".remove_github_git_source" do
+    it "removes git_source(:github) from content" do
+      content = <<~'RUBY'
+        git_source(:github) { |repo| "https://github.com/#{repo}.git" }
+        gem "foo"
+      RUBY
+
+      result = described_class.remove_github_git_source(content)
+      expect(result).not_to include("git_source(:github)")
+      expect(result).to include('gem "foo"')
+    end
+
+    it "leaves content unchanged when no git_source(:github)" do
+      content = <<~'RUBY'
+        git_source(:gitlab) { |repo| "https://gitlab.com/#{repo}.git" }
+        gem "foo"
+      RUBY
+
+      result = described_class.remove_github_git_source(content)
+      expect(result).to include("git_source(:gitlab)")
+      expect(result).to include('gem "foo"')
+    end
+
+    it "leaves content unchanged when no git_source at all" do
+      content = "gem \"foo\"\n"
+      result = described_class.remove_github_git_source(content)
+      expect(result).to eq(content)
+    end
+
+    it "returns content on parse error" do
+      content = "not valid ruby {{{"
+      result = described_class.remove_github_git_source(content)
+      expect(result).to eq(content)
+    end
   end
 end

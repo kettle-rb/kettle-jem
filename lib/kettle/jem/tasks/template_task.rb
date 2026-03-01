@@ -15,26 +15,65 @@ module Kettle
         #
         # Performs a self-merge through Markdown::Merge::SmartMerger which:
         # 1. Parses the content into a proper AST (via Markly/Commonmarker)
-        # 2. Rebuilds via OutputBuilder with auto_spacing, ensuring blank lines
-        #    around headings, tables, code blocks, and other structural elements
-        # 3. Applies WhitespaceNormalizer to collapse excessive blank lines
+        # 2. Applies WhitespaceNormalizer to collapse excessive blank lines
         #
-        # Unlike a regex-based approach, the AST correctly identifies heading
-        # nodes vs indented code blocks containing '#' characters.
+        # Then ensures blank lines around headings. The SmartMerger self-merge
+        # suppresses auto-spacing for same-source-adjacent nodes, so this
+        # post-processing step is needed. It is AST-aware via the fenced code
+        # block tracking to avoid modifying lines inside code blocks.
         #
         # @param text [String] Markdown content to normalize
         # @return [String] Normalized content
         def normalize_markdown_spacing(text)
-          Markdown::Merge::SmartMerger.new(
+          merged = Markdown::Merge::SmartMerger.new(
             text,
             text,
             preference: :destination,
             normalize_whitespace: :basic,
           ).merge
+
+          ensure_heading_spacing(merged)
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           # If AST parsing fails, return content unchanged
           text
+        end
+
+        # Ensure blank lines before and after Markdown headings.
+        # Skips lines inside fenced code blocks.
+        #
+        # @param text [String] Markdown content
+        # @return [String] Content with blank lines around headings
+        def ensure_heading_spacing(text)
+          lines = text.split("\n", -1)
+          result = []
+          in_fence = false
+
+          lines.each_with_index do |line, i|
+            # Track fenced code block state
+            if line.match?(/\A\s{0,3}(`{3,}|~{3,})/)
+              in_fence = !in_fence
+              result << line
+              next
+            end
+
+            if !in_fence && line.match?(/\A\#{1,6}\s/)
+              # Insert blank line before heading if previous line is non-blank, non-heading content
+              if result.any? && result.last != "" && !result.last.match?(/\A\s*\z/)
+                result << ""
+              end
+              result << line
+              # Insert blank line after heading if next line is non-blank content
+              next_line = lines[i + 1]
+              if next_line && !next_line.match?(/\A\s*\z/)
+                result << ""
+              end
+            else
+              result << line
+            end
+          end
+
+          result.join("\n")
         end
 
         def markdown_heading_file?(relative_path)
@@ -364,156 +403,139 @@ module Kettle
             # Do not fail the entire template task if gemspec copy has issues
           end
 
-          files_to_copy = %w[
-            .aiignore
-            .envrc
-            .gemrc
-            .gitignore
-            .gitlab-ci.yml
-            .junie/guidelines.md
-            .junie/guidelines-rbs.md
-            .junie/TASK_NOTE.md
-            .licenserc.yaml
-            .opencollective.yml
-            .rspec
-            .rubocop
-            .rubocop.yml
-            .rubocop_rspec.yml
-            .simplecov
-            .tool-versions
-            .yardignore
-            .yardopts
-            AGENTS.md
-            Appraisal.root.gemfile
-            Appraisals
-            CHANGELOG.md
-            CITATION.cff
-            CODE_OF_CONDUCT.md
-            CONTRIBUTING.md
-            FUNDING.md
-            Gemfile
-            LICENSE.txt
-            OPENCOLLECTIVE_DISABLE_IMPLEMENTATION.md
-            README.md
-            REEK
-            RUBOCOP.md
-            Rakefile
-            SECURITY.md
-            .github/COPILOT_INSTRUCTIONS.md
-            gemfiles/audit.gemfile
-            gemfiles/coverage.gemfile
-            gemfiles/current.gemfile
-            gemfiles/dep_heads.gemfile
-            gemfiles/head.gemfile
-            gemfiles/ruby_2_3.gemfile
-            gemfiles/ruby_2_4.gemfile
-            gemfiles/ruby_2_5.gemfile
-            gemfiles/ruby_2_6.gemfile
-            gemfiles/ruby_2_7.gemfile
-            gemfiles/ruby_3_0.gemfile
-            gemfiles/ruby_3_1.gemfile
-            gemfiles/ruby_3_2.gemfile
-            gemfiles/ruby_3_3.gemfile
-            gemfiles/style.gemfile
-            gemfiles/unlocked_deps.gemfile
+          # 7) Discover and copy all remaining template files.
+          #
+          # Walks the template/ directory to find every file. Files already
+          # handled by earlier steps are excluded. Everything else gets
+          # apply_common_replacements with per-file special handling for
+          # README.md, CHANGELOG.md, and markdown spacing normalization.
+          #
+          # Prefixes that are handled by dedicated steps above:
+          #   .devcontainer/      → step 1 (copy_dir_with_prompt)
+          #   .github/**/*.yml    → step 2 (dynamic discovery + FUNDING.yml; non-yml files handled here)
+          #   .qlty/              → step 3 (explicit)
+          #   gemfiles/modular/   → step 4 (ModularGemfiles.sync!)
+          #   .env.local.example  → step 6 (dotenv-merge; rel is ".env.local" after .example strip)
+          #   *.gemspec           → step 7a (renamed + field carry-over)
+          #   .git-hooks/         → handled after this block (interactive)
+          handled_prefixes = %w[
+            .devcontainer/
+            .qlty/
+            gemfiles/modular/
+            .git-hooks/
+          ]
+          handled_files = %w[
+            .env.local
           ]
 
-          files_to_copy.each do |rel|
-            # Skip opencollective-specific files when Open Collective is disabled
-            if helpers.skip_for_disabled_opencollective?(rel)
-              puts "Skipping #{rel} (Open Collective disabled)"
-              next
-            end
+          template_root = helpers.template_root
+          if Dir.exist?(template_root)
+            require "find"
+            Find.find(template_root) do |path|
+              next if File.directory?(path)
 
-            src = helpers.prefer_example_with_osc_check(File.join(gem_checkout_root, rel))
-            dest = File.join(project_root, rel)
-            next unless File.exist?(src)
+              # Compute relative path from template root, stripping .example / .no-osc.example suffixes
+              rel = path.sub(%r{^#{Regexp.escape(template_root)}/?}, "")
+                .sub(/\.no-osc\.example\z/, "")
+                .sub(/\.example\z/, "")
 
-            if File.basename(rel) == "README.md"
-              prev_readme = File.exist?(dest) ? File.read(dest) : nil
+              # Skip files handled by dedicated steps
+              next if handled_prefixes.any? { |prefix| rel.start_with?(prefix) }
+              next if handled_files.include?(rel)
+              next if rel.end_with?(".gemspec") # gemspec handled in step 7a
+              # .github/**/*.yml files are handled by step 2 (dynamic discovery + FUNDING.yml)
+              next if rel.start_with?(".github/") && rel.end_with?(".yml")
 
-              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                c = helpers.apply_common_replacements(
-                  content,
-                  org: forge_org,
-                  funding_org: funding_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  min_ruby: min_ruby,
-                )
+              # Skip opencollective-specific files when Open Collective is disabled
+              if helpers.skip_for_disabled_opencollective?(rel)
+                puts "Skipping #{rel} (Open Collective disabled)"
+                next
+              end
 
-                begin
-                  c = MarkdownMerger.merge(
-                    template_content: c,
-                    destination_content: prev_readme,
-                  )
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  # Best effort; if anything fails, keep c as-is
+              src = helpers.prefer_example_with_osc_check(File.join(gem_checkout_root, rel))
+              dest = File.join(project_root, rel)
+              next unless File.exist?(src)
+
+              begin
+                if File.basename(rel) == "README.md"
+                  prev_readme = File.exist?(dest) ? File.read(dest) : nil
+
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                    c = helpers.apply_common_replacements(
+                      content,
+                      org: forge_org,
+                      funding_org: funding_org,
+                      gem_name: gem_name,
+                      namespace: namespace,
+                      namespace_shield: namespace_shield,
+                      gem_shield: gem_shield,
+                      min_ruby: min_ruby,
+                    )
+
+                    begin
+                      c = MarkdownMerger.merge(
+                        template_content: c,
+                        destination_content: prev_readme,
+                      )
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                      # Best effort; if anything fails, keep c as-is
+                    end
+
+                    # Normalize spacing around Markdown structural elements using AST
+                    c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
+                    c
+                  end
+                elsif File.basename(rel) == "CHANGELOG.md"
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                    c = helpers.apply_common_replacements(
+                      content,
+                      org: forge_org,
+                      funding_org: funding_org,
+                      gem_name: gem_name,
+                      namespace: namespace,
+                      namespace_shield: namespace_shield,
+                      gem_shield: gem_shield,
+                      min_ruby: min_ruby,
+                    )
+                    begin
+                      dest_content = File.file?(dest) ? File.read(dest) : ""
+                      c = ChangelogMerger.merge(
+                        template_content: c,
+                        destination_content: dest_content,
+                      )
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                      # On merge failure, keep token-resolved content;
+                      # normalize_markdown_spacing below handles whitespace via AST
+                    end
+                    # Normalize spacing around Markdown structural elements using AST
+                    c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
+                    c
+                  end
+                else
+                  # All other files: apply token replacements (unresolved tokens are kept as-is)
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                    c = helpers.apply_common_replacements(
+                      content,
+                      org: forge_org,
+                      funding_org: funding_org,
+                      gem_name: gem_name,
+                      namespace: namespace,
+                      namespace_shield: namespace_shield,
+                      gem_shield: gem_shield,
+                      min_ruby: min_ruby,
+                    )
+                    # Normalize spacing around Markdown structural elements using AST
+                    c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
+                    c
+                  end
                 end
-
-                # Normalize spacing around Markdown structural elements using AST
-                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
-                c
-              end
-            elsif File.basename(rel) == "CHANGELOG.md"
-              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                c = helpers.apply_common_replacements(
-                  content,
-                  org: forge_org,
-                  funding_org: funding_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  min_ruby: min_ruby,
-                )
-                begin
-                  dest_content = File.file?(dest) ? File.read(dest) : ""
-                  c = ChangelogMerger.merge(
-                    template_content: c,
-                    destination_content: dest_content,
-                  )
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  # On merge failure, keep token-resolved content;
-                  # normalize_markdown_spacing below handles whitespace via AST
-                end
-                # Normalize spacing around Markdown structural elements using AST
-                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
-                c
-              end
-            else
-              # All other files: apply token replacements (unresolved tokens are kept as-is)
-              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                c = helpers.apply_common_replacements(
-                  content,
-                  org: forge_org,
-                  funding_org: funding_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  min_ruby: min_ruby,
-                )
-                # Normalize spacing around Markdown structural elements using AST
-                c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
-                c
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+                puts "WARNING: Could not template #{rel}: #{e.class}: #{e.message}"
               end
             end
-          end
-
-          # 7b) certs/pboling.pem
-          begin
-            cert_src = File.join(gem_checkout_root, "certs", "pboling.pem")
-            cert_dest = File.join(project_root, "certs", "pboling.pem")
-            if File.exist?(cert_src)
-              helpers.copy_file_with_prompt(cert_src, cert_dest, allow_create: true, allow_replace: true)
-            end
-          rescue StandardError => e
-            puts "WARNING: Skipped copying certs/pboling.pem due to #{e.class}: #{e.message}"
           end
 
           # After creating or replacing .envrc or .env.local.example, require review and exit unless allowed

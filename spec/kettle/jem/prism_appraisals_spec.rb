@@ -262,4 +262,43 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
       end
     end
   end
+
+  describe ".merge edge cases" do
+    it "returns template when destination is nil" do
+      template = "appraise \"foo\" do\nend\n"
+      expect(described_class.merge(template, nil)).to eq(template)
+    end
+
+    it "returns template when destination is empty" do
+      template = "appraise \"foo\" do\nend\n"
+      expect(described_class.merge(template, "")).to eq(template)
+    end
+
+    it "returns template when destination is whitespace-only" do
+      template = "appraise \"foo\" do\nend\n"
+      expect(described_class.merge(template, "   \n  ")).to eq(template)
+    end
+
+    it "returns destination when template is nil" do
+      dest = "appraise \"bar\" do\nend\n"
+      expect(described_class.merge(nil, dest)).to eq(dest)
+    end
+
+    it "returns destination when template is empty" do
+      dest = "appraise \"bar\" do\nend\n"
+      expect(described_class.merge("", dest)).to eq(dest)
+    end
+
+    it "returns destination when template is whitespace-only" do
+      dest = "appraise \"bar\" do\nend\n"
+      expect(described_class.merge("   \n  ", dest)).to eq(dest)
+    end
+
+    it "returns template on Prism::Merge::Error", :prism_merge_only do
+      template = "appraise \"foo\" do\nend\n"
+      allow(Prism::Merge::SmartMerger).to receive(:new).and_raise(Prism::Merge::Error, "test")
+      result = described_class.merge(template, "appraise \"bar\" do\nend\n")
+      expect(result).to eq(template)
+    end
+  end
 end

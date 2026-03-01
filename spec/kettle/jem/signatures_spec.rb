@@ -145,6 +145,41 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with spec.add_runtime_dependency call" do
+      let(:node) { parse_call('spec.add_runtime_dependency("rails", "~> 7.0")') }
+
+      it "returns [:add_runtime_dependency, gem_name] signature" do
+        expect(generator.call(node)).to eq([:add_runtime_dependency, "rails"])
+      end
+    end
+
+    context "with Gem::Specification.new block" do
+      it "returns [:gem_specification_new] signature" do
+        code = <<~RUBY
+          Gem::Specification.new do |spec|
+            spec.name = "test"
+          end
+        RUBY
+        node = Prism.parse(code).value.statements.body.first
+        expect(generator.call(node)).to eq([:gem_specification_new])
+      end
+    end
+
+    context "with spec.metadata[] assignment" do
+      it "returns [:spec_metadata, key] signature" do
+        code = 'spec.metadata["changelog_uri"] = "https://example.com"'
+        node = parse_call(code)
+        expect(generator.call(node)).to eq([:spec_metadata, "changelog_uri"])
+      end
+    end
+
+    context "with non-CallNode" do
+      it "returns the node unchanged" do
+        node = Prism.parse("x = 1").value.statements.body.first
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
     def parse_call(code)
       result = Prism.parse(code)
       result.value.statements.body.first
@@ -186,9 +221,51 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with task :name => [:deps] (KeywordHashNode)" do
+      it "returns [:task, task_name] from hash key" do
+        code = "task test: [:lint]"
+        node = parse_call(code)
+        expect(generator.call(node)).to eq([:task, "test"])
+      end
+    end
+
+    context "with task :name => [:deps] (HashNode)" do
+      it "returns [:task, task_name] from explicit hash" do
+        code = "task({ build: [:compile] })"
+        node = parse_call(code)
+        expect(generator.call(node)).to eq([:task, "build"])
+      end
+    end
+
+    context "with non-CallNode" do
+      it "returns the node unchanged" do
+        node = Prism.parse("x = 1").value.statements.body.first
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with unknown call" do
+      it "returns the node for unrecognized method" do
+        node = parse_call('puts "hello"')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
     def parse_call(code)
       result = Prism.parse(code)
       result.value.statements.body.first
+    end
+  end
+
+  describe ".gemfile with ConstantPathNode receiver" do
+    let(:generator) { described_class.gemfile }
+
+    it "extracts receiver name from ConstantPathNode" do
+      code = 'Gem::Specification.name = "test"'
+      node = Prism.parse(code).value.statements.body.first
+      result = generator.call(node)
+      # Assignment method with ConstantPathNode receiver
+      expect(result).to eq([:call, :name=, "Gem::Specification"])
     end
   end
 end

@@ -83,10 +83,12 @@ module Kettle
           end
 
           if removed.any?
-            lines << "## Unexpected Removals (#{removed.size})"
+            lines << "## Not Templated — Unexpected (#{removed.size})"
             lines << ""
             lines << "These files exist in the source gem and appear to be within the template's"
-            lines << "scope, but were not produced by the template task."
+            lines << "scope, but were not produced by the template task. They may need a"
+            lines << "corresponding `template/*.example` file, dedicated handling in the template"
+            lines << "task, or an entry in `SKIPPED_FILES`/`SKIPPED_PREFIXES`."
             lines << ""
             lines << "| File |"
             lines << "|------|"

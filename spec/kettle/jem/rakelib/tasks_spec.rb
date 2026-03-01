@@ -84,6 +84,11 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
           File.write(File.join(gem_root, ".aiignore.example"), "# aiignore example\nfoo\n")
+
+          # Create template/ entry so the template walk discovers this file
+          FileUtils.mkdir_p(File.join(gem_root, "template"))
+          File.write(File.join(gem_root, "template", ".aiignore.example"), "")
+
           write_gemspec(project_root)
 
           allow(helpers).to receive_messages(

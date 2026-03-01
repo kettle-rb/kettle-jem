@@ -11,107 +11,124 @@ module Kettle
       module_function
 
       # Copy the modular gemfiles and nested directories from the gem
-      # checkout into the target project, prompting where appropriate
+      # template into the target project, prompting where appropriate
       # via the provided helpers.
       #
-      # @param helpers [Kettle::Dev::TemplateHelpers] helper API
+      # Dynamically discovers all flat gemfiles and subdirectories from
+      # the template/gemfiles/modular/ directory. No hardcoded lists —
+      # everything in the template directory is part of the template.
+      #
+      # @param helpers [Kettle::Jem::TemplateHelpers] helper API
       # @param project_root [String] destination project root
       # @param gem_checkout_root [String] kettle-jem checkout root (source)
       # @param min_ruby [Gem::Version, nil] minimum Ruby version (for style.gemfile tuning)
       # @return [void]
       def sync!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil)
-        # 4a) gemfiles/modular/*.gemfile except style.gemfile (handled below)
-        # Note: `injected.gemfile` is only intended for testing this gem, and isn't even actively used there. It is not part of the template.
-        # Note: `style.gemfile` is handled separately below.
-        modular_gemfiles = %w[
-          coverage
-          debug
-          documentation
-          optional
-          runtime_heads
-          templating
-          x_std_libs
-        ]
-        modular_gemfiles.each do |base|
-          modular_gemfile = "#{base}.gemfile"
-          src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
-          dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
-          helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-            # Use apply_strategy for proper AST-based merging with Prism
-            helpers.apply_strategy(content, dest)
+        template_modular_dir = File.join(gem_checkout_root, "template", MODULAR_GEMFILE_DIR)
+        # Fallback for non-template layouts (e.g., test fixtures without template/)
+        template_modular_dir = File.join(gem_checkout_root, MODULAR_GEMFILE_DIR) unless Dir.exist?(template_modular_dir)
+        return unless Dir.exist?(template_modular_dir)
+
+        # Discover flat gemfiles (*.gemfile or *.gemfile.example) and subdirectories
+        flat_gemfiles = []
+        subdirectories = []
+
+        Dir.children(template_modular_dir).sort.each do |entry|
+          full_path = File.join(template_modular_dir, entry)
+          if File.directory?(full_path)
+            subdirectories << entry
+          elsif entry.end_with?(".gemfile", ".gemfile.example")
+            # Normalize to base name without .example suffix
+            base = entry.sub(/\.example\z/, "").sub(/\.gemfile\z/, "")
+            flat_gemfiles << base unless flat_gemfiles.include?(base)
           end
         end
 
-        # 4b) gemfiles/modular/style.gemfile with dynamic rubocop constraints
-        modular_gemfile = "style.gemfile"
-        src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
-        dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
-        if File.basename(src).sub(/\.example\z/, "") == "style.gemfile"
-          helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-            # Adjust rubocop-lts constraint based on min_ruby
-            version_map = [
-              [Gem::Version.new("1.8"), "~> 0.1"],
-              [Gem::Version.new("1.9"), "~> 2.0"],
-              [Gem::Version.new("2.0"), "~> 4.0"],
-              [Gem::Version.new("2.1"), "~> 6.0"],
-              [Gem::Version.new("2.2"), "~> 8.0"],
-              [Gem::Version.new("2.3"), "~> 10.0"],
-              [Gem::Version.new("2.4"), "~> 12.0"],
-              [Gem::Version.new("2.5"), "~> 14.0"],
-              [Gem::Version.new("2.6"), "~> 16.0"],
-              [Gem::Version.new("2.7"), "~> 18.0"],
-              [Gem::Version.new("3.0"), "~> 20.0"],
-              [Gem::Version.new("3.1"), "~> 22.0"],
-              [Gem::Version.new("3.2"), "~> 24.0"],
-              [Gem::Version.new("3.3"), "~> 26.0"],
-              [Gem::Version.new("3.4"), "~> 28.0"],
-            ]
-            new_constraint = nil
-            rubocop_ruby_gem_version = nil
-            ruby1_8 = version_map.first
-            begin
-              if min_ruby
-                version_map.reverse_each do |min, req|
-                  if min_ruby >= min
-                    new_constraint = req
-                    rubocop_ruby_gem_version = min.segments.join("_")
-                    break
-                  end
-                end
-              end
-              if !new_constraint || !rubocop_ruby_gem_version
-                # A gem with no declared minimum ruby is effectively >= 1.8.7
-                new_constraint = ruby1_8[1]
-                rubocop_ruby_gem_version = ruby1_8[0].segments.join("_")
-              end
-            rescue StandardError => e
-              Kettle::Dev.debug_error(e, __method__) if defined?(Kettle::Dev.debug_error)
-              # ignore, use default
-            ensure
-              new_constraint ||= ruby1_8[1]
-              rubocop_ruby_gem_version ||= ruby1_8[0].segments.join("_")
+        # Copy flat modular gemfiles, with special handling for style.gemfile
+        flat_gemfiles.each do |base|
+          if base == "style"
+            sync_style_gemfile!(helpers: helpers, project_root: project_root, gem_checkout_root: gem_checkout_root, min_ruby: min_ruby)
+          else
+            modular_gemfile = "#{base}.gemfile"
+            src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
+            dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
+            helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+              helpers.apply_strategy(content, dest)
             end
-            if new_constraint && rubocop_ruby_gem_version
-              token = "{KJ|RUBOCOP_LTS_CONSTRAINT}"
-              content.gsub!(token, new_constraint) if content.include?(token)
-              token = "{KJ|RUBOCOP_RUBY_GEM}"
-              content.gsub!(token, "rubocop-ruby#{rubocop_ruby_gem_version}") if content.include?(token)
-            end
-            # Use apply_strategy for proper AST-based merging with Prism
-            helpers.apply_strategy(content, dest)
-          end
-        else
-          helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-            # Use apply_strategy for proper AST-based merging with Prism
-            helpers.apply_strategy(content, dest)
           end
         end
 
-        # 4c) Copy modular directories with nested/versioned files
-        %w[erb mutex_m stringio x_std_libs].each do |dir|
+        # Copy subdirectories with nested/versioned files
+        subdirectories.each do |dir|
           src_dir = File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, dir)
           dest_dir = File.join(project_root, MODULAR_GEMFILE_DIR, dir)
           helpers.copy_dir_with_prompt(src_dir, dest_dir)
+        end
+      end
+
+      # Handle style.gemfile separately due to dynamic rubocop-lts token replacement.
+      #
+      # @param helpers [Kettle::Jem::TemplateHelpers] helper API
+      # @param project_root [String] destination project root
+      # @param gem_checkout_root [String] kettle-jem checkout root (source)
+      # @param min_ruby [Gem::Version, nil] minimum Ruby version
+      # @return [void]
+      def sync_style_gemfile!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil)
+        modular_gemfile = "style.gemfile"
+        src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
+        dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
+        helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+          # Adjust rubocop-lts constraint based on min_ruby
+          version_map = [
+            [Gem::Version.new("1.8"), "~> 0.1"],
+            [Gem::Version.new("1.9"), "~> 2.0"],
+            [Gem::Version.new("2.0"), "~> 4.0"],
+            [Gem::Version.new("2.1"), "~> 6.0"],
+            [Gem::Version.new("2.2"), "~> 8.0"],
+            [Gem::Version.new("2.3"), "~> 10.0"],
+            [Gem::Version.new("2.4"), "~> 12.0"],
+            [Gem::Version.new("2.5"), "~> 14.0"],
+            [Gem::Version.new("2.6"), "~> 16.0"],
+            [Gem::Version.new("2.7"), "~> 18.0"],
+            [Gem::Version.new("3.0"), "~> 20.0"],
+            [Gem::Version.new("3.1"), "~> 22.0"],
+            [Gem::Version.new("3.2"), "~> 24.0"],
+            [Gem::Version.new("3.3"), "~> 26.0"],
+            [Gem::Version.new("3.4"), "~> 28.0"],
+          ]
+          new_constraint = nil
+          rubocop_ruby_gem_version = nil
+          ruby1_8 = version_map.first
+          begin
+            if min_ruby
+              version_map.reverse_each do |min, req|
+                if min_ruby >= min
+                  new_constraint = req
+                  rubocop_ruby_gem_version = min.segments.join("_")
+                  break
+                end
+              end
+            end
+            if !new_constraint || !rubocop_ruby_gem_version
+              # A gem with no declared minimum ruby is effectively >= 1.8.7
+              new_constraint = ruby1_8[1]
+              rubocop_ruby_gem_version = ruby1_8[0].segments.join("_")
+            end
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__) if defined?(Kettle::Dev.debug_error)
+            # ignore, use default
+          ensure
+            new_constraint ||= ruby1_8[1]
+            rubocop_ruby_gem_version ||= ruby1_8[0].segments.join("_")
+          end
+          if new_constraint && rubocop_ruby_gem_version
+            token = "{KJ|RUBOCOP_LTS_CONSTRAINT}"
+            content.gsub!(token, new_constraint) if content.include?(token)
+            token = "{KJ|RUBOCOP_RUBY_GEM}"
+            content.gsub!(token, "rubocop-ruby#{rubocop_ruby_gem_version}") if content.include?(token)
+          end
+          # Use apply_strategy for proper AST-based merging with Prism
+          helpers.apply_strategy(content, dest)
         end
       end
     end

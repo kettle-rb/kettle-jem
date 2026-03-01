@@ -194,6 +194,80 @@ They are created and updated with the commands:</p>
   <li>Exception: Integration specs that intentionally span multiple classes. Place these under <code>spec/integration/</code> (or a clearly named integration folder), and do not directly mirror a single class. Name them after the scenario, not a class.</li>
 </ul>
 
+<h2 id="self-test-template-validation">Self-Test (Template Validation)</h2>
+
+<p>kettle-jem includes a self-test rake task that validates the templating pipeline by running it against its own source tree. Since kettle-jem was originally set up by this very toolchain, re-running the template should produce output that closely matches the existing files.</p>
+
+<h3 id="running-the-self-test">Running the self-test</h3>
+
+<pre class="code language-console"><code class="language-console">bundle exec rake kettle:jem:selftest
+</code></pre>
+
+<p>This will:</p>
+
+<ol>
+  <li>Copy the gem tree into <code>tmp/template_test/destination/</code> (excluding <code>.git/</code>, <code>tmp/</code>, <code>coverage/</code>, etc.)</li>
+  <li>Snapshot file checksums (SHA-256 manifest) as the “before” state</li>
+  <li>Run the full template task with writes redirected to <code>tmp/template_test/output/</code>
+</li>
+  <li>Snapshot the output as the “after” state</li>
+  <li>Compare the two manifests, classifying every file as <strong>matched</strong>, <strong>changed</strong>, <strong>added</strong>, or <strong>removed</strong>
+</li>
+  <li>Generate unified diffs for any changed files</li>
+  <li>Write a markdown summary report</li>
+</ol>
+
+<h3 id="reading-the-results">Reading the results</h3>
+
+<p>After the task completes, find the report at:</p>
+
+<pre class="code ruby"><code class="ruby">tmp/template_test/
+  destination/      # Pristine copy of the gem (the &quot;before&quot; snapshot)
+  output/           # Templated result (the &quot;after&quot; state)
+  report/
+    before.json     # SHA-256 manifest of destination/
+    after.json      # SHA-256 manifest of output/
+    summary.md      # Markdown report with score and file tables
+    diffs/          # Per-file unified diffs for changed files
+</code></pre>
+
+<p>The <strong>score</strong> (percentage of unchanged files) is printed to the terminal and recorded in <code>summary.md</code>.</p>
+
+<h3 id="setting-a-passfail-threshold">Setting a pass/fail threshold</h3>
+
+<p>By default the threshold is 0% (the task always passes). To enforce a minimum score:</p>
+
+<pre class="code language-console"><code class="language-console">KJ_SELFTEST_THRESHOLD=80 bundle exec rake kettle:jem:selftest
+</code></pre>
+
+<p>If the score falls below the threshold the task will raise an error.</p>
+
+<h3 id="when-to-use-it">When to use it</h3>
+
+<ul>
+  <li>
+<strong>After modifying template files</strong> in <code>template/</code> or merge logic in <code>lib/</code> — run the self-test to confirm the changes produce expected output.</li>
+  <li>
+<strong>After updating merge presets or recipes</strong> — verify that existing files are not unintentionally altered.</li>
+  <li>
+<strong>In CI</strong> — add the self-test task to your pipeline as a smoke test for the templating system.</li>
+</ul>
+
+<h3 id="interpreting-changes">Interpreting changes</h3>
+
+<p>Not every changed file is a bug. Common expected differences include:</p>
+
+<ul>
+  <li>
+<strong>Token replacements</strong> — files containing <code>{KJ|...}</code> tokens will be resolved with values from your environment (<code>.env.local</code>).</li>
+  <li>
+<strong>Merge strategy effects</strong> — files configured with <code>strategy: merge</code> in <code>.kettle-jem.yml</code> may have nodes reordered or deduplicated.</li>
+  <li>
+<strong>Markdown normalization</strong> — heading spacing and formatting may be normalized.</li>
+</ul>
+
+<p>Review the diffs in <code>tmp/template_test/report/diffs/</code> to determine whether changes are intentional.</p>
+
 <h2 id="lint-it">Lint It</h2>
 
 <p>Run all the default tasks, which includes running the gradually autocorrecting linter, <code>rubocop-gradual</code>.</p>
@@ -309,7 +383,7 @@ push git commits and tags, and push the <code>.gem</code> file to the gem host c
 </div></div>
 
       <div id="footer">
-  Generated on Fri Feb 20 07:28:56 2026 by
+  Generated on Sun Mar  1 06:13:14 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.9.38 (ruby-4.0.1).
 </div>

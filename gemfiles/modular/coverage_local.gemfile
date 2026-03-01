@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+# Local path overrides for development.
+# This file is gitignored. Adjust paths to match your local directory structure.
+# Loaded by coverage.gemfile when KETTLE_RB_DEV=true.
+
+gem "kettle-dev", path: "../../../kettle-dev"
+gem "kettle-test", path: "../../../kettle-test"
+
+platform :mri do
+  gem "kettle-soup-cover", path: "../../../kettle-soup-cover"
+end

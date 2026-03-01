@@ -24,8 +24,5 @@ platform :mri do
   # When false (default / CI), gemspec runtime dependencies are used (no extras needed here).
   if ENV.fetch("KETTLE_RB_DEV", "false").casecmp?("true")
     eval_gemfile "templating_local.gemfile"
-  else
-    # AST parsing for advanced templating (remote/released)
-    gem "kettle-jem"      # Kettle-rb's Merge Recipes
   end
 end

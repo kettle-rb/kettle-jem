@@ -28,7 +28,6 @@ module Kettle
         # on templating correctness.
         EXCLUDED_DIRS = %w[
           .git
-          .idea
           .yardoc
           bin
           checksums
@@ -59,29 +58,8 @@ module Kettle
         # Exact filenames that are source-only and not templated.
         SKIPPED_FILES = %w[
           .kettle-jem.yml
+          .rubocop_gradual.lock
           Gemfile.lock
-        ].freeze
-
-        # Gem-specific modular gemfile directories. The template task only
-        # produces flat modular gemfiles (e.g., gemfiles/modular/coverage.gemfile);
-        # these subdirectories contain ruby-version-specific gemfiles that are
-        # particular to this gem's own dependency matrix.
-        SKIPPED_MODULAR_DIRS = %w[
-          benchmark
-          erb
-          mutex_m
-          stringio
-          x_std_libs
-        ].freeze
-
-        # Gem-specific flat modular gemfiles that are not part of the
-        # generic template set.
-        SKIPPED_MODULAR_FILES = %w[
-          gemfiles/modular/injected.gemfile
-          gemfiles/modular/recording.gemfile
-          gemfiles/modular/rspec.gemfile
-          gemfiles/modular/coverage_local.gemfile
-          gemfiles/modular/templating_local.gemfile
         ].freeze
 
         module_function
@@ -139,9 +117,7 @@ module Kettle
           # the gem source and are never produced by the template task.
           skipped, truly_removed = comparison[:removed].partition { |rel|
             SKIPPED_FILES.include?(rel) ||
-              SKIPPED_MODULAR_FILES.include?(rel) ||
-              SKIPPED_PREFIXES.any? { |prefix| rel.start_with?(prefix) } ||
-              skipped_modular_gemfile?(rel)
+              SKIPPED_PREFIXES.any? { |prefix| rel.start_with?(prefix) }
           }
           comparison[:removed] = truly_removed
           comparison[:skipped] = skipped
@@ -284,26 +260,6 @@ module Kettle
           out.split("\0").reject(&:empty?)
         rescue StandardError
           nil
-        end
-
-        # Check if a relative path is a gem-specific modular gemfile that is
-        # NOT part of the generic template set.
-        #
-        # The template produces only flat modular gemfiles
-        # (e.g., +gemfiles/modular/coverage.gemfile+). Subdirectories like
-        # +gemfiles/modular/erb/r2.3/default.gemfile+ contain ruby-version-specific
-        # gemfiles particular to this gem's dependency matrix.
-        #
-        # @param rel [String] relative path
-        # @return [Boolean]
-        def skipped_modular_gemfile?(rel)
-          return false unless rel.start_with?("gemfiles/modular/")
-
-          # Strip the common prefix to get the remainder
-          remainder = rel.sub("gemfiles/modular/", "")
-
-          # Check if it's under a known gem-specific subdirectory
-          SKIPPED_MODULAR_DIRS.any? { |dir| remainder.start_with?("#{dir}/") }
         end
       end
     end
