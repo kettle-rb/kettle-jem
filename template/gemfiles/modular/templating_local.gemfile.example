@@ -1,0 +1,21 @@
+# frozen_string_literal: true
+
+# Local path overrides for development.
+# This file is gitignored. Adjust paths to match your local directory structure.
+# Loaded by templating.gemfile when KETTLE_RB_DEV=true.
+
+platform :mri do
+  gem "tree_haver", path: "../tree_haver"
+  gem "ast-merge", path: "../ast-merge"
+  gem "bash-merge", path: "../ast-merge/vendor/bash-merge"
+  gem "dotenv-merge", path: "../ast-merge/vendor/dotenv-merge"
+  gem "json-merge", path: "../ast-merge/vendor/json-merge"
+  gem "jsonc-merge", path: "../ast-merge/vendor/jsonc-merge"
+  gem "markdown-merge", path: "../ast-merge/vendor/markdown-merge"
+  gem "prism-merge", path: "../ast-merge/vendor/prism-merge"
+  gem "psych-merge", path: "../ast-merge/vendor/psych-merge"
+  gem "rbs-merge", path: "../ast-merge/vendor/rbs-merge"
+  gem "toml-merge", path: "../ast-merge/vendor/toml-merge"
+  gem "markly-merge", path: "../ast-merge/vendor/markly-merge"
+  gem "kettle-jem", path: "../ast-merge/vendor/kettle-jem"
+end

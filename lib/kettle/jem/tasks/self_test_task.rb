@@ -80,7 +80,8 @@ module Kettle
           gemfiles/modular/injected.gemfile
           gemfiles/modular/recording.gemfile
           gemfiles/modular/rspec.gemfile
-          gemfiles/modular/tree_sitter.gemfile
+          gemfiles/modular/coverage_local.gemfile
+          gemfiles/modular/templating_local.gemfile
         ].freeze
 
         module_function
