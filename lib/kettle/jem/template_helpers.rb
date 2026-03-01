@@ -249,6 +249,12 @@ module Kettle
       # @param task_label [String] name of the rake task for user-facing messages (e.g., "kettle:jem:install")
       # @return [void]
       def ensure_clean_git!(root:, task_label:)
+        # When force mode is active (e.g., from SetupCLI --force), skip the
+        # dirty-tree check. The CLI workflow intentionally dirties the tree
+        # before running the template task, and commits everything at the end.
+        force_val = ENV.fetch("force", "false").to_s.strip
+        return if force_val.casecmp("true").zero?
+
         inside_repo = begin
           system("git", "-C", root.to_s, "rev-parse", "--is-inside-work-tree", out: File::NULL, err: File::NULL)
         rescue StandardError => e

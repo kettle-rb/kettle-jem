@@ -597,10 +597,59 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
       allow(cli).to receive(:parse!)
-      %i[prechecks! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! commit_bootstrap_changes! run_kettle_install!].each do |m|
+      %i[prechecks! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
         expect(cli).to receive(m).ordered
       end
       expect { cli.run! }.not_to raise_error
+    end
+
+    # BUG REPRO: commit_bootstrap_changes! must run AFTER run_kettle_install!
+    # so that template-resolved files (with {KJ|...} tokens replaced) are
+    # included in the commit. Previously the commit ran before the template
+    # task, leaving raw tokens committed and template output uncommitted.
+    it "commits AFTER run_kettle_install! so resolved tokens are committed" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      allow(cli).to receive(:parse!)
+
+      call_order = []
+      %i[prechecks! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+        allow(cli).to receive(m) { call_order << m }
+      end
+
+      cli.run!
+
+      install_idx = call_order.index(:run_kettle_install!)
+      commit_idx = call_order.index(:commit_bootstrap_changes!)
+      expect(install_idx).to be < commit_idx,
+        "Expected run_kettle_install! (idx=#{install_idx}) to run before commit_bootstrap_changes! (idx=#{commit_idx})"
+    end
+  end
+
+  describe "#ensure_rakefile!" do
+    around do |ex|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { ex.run }
+      end
+    end
+
+    # BUG REPRO: ensure_rakefile! writes raw token content from
+    # Rakefile.example. This is acceptable as a bootstrap placeholder
+    # because run_kettle_install! (template task) will overwrite it
+    # with resolved tokens. But the commit must happen AFTER the
+    # template task, not before. This test documents the raw-write
+    # behavior.
+    it "writes raw Rakefile.example content (tokens are resolved by template task later)" do
+      cli = described_class.allocate
+      src = File.expand_path("src_Rakefile.example", Dir.pwd)
+      File.write(src, "# {KJ|GEM_NAME} Rakefile\nrequire 'bundler/gem_tasks'\n")
+      allow(cli).to receive(:installed_path).and_return(src)
+
+      cli.send(:ensure_rakefile!)
+
+      content = File.read("Rakefile")
+      # The raw file still has unresolved tokens
+      expect(content).to include("{KJ|GEM_NAME}")
     end
   end
 end

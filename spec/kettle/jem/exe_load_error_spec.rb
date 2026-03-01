@@ -32,7 +32,7 @@ RSpec.describe "exe/kettle-jem LoadError handling" do
       # project that doesn't have kettle-jem as a dependency).
       #
       # Extract the rescue clause from the begin block containing the require
-      require_block = exe_content[/begin\s*\n\s*require "kettle\/jem".*?(?=\nend|\z)/m]
+      require_block = exe_content[/begin\s*\n.*?require "kettle\/jem".*?(?=\nend|\z)/m]
       expect(require_block).not_to be_nil, "Expected to find begin/rescue block around require"
       expect(require_block).to match(/rescue\s+LoadError/), <<~MSG
         Expected exe/kettle-jem to rescue LoadError around `require "kettle/jem"`.

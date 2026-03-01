@@ -145,4 +145,54 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(out).not_to include("https://bb.org/")
     end
   end
+
+  describe ".ensure_clean_git!" do
+    let(:fake_root) { "/tmp/fake_project" }
+
+    before do
+      # Restore module_function accessibility if a prior spec's singleton
+      # removal (e.g., self_test_task_spec) clobbered the class method.
+      mod = described_class
+      unless mod.respond_to?(:ensure_clean_git!)
+        mod.singleton_class.define_method(:ensure_clean_git!) do |**kwargs|
+          mod.instance_method(:ensure_clean_git!).bind_call(mod, **kwargs)
+        end
+      end
+
+      # Stub the system("git", "-C", ..., "rev-parse", ...) call that checks
+      # if we're inside a git repo. Return true (inside a repo).
+      allow(described_class).to receive(:system).and_call_original
+      allow(described_class).to receive(:system).with(
+        "git", "-C", fake_root, "rev-parse", "--is-inside-work-tree",
+        out: File::NULL, err: File::NULL,
+      ).and_return(true)
+
+      # Stub GitAdapter to report dirty status (porcelain output with a modified file)
+      fake_ga = instance_double(Kettle::Dev::GitAdapter)
+      allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(fake_ga)
+      allow(fake_ga).to receive(:capture)
+        .with(["-C", fake_root, "status", "--porcelain"])
+        .and_return(["?? dirty.txt\n", true])
+    end
+
+    it "raises on dirty tree without force" do
+      stub_env("force" => "false")
+      expect {
+        described_class.ensure_clean_git!(root: fake_root, task_label: "test:task")
+      }.to raise_error(Kettle::Dev::Error, /not clean/)
+    end
+
+    # BUG REPRO: ensure_clean_git! does not respect ENV["force"].
+    # When the SetupCLI runs with --force, it sets ENV["force"] = "true"
+    # and later calls `run_kettle_install!` which triggers the template task.
+    # The template task calls ensure_clean_git!, which aborts because the
+    # bootstrap steps have already dirtied the tree. The method should
+    # bypass the check when force mode is active.
+    it "bypasses the dirty-tree check when ENV['force'] is truthy" do
+      stub_env("force" => "true")
+      expect {
+        described_class.ensure_clean_git!(root: fake_root, task_label: "test:task")
+      }.not_to raise_error
+    end
+  end
 end

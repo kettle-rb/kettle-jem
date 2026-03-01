@@ -37,8 +37,8 @@ module Kettle
         ensure_rakefile!
         run_bin_setup!
         run_bundle_binstubs!
-        commit_bootstrap_changes!
         run_kettle_install!
+        commit_bootstrap_changes!
         say("kettle-jem setup complete.")
       end
 
