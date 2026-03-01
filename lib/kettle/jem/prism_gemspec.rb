@@ -223,13 +223,18 @@ module Kettle
         desired.each do |gem_name, desired_line|
           found = stmt_nodes.find do |n|
             next false unless n.is_a?(Prism::CallNode)
-            next false unless [:add_development_dependency, :add_dependency].include?(n.name)
+            next false unless %i[add_development_dependency add_dependency add_runtime_dependency].include?(n.name)
             first_arg = n.arguments&.arguments&.first
             val = PrismUtils.extract_literal_value(first_arg)
             val && val.to_s == gem_name
           end
 
           if found
+            # If the destination has promoted this gem to a runtime dependency
+            # (add_dependency or add_runtime_dependency), respect that choice
+            # and do not downgrade it to add_development_dependency.
+            next if %i[add_dependency add_runtime_dependency].include?(found.name)
+
             indent = found.slice.lines.first.match(/^(\s*)/)[1]
             replacement = indent + desired_line.strip + "\n"
             new_body = new_body.sub(found.slice, replacement)

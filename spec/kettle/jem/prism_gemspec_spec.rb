@@ -83,4 +83,99 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(out).not_to include('spec.name = "x"')
     end
   end
+
+  describe ".ensure_development_dependencies" do
+    # BUG REPRO: When the destination gemspec has promoted a gem from
+    # add_development_dependency to add_dependency (runtime), the template's
+    # add_development_dependency line should NOT overwrite it. The destination's
+    # promotion to runtime must be respected.
+
+    it "does not downgrade add_dependency to add_development_dependency" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "kettle-jem"
+          spec.version = "1.0.0"
+
+          spec.add_dependency("kettle-dev", "~> 2.0")
+
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      desired = {
+        "kettle-dev" => '  spec.add_development_dependency("kettle-dev", "~> 2.0")',
+        "rake" => '  spec.add_development_dependency("rake", "~> 13.0")',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      # kettle-dev should remain as add_dependency (runtime), not downgraded
+      expect(result).to include('add_dependency("kettle-dev"')
+      expect(result).not_to match(/add_development_dependency.*kettle-dev/)
+
+      # rake should stay as add_development_dependency (already matches)
+      expect(result).to include('add_development_dependency("rake"')
+    end
+
+    it "does not downgrade add_runtime_dependency to add_development_dependency" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+
+          spec.add_runtime_dependency("kettle-dev", "~> 2.0")
+
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      desired = {
+        "kettle-dev" => '  spec.add_development_dependency("kettle-dev", "~> 2.0")',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      # kettle-dev should remain as add_runtime_dependency
+      expect(result).to include('add_runtime_dependency("kettle-dev"')
+      expect(result).not_to match(/add_development_dependency.*kettle-dev/)
+    end
+
+    it "still updates version constraints for development dependencies" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+
+          spec.add_development_dependency("rake", ">= 12")
+        end
+      RUBY
+
+      desired = {
+        "rake" => '  spec.add_development_dependency("rake", "~> 13.0")',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      # rake should be updated to match the desired version
+      expect(result).to include("~> 13.0")
+      expect(result).not_to include(">= 12")
+    end
+
+    it "adds missing development dependencies that are not present at all" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+        end
+      RUBY
+
+      desired = {
+        "rake" => '  spec.add_development_dependency("rake", "~> 13.0")',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      expect(result).to include('add_development_dependency("rake", "~> 13.0")')
+    end
+  end
 end
