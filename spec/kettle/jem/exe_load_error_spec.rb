@@ -2,7 +2,7 @@
 
 require "spec_helper"
 
-RSpec.describe "exe/kettle-jem LoadError handling" do
+RSpec.describe "exe/kettle-jem LoadError handling" do # rubocop:disable RSpec/DescribeClass
   # BUG REPRO: The exe/kettle-jem script rescues StandardError around
   # `require "kettle/jem"`, but LoadError inherits from ScriptError,
   # NOT StandardError. So the rescue never catches it and the script

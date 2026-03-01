@@ -386,7 +386,7 @@ RSpec.describe Kettle::Jem::PrismUtils do
     end
   end
 
-  describe ".normalize_call_node" do
+  describe ".normalize_call_node (edge cases)" do
     it "normalizes a simple method call with parentheses" do
       source = 'gem "foo"'
       result = described_class.parse_with_comments(source)
@@ -421,7 +421,7 @@ RSpec.describe Kettle::Jem::PrismUtils do
     end
   end
 
-  describe ".normalize_argument" do
+  describe ".normalize_argument (edge cases)" do
     it "normalizes a StringNode" do
       source = '"foo"'
       result = described_class.parse_with_comments(source)

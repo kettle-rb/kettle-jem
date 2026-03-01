@@ -151,16 +151,6 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
   end
 
-  describe "SKIPPED_FILES" do
-    it "includes Gemfile.lock" do
-      expect(described_class::SKIPPED_FILES).to include("Gemfile.lock")
-    end
-
-    it "is frozen" do
-      expect(described_class::SKIPPED_FILES).to be_frozen
-    end
-  end
-
   describe ".run" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
     let(:manifest) { Kettle::Jem::SelfTest::Manifest }
@@ -185,12 +175,10 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "creates the directory structure" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[Gemfile], changed: [], added: [], removed: [],
-      )
-      allow(reporter).to receive(:diff).and_return("")
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
 
       described_class.run
 
@@ -201,9 +189,9 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "writes before and after manifests as JSON" do
-      allow(manifest).to receive(:generate).and_return("Gemfile" => "abc123")
-      allow(manifest).to receive(:compare).and_return(
-        matched: %w[Gemfile], changed: [], added: [], removed: [],
+      allow(manifest).to receive_messages(
+        generate: {"Gemfile" => "abc123"},
+        compare: {matched: %w[Gemfile], changed: [], added: [], removed: []},
       )
       allow(reporter).to receive(:summary).and_return("# Report\n")
 
@@ -217,10 +205,9 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "writes a summary report" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[Gemfile], changed: [], added: [], removed: [],
-      )
+      })
       allow(reporter).to receive(:summary).and_return("# My Report\n")
 
       described_class.run
@@ -231,27 +218,24 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "partitions removed files into skipped and truly removed" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [],
         changed: [],
         added: [],
         removed: %w[lib/foo.rb spec/bar_spec.rb exe/run Gemfile.lock template/x.rb unexpected.txt],
-      )
+      })
       allow(reporter).to receive(:summary).and_return("# Report\n")
 
       # We can't easily inspect the comparison object passed to reporter,
       # but we can verify the report is written without error
-      described_class.run
+      expect { described_class.run }.not_to raise_error
     end
 
     it "writes diff files for changed files" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: %w[Gemfile], added: [], removed: [],
-      )
-      allow(reporter).to receive(:diff).and_return("--- a/Gemfile\n+++ b/Gemfile\n")
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      })
+      allow(reporter).to receive_messages(diff: "--- a/Gemfile\n+++ b/Gemfile\n", summary: "# Report\n")
 
       described_class.run
 
@@ -261,12 +245,10 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "skips writing diff for empty diff output" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: %w[Gemfile], added: [], removed: [],
-      )
-      allow(reporter).to receive(:diff).and_return("")
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
 
       described_class.run
 
@@ -275,10 +257,9 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
 
     it "calculates score as 0.0 when no files processed" do
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: [], added: [], removed: [],
-      )
+      })
       allow(reporter).to receive(:summary).and_return("# Report\n")
 
       # Should not raise even with 0 total files
@@ -287,24 +268,20 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
 
     it "raises when score is below threshold" do
       stub_env("KJ_SELFTEST_THRESHOLD" => "90")
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: %w[a.txt b.txt], added: [], removed: [],
-      )
-      allow(reporter).to receive(:diff).and_return("")
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
 
       expect { described_class.run }.to raise_error(Kettle::Dev::Error, /FAIL/)
     end
 
     it "does not raise when score meets threshold" do
       stub_env("KJ_SELFTEST_THRESHOLD" => "50")
-      allow(manifest).to receive(:generate).and_return({})
-      allow(manifest).to receive(:compare).and_return(
+      allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
-      )
-      allow(reporter).to receive(:diff).and_return("")
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
 
       expect { described_class.run }.not_to raise_error
     end
