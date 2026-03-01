@@ -104,6 +104,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("prism-merge", "~> 2.0", ">= 2.0.4")              # ruby >= 3.2.0
   spec.add_dependency("psych-merge", "~> 1.0")                          # ruby >= 3.2.0
   spec.add_dependency("rbs-merge", "~> 2.0")                            # ruby >= 3.2.0
+  spec.add_dependency("toml-merge", "~> 2.0")                           # ruby >= 3.2.0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0

@@ -2,13 +2,16 @@
 
 # External gems
 require "ast-merge"
+require "bash-merge"
 require "dotenv-merge"
 require "json-merge"
+require "jsonc-merge"
 require "kettle-dev"
 require "markly-merge"
 require "prism-merge"
 require "psych-merge"
 require "rbs-merge"
+require "toml-merge"
 require "token-resolver"
 require "version_gem"
 

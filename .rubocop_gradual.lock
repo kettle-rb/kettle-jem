@@ -1,11 +1,15 @@
 {
+  "spec/kettle/jem/exe_load_error_spec.rb:1748958569": [
+    [5, 16, 35, "RSpec/DescribeClass: The first argument to describe should be the class or module being tested.", 594088715]
+  ],
   "spec/kettle/jem/prism_utils_spec.rb:4002625895": [
     [284, 3, 1338, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [389]", 1268226439],
     [320, 3, 869, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [424]", 2853336854],
     [389, 3, 1269, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [284]", 2401572380],
     [424, 3, 1142, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [320]", 3133300725]
   ],
-  "spec/kettle/jem/tasks/self_test_task_spec.rb:315119483": [
+  "spec/kettle/jem/tasks/self_test_task_spec.rb:3264581519": [
+    [154, 3, 236, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [428]", 53455195],
     [188, 7, 52, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [189].", 35485579],
     [189, 7, 123, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [188].", 2511234337],
     [192, 7, 48, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [193].", 3347126845],
@@ -34,6 +38,7 @@
     [302, 7, 52, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [303].", 35485579],
     [303, 7, 128, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [302].", 1104333817],
     [306, 7, 48, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [307].", 3347126845],
-    [307, 7, 61, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [306].", 3477158243]
+    [307, 7, 61, "RSpec/ReceiveMessages: Use `receive_messages` instead of multiple stubs on lines [306].", 3477158243],
+    [428, 3, 704, "RSpec/RepeatedExampleGroupDescription: Repeated describe block description on line(s) [154]", 2237350270]
   ]
 }

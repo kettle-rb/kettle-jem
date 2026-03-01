@@ -163,8 +163,13 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       # if we're inside a git repo. Return true (inside a repo).
       allow(described_class).to receive(:system).and_call_original
       allow(described_class).to receive(:system).with(
-        "git", "-C", fake_root, "rev-parse", "--is-inside-work-tree",
-        out: File::NULL, err: File::NULL,
+        "git",
+        "-C",
+        fake_root,
+        "rev-parse",
+        "--is-inside-work-tree",
+        out: File::NULL,
+        err: File::NULL,
       ).and_return(true)
 
       # Stub GitAdapter to report dirty status (porcelain output with a modified file)

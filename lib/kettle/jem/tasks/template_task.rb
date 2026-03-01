@@ -108,8 +108,61 @@ module Kettle
           namespace_shield = meta[:namespace_shield]
           gem_shield = meta[:gem_shield]
 
-          # 1) .devcontainer directory
-          helpers.copy_dir_with_prompt(File.join(gem_checkout_root, ".devcontainer"), File.join(project_root, ".devcontainer"))
+          # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
+          devcontainer_src_dir = File.join(gem_checkout_root, ".devcontainer")
+          if Dir.exist?(devcontainer_src_dir)
+            require "find"
+            Find.find(devcontainer_src_dir) do |path|
+              next if File.directory?(path)
+
+              rel = path.sub(%r{^#{Regexp.escape(devcontainer_src_dir)}/?}, "")
+              src = helpers.prefer_example(path)
+              dest_rel = rel.sub(/\.example\z/, "")
+              dest = File.join(project_root, ".devcontainer", dest_rel)
+              next unless File.exist?(src)
+
+              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                c = helpers.apply_common_replacements(
+                  content,
+                  org: forge_org,
+                  funding_org: funding_org,
+                  gem_name: gem_name,
+                  namespace: namespace,
+                  namespace_shield: namespace_shield,
+                  gem_shield: gem_shield,
+                  min_ruby: min_ruby,
+                )
+                # Merge with existing destination file using format-appropriate merger
+                if File.exist?(dest)
+                  begin
+                    merger_class = case dest_rel
+                    when /\.json$/
+                      if content.match?(%r{^\s*//})
+                        Jsonc::Merge::SmartMerger
+                      else
+                        Json::Merge::SmartMerger
+                      end
+                    when /\.sh$/
+                      Bash::Merge::SmartMerger
+                    end
+                    if merger_class
+                      c = merger_class.new(
+                        c,
+                        File.read(dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                        freeze_token: "kettle-jem",
+                      ).merge
+                    end
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                    # Fall through with token-resolved content on merge failure
+                  end
+                end
+                c
+              end
+            end
+          end
 
           # 2) .github/**/*.yml with FUNDING.yml customizations
           source_github_dir = File.join(gem_checkout_root, ".github")
@@ -227,13 +280,41 @@ module Kettle
             end
           end
 
-          # 3) .qlty/qlty.toml
+          # 3) .qlty/qlty.toml — merge with TOML-aware SmartMerger
+          qlty_src = helpers.prefer_example(File.join(gem_checkout_root, ".qlty/qlty.toml"))
+          qlty_dest = File.join(project_root, ".qlty/qlty.toml")
           helpers.copy_file_with_prompt(
-            helpers.prefer_example(File.join(gem_checkout_root, ".qlty/qlty.toml")),
-            File.join(project_root, ".qlty/qlty.toml"),
+            qlty_src,
+            qlty_dest,
             allow_create: true,
             allow_replace: true,
-          )
+          ) do |content|
+            c = helpers.apply_common_replacements(
+              content,
+              org: forge_org,
+              funding_org: funding_org,
+              gem_name: gem_name,
+              namespace: namespace,
+              namespace_shield: namespace_shield,
+              gem_shield: gem_shield,
+              min_ruby: min_ruby,
+            )
+            if File.exist?(qlty_dest)
+              begin
+                c = Toml::Merge::SmartMerger.new(
+                  c,
+                  File.read(qlty_dest),
+                  preference: :template,
+                  add_template_only_nodes: true,
+                  freeze_token: "kettle-jem",
+                ).merge
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+                # Fall through with token-resolved content on merge failure
+              end
+            end
+            c
+          end
 
           # 4) gemfiles/modular/* and nested directories (delegated for DRYness)
           Kettle::Jem::ModularGemfiles.sync!(
@@ -411,13 +492,13 @@ module Kettle
           # README.md, CHANGELOG.md, and markdown spacing normalization.
           #
           # Prefixes that are handled by dedicated steps above:
-          #   .devcontainer/      → step 1 (copy_dir_with_prompt)
+          #   .devcontainer/      → step 1 (per-file merging: JSONC, JSON, Bash)
           #   .github/**/*.yml    → step 2 (dynamic discovery + FUNDING.yml; non-yml files handled here)
-          #   .qlty/              → step 3 (explicit)
+          #   .qlty/              → step 3 (TOML merge)
           #   gemfiles/modular/   → step 4 (ModularGemfiles.sync!)
           #   .env.local.example  → step 6 (dotenv-merge; rel is ".env.local" after .example strip)
           #   *.gemspec           → step 7a (renamed + field carry-over)
-          #   .git-hooks/         → handled after this block (interactive)
+          #   .git-hooks/         → handled after this block (per-file merging: Text, Prism, Bash)
           handled_prefixes = %w[
             .devcontainer/
             .qlty/
@@ -570,7 +651,7 @@ module Kettle
             puts "WARNING: Could not determine env file changes: #{e.class}: #{e.message}"
           end
 
-          # Handle .git-hooks files (see original rake task for details)
+          # Handle .git-hooks files — per-file merging with format-appropriate merge gems
           source_hooks_dir = File.join(gem_checkout_root, ".git-hooks")
           if Dir.exist?(source_hooks_dir)
             # Honor ENV["only"]: skip entire .git-hooks handling unless patterns include .git-hooks
@@ -646,60 +727,126 @@ module Kettle
 
               if dest_dir
                 FileUtils.mkdir_p(dest_dir)
-                [[goalie_src, "commit-subjects-goalie.txt"], [footer_src, "footer-template.erb.txt"]].each do |src, base|
-                  dest = File.join(dest_dir, base)
-                  # Allow create/replace prompts for these files (question applies to them)
-                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
-                  # Ensure readable (0644). These are data/templates, not executables.
-                  begin
-                    File.chmod(0o644, dest) if File.exist?(dest)
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    # ignore permission issues
+
+                # commit-subjects-goalie.txt — merge with Text::SmartMerger to preserve destination customizations
+                goalie_dest = File.join(dest_dir, "commit-subjects-goalie.txt")
+                helpers.copy_file_with_prompt(goalie_src, goalie_dest, allow_create: true, allow_replace: true) do |content|
+                  if File.exist?(goalie_dest)
+                    begin
+                      content = Ast::Merge::Text::SmartMerger.new(
+                        content,
+                        File.read(goalie_dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                        freeze_token: "kettle-jem",
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
                   end
+                  content
+                end
+
+                # footer-template.erb.txt — resolve tokens, then merge with Text::SmartMerger
+                footer_dest = File.join(dest_dir, "footer-template.erb.txt")
+                helpers.copy_file_with_prompt(footer_src, footer_dest, allow_create: true, allow_replace: true) do |content|
+                  c = helpers.apply_common_replacements(
+                    content,
+                    org: forge_org,
+                    funding_org: funding_org,
+                    gem_name: gem_name,
+                    namespace: namespace,
+                    namespace_shield: namespace_shield,
+                    gem_shield: gem_shield,
+                    min_ruby: min_ruby,
+                  )
+                  if File.exist?(footer_dest)
+                    begin
+                      c = Ast::Merge::Text::SmartMerger.new(
+                        c,
+                        File.read(footer_dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                        freeze_token: "kettle-jem",
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
+                  end
+                  c
+                end
+
+                # Ensure readable (0644). These are data/templates, not executables.
+                [goalie_dest, footer_dest].each do |txt_dest|
+                  File.chmod(0o644, txt_dest) if File.exist?(txt_dest)
+                rescue StandardError => e
+                  Kettle::Dev.debug_error(e, __method__)
                 end
               else
                 puts "Skipping copy of .git-hooks templates."
               end
             end
 
-            # Second: hook scripts — copy only to local project; prompt only on overwrite
-            hook_dests = [File.join(project_root, ".git-hooks")]
-            hook_pairs = [[hook_ruby_src, "commit-msg", 0o755], [hook_sh_src, "prepare-commit-msg", 0o755]]
-            hook_pairs.each do |src, base, mode|
-              next unless File.file?(src)
+            # Second: hook scripts — merge with Prism (Ruby) / Bash (shell), then set executable
+            hook_dest_dir = File.join(project_root, ".git-hooks")
+            begin
+              FileUtils.mkdir_p(hook_dest_dir)
+            rescue StandardError => e
+              puts "WARNING: Could not create #{hook_dest_dir}: #{e.class}: #{e.message}"
+              hook_dest_dir = nil
+            end
 
-              hook_dests.each do |dstdir|
-                FileUtils.mkdir_p(dstdir)
-                dest = File.join(dstdir, base)
-                # Create without prompt if missing; if exists, ask to replace
-                if File.exist?(dest)
-                  if helpers.ask("Overwrite existing #{dest}?", true)
-                    content = File.read(src)
-                    helpers.write_file(dest, content)
+            if hook_dest_dir
+              # commit-msg (Ruby script) -- merge with Prism::Merge::SmartMerger
+              if File.file?(hook_ruby_src)
+                commit_msg_dest = File.join(hook_dest_dir, "commit-msg")
+                helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true) do |content|
+                  if File.exist?(commit_msg_dest)
                     begin
-                      File.chmod(mode, dest)
+                      content = Prism::Merge::SmartMerger.new(
+                        content,
+                        File.read(commit_msg_dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                        freeze_token: "kettle-jem",
+                      ).merge
                     rescue StandardError => e
                       Kettle::Dev.debug_error(e, __method__)
-                      # ignore permission issues
                     end
-                    puts "Replaced #{dest}"
-                  else
-                    puts "Kept existing #{dest}"
                   end
-                else
-                  content = File.read(src)
-                  helpers.write_file(dest, content)
-                  begin
-                    File.chmod(mode, dest)
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    # ignore permission issues
-                  end
-                  puts "Installed #{dest}"
+                  content
                 end
-              rescue StandardError => e
-                puts "WARNING: Could not install hook #{base} to #{dstdir}: #{e.class}: #{e.message}"
+                begin
+                  File.chmod(0o755, commit_msg_dest) if File.exist?(commit_msg_dest)
+                rescue StandardError => e
+                  Kettle::Dev.debug_error(e, __method__)
+                end
+              end
+
+              # prepare-commit-msg (shell script) — merge with Bash::Merge::SmartMerger
+              if File.file?(hook_sh_src)
+                prepare_msg_dest = File.join(hook_dest_dir, "prepare-commit-msg")
+                helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true) do |content|
+                  if File.exist?(prepare_msg_dest)
+                    begin
+                      content = Bash::Merge::SmartMerger.new(
+                        content,
+                        File.read(prepare_msg_dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                        freeze_token: "kettle-jem",
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
+                  end
+                  content
+                end
+                begin
+                  File.chmod(0o755, prepare_msg_dest) if File.exist?(prepare_msg_dest)
+                rescue StandardError => e
+                  Kettle::Dev.debug_error(e, __method__)
+                end
               end
             end
           end
