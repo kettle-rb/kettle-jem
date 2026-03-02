@@ -22,8 +22,9 @@ module Kettle
       # @param project_root [String] destination project root
       # @param gem_checkout_root [String] kettle-jem checkout root (source)
       # @param min_ruby [Gem::Version, nil] minimum Ruby version (for style.gemfile tuning)
+      # @param gem_name [String, nil] destination gem name (to strip self-dependencies)
       # @return [void]
-      def sync!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil)
+      def sync!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil, gem_name: nil)
         template_modular_dir = File.join(gem_checkout_root, "template", MODULAR_GEMFILE_DIR)
         # Fallback for non-template layouts (e.g., test fixtures without template/)
         template_modular_dir = File.join(gem_checkout_root, MODULAR_GEMFILE_DIR) unless Dir.exist?(template_modular_dir)
@@ -47,13 +48,15 @@ module Kettle
         # Copy flat modular gemfiles, with special handling for style.gemfile
         flat_gemfiles.each do |base|
           if base == "style"
-            sync_style_gemfile!(helpers: helpers, project_root: project_root, gem_checkout_root: gem_checkout_root, min_ruby: min_ruby)
+            sync_style_gemfile!(helpers: helpers, project_root: project_root, gem_checkout_root: gem_checkout_root, min_ruby: min_ruby, gem_name: gem_name)
           else
             modular_gemfile = "#{base}.gemfile"
             src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
             dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-              helpers.apply_strategy(content, dest)
+              c = helpers.apply_strategy(content, dest)
+              c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+              c
             end
           end
         end
@@ -72,8 +75,9 @@ module Kettle
       # @param project_root [String] destination project root
       # @param gem_checkout_root [String] kettle-jem checkout root (source)
       # @param min_ruby [Gem::Version, nil] minimum Ruby version
+      # @param gem_name [String, nil] destination gem name (to strip self-dependencies)
       # @return [void]
-      def sync_style_gemfile!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil)
+      def sync_style_gemfile!(helpers:, project_root:, gem_checkout_root:, min_ruby: nil, gem_name: nil)
         modular_gemfile = "style.gemfile"
         src = helpers.prefer_example(File.join(gem_checkout_root, MODULAR_GEMFILE_DIR, modular_gemfile))
         dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
@@ -128,7 +132,9 @@ module Kettle
             content.gsub!(token, "rubocop-ruby#{rubocop_ruby_gem_version}") if content.include?(token)
           end
           # Use apply_strategy for proper AST-based merging with Prism
-          helpers.apply_strategy(content, dest)
+          c = helpers.apply_strategy(content, dest)
+          c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+          c
         end
       end
     end

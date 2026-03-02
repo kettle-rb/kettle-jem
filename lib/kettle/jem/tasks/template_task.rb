@@ -322,6 +322,7 @@ module Kettle
             project_root: project_root,
             gem_checkout_root: gem_checkout_root,
             min_ruby: min_ruby,
+            gem_name: gem_name,
           )
 
           # 5) spec/spec_helper.rb (no create)

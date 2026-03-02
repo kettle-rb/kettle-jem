@@ -133,4 +133,78 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
       end
     end
   end
+
+  describe "self-dependency removal" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "strips gem lines matching gem_name from modular gemfiles" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
+          FileUtils.mkdir_p(src_dir)
+          FileUtils.mkdir_p(dest_dir)
+
+          # Template has tree_haver as a gem dependency — problematic when
+          # the destination IS tree_haver itself
+          File.write(File.join(src_dir, "templating_local.gemfile"), <<~RUBY)
+            gem "tree_haver", path: "../tree_haver"
+            gem "ast-merge", path: "../ast-merge"
+            gem "prism-merge", path: "../ast-merge/vendor/prism-merge"
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            gem_checkout_root: gemroot,
+            ask: true,
+          )
+
+          described_class.sync!(
+            helpers: helpers,
+            project_root: proj,
+            gem_checkout_root: gemroot,
+            gem_name: "tree_haver",
+          )
+
+          result = File.read(File.join(dest_dir, "templating_local.gemfile"))
+          expect(result).not_to include("tree_haver")
+          expect(result).to include('gem "ast-merge"')
+          expect(result).to include('gem "prism-merge"')
+        end
+      end
+    end
+
+    it "does not strip anything when gem_name is nil" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
+          FileUtils.mkdir_p(src_dir)
+          FileUtils.mkdir_p(dest_dir)
+
+          File.write(File.join(src_dir, "templating_local.gemfile"), <<~RUBY)
+            gem "tree_haver", path: "../tree_haver"
+            gem "ast-merge", path: "../ast-merge"
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            gem_checkout_root: gemroot,
+            ask: true,
+          )
+
+          described_class.sync!(
+            helpers: helpers,
+            project_root: proj,
+            gem_checkout_root: gemroot,
+            gem_name: nil,
+          )
+
+          result = File.read(File.join(dest_dir, "templating_local.gemfile"))
+          expect(result).to include("tree_haver")
+          expect(result).to include("ast-merge")
+        end
+      end
+    end
+  end
 end

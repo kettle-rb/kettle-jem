@@ -222,4 +222,46 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(result).to eq(content)
     end
   end
+
+  describe ".remove_gem_dependency" do
+    it "removes a top-level gem call matching the given name" do
+      content = <<~RUBY
+        gem "tree_haver", path: "../tree_haver"
+        gem "ast-merge", path: "../ast-merge"
+        gem "prism-merge", path: "../ast-merge/vendor/prism-merge"
+      RUBY
+      result = described_class.remove_gem_dependency(content, "tree_haver")
+      expect(result).not_to include("tree_haver")
+      expect(result).to include('gem "ast-merge"')
+      expect(result).to include('gem "prism-merge"')
+    end
+
+    it "removes gem with version constraint" do
+      content = <<~RUBY
+        gem "tree_haver", "~> 5.0", ">= 5.0.5"
+        gem "other"
+      RUBY
+      result = described_class.remove_gem_dependency(content, "tree_haver")
+      expect(result).not_to include("tree_haver")
+      expect(result).to include('gem "other"')
+    end
+
+    it "returns content unchanged when gem_name is nil" do
+      content = 'gem "foo"'
+      expect(described_class.remove_gem_dependency(content, nil)).to eq(content)
+    end
+
+    it "returns content unchanged when gem_name is empty" do
+      content = 'gem "foo"'
+      expect(described_class.remove_gem_dependency(content, "")).to eq(content)
+    end
+
+    it "returns content unchanged when gem is not present" do
+      content = <<~RUBY
+        gem "foo"
+        gem "bar"
+      RUBY
+      expect(described_class.remove_gem_dependency(content, "baz")).to eq(content)
+    end
+  end
 end
