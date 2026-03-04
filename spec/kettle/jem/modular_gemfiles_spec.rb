@@ -1,12 +1,16 @@
 # frozen_string_literal: true
 
 RSpec.describe Kettle::Jem::ModularGemfiles do
+  after do
+    Kettle::Jem::TemplateHelpers.clear_tokens!
+  end
+
   it "exposes sync! and performs copy calls via helpers" do
     helpers = Kettle::Jem::TemplateHelpers
     Dir.mktmpdir do |proj|
       Dir.mktmpdir do |gemroot|
         # Create a minimal source tree for modular files
-        src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+        src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
         FileUtils.mkdir_p(src_dir)
         %w[coverage debug documentation injected optional runtime_heads templating x_std_libs].each do |base|
           File.write(File.join(src_dir, "#{base}.gemfile"), "# #{base}\n")
@@ -17,15 +21,15 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           File.write(File.join(src_dir, dir, "placeholder"), "ok\n")
         end
 
-        # Stub helpers.project_root and gem_checkout_root to these temp dirs
+        # Stub helpers.project_root and template_root to these temp dirs
         allow(helpers).to receive_messages(
           project_root: proj,
-          gem_checkout_root: gemroot,
+          template_root: File.join(gemroot, "template"),
           ask: true,
         )
 
         expect {
-          described_class.sync!(helpers: helpers, project_root: proj, gem_checkout_root: gemroot, min_ruby: Gem::Version.new("3.2"))
+          described_class.sync!(helpers: helpers, project_root: proj, min_ruby: Gem::Version.new("3.2"))
         }.not_to raise_error
 
         # Verify a couple of outputs exist
@@ -42,7 +46,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
     Dir.mktmpdir do |proj|
       Dir.mktmpdir do |gemroot|
         # Create source and destination directories
-        src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+        src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
         dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
         FileUtils.mkdir_p(src_dir)
         FileUtils.mkdir_p(dest_dir)
@@ -91,15 +95,24 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
         # Stub helpers methods
         allow(helpers).to receive_messages(
           project_root: proj,
-          gem_checkout_root: gemroot,
+          template_root: File.join(gemroot, "template"),
           ask: true,
+        )
+
+        # Configure tokens so read_template resolves {KJ|...} tokens
+        helpers.configure_tokens!(
+          org: "test-org",
+          gem_name: "test-gem",
+          namespace: "TestGem",
+          namespace_shield: "Test__Gem",
+          gem_shield: "test__gem",
+          min_ruby: Gem::Version.new("2.3"),
         )
 
         # Run sync
         described_class.sync!(
           helpers: helpers,
           project_root: proj,
-          gem_checkout_root: gemroot,
           min_ruby: Gem::Version.new("2.3"),
         )
 
@@ -140,7 +153,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
     it "strips gem lines matching gem_name from modular gemfiles" do
       Dir.mktmpdir do |proj|
         Dir.mktmpdir do |gemroot|
-          src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
           dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
           FileUtils.mkdir_p(src_dir)
           FileUtils.mkdir_p(dest_dir)
@@ -155,14 +168,13 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
 
           allow(helpers).to receive_messages(
             project_root: proj,
-            gem_checkout_root: gemroot,
+            template_root: File.join(gemroot, "template"),
             ask: true,
           )
 
           described_class.sync!(
             helpers: helpers,
             project_root: proj,
-            gem_checkout_root: gemroot,
             gem_name: "tree_haver",
           )
 
@@ -177,7 +189,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
     it "does not strip anything when gem_name is nil" do
       Dir.mktmpdir do |proj|
         Dir.mktmpdir do |gemroot|
-          src_dir = File.join(gemroot, described_class::MODULAR_GEMFILE_DIR)
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
           dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
           FileUtils.mkdir_p(src_dir)
           FileUtils.mkdir_p(dest_dir)
@@ -189,20 +201,61 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
 
           allow(helpers).to receive_messages(
             project_root: proj,
-            gem_checkout_root: gemroot,
+            template_root: File.join(gemroot, "template"),
             ask: true,
           )
 
           described_class.sync!(
             helpers: helpers,
             project_root: proj,
-            gem_checkout_root: gemroot,
             gem_name: nil,
           )
 
           result = File.read(File.join(dest_dir, "templating_local.gemfile"))
           expect(result).to include("tree_haver")
           expect(result).to include("ast-merge")
+        end
+      end
+    end
+  end
+
+  describe "min ruby bucket pruning" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "skips buckets below min_ruby and warns when destination file exists" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR, "erb")
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR, "erb")
+          FileUtils.mkdir_p(File.join(src_dir, "r3.1"))
+          FileUtils.mkdir_p(File.join(src_dir, "r3"))
+          FileUtils.mkdir_p(dest_dir)
+
+          # r3.1 should be pruned for min_ruby 3.2
+          File.write(File.join(src_dir, "r3.1", "v4.0.gemfile"), "gem 'erb'\n")
+          # r3 should be kept (catch-all for >=3.2)
+          File.write(File.join(src_dir, "r3", "v3.0.gemfile"), "gem 'erb'\n")
+
+          # Existing destination file for the pruned bucket should trigger warning
+          pruned_dest = File.join(dest_dir, "r3.1", "v4.0.gemfile")
+          FileUtils.mkdir_p(File.dirname(pruned_dest))
+          File.write(pruned_dest, "old\n")
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+            ask: true,
+          )
+          helpers.clear_warnings
+
+          described_class.sync!(
+            helpers: helpers,
+            project_root: proj,
+            min_ruby: Gem::Version.new("3.2"),
+          )
+
+          expect(File).to exist(File.join(dest_dir, "r3", "v3.0.gemfile"))
+          expect(helpers.warnings.join("\n")).to include("r3.1")
         end
       end
     end

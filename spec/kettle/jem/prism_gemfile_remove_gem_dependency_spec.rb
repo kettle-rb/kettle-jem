@@ -47,5 +47,65 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to include("simplecov")
       expect(out).not_to include('gem "my-gem"')
     end
+
+    it "removes gem call inside a platform block" do
+      src = <<~RUBY
+        platform :mri do
+          gem "tree_haver", path: "../tree_haver"
+          gem "ast-merge", path: "../ast-merge"
+        end
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "tree_haver")
+      expect(out).not_to include('gem "tree_haver"')
+      expect(out).to include('gem "ast-merge"')
+      expect(out).to include("platform :mri do")
+    end
+
+    it "removes gem call inside a group block" do
+      src = <<~RUBY
+        group :development do
+          gem "my-gem", "~> 1.0"
+          gem "pry"
+        end
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "my-gem")
+      expect(out).not_to include('gem "my-gem"')
+      expect(out).to include('gem "pry"')
+    end
+
+    it "removes gem calls inside an if/else conditional" do
+      src = <<~RUBY
+        if ENV.fetch("DEV", "false").casecmp?("true")
+          gem "tree_haver", path: "../tree_haver"
+          gem "other-gem", path: "../other"
+        else
+          gem "tree_haver", "~> 1.0"
+          gem "other-gem"
+        end
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "tree_haver")
+      expect(out).not_to include('gem "tree_haver"')
+      expect(out).to include('gem "other-gem"')
+    end
+
+    it "removes gem calls at multiple nesting levels" do
+      src = <<~RUBY
+        gem "tree_haver", "~> 1.0"
+        platform :mri do
+          gem "tree_haver", path: "../tree_haver"
+          gem "ast-merge", path: "../ast-merge"
+        end
+        if ENV["DEV"]
+          gem "tree_haver", path: "../dev/tree_haver"
+        end
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "tree_haver")
+      expect(out).not_to include('gem "tree_haver"')
+      expect(out).to include('gem "ast-merge"')
+    end
   end
 end

@@ -5,12 +5,17 @@ RSpec.describe "ModularGemfiles Integration" do
     require "kettle/dev"
   end
 
+  after do
+    Kettle::Jem::TemplateHelpers.clear_tokens!
+  end
+
   it "correctly merges the real style.gemfile.example with a destination file" do
     helpers = Kettle::Jem::TemplateHelpers
     Dir.mktmpdir do |proj|
       Dir.mktmpdir do |gemroot|
+        template_root = File.join(gemroot, "template")
         # Create source directory and copy the actual example file
-        src_dir = File.join(gemroot, Kettle::Jem::ModularGemfiles::MODULAR_GEMFILE_DIR)
+        src_dir = File.join(template_root, Kettle::Jem::ModularGemfiles::MODULAR_GEMFILE_DIR)
         FileUtils.mkdir_p(src_dir)
 
         # Copy the actual style.gemfile.example from the gem
@@ -29,23 +34,34 @@ RSpec.describe "ModularGemfiles Integration" do
 
         dest_content = <<~RUBY
           gem "reek", "~> 6.4"
-          gem "rubocop", "~> 1.73", ">= 1.73.2"
-          gem "standard", "~> 1.47"
+          platform :mri do
+            gem "rubocop", "~> 1.73", ">= 1.73.2"
+            gem "standard", "~> 1.47"
+          end
         RUBY
         File.write(File.join(dest_dir, "style.gemfile"), dest_content)
 
         # Stub helpers methods
         allow(helpers).to receive_messages(
           project_root: proj,
-          gem_checkout_root: gemroot,
+          template_root: template_root,
           ask: true,
+        )
+
+        # Configure tokens so read_template resolves {KJ|...} tokens
+        helpers.configure_tokens!(
+          org: "test-org",
+          gem_name: "test-gem",
+          namespace: "TestGem",
+          namespace_shield: "Test__Gem",
+          gem_shield: "test__gem",
+          min_ruby: Gem::Version.new("2.7"),
         )
 
         # Run sync with Ruby 2.7 to get specific version constraints
         Kettle::Jem::ModularGemfiles.sync!(
           helpers: helpers,
           project_root: proj,
-          gem_checkout_root: gemroot,
           min_ruby: Gem::Version.new("2.7"),
         )
 
@@ -61,9 +77,7 @@ RSpec.describe "ModularGemfiles Integration" do
         expect(result).to include("# ruby >= 3.1.0")
 
         # Verify proper indentation inside the if block
-        expect(result).to match(/^\s+gem "rubocop-lts", path:/)
-        expect(result).to match(/^\s+gem "rubocop-lts-rspec", path:/)
-        expect(result).to match(/^\s+gem "standard-rubocop-lts", path:/)
+        expect(result).to match(/^\s+eval_gemfile/)
 
         # Verify tokens were replaced for Ruby 2.7
         expect(result).to include('"rubocop-lts", "~> 18.0"')

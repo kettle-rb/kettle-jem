@@ -301,4 +301,42 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
       expect(result).to eq(template)
     end
   end
+
+  describe ".prune_ruby_appraisals" do
+    it "removes ruby-X-Y appraise blocks below min_ruby" do
+      content = <<~RUBY
+        appraise "ruby-2-3" do
+          eval_gemfile "modular/x_std_libs/r2.3/libs.gemfile"
+        end
+
+        appraise "ruby-3-2" do
+          eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+        end
+      RUBY
+
+      pruned, removed = described_class.prune_ruby_appraisals(content, min_ruby: "3.2")
+      expect(removed).to include("ruby-2-3")
+      expect(pruned).not_to include("ruby-2-3")
+      expect(pruned).to include("ruby-3-2")
+    end
+
+    it "keeps ruby-X-Y appraise blocks at or above min_ruby" do
+      content = <<~RUBY
+        appraise "ruby-3-1" do
+          eval_gemfile "modular/x_std_libs/r3.1/libs.gemfile"
+        end
+      RUBY
+
+      pruned, removed = described_class.prune_ruby_appraisals(content, min_ruby: "3.0")
+      expect(removed).to be_empty
+      expect(pruned).to include("ruby-3-1")
+    end
+
+    it "returns original content when min_ruby is nil" do
+      content = "appraise \"ruby-2-3\" do\nend\n"
+      pruned, removed = described_class.prune_ruby_appraisals(content, min_ruby: nil)
+      expect(pruned).to eq(content)
+      expect(removed).to be_empty
+    end
+  end
 end

@@ -12,8 +12,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     it "excludes .github/workflows/discord-notifier.yml by default and includes when include matches" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
           # Arrange .github/workflows with optional notifier and a normal workflow
-          gh_wf = File.join(gem_root, ".github", "workflows")
+          gh_wf = File.join(template_root, ".github", "workflows")
           FileUtils.mkdir_p(gh_wf)
           File.write(File.join(gh_wf, "ci.yml"), "name: CI\n")
           File.write(File.join(gh_wf, "discord-notifier.yml"), "name: Discord\n")
@@ -27,7 +28,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             end
           GEMSPEC
 
-          allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+          allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
 
           # 1) Default: no include -> notifier should NOT be copied; ci.yml should be copied
           stub_env("include" => nil, "only" => nil)

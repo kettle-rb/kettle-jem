@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "set"
+
 module Kettle
   module Jem
     module Tasks
@@ -81,6 +83,98 @@ module Kettle
           MARKDOWN_HEADING_EXTENSIONS.include?(ext)
         end
 
+        # Merge template content with an existing destination file using the
+        # appropriate AST-aware merge gem based on file type.
+        #
+        # @param content [String] Token-resolved template content
+        # @param dest [String] Destination file path
+        # @param rel [String] Relative path (for type detection)
+        # @param helpers [Module] TemplateHelpers
+        # @return [String] Merged content (or original content on failure when failure_mode is rescue)
+        # @raise [Kettle::Dev::Error] When merge fails and failure_mode is error (default)
+        def merge_by_file_type(content, dest, rel, helpers)
+          dest_content = File.read(dest)
+
+          if helpers.ruby_template?(dest)
+            # Ruby files: prism-merge via SourceMerger
+            merged = helpers.apply_strategy(content, dest)
+            return merged if merged.is_a?(String) && !merged.empty?
+          elsif yaml_file?(rel)
+            # YAML files: psych-merge
+            merged = Psych::Merge::SmartMerger.new(
+              content,
+              dest_content,
+              preference: :template,
+              add_template_only_nodes: true,
+            ).merge
+            return merged if merged.is_a?(String) && !merged.empty?
+          elsif markdown_heading_file?(rel)
+            # Markdown files (not README/CHANGELOG, which have dedicated steps):
+            # use SmartMerger with template preference
+            merged = Markdown::Merge::SmartMerger.new(
+              content,
+              dest_content,
+              preference: :template,
+              add_template_only_nodes: true,
+            ).merge
+            return merged if merged.is_a?(String) && !merged.empty?
+          elsif bash_file?(rel)
+            # Shell / bash files: bash-merge
+            merged = Bash::Merge::SmartMerger.new(
+              content,
+              dest_content,
+              preference: :template,
+              add_template_only_nodes: true,
+            ).merge
+            return merged if merged.is_a?(String) && !merged.empty?
+          else
+            # Text files (gitignore, rspec, yardopts, etc.): text-merge
+            merged = Ast::Merge::Text::SmartMerger.new(
+              content,
+              dest_content,
+              preference: :template,
+            ).merge
+            return merged if merged.is_a?(String) && !merged.empty?
+          end
+
+          content
+        rescue StandardError => e
+          if failure_mode == :rescue
+            Kettle::Dev.debug_error(e, __method__)
+            content
+          else
+            raise Kettle::Dev::Error, "Merge failed for #{rel}: #{e.class}: #{e.message}"
+          end
+        end
+
+        # Determine the failure mode for merge operations.
+        #
+        # @return [Symbol] :error (default) or :rescue
+        #   - :error  — merge failures raise Kettle::Dev::Error, halting the template task
+        #   - :rescue — merge failures are logged and the unmerged content is used instead
+        def failure_mode
+          val = ENV.fetch("FAILURE_MODE", "error").to_s.strip.downcase
+          val == "rescue" ? :rescue : :error
+        end
+
+        YAML_EXTENSIONS = %w[.yml .yaml].freeze
+        BASH_EXTENSIONS = %w[.sh .bash].freeze
+        # Basenames that are shell scripts without a shell extension
+        BASH_BASENAMES = %w[.envrc].freeze
+
+        def yaml_file?(relative_path)
+          ext = File.extname(relative_path.to_s).downcase
+          # CITATION.cff is YAML-structured
+          return true if File.basename(relative_path.to_s).casecmp("citation.cff").zero?
+          YAML_EXTENSIONS.include?(ext)
+        end
+
+        def bash_file?(relative_path)
+          ext = File.extname(relative_path.to_s).downcase
+          base = File.basename(relative_path.to_s)
+          BASH_EXTENSIONS.include?(ext) || BASH_BASENAMES.include?(base)
+        end
+
         # Abort wrapper that avoids terminating the entire process during specs
         def task_abort(msg)
           raise Kettle::Dev::Error, msg
@@ -91,9 +185,10 @@ module Kettle
         def run
           # Inline the former rake task body, but using helpers directly.
           helpers = Kettle::Jem::TemplateHelpers
+          helpers.clear_warnings
 
           project_root = helpers.project_root
-          gem_checkout_root = helpers.gem_checkout_root
+          template_root = helpers.template_root
 
           # Ensure git working tree is clean before making changes (when run standalone)
           helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")
@@ -108,8 +203,38 @@ module Kettle
           namespace_shield = meta[:namespace_shield]
           gem_shield = meta[:gem_shield]
 
+          # Configure token replacements once for the entire session.
+          # All template reads (via read_template) will automatically resolve tokens.
+          begin
+            helpers.configure_tokens!(
+              org: forge_org,
+              gem_name: gem_name,
+              namespace: namespace,
+              namespace_shield: namespace_shield,
+              gem_shield: gem_shield,
+              funding_org: funding_org,
+              min_ruby: min_ruby,
+            )
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            $stderr.puts("[kettle-jem] WARNING: Token configuration failed: #{e.message}")
+            $stderr.puts("[kettle-jem] Templates will be written with unresolved tokens.")
+          end
+
+          removed_appraisals = []
+          appraisals_src = helpers.prefer_example(File.join(template_root, "Appraisals"))
+          if File.exist?(appraisals_src)
+            begin
+              content = File.read(appraisals_src)
+              _pruned, removed_appraisals = Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(content, min_ruby: min_ruby)
+            rescue StandardError => e
+              Kettle::Dev.debug_error(e, __method__)
+              removed_appraisals = []
+            end
+          end
+
           # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
-          devcontainer_src_dir = File.join(gem_checkout_root, ".devcontainer")
+          devcontainer_src_dir = File.join(template_root, ".devcontainer")
           if Dir.exist?(devcontainer_src_dir)
             require "find"
             Find.find(devcontainer_src_dir) do |path|
@@ -165,7 +290,7 @@ module Kettle
           end
 
           # 2) .github/**/*.yml with FUNDING.yml customizations
-          source_github_dir = File.join(gem_checkout_root, ".github")
+          source_github_dir = File.join(template_root, ".github")
           if Dir.exist?(source_github_dir)
             # Build a unique set of logical .yml paths, preferring the .example variant when present
             candidates = Dir.glob(File.join(source_github_dir, "**", "*.yml")) +
@@ -211,7 +336,7 @@ module Kettle
             selected.values.each do |orig_src|
               src = helpers.prefer_example_with_osc_check(orig_src)
               # Destination path should never include the .example suffix.
-              rel = orig_src.sub(/^#{Regexp.escape(gem_checkout_root)}\/?/, "").sub(/\.example\z/, "")
+              rel = orig_src.sub(/^#{Regexp.escape(template_root)}\/?/, "").sub(/\.example\z/, "")
               dest = File.join(project_root, rel)
 
               # Skip opencollective-specific files when Open Collective is disabled
@@ -264,8 +389,10 @@ module Kettle
                   c
                 end
               else
-                helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                  helpers.apply_common_replacements(
+                prepared = nil
+                if rel.start_with?(".github/workflows/")
+                  content = File.read(src)
+                  c = helpers.apply_common_replacements(
                     content,
                     org: forge_org,
                     funding_org: funding_org,
@@ -275,13 +402,60 @@ module Kettle
                     gem_shield: gem_shield,
                     min_ruby: min_ruby,
                   )
+                  if File.exist?(dest)
+                    begin
+                      c = Psych::Merge::SmartMerger.new(
+                        c,
+                        File.read(dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
+                  end
+                  c, _removed_count, _total_count, empty = prune_workflow_matrix_by_appraisals(c, removed_appraisals)
+                  if empty
+                    if File.exist?(dest)
+                      helpers.add_warning("Workflow #{rel} has no remaining matrix entries for min Ruby #{min_ruby}; consider removing the file")
+                    end
+                    next
+                  end
+                  prepared = c
+                end
+
+                helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+                  c = prepared || helpers.apply_common_replacements(
+                    content,
+                    org: forge_org,
+                    funding_org: funding_org,
+                    gem_name: gem_name,
+                    namespace: namespace,
+                    namespace_shield: namespace_shield,
+                    gem_shield: gem_shield,
+                    min_ruby: min_ruby,
+                  )
+                  # Merge non-workflow .github YAML files with destination (e.g., .codecov.yml, dependabot.yml)
+                  if !prepared && File.exist?(dest)
+                    begin
+                      c = Psych::Merge::SmartMerger.new(
+                        c,
+                        File.read(dest),
+                        preference: :template,
+                        add_template_only_nodes: true,
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
+                  end
+                  c
                 end
               end
             end
           end
 
           # 3) .qlty/qlty.toml — merge with TOML-aware SmartMerger
-          qlty_src = helpers.prefer_example(File.join(gem_checkout_root, ".qlty/qlty.toml"))
+          qlty_src = helpers.prefer_example(File.join(template_root, ".qlty/qlty.toml"))
           qlty_dest = File.join(project_root, ".qlty/qlty.toml")
           helpers.copy_file_with_prompt(
             qlty_src,
@@ -320,7 +494,6 @@ module Kettle
           Kettle::Jem::ModularGemfiles.sync!(
             helpers: helpers,
             project_root: project_root,
-            gem_checkout_root: gem_checkout_root,
             min_ruby: min_ruby,
             gem_name: gem_name,
           )
@@ -333,7 +506,7 @@ module Kettle
               replacement = %(require "#{entrypoint_require}")
               new_content = old.gsub(/require\s+["']kettle\/dev["']/, replacement)
               if new_content != old
-                if helpers.ask("Replace require \"kettle/dev\" in spec/spec_helper.rb with #{replacement}?", true)
+                if helpers.ask("Update require \"kettle/dev\" in spec/spec_helper.rb to #{replacement}?", true)
                   helpers.write_file(dest_spec_helper, new_content)
                   puts "Updated require in spec/spec_helper.rb"
                 else
@@ -345,7 +518,7 @@ module Kettle
 
           # 6) .env.local.example: merge template env vars with existing destination using dotenv-merge
           begin
-            envlocal_src = File.join(gem_checkout_root, ".env.local.example")
+            envlocal_src = File.join(template_root, ".env.local.example")
             envlocal_dest = File.join(project_root, ".env.local.example")
             if File.exist?(envlocal_src)
               helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true) do |content|
@@ -372,11 +545,10 @@ module Kettle
             puts "WARNING: Skipped .env.local example copy due to #{e.class}: #{e.message}"
           end
 
-          # 7) Root and other files
           # 7a) Special-case: gemspec example must be renamed to destination gem's name
           begin
             # Prefer the .example variant when present
-            gemspec_template_src = helpers.prefer_example(File.join(gem_checkout_root, "kettle-jem.gemspec"))
+            gemspec_template_src = helpers.prefer_example(File.join(template_root, "kettle-jem.gemspec"))
             if File.exist?(gemspec_template_src)
               dest_gemspec = if gem_name && !gem_name.to_s.empty?
                 File.join(project_root, "#{gem_name}.gemspec")
@@ -534,7 +706,7 @@ module Kettle
                 next
               end
 
-              src = helpers.prefer_example_with_osc_check(File.join(gem_checkout_root, rel))
+              src = helpers.prefer_example_with_osc_check(File.join(template_root, rel))
               dest = File.join(project_root, rel)
               next unless File.exist?(src)
 
@@ -596,7 +768,7 @@ module Kettle
                     c
                   end
                 else
-                  # All other files: apply token replacements (unresolved tokens are kept as-is)
+                  # All other files: apply token replacements, then merge with destination
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                     c = helpers.apply_common_replacements(
                       content,
@@ -608,6 +780,10 @@ module Kettle
                       gem_shield: gem_shield,
                       min_ruby: min_ruby,
                     )
+                    # Merge with existing destination when it exists
+                    if File.exist?(dest)
+                      c = merge_by_file_type(c, dest, rel, helpers)
+                    end
                     # Normalize spacing around Markdown structural elements using AST
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                     c
@@ -653,7 +829,7 @@ module Kettle
           end
 
           # Handle .git-hooks files — per-file merging with format-appropriate merge gems
-          source_hooks_dir = File.join(gem_checkout_root, ".git-hooks")
+          source_hooks_dir = File.join(template_root, ".git-hooks")
           if Dir.exist?(source_hooks_dir)
             # Honor ENV["only"]: skip entire .git-hooks handling unless patterns include .git-hooks
             begin
@@ -852,8 +1028,79 @@ module Kettle
             end
           end
 
+          helpers.print_warnings_summary
+
           # Done
           nil
+        end
+
+        def prune_workflow_matrix_by_appraisals(content, removed_appraisals)
+          removed = Array(removed_appraisals).map(&:to_s).uniq
+          return [content, 0, 0, false] if removed.empty?
+
+          analysis = Psych::Merge::FileAnalysis.new(content)
+          return [content, 0, 0, false] unless analysis.valid?
+
+          lines = content.lines
+          remove_lines = Set.new
+          removed_count = 0
+          total_count = 0
+
+          root_entries = analysis.root_mapping_entries
+          jobs_value = mapping_value_for(root_entries, "jobs")
+          return [content, 0, 0, false] unless jobs_value&.mapping?
+
+          jobs_value.mapping_entries(comment_tracker: analysis.comment_tracker).each do |_job_key, job_value|
+            next unless job_value.mapping?
+            strategy_value = mapping_value_for(job_value.mapping_entries(comment_tracker: analysis.comment_tracker), "strategy")
+            next unless strategy_value&.mapping?
+            matrix_value = mapping_value_for(strategy_value.mapping_entries(comment_tracker: analysis.comment_tracker), "matrix")
+            next unless matrix_value&.mapping?
+            include_value = mapping_value_for(matrix_value.mapping_entries(comment_tracker: analysis.comment_tracker), "include")
+            next unless include_value&.sequence?
+
+            items = include_value.sequence_items(comment_tracker: analysis.comment_tracker)
+            total_count += items.size
+
+            items.each do |item|
+              next unless item.mapping?
+              appraisal_value = mapping_value_for(item.mapping_entries(comment_tracker: analysis.comment_tracker), "appraisal")
+              next unless appraisal_value&.scalar?
+
+              appraisal = appraisal_value.value.to_s
+              next unless removed.include?(appraisal)
+
+              removed_count += 1
+              start_line = item.start_line
+              leading = item.leading_comments
+              if leading && leading.any?
+                start_line = [start_line, leading.first[:line]].min
+              end
+              end_line = item.end_line || start_line
+
+              (start_line..end_line).each { |ln| remove_lines << ln }
+            end
+          end
+
+          return [content, 0, 0, false] if removed_count.zero?
+
+          new_lines = []
+          lines.each_with_index do |line, idx|
+            new_lines << line unless remove_lines.include?(idx + 1)
+          end
+
+          empty = total_count.positive? && removed_count == total_count
+          [new_lines.join, removed_count, total_count, empty]
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          [content, 0, 0, false]
+        end
+
+        def mapping_value_for(entries, key_name)
+          pair = entries.find do |k, _v|
+            k.respond_to?(:scalar?) && k.scalar? && k.value.to_s == key_name.to_s
+          end
+          pair ? pair[1] : nil
         end
       end
     end

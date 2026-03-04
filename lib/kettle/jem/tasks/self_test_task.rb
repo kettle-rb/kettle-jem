@@ -71,7 +71,8 @@ module Kettle
           manifest = Kettle::Jem::SelfTest::Manifest
           reporter = Kettle::Jem::SelfTest::Reporter
 
-          gem_root = helpers.gem_checkout_root
+          # Derive the gem root from template_root (which is <gem_root>/template)
+          gem_root = File.dirname(helpers.template_root)
           base_dir = File.join(gem_root, "tmp", "template_test")
 
           dest_dir = File.join(base_dir, "destination")

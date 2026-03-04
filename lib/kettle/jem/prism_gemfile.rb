@@ -129,6 +129,7 @@ module Kettle
       end
 
       # Remove gem calls that reference the given gem name (to prevent self-dependency).
+      # Recursively walks the AST to find gem calls inside platform/group/if/else blocks.
       # @param content [String] Gemfile-like content
       # @param gem_name [String] the gem name to remove
       # @return [String] modified content with self-referential gem calls removed
@@ -136,23 +137,12 @@ module Kettle
         return content if gem_name.to_s.strip.empty?
 
         result = PrismUtils.parse_with_comments(content)
-        stmts = PrismUtils.extract_statements(result.value.statements)
-
-        gem_nodes = stmts.select do |n|
-          next false unless n.is_a?(Prism::CallNode) && n.name == :gem
-
-          first_arg = n.arguments&.arguments&.first
-          arg_val = begin
-            PrismUtils.extract_literal_value(first_arg)
-          rescue StandardError
-            nil
-          end
-          arg_val && arg_val.to_s == gem_name.to_s
-        end
+        gem_nodes = find_gem_nodes_recursive(result.value.statements, gem_name)
 
         out = content.dup
         gem_nodes.each do |gn|
-          out = out.sub(gn.slice, "")
+          # Remove the gem call and its trailing newline to avoid blank lines
+          out = out.sub(/#{Regexp.escape(gn.slice)}[ \t]*\n?/, "")
         end
 
         out
@@ -163,6 +153,209 @@ module Kettle
           Kernel.warn("[#{__method__}] #{e.class}: #{e.message}")
         end
         content
+      end
+
+      # Recursively find all gem CallNodes matching gem_name throughout the AST.
+      # Walks into block bodies, if/else branches, platform/group blocks, etc.
+      # @param body_node [Prism::Node, nil] Body node to search
+      # @param gem_name [String] the gem name to match
+      # @return [Array<Prism::CallNode>] matching gem call nodes
+      def find_gem_nodes_recursive(body_node, gem_name)
+        stmts = PrismUtils.extract_statements(body_node)
+        found = []
+
+        stmts.each do |node|
+          case node
+          when Prism::CallNode
+            if node.name == :gem
+              first_arg = node.arguments&.arguments&.first
+              arg_val = begin
+                PrismUtils.extract_literal_value(first_arg)
+              rescue StandardError
+                nil
+              end
+              found << node if arg_val && arg_val.to_s == gem_name.to_s
+            end
+            # Recurse into block body (platform :mri do ... end, group :dev do ... end, etc.)
+            if node.block
+              block_body = node.block.body
+              found.concat(find_gem_nodes_recursive(block_body, gem_name))
+            end
+          when Prism::IfNode, Prism::UnlessNode
+            # Recurse into if/unless branches
+            found.concat(find_gem_nodes_recursive(node.statements, gem_name)) if node.statements
+            found.concat(find_gem_nodes_recursive(node.subsequent, gem_name)) if node.respond_to?(:subsequent) && node.subsequent
+          when Prism::ElseNode
+            found.concat(find_gem_nodes_recursive(node.statements, gem_name)) if node.statements
+          end
+        end
+
+        found
+      end
+
+      # Validate that the merged content does not contain the same gem nested
+      # inside block nodes with different signatures.
+      #
+      # When the merger encounters blocks with different signatures (e.g.,
+      # `platform(:mri) do ... end` vs top-level, or `if ENV[...]` vs
+      # `platform(:mri)`), it treats them as distinct nodes and keeps both.
+      # If the same gem appears inside both, Bundler will reject the result:
+      # "You cannot specify the same gem twice coming from different sources".
+      #
+      # Mutually exclusive branches (if/else of the same conditional) are NOT
+      # flagged — they share the same block signature since only one executes.
+      #
+      # @param merged_content [String] The merged gemfile content
+      # @param template_content [String] The template content (shown as reference in error)
+      # @param path [String] File path (for error messages)
+      # @raise [Kettle::Jem::Error] when a gem appears at different nesting levels
+      # @return [void]
+      def validate_no_cross_nesting_duplicates(merged_content, template_content, path: "Gemfile")
+        merged_decls = collect_gem_declarations(merged_content)
+        return if merged_decls.empty?
+
+        # Group by gem name
+        by_name = merged_decls.group_by { |d| d[:name] }
+
+        # Find gems with declarations in more than one distinct context
+        conflicts = {}
+        by_name.each do |name, decls|
+          contexts = decls.map { |d| d[:context] }.uniq
+          conflicts[name] = decls if contexts.size > 1
+        end
+
+        return if conflicts.empty?
+
+        # Collect template declarations for reference
+        template_decls = collect_gem_declarations(template_content)
+        template_by_name = template_decls.group_by { |d| d[:name] }
+
+        # Build error message
+        lines = ["Gemfile merge produced duplicate gem declarations in blocks with different signatures in #{path}:"]
+        conflicts.each do |name, decls|
+          lines << ""
+          lines << "  gem #{name.inspect} appears in #{decls.map { |d| d[:context] }.uniq.size} different block contexts:"
+          decls.each_with_index do |d, i|
+            lines << "    #{i + 1}. #{d[:slice]}"
+            lines << "       Block signature: #{d[:context]} (line #{d[:line]})"
+          end
+
+          if template_by_name[name]
+            lines << ""
+            lines << "  Template version (use as guide to resolve):"
+            template_by_name[name].each do |td|
+              lines << "    #{td[:slice]}"
+              lines << "       Block signature: #{td[:context]} (line #{td[:line]})"
+            end
+          end
+        end
+
+        lines << ""
+        lines << "  Resolution: reconcile the gem declarations in the destination file"
+        lines << "  so each gem appears in only one block context, then re-run."
+
+        raise Kettle::Jem::Error, lines.join("\n")
+      end
+
+      # Collect all gem declarations with their nesting context.
+      # Returns an array of hashes: { name:, context:, slice:, line: }
+      #
+      # @param content [String] Gemfile-like content
+      # @return [Array<Hash>] gem declarations with context info
+      def collect_gem_declarations(content)
+        result = PrismUtils.parse_with_comments(content)
+        return [] unless result.success?
+
+        declarations = []
+        walk_for_declarations(result.value.statements, [], declarations)
+        declarations
+      end
+
+      # Recursively walk AST collecting gem declarations with their context stack.
+      # if/else branches of the same conditional share the same context label because
+      # they are mutually exclusive — a gem appearing in both the `if` and `else`
+      # branches is NOT a cross-nesting conflict.
+      # @param body_node [Prism::Node, nil]
+      # @param context_stack [Array<String>] current nesting context
+      # @param declarations [Array<Hash>] output accumulator
+      # @return [void]
+      def walk_for_declarations(body_node, context_stack, declarations)
+        stmts = PrismUtils.extract_statements(body_node)
+
+        stmts.each do |node|
+          case node
+          when Prism::CallNode
+            if node.name == :gem
+              first_arg = node.arguments&.arguments&.first
+              gem_name = begin
+                PrismUtils.extract_literal_value(first_arg)
+              rescue StandardError
+                nil
+              end
+              if gem_name
+                context = context_stack.empty? ? "top-level" : context_stack.join(" > ")
+                declarations << {
+                  name: gem_name.to_s,
+                  context: context,
+                  slice: node.slice.strip,
+                  line: node.location.start_line,
+                }
+              end
+            end
+            # Recurse into block body (platform, group, etc.)
+            if node.block
+              block_label = describe_call_context(node)
+              walk_for_declarations(node.block.body, context_stack + [block_label], declarations)
+            end
+          when Prism::IfNode
+            # Use the same context label for both branches since they're mutually exclusive
+            cond_label = "if #{describe_condition(node)}"
+            branch_context = context_stack + [cond_label]
+            walk_for_declarations(node.statements, branch_context, declarations) if node.statements
+            # else/elsif branches share the same conditional context
+            walk_for_declarations(node.subsequent, branch_context, declarations) if node.respond_to?(:subsequent) && node.subsequent
+          when Prism::UnlessNode
+            cond_label = "unless #{describe_condition(node)}"
+            branch_context = context_stack + [cond_label]
+            walk_for_declarations(node.statements, branch_context, declarations) if node.statements
+            walk_for_declarations(node.subsequent, branch_context, declarations) if node.respond_to?(:subsequent) && node.subsequent
+          when Prism::ElseNode
+            # ElseNode inherits the context from its parent if/unless — do NOT push a new context
+            walk_for_declarations(node.statements, context_stack, declarations) if node.statements
+          end
+        end
+      end
+
+      # Describe a CallNode for context labels (e.g., "platform(:mri)", "group(:development)")
+      # @param node [Prism::CallNode]
+      # @return [String]
+      def describe_call_context(node)
+        args = node.arguments&.arguments
+        if args && args.any?
+          first = args.first
+          arg_str = case first
+          when Prism::SymbolNode then ":#{first.unescaped}"
+          when Prism::StringNode then first.unescaped.inspect
+          else first.slice
+          end
+          "#{node.name}(#{arg_str})"
+        else
+          node.name.to_s
+        end
+      rescue StandardError
+        node.name.to_s
+      end
+
+      # Describe a condition node for context labels
+      # @param node [Prism::IfNode, Prism::UnlessNode]
+      # @return [String]
+      def describe_condition(node)
+        pred = node.predicate
+        # Truncate long conditions
+        text = pred.slice.to_s.strip
+        text.length > 40 ? text[0..37] + "..." : text
+      rescue StandardError
+        "..."
       end
     end
   end

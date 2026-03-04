@@ -49,7 +49,27 @@ module Kettle
             raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}' for #{path}."
           end
 
-        ensure_trailing_newline(result)
+        result = ensure_trailing_newline(result)
+
+        # Validate gemfile merges don't produce duplicate gems in blocks
+        # with different signatures. When --force is set, fall back to
+        # raw template content instead of raising.
+        if detected_type == :gemfile
+          begin
+            PrismGemfile.validate_no_cross_nesting_duplicates(result, src_content, path: path)
+          rescue Kettle::Jem::Error => e
+            force_val = ENV.fetch("force", "false").to_s.strip
+            if force_val.casecmp("true").zero?
+              $stderr.puts("[kettle-jem] WARNING: #{e.message}")
+              $stderr.puts("[kettle-jem] Falling back to template content for #{path} (--force)")
+              result = ensure_trailing_newline(src_content)
+            else
+              raise
+            end
+          end
+        end
+
+        result
       end
 
       # Detect file type from path for preset selection.

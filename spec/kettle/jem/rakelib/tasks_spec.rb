@@ -30,7 +30,8 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
     it "copies .github workflow files preferring .example and writes without .example" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          github_dir = File.join(gem_root, ".github", "workflows")
+          template_root = File.join(gem_root, "template")
+          github_dir = File.join(template_root, ".github", "workflows")
           FileUtils.mkdir_p(github_dir)
           # Provide both real and .example, the task should use .example as source
           File.write(File.join(github_dir, "ci.yml"), "name: REAL\n")
@@ -40,7 +41,7 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
 
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: template_root,
             ensure_clean_git!: nil,
             ask: true,
           )
@@ -59,12 +60,14 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
     it "copies .env.local.example but does not create/overwrite .env.local" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          File.write(File.join(gem_root, ".env.local.example"), "SECRET=1\n")
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+          File.write(File.join(template_root, ".env.local.example"), "SECRET=1\n")
           write_gemspec(project_root)
 
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: template_root,
             ensure_clean_git!: nil,
             ask: true,
           )
@@ -83,17 +86,15 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
     it "copies .aiignore.example to .aiignore using prefer_example" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          File.write(File.join(gem_root, ".aiignore.example"), "# aiignore example\nfoo\n")
-
-          # Create template/ entry so the template walk discovers this file
-          FileUtils.mkdir_p(File.join(gem_root, "template"))
-          File.write(File.join(gem_root, "template", ".aiignore.example"), "")
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+          File.write(File.join(template_root, ".aiignore.example"), "# aiignore example\nfoo\n")
 
           write_gemspec(project_root)
 
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: template_root,
             ensure_clean_git!: nil,
             ask: true,
           )

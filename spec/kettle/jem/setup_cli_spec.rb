@@ -95,8 +95,13 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "calls ModularGemfiles.sync! and rescues metadata errors (min_ruby=nil)" do
       cli = described_class.allocate
       helpers = class_double(Kettle::Jem::TemplateHelpers)
-      allow(helpers).to receive_messages(project_root: "/tmp/project", gem_checkout_root: "/tmp/checkout")
+      allow(helpers).to receive_messages(
+        project_root: "/tmp/project",
+        template_root: "/tmp/checkout/template",
+        opencollective_disabled?: false,
+      )
       allow(helpers).to receive(:gemspec_metadata).and_raise(StandardError)
+      allow(helpers).to receive(:configure_tokens!).and_raise(StandardError)
       stub_const("Kettle::Jem::TemplateHelpers", helpers)
 
       called = false
@@ -104,8 +109,9 @@ RSpec.describe Kettle::Jem::SetupCLI do
         called = true
         expect(args[:helpers]).to eq(helpers)
         expect(args[:project_root]).to eq("/tmp/project")
-        expect(args[:gem_checkout_root]).to eq("/tmp/checkout")
         expect(args[:min_ruby]).to be_nil
+        expect(args[:gem_name]).to be_nil
+        expect(args).not_to have_key(:token_replacer)
       end
 
       cli.send(:ensure_modular_gemfiles!)
@@ -305,6 +311,40 @@ RSpec.describe Kettle::Jem::SetupCLI do
     stub_const("ENV", {})
     _cli = described_class.new(["--force"]) # parse! runs in initialize
     expect(ENV["force"]).to eq("true")
+  end
+
+  it "--failure-mode sets ENV['FAILURE_MODE'] and passes through to rake" do
+    stub_const("ENV", {})
+    cli = described_class.new(["--failure-mode=rescue"])
+    expect(ENV["FAILURE_MODE"]).to eq("rescue")
+    expect(cli.instance_variable_get(:@passthrough)).to include("FAILURE_MODE=rescue")
+  end
+
+  describe "#prechecks!" do
+    around do |ex|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { ex.run }
+      end
+    end
+
+    it "aborts when git tree is dirty, even with force" do
+      %x(git init -q)
+      %x(git add -A && git commit --allow-empty -m initial -q)
+      File.write("dirty.txt", "uncommitted\n")
+
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+      stub_env("force" => "true")
+
+      # Stub GitAdapter to report dirty tree
+      allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(instance_double(Kettle::Dev::GitAdapter, clean?: false))
+
+      expect {
+        cli.send(:prechecks!)
+      }.to raise_error(MockSystemExit, /not clean/)
+    end
   end
 
   describe "#debug" do
@@ -512,16 +552,47 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect { cli.send(:ensure_bin_setup!) }.to output(/bin\/setup present\./).to_stdout
     end
 
-    it "writes Rakefile from example and announces replacement or creation", :check_output do
+    it "writes Rakefile from example and announces merge or creation", :check_output do
       cli = described_class.allocate
       # create a temp source Rakefile.example to simulate installed gem asset
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
-      File.write(src, "# demo Rakefile contents\n")
+      File.write(src, "# frozen_string_literal: true\nrequire \"bundler/gem_tasks\"\n")
       allow(cli).to receive(:installed_path).and_return(src)
       expect { cli.send(:ensure_rakefile!) }.to output(/Creating Rakefile/).to_stdout
-      File.write("Rakefile", "old")
-      expect { cli.send(:ensure_rakefile!) }.to output(/Replacing existing Rakefile/).to_stdout
-      expect(File.read("Rakefile")).to eq(File.read(src))
+      File.write("Rakefile", "# frozen_string_literal: true\ntask :custom do\n  puts \"custom\"\nend\n")
+      expect { cli.send(:ensure_rakefile!) }.to output(/Merged Rakefile/).to_stdout
+      merged = File.read("Rakefile")
+      expect(merged).to include("custom")
+      expect(merged).to include("bundler/gem_tasks")
+    end
+
+    it "raises Kettle::Dev::Error when Rakefile merge fails in error mode (default)" do
+      cli = described_class.allocate
+      src = File.expand_path("src_Rakefile.example", Dir.pwd)
+      File.write(src, "# frozen_string_literal: true\nrequire \"bundler/gem_tasks\"\n")
+      allow(cli).to receive(:installed_path).and_return(src)
+      File.write("Rakefile", "existing content\n")
+      stub_env("FAILURE_MODE" => "error")
+      allow(Kettle::Jem::SourceMerger).to receive(:apply).and_raise(RuntimeError, "merge boom")
+
+      expect {
+        cli.send(:ensure_rakefile!)
+      }.to raise_error(Kettle::Dev::Error, /Merge failed for Rakefile.*merge boom/)
+    end
+
+    it "falls back to template content when Rakefile merge fails in rescue mode", :check_output do
+      cli = described_class.allocate
+      src = File.expand_path("src_Rakefile.example", Dir.pwd)
+      File.write(src, "# template content\n")
+      allow(cli).to receive(:installed_path).and_return(src)
+      File.write("Rakefile", "existing content\n")
+      stub_env("FAILURE_MODE" => "rescue")
+      allow(Kettle::Jem::SourceMerger).to receive(:apply).and_raise(RuntimeError, "merge boom")
+
+      expect {
+        cli.send(:ensure_rakefile!)
+      }.to output(/merge failed, using template/).to_stdout
+      expect(File.read("Rakefile")).to eq("# template content\n")
     end
   end
 

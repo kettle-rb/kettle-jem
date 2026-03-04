@@ -406,13 +406,13 @@ module Kettle
             puts
             puts "Summary of templating changes:"
             if meaningful.empty?
-              puts "  (no files were created or replaced by kettle:jem:template)"
+              puts "  (no files were created or merged by kettle:jem:template)"
             else
               action_labels = {
                 create: "Created",
-                replace: "Replaced",
+                replace: "Merged",
                 dir_create: "Directory created",
-                dir_replace: "Directory replaced",
+                dir_replace: "Directory merged",
               }
               [:create, :replace, :dir_create, :dir_replace].each do |sym|
                 items = meaningful.select { |_, rec| rec[:action] == sym }.map { |path, _| path }

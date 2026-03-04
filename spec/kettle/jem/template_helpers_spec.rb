@@ -200,4 +200,69 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       }.not_to raise_error
     end
   end
+
+  describe ".copy_file_with_prompt prompt wording", :check_output do
+    before do
+      stub_env("force" => "true")
+    end
+
+    it "says 'Merge into' when destination exists and a block is given" do
+      Dir.mktmpdir do |dir|
+        src = File.join(dir, "src.txt")
+        dest = File.join(dir, "dest.txt")
+        File.write(src, "template content\n")
+        File.write(dest, "existing content\n")
+
+        allow(described_class).to receive(:project_root).and_return(dir)
+
+        expect {
+          described_class.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) { |c| c }
+        }.to output(/Merge into #{Regexp.escape(dest)}/).to_stdout
+      end
+    end
+
+    it "says 'Replace' when destination exists and no block is given" do
+      Dir.mktmpdir do |dir|
+        src = File.join(dir, "src.txt")
+        dest = File.join(dir, "dest.txt")
+        File.write(src, "template content\n")
+        File.write(dest, "existing content\n")
+
+        allow(described_class).to receive(:project_root).and_return(dir)
+
+        expect {
+          described_class.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
+        }.to output(/Replace #{Regexp.escape(dest)}/).to_stdout
+      end
+    end
+
+    it "says 'Merged' in confirmation when block given and destination exists" do
+      Dir.mktmpdir do |dir|
+        src = File.join(dir, "src.txt")
+        dest = File.join(dir, "dest.txt")
+        File.write(src, "template content\n")
+        File.write(dest, "existing content\n")
+
+        allow(described_class).to receive(:project_root).and_return(dir)
+
+        expect {
+          described_class.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) { |c| c }
+        }.to output(/Merged #{Regexp.escape(dest)}/).to_stdout
+      end
+    end
+
+    it "says 'Wrote' in confirmation when creating a new file" do
+      Dir.mktmpdir do |dir|
+        src = File.join(dir, "src.txt")
+        dest = File.join(dir, "dest.txt")
+        File.write(src, "template content\n")
+
+        allow(described_class).to receive(:project_root).and_return(dir)
+
+        expect {
+          described_class.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) { |c| c }
+        }.to output(/Wrote #{Regexp.escape(dest)}/).to_stdout
+      end
+    end
+  end
 end

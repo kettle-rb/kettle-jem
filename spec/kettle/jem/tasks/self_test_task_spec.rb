@@ -164,12 +164,13 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       # Set up a minimal gem tree for the run
       FileUtils.mkdir_p(File.join(gem_root, "lib"))
       FileUtils.mkdir_p(File.join(gem_root, "spec"))
+      FileUtils.mkdir_p(File.join(gem_root, "template"))
       File.write(File.join(gem_root, "Gemfile"), "source 'https://rubygems.org'\n")
       File.write(File.join(gem_root, "lib/foo.rb"), "# foo\n")
       File.write(File.join(gem_root, "spec/foo_spec.rb"), "# spec\n")
 
-      # Stub helpers, manifest, and template task
-      allow(helpers).to receive(:gem_checkout_root).and_return(gem_root)
+      # Stub helpers — template_root is gem_root/template; gem_root is derived from it
+      allow(helpers).to receive(:template_root).and_return(File.join(gem_root, "template"))
       allow(described_class).to receive(:copy_gem_tree)
       allow(described_class).to receive(:run_template)
     end

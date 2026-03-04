@@ -21,6 +21,9 @@ module Kettle
       # @see #output_path
       @@output_dir = nil
 
+      # Warnings collected during template processing, for end-of-run summary.
+      @@template_warnings = []
+
       EXECUTABLE_GIT_HOOKS_RE = %r{[\\/]\.git-hooks[\\/](commit-msg|prepare-commit-msg)\z}
       # The minimum Ruby supported by setup-ruby GHA
       MIN_SETUP_RUBY = Gem::Version.create("2.3")
@@ -70,9 +73,31 @@ module Kettle
       RUBY_BASENAMES = %w[Gemfile Rakefile Appraisals Appraisal.root.gemfile .simplecov].freeze
       RUBY_SUFFIXES = %w[.gemspec .gemfile].freeze
       RUBY_EXTENSIONS = %w[.rb .rake].freeze
+
+      # RuboCop LTS version map: min_ruby -> constraint.
+      # Used to resolve {KJ|RUBOCOP_LTS_CONSTRAINT} and {KJ|RUBOCOP_RUBY_GEM} tokens.
+      RUBOCOP_VERSION_MAP = [
+        [Gem::Version.new("1.8"), "~> 0.1"],
+        [Gem::Version.new("1.9"), "~> 2.0"],
+        [Gem::Version.new("2.0"), "~> 4.0"],
+        [Gem::Version.new("2.1"), "~> 6.0"],
+        [Gem::Version.new("2.2"), "~> 8.0"],
+        [Gem::Version.new("2.3"), "~> 10.0"],
+        [Gem::Version.new("2.4"), "~> 12.0"],
+        [Gem::Version.new("2.5"), "~> 14.0"],
+        [Gem::Version.new("2.6"), "~> 16.0"],
+        [Gem::Version.new("2.7"), "~> 18.0"],
+        [Gem::Version.new("3.0"), "~> 20.0"],
+        [Gem::Version.new("3.1"), "~> 22.0"],
+        [Gem::Version.new("3.2"), "~> 24.0"],
+        [Gem::Version.new("3.3"), "~> 26.0"],
+        [Gem::Version.new("3.4"), "~> 28.0"],
+      ].freeze
       @@manifestation = nil
       @@kettle_config = nil
       @@project_root_override = nil
+      # Cached token replacement map, built by configure_tokens!
+      @@token_replacements = nil
 
       module_function
 
@@ -113,20 +138,171 @@ module Kettle
         File.join(@@output_dir, rel)
       end
 
-      # Root of this gem's checkout (repository root when working from source)
-      # Calculated relative to lib/kettle/jem/
-      # @return [String]
-      def gem_checkout_root
-        File.expand_path("../../..", __dir__)
-      end
-
       # Root of the template/ directory containing tokenized .example files.
-      # Uses explicit module-level call to gem_checkout_root so that RSpec stubs
-      # on gem_checkout_root are visible (module_function creates private instance
-      # method copies that bypass singleton-method stubs).
       # @return [String]
       def template_root
-        File.join(Kettle::Jem::TemplateHelpers.gem_checkout_root, "template")
+        File.join(File.expand_path("../../..", __dir__), "template")
+      end
+
+      # Configure token replacements for the current templating session.
+      # Must be called once before any read_template calls (typically at the
+      # start of TemplateTask.run or SetupCLI).
+      #
+      # All {KJ|...} tokens are resolved here — there are no "special" tokens
+      # that belong to a specific flow.
+      #
+      # @param org [String]
+      # @param gem_name [String]
+      # @param namespace [String]
+      # @param namespace_shield [String]
+      # @param gem_shield [String]
+      # @param funding_org [String, nil]
+      # @param min_ruby [Gem::Version, String, nil]
+      # @return [void]
+      def configure_tokens!(org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org: nil, min_ruby: nil)
+        raise Error, "Org could not be derived" unless org && !org.empty?
+        raise Error, "Gem name could not be derived" unless gem_name && !gem_name.empty?
+
+        funding_org ||= org
+
+        # Derive min_ruby from gemspec if not provided
+        mr = begin
+          meta = gemspec_metadata
+          meta[:min_ruby]
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          nil
+        end
+        if min_ruby.nil? || min_ruby.to_s.strip.empty?
+          min_ruby = mr.respond_to?(:to_s) ? mr.to_s : mr
+        end
+
+        # Derive min_dev_ruby: the greater of min_ruby and 2.3 (minimum for setup-ruby GHA)
+        effective_min = begin
+          v = min_ruby.is_a?(Gem::Version) ? min_ruby : Gem::Version.new(min_ruby.to_s)
+          [v, MIN_SETUP_RUBY].max
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          MIN_SETUP_RUBY
+        end
+        min_dev_ruby = effective_min
+
+        dashed = gem_name.tr("_", "-")
+        ft = (kettle_config.dig("defaults", "freeze_token") || "kettle-jem").to_s
+        author_domain = ENV["KJ_AUTHOR_DOMAIN"]
+        author_domain = nil if author_domain.to_s.strip.empty?
+
+        replacements = {
+          "KJ|GEM_NAME" => gem_name,
+          "KJ|GEM_NAME_PATH" => gem_name.tr("-", "/"),
+          "KJ|GEM_SHIELD" => gem_shield,
+          "KJ|GH_ORG" => org.to_s,
+          "KJ|NAMESPACE" => namespace,
+          "KJ|NAMESPACE_SHIELD" => namespace_shield,
+          "KJ|OPENCOLLECTIVE_ORG" => funding_org || "opencollective",
+          "KJ|FREEZE_TOKEN" => ft,
+          "KJ|KETTLE_DEV_GEM" => "kettle-dev",
+          "KJ|YARD_HOST" => "#{dashed}.#{author_domain || "example.com"}",
+        }
+        replacements["KJ|MIN_RUBY"] = min_ruby.to_s if min_ruby && !min_ruby.to_s.empty?
+        replacements["KJ|MIN_DEV_RUBY"] = min_dev_ruby.to_s if min_dev_ruby && !min_dev_ruby.to_s.empty?
+
+        # RuboCop LTS tokens — derived from min_ruby, used in style.gemfile and potentially others
+        min_ruby_version = begin
+          Gem::Version.new(min_ruby.to_s)
+        rescue StandardError
+          nil
+        end
+        rc_constraint, rc_gem = rubocop_tokens_for(min_ruby_version)
+        replacements["KJ|RUBOCOP_LTS_CONSTRAINT"] = rc_constraint
+        replacements["KJ|RUBOCOP_RUBY_GEM"] = rc_gem
+
+        # Forge user tokens: {KJ|GH:USER}, {KJ|GL:USER}, {KJ|CB:USER}, {KJ|SH:USER}
+        FORGE_USER_ENV_KEYS.each do |forge, env_key|
+          value = ENV[env_key]
+          replacements["KJ|#{forge}:USER"] = value if value && !value.strip.empty?
+        end
+
+        # Author identity tokens
+        AUTHOR_ENV_KEYS.each do |field, env_key|
+          value = ENV[env_key]
+          replacements["KJ|AUTHOR:#{field}"] = value if value && !value.strip.empty?
+        end
+
+        # Funding platform tokens
+        FUNDING_ENV_KEYS.each do |platform, env_key|
+          value = ENV[env_key]
+          replacements["KJ|FUNDING:#{platform}"] = value if value && !value.strip.empty?
+        end
+
+        # Social/community platform tokens
+        SOCIAL_ENV_KEYS.each do |platform, env_key|
+          value = ENV[env_key]
+          replacements["KJ|SOCIAL:#{platform}"] = value if value && !value.strip.empty?
+        end
+
+        @@token_replacements = replacements
+      end
+
+      # Clear configured tokens (for test isolation).
+      # @return [void]
+      def clear_tokens!
+        @@token_replacements = nil
+      end
+
+      # Whether tokens have been configured for this session.
+      # @return [Boolean]
+      def tokens_configured?
+        !@@token_replacements.nil?
+      end
+
+      # Read a template file and resolve all {KJ|...} tokens.
+      # This is the ONLY correct way to read template content. Token resolution
+      # is inseparable from reading — there are no raw template reads.
+      #
+      # @param src_path [String] path to the template file
+      # @return [String] content with all known tokens resolved
+      # @raise [Kettle::Jem::Error] if tokens have not been configured
+      def read_template(src_path)
+        content = File.read(src_path)
+        resolve_tokens(content)
+      end
+
+      # Resolve all {KJ|...} tokens in content using the configured replacements.
+      # Unresolved tokens are kept as-is so they can be diagnosed.
+      #
+      # @param content [String]
+      # @return [String] content with known tokens resolved
+      def resolve_tokens(content)
+        return content unless @@token_replacements
+
+        doc = Token::Resolver::Document.new(content, config: TOKEN_CONFIG)
+        resolver = Token::Resolver::Resolve.new(on_missing: :keep)
+        resolver.resolve(doc, @@token_replacements)
+      end
+
+      # Compute RuboCop LTS constraint and gem name from min_ruby.
+      # @param min_ruby [Gem::Version, nil]
+      # @return [Array(String, String)] [constraint, gem_name]
+      def rubocop_tokens_for(min_ruby)
+        fallback = RUBOCOP_VERSION_MAP.first
+        constraint = nil
+        gem_version = nil
+
+        if min_ruby
+          RUBOCOP_VERSION_MAP.reverse_each do |min, req|
+            if min_ruby >= min
+              constraint = req
+              gem_version = min.segments.join("_")
+              break
+            end
+          end
+        end
+
+        constraint ||= fallback[1]
+        gem_version ||= fallback[0].segments.join("_")
+
+        [constraint, "rubocop-ruby#{gem_version}"]
       end
 
       # Simple yes/no prompt.
@@ -310,7 +486,7 @@ module Kettle
         raise Kettle::Dev::Error, "Aborting: git working tree is not clean."
       end
 
-      # Copy a single file with interactive prompts for create/replace.
+      # Copy a single file with interactive prompts for create/merge.
       # Yields content for transformation when block given.
       # @return [void]
       def copy_file_with_prompt(src_path, dest_path, allow_create: true, allow_replace: true)
@@ -350,12 +526,14 @@ module Kettle
         end
 
         dest_exists = File.exist?(dest_path)
+        merge_op = dest_exists && block_given?
         action = nil
         if dest_exists
           if allow_replace
-            action = ask("Replace #{dest_path}?", true) ? :replace : :skip
+            verb = merge_op ? "Merge into" : "Replace"
+            action = ask("#{verb} #{dest_path}?", true) ? :replace : :skip
           else
-            puts "Skipping #{dest_path} (replace not allowed)."
+            puts "Skipping #{dest_path} (overwrite not allowed)."
             action = :skip
           end
         elsif allow_create
@@ -369,7 +547,7 @@ module Kettle
           return
         end
 
-        content = File.read(src_path)
+        content = read_template(src_path)
         content = yield(content) if block_given?
 
         basename = File.basename(dest_path.to_s)
@@ -408,7 +586,8 @@ module Kettle
           # ignore permission issues
         end
         record_template_result(dest_path, dest_exists ? :replace : :create)
-        puts "Wrote #{dest_path}"
+        wrote_verb = merge_op ? "Merged" : "Wrote"
+        puts "#{wrote_verb} #{dest_path}"
       end
 
       # Merge gem dependency lines from a source Gemfile-like content into an existing
@@ -433,7 +612,15 @@ module Kettle
         else
           ""
         end
-        Kettle::Jem::PrismAppraisals.merge(content, existing)
+        merged = Kettle::Jem::PrismAppraisals.merge(content, existing)
+        min_ruby = begin
+          gemspec_metadata[:min_ruby]
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          nil
+        end
+        pruned, _removed = Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(merged, min_ruby: min_ruby)
+        pruned
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         content
@@ -529,7 +716,7 @@ module Kettle
 
         dest_exists = Dir.exist?(dest_dir)
         if dest_exists
-          if ask("Replace directory #{dest_dir} (will overwrite files)?", true)
+          if ask("Merge into directory #{dest_dir}?", true)
             Find.find(src_dir) do |path|
               rel = path.sub(/^#{Regexp.escape(src_dir)}\/?/, "")
               next if rel.empty?
@@ -632,11 +819,12 @@ module Kettle
 
       # Apply common token replacements used when templating text files.
       #
-      # Uses Token::Resolver to resolve all {KJ|...} tokens in the content.
-      # Unresolved tokens are kept as-is (on_missing: :keep) so that tokens
-      # resolved at a different stage (e.g. {KJ|RUBOCOP_RUBY_GEM} in
-      # ModularGemfiles) are not prematurely removed.
+      # Calls configure_tokens! with the provided parameters, then delegates
+      # to resolve_tokens. This ensures the token map is always fresh with
+      # respect to the provided parameters and current ENV state.
       #
+      # @deprecated Prefer calling configure_tokens! once at startup, then
+      #   use read_template or resolve_tokens directly.
       # @param content [String]
       # @param org [String, nil]
       # @param gem_name [String]
@@ -647,80 +835,16 @@ module Kettle
       # @param min_ruby [String, nil]
       # @return [String]
       def apply_common_replacements(content, org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org: nil, min_ruby: nil)
-        raise Error, "Org could not be derived" unless org && !org.empty?
-        raise Error, "Gem name could not be derived" unless gem_name && !gem_name.empty?
-
-        funding_org ||= org
-
-        # Derive min_ruby from gemspec if not provided
-        mr = begin
-          meta = gemspec_metadata
-          meta[:min_ruby]
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          nil
-        end
-        if min_ruby.nil? || min_ruby.to_s.strip.empty?
-          min_ruby = mr.respond_to?(:to_s) ? mr.to_s : mr
-        end
-
-        # Derive min_dev_ruby: the greater of min_ruby and 2.3 (minimum for setup-ruby GHA)
-        min_dev_ruby = begin
-          [mr, MIN_SETUP_RUBY].max
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          MIN_SETUP_RUBY
-        end
-
-        dashed = gem_name.tr("_", "-")
-        ft = (kettle_config.dig("defaults", "freeze_token") || "kettle-jem").to_s
-        author_domain = ENV["KJ_AUTHOR_DOMAIN"]
-        author_domain = nil if author_domain.to_s.strip.empty?
-
-        # Build the token replacement map
-        replacements = {
-          "KJ|GEM_NAME" => gem_name,
-          "KJ|GEM_NAME_PATH" => gem_name.tr("-", "/"),
-          "KJ|GEM_SHIELD" => gem_shield,
-          "KJ|GH_ORG" => org.to_s,
-          "KJ|NAMESPACE" => namespace,
-          "KJ|NAMESPACE_SHIELD" => namespace_shield,
-          "KJ|OPENCOLLECTIVE_ORG" => funding_org || "opencollective",
-          "KJ|FREEZE_TOKEN" => ft,
-          "KJ|KETTLE_DEV_GEM" => "kettle-dev",
-          "KJ|YARD_HOST" => "#{dashed}.#{author_domain || "example.com"}",
-        }
-        replacements["KJ|MIN_RUBY"] = min_ruby.to_s if min_ruby && !min_ruby.to_s.empty?
-        replacements["KJ|MIN_DEV_RUBY"] = min_dev_ruby.to_s if min_dev_ruby && !min_dev_ruby.to_s.empty?
-
-        # Forge user tokens: {KJ|GH:USER}, {KJ|GL:USER}, {KJ|CB:USER}, {KJ|SH:USER}
-        FORGE_USER_ENV_KEYS.each do |forge, env_key|
-          value = ENV[env_key]
-          replacements["KJ|#{forge}:USER"] = value if value && !value.strip.empty?
-        end
-
-        # Author identity tokens: {KJ|AUTHOR:NAME}, {KJ|AUTHOR:EMAIL}, etc.
-        AUTHOR_ENV_KEYS.each do |field, env_key|
-          value = ENV[env_key]
-          replacements["KJ|AUTHOR:#{field}"] = value if value && !value.strip.empty?
-        end
-
-        # Funding platform tokens: {KJ|FUNDING:PATREON}, {KJ|FUNDING:KOFI}, {KJ|FUNDING:PAYPAL}
-        FUNDING_ENV_KEYS.each do |platform, env_key|
-          value = ENV[env_key]
-          replacements["KJ|FUNDING:#{platform}"] = value if value && !value.strip.empty?
-        end
-
-        # Social/community platform tokens: {KJ|SOCIAL:MASTODON}, {KJ|SOCIAL:BLUESKY}, etc.
-        SOCIAL_ENV_KEYS.each do |platform, env_key|
-          value = ENV[env_key]
-          replacements["KJ|SOCIAL:#{platform}"] = value if value && !value.strip.empty?
-        end
-
-        # Resolve all {KJ|...} and {KJ|XX:YY} tokens; unresolved ones kept for later-stage resolution
-        doc = Token::Resolver::Document.new(content, config: TOKEN_CONFIG)
-        resolver = Token::Resolver::Resolve.new(on_missing: :keep)
-        resolver.resolve(doc, replacements)
+        configure_tokens!(
+          org: org,
+          gem_name: gem_name,
+          namespace: namespace,
+          namespace_shield: namespace_shield,
+          gem_shield: gem_shield,
+          funding_org: funding_org,
+          min_ruby: min_ruby,
+        )
+        resolve_tokens(content)
       end
 
       # Parse gemspec metadata and derive useful strings
@@ -833,6 +957,36 @@ module Kettle
         patterns.map { |entry| build_config_entry(entry["path"], entry) }
       rescue Errno::ENOENT
         []
+      end
+
+      # Add a warning message to the collection.
+      # @param message [String, #to_s] the warning message
+      # @return [void]
+      def add_warning(message)
+        @@template_warnings << message.to_s if message && !message.to_s.strip.empty?
+      end
+
+      # Retrieve a duplicate-free array of all collected warning messages.
+      # @return [Array<String>]
+      def warnings
+        @@template_warnings.dup
+      end
+
+      # Clear the collection of warning messages.
+      # @return [void]
+      def clear_warnings
+        @@template_warnings = []
+      end
+
+      # Print a summary of collected warnings to the console.
+      # @return [void]
+      def print_warnings_summary
+        msgs = @@template_warnings.uniq
+        return if msgs.empty?
+
+        puts
+        puts "Important warnings:"
+        msgs.each { |m| puts "  - #{m}" }
       end
     end
   end

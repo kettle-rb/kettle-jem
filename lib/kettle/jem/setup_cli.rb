@@ -29,15 +29,25 @@ module Kettle
       # @return [void]
       def run!
         say("Starting kettle-jem setup…")
+        debug_bundler_env({}, "kettle-jem startup")
         prechecks!
+        debug_git_status("prechecks!")
         ensure_dev_deps!
+        debug_git_status("ensure_dev_deps!")
         ensure_gemfile_from_example!
+        debug_git_status("ensure_gemfile_from_example!")
         ensure_modular_gemfiles!
+        debug_git_status("ensure_modular_gemfiles!")
         ensure_bin_setup!
+        debug_git_status("ensure_bin_setup!")
         ensure_rakefile!
+        debug_git_status("ensure_rakefile!")
         run_bin_setup!
+        debug_git_status("run_bin_setup!")
         run_bundle_binstubs!
+        debug_git_status("run_bundle_binstubs!")
         run_kettle_install!
+        debug_git_status("run_kettle_install!")
         commit_bootstrap_changes!
         say("kettle-jem setup complete.")
       end
@@ -115,6 +125,10 @@ module Kettle
           opts.on("--hook_templates=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "hook_templates=#{v}" }
           opts.on("--only=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "only=#{v}" }
           opts.on("--include=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "include=#{v}" }
+          opts.on("--failure-mode=VAL", "Merge failure handling: error (default) or rescue") do |v|
+            ENV["FAILURE_MODE"] = v
+            @passthrough << "FAILURE_MODE=#{v}"
+          end
           opts.on("-h", "--help", "Show help") do
             puts opts
             Kettle::Dev::ExitAdapter.exit(0)
@@ -138,19 +152,65 @@ module Kettle
         Kettle::Dev::ExitAdapter.abort("[kettle-jem] ERROR: #{msg}")
       end
 
+      # Environment variables that affect bundler resolution / Gemfile evaluation.
+      # Logged before subprocess execution when DEBUG=true.
+      BUNDLER_ENV_KEYS = %w[
+        KETTLE_RB_DEV
+        BUNDLE_GEMFILE
+        BUNDLE_PATH
+        BUNDLE_WITHOUT
+        BUNDLE_WITH
+        BUNDLE_FROZEN
+        GEM_HOME
+        GEM_PATH
+        RUBYOPT
+        RUBYLIB
+      ].freeze
+
       def sh!(cmd, env: {})
         say("exec: #{cmd}")
+        debug_bundler_env(env, cmd)
         stdout_str, stderr_str, status = Open3.capture3(env, cmd)
         $stdout.print(stdout_str) unless stdout_str.empty?
         $stderr.print(stderr_str) unless stderr_str.empty?
         abort!("Command failed: #{cmd}") unless status.success?
       end
 
+      # Log environment variables relevant to bundler when DEBUG=true.
+      # Shows both the explicit env hash passed to the subprocess and
+      # the inherited process ENV values, so we can trace what the
+      # subprocess will actually see.
+      def debug_bundler_env(explicit_env, cmd)
+        debug("subprocess env for: #{cmd}")
+        unless explicit_env.empty?
+          debug("  explicit env overrides: #{explicit_env.inspect}")
+        end
+        BUNDLER_ENV_KEYS.each do |key|
+          val = explicit_env.key?(key) ? explicit_env[key] : ENV[key]
+          source = explicit_env.key?(key) ? "(explicit)" : "(inherited)"
+          debug("  #{key}=#{val.inspect} #{source}")
+        end
+        debug("  PWD=#{Dir.pwd.inspect}")
+      end
+
+      # Log git status after a step completes. When DEBUG=true, shows
+      # the porcelain output so we can identify exactly which step
+      # first dirties the working tree.
+      def debug_git_status(step_label)
+        porcelain, _err, _st = Open3.capture3("git status --porcelain")
+        if porcelain.strip.empty?
+          debug("git status after #{step_label}: clean")
+        else
+          debug("git status after #{step_label}: DIRTY")
+          porcelain.each_line { |l| debug("  #{l.rstrip}") }
+        end
+      end
+
       # 1. Prechecks
       def prechecks!
         abort!("Not inside a git repository (missing .git).") unless Dir.exist?(".git")
 
-        # Ensure clean working tree
+        # Ensure clean working tree — ALWAYS required, --force does NOT bypass this
         begin
           if defined?(Kettle::Dev::GitAdapter)
             dirty = !Kettle::Dev::GitAdapter.new.clean?
@@ -158,10 +218,20 @@ module Kettle
             stdout, _stderr, _status = Open3.capture3("git status --porcelain")
             dirty = !stdout.strip.empty?
           end
-          abort!("Git working tree is not clean. Please commit/stash changes and try again.") if dirty
+          if dirty
+            # Always show what's dirty (to stderr), even without DEBUG, so users can diagnose
+            porcelain, _err, _st = Open3.capture3("git status --porcelain")
+            $stderr.puts("[kettle-jem] Dirty files detected by prechecks!:")
+            porcelain.each_line { |l| $stderr.puts("  #{l.rstrip}") }
+            abort!("Git working tree is not clean. Please commit/stash changes and try again.")
+          end
         rescue StandardError
           stdout, _stderr, _status = Open3.capture3("git status --porcelain")
-          abort!("Git working tree is not clean. Please commit/stash changes and try again.") unless stdout.strip.empty?
+          unless stdout.strip.empty?
+            $stderr.puts("[kettle-jem] Dirty files detected by prechecks! (fallback):")
+            stdout.each_line { |l| $stderr.puts("  #{l.rstrip}") }
+            abort!("Git working tree is not clean. Please commit/stash changes and try again.")
+          end
         end
 
         # gemspec
@@ -327,30 +397,68 @@ module Kettle
       def ensure_modular_gemfiles!
         helpers = Kettle::Jem::TemplateHelpers
         project_root = helpers.project_root
-        gem_checkout_root = helpers.gem_checkout_root
-        # Gather min_ruby for style.gemfile adjustments
-        min_ruby = begin
-          md = helpers.gemspec_metadata(project_root)
-          md[:min_ruby]
+        # Gather metadata for token replacement and style.gemfile adjustments
+        meta = begin
+          helpers.gemspec_metadata(project_root)
         rescue StandardError
-          nil
+          {}
         end
+        min_ruby = meta[:min_ruby]
+        gem_name = meta[:gem_name]
+        forge_org = meta[:forge_org] || meta[:gh_org]
+        funding_org = helpers.opencollective_disabled? ? nil : (meta[:funding_org] || forge_org)
+        namespace = meta[:namespace]
+        namespace_shield = meta[:namespace_shield]
+        gem_shield = meta[:gem_shield]
+
+        # Configure tokens once so read_template resolves them automatically
+        begin
+          helpers.configure_tokens!(
+            org: forge_org,
+            gem_name: gem_name,
+            namespace: namespace,
+            namespace_shield: namespace_shield,
+            gem_shield: gem_shield,
+            funding_org: funding_org,
+            min_ruby: min_ruby,
+          )
+        rescue StandardError => e
+          debug("Token configuration failed: #{e.class}: #{e.message}")
+        end
+
         Kettle::Jem::ModularGemfiles.sync!(
           helpers: helpers,
           project_root: project_root,
-          gem_checkout_root: gem_checkout_root,
           min_ruby: min_ruby,
+          gem_name: gem_name,
         )
       end
 
-      # 5. Ensure Rakefile matches example (replace or create)
+      # 5. Ensure Rakefile is present and merged with example
       def ensure_rakefile!
         source = installed_path("Rakefile.example")
         abort!("Internal error: Rakefile.example not found within installed gem.") unless source && File.exist?(source)
 
         content = File.read(source)
         if File.exist?("Rakefile")
-          say("Replacing existing Rakefile with kettle-jem Rakefile.example.")
+          begin
+            existing = File.read("Rakefile")
+            merged = Kettle::Jem::SourceMerger.apply(
+              strategy: :merge,
+              src: content,
+              dest: existing,
+              path: "Rakefile",
+            )
+            content = merged if merged.is_a?(String) && !merged.empty?
+            say("Merged Rakefile with kettle-jem Rakefile.example.")
+          rescue StandardError => e
+            if Kettle::Jem::Tasks::TemplateTask.failure_mode == :rescue
+              Kettle::Dev.debug_error(e, __method__)
+              say("Merging Rakefile with kettle-jem Rakefile.example (merge failed, using template).")
+            else
+              raise Kettle::Dev::Error, "Merge failed for Rakefile: #{e.class}: #{e.message}"
+            end
+          end
         else
           say("Creating Rakefile from kettle-jem Rakefile.example.")
         end

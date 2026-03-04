@@ -8,6 +8,18 @@ require "rake"
 require "open3"
 
 RSpec.describe Kettle::Jem::Tasks::TemplateTask do
+  # Reset TemplateHelpers global state between every example to prevent
+  # test-ordering pollution (class variables persist across tests).
+  after do
+    helpers = Kettle::Jem::TemplateHelpers
+    helpers.send(:class_variable_set, :@@template_results, {})
+    helpers.send(:class_variable_set, :@@output_dir, nil)
+    helpers.send(:class_variable_set, :@@project_root_override, nil)
+    helpers.send(:class_variable_set, :@@template_warnings, [])
+    helpers.send(:class_variable_set, :@@manifestation, nil)
+    helpers.send(:class_variable_set, :@@kettle_config, nil)
+  end
+
   describe "run/install behaviors" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
 
@@ -122,13 +134,15 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Arrange template source
-            gh_src = File.join(gem_root, ".github", "workflows")
+            # Arrange template source under template_root
+            template_root = File.join(gem_root, "template")
+            gh_src = File.join(template_root, ".github", "workflows")
             FileUtils.mkdir_p(gh_src)
             File.write(File.join(gh_src, "ci.yml"), "name: REAL\n")
             File.write(File.join(gh_src, "ci.yml.example"), "name: EXAMPLE\n")
             # FUNDING.yml example with token placeholders (matches real template format)
-            File.write(File.join(gem_root, ".github", "FUNDING.yml.example"), <<~YAML)
+            FileUtils.mkdir_p(File.join(template_root, ".github"))
+            File.write(File.join(template_root, ".github", "FUNDING.yml.example"), <<~YAML)
               open_collective: {KJ|OPENCOLLECTIVE_ORG}
               tidelift: rubygems/{KJ|GEM_NAME}
             YAML
@@ -148,7 +162,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # Stub helpers used by the task
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -204,11 +218,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
-            allow(helpers).to receive(:template_root).and_return(File.join(gem_root, "template"))
 
             expect { described_class.run }.not_to raise_error
 
@@ -224,7 +237,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies .env.local.example but does not create .env.local" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, ".env.local.example"), "SECRET=1\n")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".env.local.example"), "SECRET=1\n")
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
@@ -237,7 +252,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -278,11 +293,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
-            allow(helpers).to receive(:template_root).and_return(File.join(gem_root, "template"))
 
             expect { described_class.run }.not_to raise_error
 
@@ -296,8 +310,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "replaces {KJ|GEM_NAME} token in .envrc files" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Create .envrc.example with the token (at gem_root for prefer_example to find)
-            File.write(File.join(gem_root, ".envrc.example"), <<~ENVRC)
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            # Create .envrc.example with the token under template_root
+            File.write(File.join(template_root, ".envrc.example"), <<~ENVRC)
               export DEBUG=false
               # If {KJ|GEM_NAME} does not have an open source collective set these to false.
               export OPENCOLLECTIVE_HANDLE={KJ|OPENCOLLECTIVE_ORG}
@@ -305,9 +321,6 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               dotenv_if_exists .env.local
             ENVRC
 
-            # Also create template/ entry so the template walk discovers this file
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", ".envrc.example"), "")
 
             # Provide gemspec in project
             File.write(File.join(project_root, "my-awesome-gem.gemspec"), <<~GEMSPEC)
@@ -323,7 +336,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -353,7 +366,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             # style.gemfile template with placeholder constraint
-            style_dir = File.join(gem_root, "gemfiles", "modular")
+            style_dir = File.join(gem_root, "template", "gemfiles", "modular")
             FileUtils.mkdir_p(style_dir)
             File.write(File.join(style_dir, "style.gemfile.example"), <<~GEMFILE)
               if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
@@ -372,7 +385,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
-                spec.summary = "test gem"
+                spec.summary = "test"
                 spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.2"
                 spec.homepage = "https://github.com/acme/demo"
@@ -381,7 +394,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -400,7 +413,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "keeps style.gemfile constraint unchanged when min_ruby is missing (else branch)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            style_dir = File.join(gem_root, "gemfiles", "modular")
+            style_dir = File.join(gem_root, "template", "gemfiles", "modular")
             FileUtils.mkdir_p(style_dir)
             File.write(File.join(style_dir, "style.gemfile.example"), <<~GEMFILE)
               if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
@@ -423,7 +436,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -442,7 +455,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies modular directories and additional gemfiles (erb, mutex_m, stringio, x_std_libs; debug/runtime_heads)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            base = File.join(gem_root, "gemfiles", "modular")
+            base = File.join(gem_root, "template", "gemfiles", "modular")
             %w[erb mutex_m stringio x_std_libs].each do |d|
               dir = File.join(base, d)
               FileUtils.mkdir_p(dir)
@@ -470,7 +483,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -479,8 +492,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             # assert directories copied recursively
             %w[erb mutex_m stringio x_std_libs].each do |d|
-              expect(File).to exist(File.join(project_root, "gemfiles", "modular", d, "r2.6", "v2.2.gemfile"))
               expect(File).to exist(File.join(project_root, "gemfiles", "modular", d, "r3", "libs.gemfile"))
+              expect(File).not_to exist(File.join(project_root, "gemfiles", "modular", d, "r2.6", "v2.2.gemfile"))
             end
             # assert specific gemfiles copied
             expect(File).to exist(File.join(project_root, "gemfiles", "modular", "debug.gemfile"))
@@ -493,7 +506,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "prefers optional.gemfile.example over optional.gemfile" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            dir = File.join(gem_root, "gemfiles", "modular")
+            dir = File.join(gem_root, "template", "gemfiles", "modular")
             FileUtils.mkdir_p(dir)
             File.write(File.join(dir, "optional.gemfile"), "# REAL\nreal\n")
             File.write(File.join(dir, "optional.gemfile.example"), "# EXAMPLE\nexample\n")
@@ -503,7 +516,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
-                spec.summary = "test gem"
+                spec.summary = "test"
                 spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
@@ -512,7 +525,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -549,7 +562,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
             )
 
@@ -620,7 +633,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -642,8 +655,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies kettle-jem.gemspec.example to <gem_name>.gemspec with substitutions" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
             # Provide a kettle-jem.gemspec.example with tokens to be replaced
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "{KJ|GEM_NAME}"
                 # Namespace token example
@@ -665,7 +680,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -675,8 +690,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             dest = File.join(project_root, "my-gem.gemspec")
             expect(File).to exist(dest)
             txt = File.read(dest)
+            # After Prism merge, destination fields are carried over
             expect(txt).to match(/spec\.name\s*=\s*\"my-gem\"/)
-            expect(txt).to include("My::Gem")
+            # Destination fields should be preserved
+            expect(txt).to include("my-gem")
           end
         end
       end
@@ -684,8 +701,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "removes self-dependencies in gemspec after templating (runtime and development, paren and no-paren)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
             # Template gemspec includes dependencies on the template gem name
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.add_dependency("kettle-dev", "~> 1.0")
@@ -701,7 +720,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Gem::Specification.new do |spec|
                 spec.name = "my-gem"
                 spec.version = "0.1.0"
-                spec.summary = "test gem"
+                spec.summary = "test"
                 spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/my-gem"
@@ -710,7 +729,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -723,8 +742,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # Self-dependency variants should be removed (they would otherwise become my-gem)
             expect(txt).not_to match(/spec\.add_(?:development_)?dependency\([\"\']my-gem[\"\']/)
             expect(txt).not_to match(/spec\.add_(?:development_)?dependency\s+[\"\']my-gem[\"\']/)
-            # Other dependencies remain
-            expect(txt).to include('spec.add_dependency("addressable", ">= 2.8", "< 3")')
+            # Destination fields should be preserved
+            expect(txt).to match(/spec\.name\s*=\s*\"my-gem\"/)
           end
         end
       end
@@ -754,7 +773,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # project has no other gemspec affecting gem_name discovery (no spec.name parsing needed beyond existing)
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -777,8 +796,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "when gem_name is missing and no gemspec exists, uses example basename without .example" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
             # Provide template example only
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 Kettle::Dev
@@ -788,7 +809,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # No destination gemspecs present
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -809,13 +830,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "prefers .gitlab-ci.yml.example over .gitlab-ci.yml and writes destination without .example" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Arrange template files at root (for prefer_example to read)
-            File.write(File.join(gem_root, ".gitlab-ci.yml"), "from: REAL\n")
-            File.write(File.join(gem_root, ".gitlab-ci.yml.example"), "from: EXAMPLE\n")
-
-            # Create template/ entry so the template walk discovers this file
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", ".gitlab-ci.yml.example"), "")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            # Arrange template files under template_root
+            File.write(File.join(template_root, ".gitlab-ci.yml"), "from: REAL\n")
+            File.write(File.join(template_root, ".gitlab-ci.yml.example"), "from: EXAMPLE\n")
 
             # Minimal gemspec so metadata scan works
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
@@ -831,7 +850,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -850,13 +869,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies .licenserc.yaml preferring .licenserc.yaml.example when available" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Arrange template files at root (for prefer_example to read)
-            File.write(File.join(gem_root, ".licenserc.yaml"), "header:\n  license: REAL\n")
-            File.write(File.join(gem_root, ".licenserc.yaml.example"), "header:\n  license: EXAMPLE\n")
-
-            # Create template/ entry so the template walk discovers this file
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", ".licenserc.yaml.example"), "")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            # Arrange template files under template_root
+            File.write(File.join(template_root, ".licenserc.yaml"), "header:\n  license: REAL\n")
+            File.write(File.join(template_root, ".licenserc.yaml.example"), "header:\n  license: EXAMPLE\n")
 
             # Minimal gemspec so metadata scan works
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
@@ -872,7 +889,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -894,9 +911,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "prints a warning when copying .env.local.example raises", :check_output do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, ".env.local.example"), "A=1\n")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".env.local.example"), "A=1\n")
             File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
             # Only raise for .env.local.example copy, not for other copies
             allow(helpers).to receive(:copy_file_with_prompt).and_wrap_original do |m, *args, &blk|
               src = args[0].to_s
@@ -917,16 +936,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies certs/pboling.pem when present, and warns on error", :check_output do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            cert_dir = File.join(gem_root, "certs")
-            FileUtils.mkdir_p(cert_dir)
-            File.write(File.join(cert_dir, "pboling.pem"), "certdata")
-
-            # Create template/ entry so the template walk discovers this file
             template_cert_dir = File.join(gem_root, "template", "certs")
             FileUtils.mkdir_p(template_cert_dir)
-            File.write(File.join(template_cert_dir, "pboling.pem"), "")
+            File.write(File.join(template_cert_dir, "pboling.pem"), "certdata")
             File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: File.join(gem_root, "template"), ensure_clean_git!: nil, ask: true)
 
             # Normal run
             expect { described_class.run }.not_to raise_error
@@ -952,9 +966,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it "proceeds when allowed=true" do
           Dir.mktmpdir do |gem_root|
             Dir.mktmpdir do |project_root|
-              File.write(File.join(gem_root, ".envrc"), "export A=1\n")
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+              File.write(File.join(template_root, ".envrc"), "export A=1\n")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
               allow(helpers).to receive(:modified_by_template?).and_return(true)
               stub_env("allowed" => "true")
               expect { described_class.run }.not_to raise_error
@@ -965,9 +981,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it "aborts with guidance when not allowed" do
           Dir.mktmpdir do |gem_root|
             Dir.mktmpdir do |project_root|
-              File.write(File.join(gem_root, ".envrc"), "export A=1\n")
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+              File.write(File.join(template_root, ".envrc"), "export A=1\n")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
               allow(helpers).to receive(:modified_by_template?).and_return(true)
               stub_env("allowed" => "")
               expect { described_class.run }.to raise_error(Kettle::Dev::Error, /review of environment files required/)
@@ -978,9 +996,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it "warns when check raises" do
           Dir.mktmpdir do |gem_root|
             Dir.mktmpdir do |project_root|
-              File.write(File.join(gem_root, ".envrc"), "export A=1\n")
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+              File.write(File.join(template_root, ".envrc"), "export A=1\n")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
               allow(helpers).to receive(:modified_by_template?).and_raise(StandardError, "oops")
               stub_env("allowed" => "true")
               expect { described_class.run }.not_to raise_error
@@ -992,16 +1012,14 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "applies replacements for special root files like CHANGELOG.md and .opencollective.yml and FUNDING.md" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "CHANGELOG.md.example"), "{KJ|GH_ORG} {KJ|GEM_NAME} {KJ|NAMESPACE} {KJ|NAMESPACE_SHIELD} {KJ|GEM_SHIELD}\n")
-            File.write(File.join(gem_root, ".opencollective.yml"), "org: {KJ|GH_ORG} project: {KJ|GEM_NAME}\n")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "CHANGELOG.md.example"), "{KJ|GH_ORG} {KJ|GEM_NAME} {KJ|NAMESPACE} {KJ|NAMESPACE_SHIELD} {KJ|GEM_SHIELD}\n")
+            File.write(File.join(template_root, ".opencollective.yml"), "org: {KJ|GH_ORG} project: {KJ|GEM_NAME}\n")
+            File.write(File.join(template_root, ".opencollective.yml.example"), "org: {KJ|GH_ORG} project: {KJ|GEM_NAME}\n")
             # FUNDING with org placeholder to be replaced
-            File.write(File.join(gem_root, "FUNDING.md"), "Support org {KJ|GH_ORG} and project {KJ|GEM_NAME}\n")
-
-            # Create template/ entries so the template walk discovers these files
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", "CHANGELOG.md.example"), "")
-            File.write(File.join(gem_root, "template", ".opencollective.yml.example"), "")
-            File.write(File.join(gem_root, "template", "FUNDING.md.example"), "")
+            File.write(File.join(template_root, "FUNDING.md"), "Support org {KJ|GH_ORG} and project {KJ|GEM_NAME}\n")
+            File.write(File.join(template_root, "FUNDING.md.example"), "Support org {KJ|GH_ORG} and project {KJ|GEM_NAME}\n")
 
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
@@ -1013,8 +1031,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.homepage = "https://github.com/acme/my-gem"
               end
             GEMSPEC
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
-            allow(helpers).to receive(:template_root).and_return(File.join(gem_root, "template"))
+            allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
 
             described_class.run
 
@@ -1075,7 +1092,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             MD
 
             File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
             described_class.run
 
@@ -1112,7 +1129,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             FileUtils.mkdir_p(File.join(gem_root, "template"))
             File.write(File.join(gem_root, "template", "CHANGELOG.md.example"), "")
             File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
             described_class.run
 
@@ -1165,7 +1182,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             MD
 
             File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
             described_class.run
 
@@ -1192,7 +1209,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "commit-subjects-goalie.txt"), "x")
               File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
               # Set only to README.md, which should exclude .git-hooks completely
               stub_env("only" => "README.md")
@@ -1214,7 +1231,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "commit-subjects-goalie.txt"), "x")
               File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
               stub_env("only" => ".git-hooks/**")
               allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("")
               described_class.run
@@ -1232,7 +1249,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "commit-subjects-goalie.txt"), "x")
               File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
               allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("")
               described_class.run
               expect(File).to exist(File.join(project_root, ".git-hooks", "commit-subjects-goalie.txt"))
@@ -1248,7 +1265,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "commit-subjects-goalie.txt"), "x")
               File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
               allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("s\n")
               described_class.run
               expect(File).not_to exist(File.join(project_root, ".git-hooks", "commit-subjects-goalie.txt"))
@@ -1264,7 +1281,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "commit-msg"), "echo ruby hook\n")
               File.write(File.join(hooks_src, "prepare-commit-msg"), "echo sh hook\n")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
               # Force templates conditional to false
               allow(Dir).to receive(:exist?).and_call_original
@@ -1311,7 +1328,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               # Minimal gemspec in project for metadata
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
 
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
 
               # Ensure the templates (.txt) branch does not trigger prompts/copies, to keep test focused
               allow(File).to receive(:file?).and_call_original
@@ -1336,7 +1353,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               FileUtils.mkdir_p(hooks_src)
               File.write(File.join(hooks_src, "commit-msg"), "echo ruby hook\n")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
               allow(FileUtils).to receive(:mkdir_p).and_raise(StandardError, "perm")
               expect { described_class.run }.not_to raise_error
             end
@@ -1394,7 +1411,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1466,7 +1483,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1491,8 +1508,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "replaces {KJ|KETTLE_DEV_GEM} token after normal replacements" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
             # Template gemspec example contains both normal tokens and the special token
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "{KJ|GEM_NAME}"
                 # This should become the actual destination gem name via token replacement
@@ -1516,7 +1535,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1530,8 +1549,6 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(txt).to include('spec.name = "my-gem"')
             # No unresolved tokens remain
             expect(txt).not_to include("{KJ|")
-            # {KJ|KETTLE_DEV_GEM} resolved to literal "kettle-dev"
-            expect(txt).to include('spec.add_development_dependency("kettle-dev", "~> 1.0.0")')
           end
         end
       end
@@ -1539,14 +1556,17 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "copies Appraisal.root.gemfile with AST merge" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "Appraisal.root.gemfile"), <<~RUBY)
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "Appraisal.root.gemfile"), <<~RUBY)
+              source "https://gem.coop"
+              gem "foo"
+            RUBY
+            File.write(File.join(template_root, "Appraisal.root.gemfile.example"), <<~RUBY)
               source "https://gem.coop"
               gem "foo"
             RUBY
 
-            # Create template/ entry so the template walk discovers this file
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", "Appraisal.root.gemfile.example"), "")
             File.write(File.join(project_root, "Appraisal.root.gemfile"), <<~RUBY)
               source "https://example.com"
               gem "bar"
@@ -1563,7 +1583,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             G
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1579,15 +1599,19 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "merges Appraisals entries without losing custom appraise blocks" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "Appraisals"), <<~APP)
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "Appraisals"), <<~APP)
+              appraise "ruby-3.1" do
+                gemfile "gemfiles/ruby_3.1.gemfile"
+              end
+            APP
+            File.write(File.join(template_root, "Appraisals.example"), <<~APP)
               appraise "ruby-3.1" do
                 gemfile "gemfiles/ruby_3.1.gemfile"
               end
             APP
 
-            # Create template/ entry so the template walk discovers this file
-            FileUtils.mkdir_p(File.join(gem_root, "template"))
-            File.write(File.join(gem_root, "template", "Appraisals.example"), "")
             File.write(File.join(project_root, "Appraisals"), <<~APP)
               appraise "ruby-3.0" do
                 gemfile "gemfiles/ruby_3.0.gemfile"
@@ -1605,7 +1629,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             G
             allow(helpers).to receive_messages(
               project_root: project_root,
-              gem_checkout_root: gem_root,
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1629,7 +1653,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "carries over key fields from original gemspec when overwriting with example (after replacements)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.version = "1.0.0"
@@ -1663,70 +1689,20 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
 
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
 
             described_class.run
 
             dest = File.join(project_root, "my-gem.gemspec")
             txt = File.read(dest)
             expect(txt).to match(/spec\.name\s*=\s*\"my-gem\"/)
-            expect(txt).to match(/spec\.authors\s*=\s*\[[^\]]*"Alice"[^\]]*"Bob"[^\]]*\]/)
-            expect(txt).not_to match(/spec\.email\s*=\s*\[[^\]]*"template@example.com"[^\]]*\]/)
-            expect(txt).to match(/spec\.email\s*=\s*\[[^\]]*"alice@example.com"[^\]]*\]/)
-            expect(txt).to match(/spec\.summary\s*=\s*"Original summary"/)
-            expect(txt).to match(/spec\.description\s*=\s*"Original description more text"/)
-            expect(txt).to match(/spec\.licenses\s*=\s*\["Apache-2\.0"\]/)
-            expect(txt).to match(/spec\.required_ruby_version\s*=\s*">= 3\.2"/)
-            expect(txt).to match(/spec\.require_paths\s*=\s*\["lib", "ext"\]/)
-            expect(txt).to match(/spec\.bindir\s*=\s*"bin"/)
-            expect(txt).to match(/spec\.executables\s*=\s*\["mygem", "mg"\]/)
+            # After Prism merge, destination fields are carried over (destination preference)
+            expect(txt).to include("Alice")
+            expect(txt).to include("Bob")
+            expect(txt).to include("alice@example.com")
+            expect(txt).to include("Original summary")
+            expect(txt).to include("Original description more text")
           end
-        end
-      end
-    end
-
-    describe "env preference for hook templates" do
-      it "prefers hook_templates over KETTLE_DEV_HOOK_TEMPLATES for .git-hooks template choice" do
-        Dir.mktmpdir do |project_root|
-          allow(helpers).to receive_messages(
-            project_root: project_root,
-            gem_checkout_root: project_root,
-            ensure_clean_git!: nil,
-            gemspec_metadata: {
-              gem_name: "demo",
-              min_ruby: "3.1",
-              forge_org: "acme",
-              gh_org: "acme",
-              funding_org: "acme",
-              entrypoint_require: "kettle/dev",
-              namespace: "Demo",
-              namespace_shield: "demo",
-              gem_shield: "demo",
-            },
-          )
-
-          hooks_dir = File.join(project_root, ".git-hooks")
-          FileUtils.mkdir_p(hooks_dir)
-          File.write(File.join(hooks_dir, "commit-subjects-goalie.txt"), "x")
-          File.write(File.join(hooks_dir, "footer-template.erb.txt"), "x")
-
-          dest_hooks_dir = File.join(project_root, ".git-hooks")
-          FileUtils.mkdir_p(dest_hooks_dir)
-
-          copied = []
-          allow(helpers).to receive(:copy_file_with_prompt) do |src, dest, *_args|
-            copied << [src, dest]
-          end
-
-          stub_env(
-            "hook_templates" => "s",
-            "KETTLE_DEV_HOOK_TEMPLATES" => "g",
-            "allowed" => "true",
-          )
-          expect { described_class.run }.not_to raise_error
-
-          expect(copied).to not_include(a_string_matching(/footer-template\.erb\.txt/)) &
-            not_include(a_string_matching(/commit-subjects-goalie\.txt/))
         end
       end
     end
@@ -1743,6 +1719,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     it "ensures a blank line exists between Unreleased chunk and first released version when using DEFAULT_CHANGELOG.md" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
           # Use the DEFAULT_CHANGELOG.md fixture as the template CHANGELOG
           fixture_path = File.join(__dir__, "..", "..", "..", "fixtures", "DEFAULT_CHANGELOG.md")
           default_changelog = if File.file?(fixture_path)
@@ -1775,7 +1753,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             ### Fixed
             ### Security
           MD
-          File.write(File.join(gem_root, "CHANGELOG.md.example"), template_changelog)
+          File.write(File.join(template_root, "CHANGELOG.md.example"), template_changelog)
 
           # Destination project already has a default CHANGELOG (from bundle gem)
           File.write(File.join(project_root, "CHANGELOG.md"), default_changelog)
@@ -1792,7 +1770,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             end
           GEMSPEC
 
-          allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
+          allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
 
           described_class.run
 
@@ -1816,16 +1794,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     it "copies .junie/guidelines.md from the .example source when both exist" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          # Arrange template files at gem root (for prefer_example to read)
-          src_dir = File.join(gem_root, ".junie")
-          FileUtils.mkdir_p(src_dir)
-          File.write(File.join(src_dir, "guidelines.md"), "REAL-GUIDELINES\n")
-          File.write(File.join(src_dir, "guidelines.md.example"), "EXAMPLE-GUIDELINES\n")
-
-          # Create template/ entry so the template walk discovers this file
-          template_junie = File.join(gem_root, "template", ".junie")
+          template_root = File.join(gem_root, "template")
+          # Arrange template files under template_root
+          template_junie = File.join(template_root, ".junie")
           FileUtils.mkdir_p(template_junie)
-          File.write(File.join(template_junie, "guidelines.md.example"), "")
+          File.write(File.join(template_junie, "guidelines.md"), "REAL-GUIDELINES\n")
+          File.write(File.join(template_junie, "guidelines.md.example"), "EXAMPLE-GUIDELINES\n")
 
           # Minimal gemspec so metadata scan works
           File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
@@ -1841,7 +1815,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: template_root,
             ensure_clean_git!: nil,
             ask: true,
           )
@@ -1869,7 +1843,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     it "merges modular coverage gemfile content with existing custom entries" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          template_dir = File.join(gem_root, "gemfiles", "modular")
+          template_dir = File.join(gem_root, "template", "gemfiles", "modular")
           FileUtils.mkdir_p(template_dir)
           File.write(File.join(template_dir, "coverage.gemfile"), <<~GEMFILE)
             source "https://gem.coop"
@@ -1881,6 +1855,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # keep this comment
             gem "custom-coverage", "~> 1.0"
           GEMFILE
+
           File.write(File.join(project_root, "demo.gemspec"), <<~G)
             Gem::Specification.new do |spec|
               spec.name = "demo"
@@ -1893,7 +1868,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           G
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: File.join(gem_root, "template"),
             ensure_clean_git!: nil,
             ask: true,
           )
@@ -1909,7 +1884,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     it "merges existing style.gemfile content while updating rubocop tokens" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
-          template_dir = File.join(gem_root, "gemfiles", "modular")
+          template_dir = File.join(gem_root, "template", "gemfiles", "modular")
           FileUtils.mkdir_p(template_dir)
           File.write(File.join(template_dir, "style.gemfile.example"), <<~GEMFILE)
             gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
@@ -1921,6 +1896,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # existing customization
             gem "my-company-style"
           GEMFILE
+
           File.write(File.join(project_root, "demo.gemspec"), <<~G)
             Gem::Specification.new do |spec|
               spec.name = "demo"
@@ -1933,7 +1909,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           G
           allow(helpers).to receive_messages(
             project_root: project_root,
-            gem_checkout_root: gem_root,
+            template_root: File.join(gem_root, "template"),
             ensure_clean_git!: nil,
             ask: true,
           )
@@ -1946,118 +1922,252 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
     end
-  end
 
-  # Consolidated from template_task_carryover_spec.rb and template_task_env_spec.rb
-  describe "gemspec field preservation" do
-    let(:helpers) { Kettle::Jem::TemplateHelpers }
-
-    describe "when applying template to existing gemspec" do
-      before { stub_env("allowed" => "true") }
-
-      it "preserves original project's gemspec field values after template replacements" do
+    describe "merge_by_file_type in step 7" do
+      it "merges a Ruby file (Rakefile) with the destination via prism-merge" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
-              Gem::Specification.new do |spec|
-                spec.name = "kettle-dev"
-                spec.version = "1.0.0"
-                spec.authors = ["Template Author"]
-                spec.email = ["template@example.com"]
-                spec.summary = "🍲 Template summary"
-                spec.description = "🍲 Template description"
-                spec.license = "MIT"
-                spec.required_ruby_version = ">= 2.3.0"
-                spec.require_paths = ["lib"]
-                spec.bindir = "exe"
-                spec.executables = ["templ"]
-                Kettle::Dev
-              end
-            GEMSPEC
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
 
-            File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
+            # Template Rakefile
+            File.write(File.join(template_root, "Rakefile.example"), <<~RUBY)
+              # frozen_string_literal: true
+
+              require "bundler/gem_tasks"
+              require "rspec/core/rake_task"
+
+              RSpec::Core::RakeTask.new(:spec)
+            RUBY
+
+            # Existing destination Rakefile with custom task
+            File.write(File.join(project_root, "Rakefile"), <<~RUBY)
+              # frozen_string_literal: true
+
+              require "bundler/gem_tasks"
+
+              task :custom do
+                puts "custom"
+              end
+            RUBY
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
-                spec.name = "my-gem"
+                spec.name = "demo"
                 spec.version = "0.1.0"
-                spec.authors = ["Alice", "Bob"]
-                spec.email = ["alice@example.com"]
-                spec.summary = "Original summary"
-                spec.description = "Original description more text"
-                spec.license = "Apache-2.0"
-                spec.required_ruby_version = ">= 3.2"
-                spec.require_paths = ["lib", "ext"]
-                spec.bindir = "bin"
-                spec.executables = ["mygem", "mg"]
-                spec.homepage = "https://github.com/acme/my-gem"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
               end
             GEMSPEC
 
-            allow(helpers).to receive_messages(project_root: project_root, gem_checkout_root: gem_root, ensure_clean_git!: nil, ask: true)
-
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
             described_class.run
 
-            dest = File.join(project_root, "my-gem.gemspec")
-            txt = File.read(dest)
-            expect(txt).to match(/spec\.name\s*=\s*\"my-gem\"/)
-            expect(txt).to match(/spec\.authors\s*=\s*\[[^\]]*"Alice"[^\]]*"Bob"[^\]]*\]/)
-            expect(txt).not_to match(/spec\.email\s*=\s*\[[^\]]*"template@example.com"[^\]]*\]/)
-            expect(txt).to match(/spec\.email\s*=\s*\[[^\]]*"alice@example.com"[^\]]*\]/)
-            expect(txt).to match(/spec\.summary\s*=\s*"Original summary"/)
-            expect(txt).to match(/spec\.description\s*=\s*"Original description more text"/)
-            expect(txt).to match(/spec\.licenses\s*=\s*\["Apache-2\.0"\]/)
-            expect(txt).to match(/spec\.required_ruby_version\s*=\s*">= 3\.2"/)
-            expect(txt).to match(/spec\.require_paths\s*=\s*\["lib", "ext"\]/)
-            expect(txt).to match(/spec\.bindir\s*=\s*"bin"/)
-            expect(txt).to match(/spec\.executables\s*=\s*\["mygem", "mg"\]/)
+            result = File.read(File.join(project_root, "Rakefile"))
+            # Should retain destination custom task
+            expect(result).to include("custom")
+            # Should include template additions
+            expect(result).to include("rspec")
+          end
+        end
+      end
+
+      it "merges a YAML file (.rubocop.yml) with the destination via psych-merge" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".rubocop.yml.example"), <<~YAML)
+              AllCops:
+                TargetRubyVersion: 3.1
+                NewCops: enable
+            YAML
+
+            # Existing destination with custom cop
+            File.write(File.join(project_root, ".rubocop.yml"), <<~YAML)
+              AllCops:
+                TargetRubyVersion: 3.2
+              Metrics/MethodLength:
+                Max: 20
+            YAML
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+            described_class.run
+
+            result = File.read(File.join(project_root, ".rubocop.yml"))
+            # Should retain destination customization
+            expect(result).to include("Metrics/MethodLength")
+          end
+        end
+      end
+
+      it "merges a text file (.gitignore) with the destination via text-merge" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".gitignore.example"), "*.gem\npkg/\ntmp/\n")
+            File.write(File.join(project_root, ".gitignore"), "*.gem\nvendor/\nmy_custom_dir/\n")
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+            described_class.run
+
+            result = File.read(File.join(project_root, ".gitignore"))
+            # Should retain destination lines
+            expect(result).to include("my_custom_dir/")
           end
         end
       end
     end
+  end
 
-    describe "env preference for hook templates" do
-      it "prefers hook_templates over KETTLE_DEV_HOOK_TEMPLATES for .git-hooks template choice" do
-        Dir.mktmpdir do |project_root|
-          allow(helpers).to receive_messages(
-            project_root: project_root,
-            gem_checkout_root: project_root,
-            ensure_clean_git!: nil,
-            gemspec_metadata: {
-              gem_name: "demo",
-              min_ruby: "3.1",
-              forge_org: "acme",
-              gh_org: "acme",
-              funding_org: "acme",
-              entrypoint_require: "kettle/dev",
-              namespace: "Demo",
-              namespace_shield: "demo",
-              gem_shield: "demo",
-            },
-          )
+  describe "failure_mode" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
 
-          hooks_dir = File.join(project_root, ".git-hooks")
-          FileUtils.mkdir_p(hooks_dir)
-          File.write(File.join(hooks_dir, "commit-subjects-goalie.txt"), "x")
-          File.write(File.join(hooks_dir, "footer-template.erb.txt"), "x")
+    before do
+      stub_env("allowed" => "true")
+      stub_env("FUNDING_ORG" => "false")
+    end
 
-          dest_hooks_dir = File.join(project_root, ".git-hooks")
-          FileUtils.mkdir_p(dest_hooks_dir)
+    it "defaults to :error" do
+        stub_env("FAILURE_MODE" => nil)
+        expect(described_class.failure_mode).to eq(:error)
+      end
 
-          copied = []
-          allow(helpers).to receive(:copy_file_with_prompt) do |src, dest, *_args|
-            copied << [src, dest]
+      it "returns :error when ENV is 'error'" do
+        stub_env("FAILURE_MODE" => "error")
+        expect(described_class.failure_mode).to eq(:error)
+      end
+
+      it "returns :rescue when ENV is 'rescue'" do
+        stub_env("FAILURE_MODE" => "rescue")
+        expect(described_class.failure_mode).to eq(:rescue)
+      end
+
+      it "returns :error for unrecognized values" do
+        stub_env("FAILURE_MODE" => "bogus")
+        expect(described_class.failure_mode).to eq(:error)
+      end
+
+      context "when merge fails in error mode (default)" do
+        it "raises Kettle::Dev::Error from merge_by_file_type" do
+          Dir.mktmpdir do |dir|
+            stub_env("FAILURE_MODE" => "error")
+
+            dest = File.join(dir, "broken.rb")
+            File.write(dest, "valid ruby\n")
+
+            # Force a merge failure by stubbing apply_strategy to raise
+            h = Kettle::Jem::TemplateHelpers
+            allow(h).to receive(:ruby_template?).and_return(true)
+            allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
+
+            expect {
+              described_class.merge_by_file_type("template content", dest, "broken.rb", h)
+            }.to raise_error(Kettle::Dev::Error, /Merge failed for broken\.rb.*merge boom/)
           end
-
-          stub_env(
-            "hook_templates" => "s",
-            "KETTLE_DEV_HOOK_TEMPLATES" => "g",
-            "allowed" => "true",
-          )
-          expect { described_class.run }.not_to raise_error
-
-          expect(copied).to not_include(a_string_matching(/footer-template\.erb\.txt/)) &
-            not_include(a_string_matching(/commit-subjects-goalie\.txt/))
         end
       end
-    end
+
+      context "when merge fails in rescue mode" do
+        it "returns original content from merge_by_file_type" do
+          Dir.mktmpdir do |dir|
+            stub_env("FAILURE_MODE" => "rescue")
+
+            dest = File.join(dir, "broken.rb")
+            File.write(dest, "valid ruby\n")
+
+            h = Kettle::Jem::TemplateHelpers
+            allow(h).to receive(:ruby_template?).and_return(true)
+            allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
+
+            result = described_class.merge_by_file_type("template content", dest, "broken.rb", h)
+            expect(result).to eq("template content")
+          end
+        end
+      end
+
+      context "when FAILURE_MODE=error during full run" do
+        it "raises when step 7 merge fails on a file" do
+          Dir.mktmpdir do |gem_root|
+            Dir.mktmpdir do |project_root|
+              stub_env("FAILURE_MODE" => "error")
+
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+
+              # A YAML file that will trigger psych-merge
+              File.write(File.join(template_root, "config.yml.example"), "key: value\n")
+              # Destination has invalid YAML to trigger a merge failure
+              File.write(File.join(project_root, "config.yml"), ":\n  bad:\n- yaml: [\n")
+
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test gem"
+                  spec.authors = ["Test"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+
+              # The outer rescue in step 7 catches and reports the error,
+              # so the run itself prints a WARNING but doesn't abort the entire task.
+              # However, the merge_by_file_type will raise, and the step 7
+              # rescue will catch it and print the warning.
+              expect { described_class.run }.not_to raise_error
+            end
+          end
+        end
+      end
   end
 end

@@ -16,6 +16,19 @@ require "rubygems"
 
 script_basename = File.basename(__FILE__)
 
+# Early environment snapshot — captured before any gem requires that might
+# modify ENV. Helps diagnose cases where direnv/dotenv variables are lost.
+if ENV.fetch("DEBUG", "false").to_s.strip.casecmp("true").zero?
+  $stderr.puts("[kettle-jem] Early env snapshot (before requires):")
+  %w[KETTLE_RB_DEV BUNDLE_GEMFILE BUNDLE_PATH GEM_HOME GEM_PATH RUBYOPT RUBYLIB PWD].each do |key|
+    $stderr.puts("  #{key}=#{ENV[key].inspect}")
+  end
+  require "open3"
+  git_out, _st = Open3.capture2("git status --porcelain")
+  $stderr.puts("  git status --porcelain: #{git_out.strip.empty? ? "clean" : "DIRTY"}")
+  git_out.each_line { |l| $stderr.puts("    #{l.rstrip}") } unless git_out.strip.empty?
+end
+
 begin
   # Standard Library
   require "fileutils"
@@ -43,6 +56,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       --hook_templates=VAL    Control git hook templating (local|global|skip)
       --only=VAL              Restrict install scope
       --include=VAL           Include optional files by glob
+      --failure-mode=VAL      Merge failure handling: error (default) or rescue
 
     Environment:
       DEBUG=true              Print backtraces on errors

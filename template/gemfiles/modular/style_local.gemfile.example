@@ -1,23 +1,20 @@
 # frozen_string_literal: true
 
+# We run rubocop on the latest version of Ruby,
+#   but in support of the oldest supported version of Ruby
+
 # Local path overrides for development.
 # Loaded by the associated non-local gemfile when KETTLE_RB_DEV != "false".
 
 validator = /^[a-z0-9][a-z0-9\-_]*$/
 local_gems = %w(
-  bash-merge
-  dotenv-merge
-  json-merge
-  jsonc-merge
-  markdown-merge
-  prism-merge
-  psych-merge
-  rbs-merge
-  toml-merge
-  markly-merge
-  kettle-jem
+  rubocop-lts
+  rubocop-lts-rspec
+  {KJ|RUBOCOP_RUBY_GEM}
+  standard-rubocop-lts
 )
-gem_root = ["src", "kettle-rb"]
+
+gem_root = ["src", "rubocop-lts"]
 pather = ->(*paths) {
   home = ENV["HOME"] || Dir.home
   File.join(home, *paths)
@@ -48,11 +45,11 @@ local_gems.each_with_object(gem_paths) do |gem_name, h|
   gem_path << gem_name
   h[gem_name] = File.join(*gem_path)
 end
-if ENV.fetch("KETTLE_DEV_DEBUG", "false").casecmp("true").zero?
-  puts "Kettle Dev templating gem_paths: #{gem_paths.inspect}"
+if ENV.fetch("RUBOCOP_LTS_DEBUG", "false").casecmp("true").zero?
+  puts "RuboCop-LTS gem_paths: #{gem_paths.inspect}"
 end
 
-# export VENDORED_GEMS=bash-merge,dotenv-merge,json-merge,jsonc-merge,markdown-merge,prism-merge,prism-merge,psych-merge,rbs-merge,toml-merge,markly-merge,kettle-jem
+# export VENDORED_GEMS=rubocop-lts,rubocop-lts-rspec,{KJ|RUBOCOP_RUBY_GEM},standard-rubocop-lts
 platform :mri do
   local_gems.each do |gem_name|
     gem gem_name, path: gem_paths[gem_name]
