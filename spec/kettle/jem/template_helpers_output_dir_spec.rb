@@ -75,7 +75,8 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
 
       expected_actual = File.join(output_dir, "test_write_file.txt")
       expect(File.exist?(expected_actual)).to be(true)
-      expect(File.read(expected_actual)).to eq(content)
+      # write_file ensures a trailing newline for all text files
+      expect(File.read(expected_actual)).to eq("#{content}\n")
 
       # The original dest_path should NOT exist (unless it coincidentally exists)
       # We just verify the write went to the right place
@@ -87,7 +88,8 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
 
       expected_actual = File.join(output_dir, "a/b/c/deep.txt")
       expect(File.exist?(expected_actual)).to be(true)
-      expect(File.read(expected_actual)).to eq(content)
+      # write_file ensures a trailing newline for all text files
+      expect(File.read(expected_actual)).to eq("#{content}\n")
     end
   end
 end

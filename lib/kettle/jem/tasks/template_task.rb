@@ -103,63 +103,59 @@ module Kettle
         # @raise [Kettle::Dev::Error] When merge fails and failure_mode is error (default)
         def merge_by_file_type(content, dest, rel, helpers)
           dest_content = File.read(dest)
+          merged =
+            if helpers.ruby_template?(dest)
+              # Ruby files: prism-merge via SourceMerger
+              helpers.apply_strategy(content, dest)
+            elsif yaml_file?(rel)
+              # YAML files: psych-merge
+              Psych::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+              ).merge
+            elsif markdown_heading_file?(rel)
+              # Markdown files (not README/CHANGELOG, which have dedicated steps):
+              # use SmartMerger with template preference
+              Markdown::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+              ).merge
+            elsif bash_file?(rel)
+              # Shell / bash files: bash-merge
+              Bash::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+              ).merge
+            elsif tool_versions_file?(rel)
+              # .tool-versions: text-merge with first-word signature matching.
+              # Lines match by tool name (e.g., "ruby"), so template version
+              # values replace destination values while destination-only tools
+              # are preserved.
+              Ast::Merge::Text::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                signature_generator: TOOL_VERSIONS_SIGNATURE_GENERATOR,
+              ).merge
+            else
+              # Text files (gitignore, rspec, yardopts, etc.): text-merge
+              Ast::Merge::Text::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+              ).merge
+            end
 
-          if helpers.ruby_template?(dest)
-            # Ruby files: prism-merge via SourceMerger
-            merged = helpers.apply_strategy(content, dest)
-            return merged if merged.is_a?(String) && !merged.empty?
-          elsif yaml_file?(rel)
-            # YAML files: psych-merge
-            merged = Psych::Merge::SmartMerger.new(
-              content,
-              dest_content,
-              preference: :template,
-              add_template_only_nodes: true,
-            ).merge
-            return merged if merged.is_a?(String) && !merged.empty?
-          elsif markdown_heading_file?(rel)
-            # Markdown files (not README/CHANGELOG, which have dedicated steps):
-            # use SmartMerger with template preference
-            merged = Markdown::Merge::SmartMerger.new(
-              content,
-              dest_content,
-              preference: :template,
-              add_template_only_nodes: true,
-            ).merge
-            return merged if merged.is_a?(String) && !merged.empty?
-          elsif bash_file?(rel)
-            # Shell / bash files: bash-merge
-            merged = Bash::Merge::SmartMerger.new(
-              content,
-              dest_content,
-              preference: :template,
-              add_template_only_nodes: true,
-            ).merge
-            return merged if merged.is_a?(String) && !merged.empty?
-          elsif tool_versions_file?(rel)
-            # .tool-versions: text-merge with first-word signature matching.
-            # Lines match by tool name (e.g., "ruby"), so template version
-            # values replace destination values while destination-only tools
-            # are preserved.
-            merged = Ast::Merge::Text::SmartMerger.new(
-              content,
-              dest_content,
-              preference: :template,
-              add_template_only_nodes: true,
-              signature_generator: TOOL_VERSIONS_SIGNATURE_GENERATOR,
-            ).merge
-            return merged if merged.is_a?(String) && !merged.empty?
-          else
-            # Text files (gitignore, rspec, yardopts, etc.): text-merge
-            merged = Ast::Merge::Text::SmartMerger.new(
-              content,
-              dest_content,
-              preference: :template,
-            ).merge
-            return merged if merged.is_a?(String) && !merged.empty?
-          end
-
-          content
+          result = (merged.is_a?(String) && !merged.empty?) ? merged : content
+          # Ensure all merge results end with a trailing newline (standard file convention)
+          SourceMerger.ensure_trailing_newline(result)
         rescue StandardError => e
           if failure_mode == :rescue
             Kettle::Dev.debug_error(e, __method__)
@@ -272,6 +268,36 @@ module Kettle
               Kettle::Dev.debug_error(e, __method__)
               removed_appraisals = []
             end
+          end
+
+          # 0) .kettle-jem.yml — copy FIRST so user can fill in missing config and re-run.
+          # This must happen before other steps because token resolution depends on
+          # values that the user may need to configure in this file.
+          begin
+            config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
+            config_dest = File.join(project_root, ".kettle-jem.yml")
+            if File.exist?(config_src)
+              helpers.copy_file_with_prompt(config_src, config_dest, allow_create: true, allow_replace: true) do |content|
+                c = content
+                if File.exist?(config_dest)
+                  begin
+                    c = Psych::Merge::SmartMerger.new(
+                      c,
+                      File.read(config_dest),
+                      preference: :destination,
+                      add_template_only_nodes: true,
+                    ).merge
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                  end
+                end
+                c
+              end
+              # Clear cached config so subsequent steps read the newly-written version
+              helpers.clear_kettle_config!
+            end
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
           end
 
           # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
@@ -657,6 +683,7 @@ module Kettle
           ]
           handled_files = %w[
             .env.local
+            .kettle-jem.yml
           ]
 
           template_root = helpers.template_root
@@ -991,7 +1018,10 @@ module Kettle
             end
           end
 
-          # Scan all written files for unresolved {KJ|...} tokens and warn
+          # Scan all written files for unresolved {KJ|...} tokens and abort.
+          # Unresolved tokens indicate missing configuration (e.g., AUTHOR_NAME,
+          # FUNDING_LIBERAPAY). The user should add missing values to .kettle-jem.yml
+          # or environment variables and re-run.
           begin
             token_pattern = /\{KJ\|[A-Z][A-Z0-9_:]*\}/
             project_root_path = project_root.to_s
@@ -1017,11 +1047,21 @@ module Kettle
             end
 
             unless unresolved_by_file.empty?
-              helpers.add_warning("Unresolved {KJ|...} tokens found in #{unresolved_by_file.size} file(s):")
+              msg_lines = ["Unresolved {KJ|...} tokens found in #{unresolved_by_file.size} file(s):"]
               unresolved_by_file.each do |rel, tokens|
-                helpers.add_warning("  #{rel}: #{tokens.join(", ")}")
+                msg_lines << "  #{rel}: #{tokens.join(", ")}"
               end
+              msg_lines << ""
+              msg_lines << "Please set the required environment variables or add values to .kettle-jem.yml and re-run."
+              msg_lines << "Tip: .kettle-jem.yml was written first so you can commit it and fill in missing data."
+
+              helpers.add_warning(msg_lines.join("\n"))
+              helpers.print_warnings_summary
+
+              task_abort(msg_lines.first)
             end
+          rescue Kettle::Dev::Error
+            raise # re-raise task_abort errors
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
           end

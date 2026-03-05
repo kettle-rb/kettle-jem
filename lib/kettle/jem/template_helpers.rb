@@ -338,7 +338,10 @@ module Kettle
       def write_file(dest_path, content)
         actual = output_path(dest_path)
         FileUtils.mkdir_p(File.dirname(actual))
-        File.open(actual, "w") { |f| f.write(content) }
+        # Ensure trailing newline — all text files should end with one
+        normalized = content.to_s
+        normalized += "\n" unless normalized.empty? || normalized.end_with?("\n")
+        File.open(actual, "w") { |f| f.write(normalized) }
       end
 
       # Prefer an .example variant for a given source path when present
@@ -962,6 +965,14 @@ module Kettle
         rescue Errno::ENOENT
           {}
         end
+      end
+
+      # Clear the cached kettle config so the next call to kettle_config
+      # re-reads the (potentially updated) .kettle-jem.yml file.
+      # @return [void]
+      def clear_kettle_config!
+        @@kettle_config = nil
+        @@manifestation = nil
       end
 
       # Load manifest entries from patterns section of config
