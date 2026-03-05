@@ -69,6 +69,7 @@ module Kettle
         "DEVTO" => "KJ_SOCIAL_DEVTO",
       }.freeze
 
+      # Fallback config path at the kettle-jem gem root
       KETTLE_JEM_CONFIG_PATH = File.expand_path("../../..", __dir__) + "/.kettle-jem.yml"
       RUBY_BASENAMES = %w[Gemfile Rakefile Appraisals Appraisal.root.gemfile .simplecov].freeze
       RUBY_SUFFIXES = %w[.gemspec .gemfile].freeze
@@ -488,8 +489,9 @@ module Kettle
 
       # Copy a single file with interactive prompts for create/merge.
       # Yields content for transformation when block given.
+      # @param raw [Boolean] when true, reads file verbatim (no token resolution, no yield)
       # @return [void]
-      def copy_file_with_prompt(src_path, dest_path, allow_create: true, allow_replace: true)
+      def copy_file_with_prompt(src_path, dest_path, allow_create: true, allow_replace: true, raw: false)
         return unless File.exist?(src_path)
 
         # Apply optional inclusion filter via ENV["only"] (comma-separated glob patterns relative to project root)
@@ -547,31 +549,35 @@ module Kettle
           return
         end
 
-        content = read_template(src_path)
-        content = yield(content) if block_given?
+        content = raw ? File.read(src_path) : read_template(src_path)
+        content = yield(content) if block_given? && !raw
 
-        basename = File.basename(dest_path.to_s)
-        content = apply_appraisals_merge(content, dest_path) if basename == "Appraisals"
-        if basename == "Appraisal.root.gemfile" && File.exist?(dest_path)
-          begin
-            prior = File.read(dest_path)
-            content = merge_gemfile_dependencies(content, prior)
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
+        unless raw
+          basename = File.basename(dest_path.to_s)
+          content = apply_appraisals_merge(content, dest_path) if basename == "Appraisals"
+          if basename == "Appraisal.root.gemfile" && File.exist?(dest_path)
+            begin
+              prior = File.read(dest_path)
+              content = merge_gemfile_dependencies(content, prior)
+            rescue StandardError => e
+              Kettle::Dev.debug_error(e, __method__)
+            end
           end
         end
 
         # Apply self-dependency removal for all gem-related files
         # This ensures we don't introduce a self-dependency when templating
-        begin
-          meta = gemspec_metadata
-          gem_name = meta[:gem_name]
-          if gem_name && !gem_name.to_s.empty?
-            content = remove_self_dependency(content, gem_name, dest_path)
+        unless raw
+          begin
+            meta = gemspec_metadata
+            gem_name = meta[:gem_name]
+            if gem_name && !gem_name.to_s.empty?
+              content = remove_self_dependency(content, gem_name, dest_path)
+            end
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            # If metadata extraction or removal fails, proceed with content as-is
           end
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          # If metadata extraction or removal fails, proceed with content as-is
         end
 
         write_file(dest_path, content)
@@ -867,7 +873,7 @@ module Kettle
 
       def strategy_for(dest_path)
         relative = rel_path(dest_path)
-        config_for(relative)&.fetch(:strategy, :skip) || :skip
+        config_for(relative)&.fetch(:strategy, :merge) || :merge
       end
 
       # Get full configuration for a file path including merge options
@@ -941,12 +947,21 @@ module Kettle
         RUBY_EXTENSIONS.include?(ext)
       end
 
-      # Load the raw kettle-jem config file
+      # Load the raw kettle-jem config file.
+      # Prefers the destination project's .kettle-jem.yml (so each gem can
+      # customize its merge strategies); falls back to the kettle-jem gem root.
       # @return [Hash] Parsed YAML config
       def kettle_config
-        @@kettle_config ||= YAML.load_file(KETTLE_JEM_CONFIG_PATH)
-      rescue Errno::ENOENT
-        {}
+        @@kettle_config ||= begin
+          project_config = File.join(project_root.to_s, ".kettle-jem.yml")
+          if File.exist?(project_config)
+            YAML.load_file(project_config)
+          else
+            YAML.load_file(KETTLE_JEM_CONFIG_PATH)
+          end
+        rescue Errno::ENOENT
+          {}
+        end
       end
 
       # Load manifest entries from patterns section of config

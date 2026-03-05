@@ -338,5 +338,42 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
       expect(pruned).to eq(content)
       expect(removed).to be_empty
     end
+
+    it "does not leave excessive blank lines when multiple consecutive blocks are pruned" do
+      content = <<~RUBY
+        # frozen_string_literal: true
+
+        appraise "ruby-2-3" do
+          eval_gemfile "modular/x_std_libs/r2.3/libs.gemfile"
+        end
+
+        appraise "ruby-2-7" do
+          eval_gemfile "modular/x_std_libs/r2/libs.gemfile"
+        end
+
+        appraise "ruby-3-0" do
+          eval_gemfile "modular/x_std_libs/r3.1/libs.gemfile"
+        end
+
+        appraise "ruby-3-1" do
+          eval_gemfile "modular/x_std_libs/r3.1/libs.gemfile"
+        end
+
+        appraise "ruby-3-2" do
+          eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+        end
+
+        appraise "style" do
+          eval_gemfile "modular/style.gemfile"
+        end
+      RUBY
+
+      pruned, removed = described_class.prune_ruby_appraisals(content, min_ruby: "3.2")
+      expect(removed).to contain_exactly("ruby-2-3", "ruby-2-7", "ruby-3-0", "ruby-3-1")
+      expect(pruned).to include("ruby-3-2")
+      expect(pruned).to include("style")
+      # No runs of 3+ consecutive newlines (i.e., max one blank line between blocks)
+      expect(pruned).not_to match(/\n{3,}/)
+    end
   end
 end

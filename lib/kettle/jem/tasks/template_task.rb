@@ -13,6 +13,15 @@ module Kettle
 
         module_function
 
+        # Whether a relative template path should be raw-copied (no tokens, no merge).
+        # Checks the .kettle-jem.yml config for `strategy: raw_copy` on the given path.
+        # @param rel [String] relative path from template root (with .example stripped)
+        # @return [Boolean]
+        def raw_copy?(rel)
+          config = TemplateHelpers.config_for(rel)
+          config&.fetch(:strategy, nil) == :raw_copy
+        end
+
         # Normalize whitespace in Markdown content using AST-based processing.
         #
         # Performs a self-merge through Markdown::Merge::SmartMerger which:
@@ -127,6 +136,19 @@ module Kettle
               add_template_only_nodes: true,
             ).merge
             return merged if merged.is_a?(String) && !merged.empty?
+          elsif tool_versions_file?(rel)
+            # .tool-versions: text-merge with first-word signature matching.
+            # Lines match by tool name (e.g., "ruby"), so template version
+            # values replace destination values while destination-only tools
+            # are preserved.
+            merged = Ast::Merge::Text::SmartMerger.new(
+              content,
+              dest_content,
+              preference: :template,
+              add_template_only_nodes: true,
+              signature_generator: TOOL_VERSIONS_SIGNATURE_GENERATOR,
+            ).merge
+            return merged if merged.is_a?(String) && !merged.empty?
           else
             # Text files (gitignore, rspec, yardopts, etc.): text-merge
             merged = Ast::Merge::Text::SmartMerger.new(
@@ -161,6 +183,20 @@ module Kettle
         BASH_EXTENSIONS = %w[.sh .bash].freeze
         # Basenames that are shell scripts without a shell extension
         BASH_BASENAMES = %w[.envrc].freeze
+        # Basenames that use "tool version" key-value format (first word = key)
+        TOOL_VERSIONS_BASENAMES = %w[.tool-versions].freeze
+
+        # Custom signature generator for .tool-versions files.
+        # Matches lines by the tool name (first word) so that e.g.
+        # "ruby 3.2.0" in the destination matches "ruby 4.0.0" in the template.
+        # With preference: :template, the template version value wins while
+        # destination-only tool entries are preserved.
+        TOOL_VERSIONS_SIGNATURE_GENERATOR = ->(node) {
+          return node unless node.respond_to?(:content)
+          first_word = node.content.to_s.strip.split(/\s+/, 2).first
+          return node if first_word.nil? || first_word.empty?
+          [:line, first_word]
+        }.freeze
 
         def yaml_file?(relative_path)
           ext = File.extname(relative_path.to_s).downcase
@@ -173,6 +209,11 @@ module Kettle
           ext = File.extname(relative_path.to_s).downcase
           base = File.basename(relative_path.to_s)
           BASH_EXTENSIONS.include?(ext) || BASH_BASENAMES.include?(base)
+        end
+
+        def tool_versions_file?(relative_path)
+          base = File.basename(relative_path.to_s)
+          TOOL_VERSIONS_BASENAMES.include?(base)
         end
 
         # Abort wrapper that avoids terminating the entire process during specs
@@ -247,16 +288,7 @@ module Kettle
               next unless File.exist?(src)
 
               helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                c = helpers.apply_common_replacements(
-                  content,
-                  org: forge_org,
-                  funding_org: funding_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  min_ruby: min_ruby,
-                )
+                c = content
                 # Merge with existing destination file using format-appropriate merger
                 if File.exist?(dest)
                   begin
@@ -356,20 +388,7 @@ module Kettle
 
               if File.basename(rel) == "FUNDING.yml"
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                  # Effective funding handle should fall back to forge_org when funding_org is nil.
-                  # This allows tests to stub FUNDING_ORG=false to bypass explicit funding detection
-                  # while still templating the line with the derived organization (e.g., from homepage URL).
-                  effective_funding = funding_org || forge_org
-                  c = helpers.apply_common_replacements(
-                    content,
-                    org: forge_org,
-                    funding_org: effective_funding, # pass effective funding for downstream tokens
-                    gem_name: gem_name,
-                    namespace: namespace,
-                    namespace_shield: namespace_shield,
-                    gem_shield: gem_shield,
-                    min_ruby: min_ruby,
-                  )
+                  c = content
                   # Merge resolved template with existing destination FUNDING.yml using psych-merge.
                   # Template preference ensures updated funding values propagate while preserving
                   # any custom keys the destination has added.
@@ -391,17 +410,8 @@ module Kettle
               else
                 prepared = nil
                 if rel.start_with?(".github/workflows/")
-                  content = File.read(src)
-                  c = helpers.apply_common_replacements(
-                    content,
-                    org: forge_org,
-                    funding_org: funding_org,
-                    gem_name: gem_name,
-                    namespace: namespace,
-                    namespace_shield: namespace_shield,
-                    gem_shield: gem_shield,
-                    min_ruby: min_ruby,
-                  )
+                  # Read template with tokens resolved
+                  c = helpers.read_template(src)
                   if File.exist?(dest)
                     begin
                       c = Psych::Merge::SmartMerger.new(
@@ -425,16 +435,7 @@ module Kettle
                 end
 
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                  c = prepared || helpers.apply_common_replacements(
-                    content,
-                    org: forge_org,
-                    funding_org: funding_org,
-                    gem_name: gem_name,
-                    namespace: namespace,
-                    namespace_shield: namespace_shield,
-                    gem_shield: gem_shield,
-                    min_ruby: min_ruby,
-                  )
+                  c = prepared || content
                   # Merge non-workflow .github YAML files with destination (e.g., .codecov.yml, dependabot.yml)
                   if !prepared && File.exist?(dest)
                     begin
@@ -463,16 +464,7 @@ module Kettle
             allow_create: true,
             allow_replace: true,
           ) do |content|
-            c = helpers.apply_common_replacements(
-              content,
-              org: forge_org,
-              funding_org: funding_org,
-              gem_name: gem_name,
-              namespace: namespace,
-              namespace_shield: namespace_shield,
-              gem_shield: gem_shield,
-              min_ruby: min_ruby,
-            )
+            c = content
             if File.exist?(qlty_dest)
               begin
                 c = Toml::Merge::SmartMerger.new(
@@ -578,23 +570,8 @@ module Kettle
               end
 
               helpers.copy_file_with_prompt(gemspec_template_src, dest_gemspec, allow_create: true, allow_replace: true) do |content|
-                # First apply standard replacements from the template example, but only
-                # when we have a usable gem_name. If gem_name is unknown, leave content as-is
-                # to allow filename fallback behavior without raising.
-                c = if gem_name && !gem_name.to_s.empty?
-                  helpers.apply_common_replacements(
-                    content,
-                    org: forge_org,
-                    funding_org: funding_org,
-                    gem_name: gem_name,
-                    namespace: namespace,
-                    namespace_shield: namespace_shield,
-                    gem_shield: gem_shield,
-                    min_ruby: min_ruby,
-                  )
-                else
-                  content.dup
-                end
+                # Tokens are already resolved by read_template inside copy_file_with_prompt
+                c = content
 
                 if orig_meta
                   # Build replacements using AST-aware helper to carry over fields
@@ -710,22 +687,23 @@ module Kettle
               dest = File.join(project_root, rel)
               next unless File.exist?(src)
 
+              # Raw copy: no token resolution, no merging (e.g., certs/)
+              if raw_copy?(rel)
+                begin
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+                rescue StandardError => e
+                  Kettle::Dev.debug_error(e, __method__)
+                  puts "WARNING: Could not copy #{rel}: #{e.class}: #{e.message}"
+                end
+                next
+              end
+
               begin
                 if File.basename(rel) == "README.md"
                   prev_readme = File.exist?(dest) ? File.read(dest) : nil
 
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                    c = helpers.apply_common_replacements(
-                      content,
-                      org: forge_org,
-                      funding_org: funding_org,
-                      gem_name: gem_name,
-                      namespace: namespace,
-                      namespace_shield: namespace_shield,
-                      gem_shield: gem_shield,
-                      min_ruby: min_ruby,
-                    )
-
+                    c = content
                     begin
                       c = MarkdownMerger.merge(
                         template_content: c,
@@ -742,16 +720,7 @@ module Kettle
                   end
                 elsif File.basename(rel) == "CHANGELOG.md"
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                    c = helpers.apply_common_replacements(
-                      content,
-                      org: forge_org,
-                      funding_org: funding_org,
-                      gem_name: gem_name,
-                      namespace: namespace,
-                      namespace_shield: namespace_shield,
-                      gem_shield: gem_shield,
-                      min_ruby: min_ruby,
-                    )
+                    c = content
                     begin
                       dest_content = File.file?(dest) ? File.read(dest) : ""
                       c = ChangelogMerger.merge(
@@ -768,20 +737,14 @@ module Kettle
                     c
                   end
                 else
-                  # All other files: apply token replacements, then merge with destination
+                  # All other files: consult config for strategy
+                  file_strategy = helpers.strategy_for(dest)
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                    c = helpers.apply_common_replacements(
-                      content,
-                      org: forge_org,
-                      funding_org: funding_org,
-                      gem_name: gem_name,
-                      namespace: namespace,
-                      namespace_shield: namespace_shield,
-                      gem_shield: gem_shield,
-                      min_ruby: min_ruby,
-                    )
-                    # Merge with existing destination when it exists
-                    if File.exist?(dest)
+                    c = content
+                    if file_strategy == :skip
+                      # Token-resolved content wins; no merge with destination
+                    elsif File.exist?(dest)
+                      # Merge with existing destination when it exists
                       c = merge_by_file_type(c, dest, rel, helpers)
                     end
                     # Normalize spacing around Markdown structural elements using AST
@@ -1026,6 +989,41 @@ module Kettle
                 end
               end
             end
+          end
+
+          # Scan all written files for unresolved {KJ|...} tokens and warn
+          begin
+            token_pattern = /\{KJ\|[A-Z][A-Z0-9_:]*\}/
+            project_root_path = project_root.to_s
+            unresolved_by_file = {}
+            require "find"
+            Find.find(project_root_path) do |path|
+              next if File.directory?(path)
+              # Skip binary files, vendored dirs, and non-text files
+              rel = path.sub(%r{^#{Regexp.escape(project_root_path)}/?}, "")
+              next if rel.start_with?("vendor/", ".git/", "coverage/", "tmp/", "pkg/", "node_modules/")
+              next unless File.file?(path)
+              # Only check text files by extension
+              ext = File.extname(path)
+              next unless %w[.rb .gemspec .gemfile .yml .yaml .toml .md .txt .sh .json .jsonc .cff .example .lock].include?(ext) ||
+                File.basename(path).match?(/\A(Gemfile|Rakefile|Appraisals|REEK|\.envrc|\.env|\.rspec|\.yardopts|\.gitignore|\.rubocop|LICENSE)\z/i)
+              begin
+                content = File.read(path)
+                tokens = content.scan(token_pattern).uniq
+                unresolved_by_file[rel] = tokens unless tokens.empty?
+              rescue StandardError
+                # Skip files that can't be read
+              end
+            end
+
+            unless unresolved_by_file.empty?
+              helpers.add_warning("Unresolved {KJ|...} tokens found in #{unresolved_by_file.size} file(s):")
+              unresolved_by_file.each do |rel, tokens|
+                helpers.add_warning("  #{rel}: #{tokens.join(", ")}")
+              end
+            end
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
           end
 
           helpers.print_warnings_summary

@@ -237,7 +237,11 @@ module Kettle
 
             indent = found.slice.lines.first.match(/^(\s*)/)[1]
             replacement = indent + desired_line.strip + "\n"
-            new_body = new_body.sub(found.slice, replacement)
+            # Replace the full line including trailing comments to avoid orphaned comments.
+            # Prism's node.slice excludes trailing comments like `# ruby >= 2.3.0`,
+            # so we match the entire line containing the node text.
+            found_pattern = Regexp.escape(found.slice.strip)
+            new_body = new_body.sub(/^[ \t]*#{found_pattern}[^\n]*\n?/, replacement)
           else
             insert_line = "  " + desired_line.strip + "\n"
             new_body = if version_node

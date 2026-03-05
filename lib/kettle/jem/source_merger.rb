@@ -37,10 +37,13 @@ module Kettle
 
         result =
           case strategy
-          when :skip
-            apply_merge(src_content, dest_content, file_type: detected_type)
-          when :replace
-            apply_merge(src_content, dest_content, file_type: detected_type)
+          when :skip, :replace
+            # Token-resolved template content wins; no AST merge with destination
+            src_content
+          when :raw_copy
+            # Verbatim template content; should not reach here (handled earlier),
+            # but return source unchanged as a safety net
+            src_content
           when :append
             apply_append(src_content, dest_content, file_type: detected_type)
           when :merge
@@ -122,9 +125,9 @@ module Kettle
       end
 
       # @param strategy [Symbol, String, nil] Strategy to normalize
-      # @return [Symbol] Normalized strategy (:skip if nil)
+      # @return [Symbol] Normalized strategy (:merge if nil)
       def normalize_strategy(strategy)
-        return :skip if strategy.nil?
+        return :merge if strategy.nil?
         strategy.to_s.downcase.strip.to_sym
       end
 

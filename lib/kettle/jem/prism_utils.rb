@@ -124,6 +124,27 @@ module Kettle
         node.slice
       end
 
+      # Extract the full source line(s) for a single-line node, including trailing
+      # comments that appear after the node on the same line. Prism's `node.slice`
+      # excludes trailing comments, so replacing `node.slice` in a string leaves
+      # orphaned comments behind. This method returns the text from the node's
+      # start offset to the end of the line.
+      #
+      # @param node [Prism::Node] AST node
+      # @param source [String] Full source content the node belongs to
+      # @return [String] Node text including any trailing comment on the same line
+      def node_slice_with_trailing_comment(node, source)
+        return node.slice unless node && source
+
+        start = node.location.start_offset
+        # Find the end of the line containing the node's end
+        end_pos = node.location.end_offset
+        while end_pos < source.bytesize && source.getbyte(end_pos) != 10 # 10 = "\n"
+          end_pos += 1
+        end
+        source.byteslice(start...end_pos) || node.slice
+      end
+
       # Normalize a call node to use parentheses format
       # Converts `gem "foo"` to `gem("foo")` style
       # @param node [Prism::CallNode] Call node

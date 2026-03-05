@@ -177,5 +177,32 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(result).to include('add_development_dependency("rake", "~> 13.0")')
     end
+
+    it "does not leave orphaned trailing comments when replacing dependency lines" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+
+          spec.add_development_dependency("rake", ">= 12")                    # ruby >= 2.2.0
+          spec.add_development_dependency("rspec", "~> 3.0")                  # ruby >= 2.3.0
+        end
+      RUBY
+
+      desired = {
+        "rake" => '  spec.add_development_dependency("rake", "~> 13.0")                                # ruby >= 2.2.0',
+        "rspec" => '  spec.add_development_dependency("rspec", "~> 3.12")                               # ruby >= 2.5.0',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      # The old trailing comments should not appear as orphaned lines
+      lines = result.lines.map(&:strip)
+      orphaned = lines.select { |l| l == "# ruby >= 2.2.0" || l == "# ruby >= 2.3.0" }
+      expect(orphaned).to be_empty, "Found orphaned trailing comments: #{orphaned.inspect}"
+      # The replacement lines should include their new trailing comments
+      expect(result).to include("~> 13.0")
+      expect(result).to include("~> 3.12")
+    end
   end
 end

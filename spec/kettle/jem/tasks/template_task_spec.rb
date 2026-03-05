@@ -130,6 +130,66 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
 
+    describe "file type detection helpers" do
+      describe "::yaml_file?" do
+        it("detects .yml") { expect(described_class.send(:yaml_file?, "config.yml")).to be true }
+        it("detects .yaml") { expect(described_class.send(:yaml_file?, "config.yaml")).to be true }
+        it("detects CITATION.cff") { expect(described_class.send(:yaml_file?, "CITATION.cff")).to be true }
+        it("rejects .rb") { expect(described_class.send(:yaml_file?, "lib/foo.rb")).to be false }
+      end
+
+      describe "::bash_file?" do
+        it("detects .sh") { expect(described_class.send(:bash_file?, "script.sh")).to be true }
+        it("detects .envrc") { expect(described_class.send(:bash_file?, ".envrc")).to be true }
+        it("rejects .rb") { expect(described_class.send(:bash_file?, "lib/foo.rb")).to be false }
+      end
+
+      describe "::tool_versions_file?" do
+        it("detects .tool-versions") { expect(described_class.send(:tool_versions_file?, ".tool-versions")).to be true }
+        it("rejects .ruby-version") { expect(described_class.send(:tool_versions_file?, ".ruby-version")).to be false }
+        it("rejects .yml") { expect(described_class.send(:tool_versions_file?, "config.yml")).to be false }
+      end
+    end
+
+    describe ".tool-versions merging" do
+      it "matches lines by tool name and template version wins" do
+        template = "ruby 4.0.0\nnodejs 20.0.0\n"
+        dest = "ruby 3.2.0\nnodejs 18.0.0\npython 3.11\n"
+
+        merged = Ast::Merge::Text::SmartMerger.new(
+          template,
+          dest,
+          preference: :template,
+          add_template_only_nodes: true,
+          signature_generator: described_class::TOOL_VERSIONS_SIGNATURE_GENERATOR,
+        ).merge
+
+        # Template versions should win for shared tools
+        expect(merged).to include("ruby 4.0.0")
+        expect(merged).not_to include("ruby 3.2.0")
+        expect(merged).to include("nodejs 20.0.0")
+        expect(merged).not_to include("nodejs 18.0.0")
+        # Destination-only tool is preserved
+        expect(merged).to include("python 3.11")
+      end
+
+      it "adds template-only tools to destination" do
+        template = "ruby 4.0.0\ngolang 1.21\n"
+        dest = "ruby 3.2.0\n"
+
+        merged = Ast::Merge::Text::SmartMerger.new(
+          template,
+          dest,
+          preference: :template,
+          add_template_only_nodes: true,
+          signature_generator: described_class::TOOL_VERSIONS_SIGNATURE_GENERATOR,
+        ).merge
+
+        expect(merged).to include("ruby 4.0.0")
+        expect(merged).to include("golang 1.21")
+      end
+    end
+
     describe "::run" do
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do
         Dir.mktmpdir do |gem_root|
@@ -947,14 +1007,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(File).to exist(File.join(project_root, "certs", "pboling.pem"))
 
             # Error run
-            allow(helpers).to receive(:copy_file_with_prompt).and_wrap_original do |m, *args, &blk|
+            allow(helpers).to receive(:copy_file_with_prompt).and_wrap_original do |m, *args, **kw, &blk|
               if args[0].to_s.end_with?(File.join("certs", "pboling.pem"))
                 raise "nope"
-              elsif args.last.is_a?(Hash)
-                kw = args.pop
-                m.call(*args, **kw, &blk)
               else
-                m.call(*args, &blk)
+                m.call(*args, **kw, &blk)
               end
             end
             expect { described_class.run }.not_to raise_error

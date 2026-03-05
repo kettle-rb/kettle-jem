@@ -4,10 +4,11 @@ RSpec.describe Kettle::Jem::SourceMerger do
   describe ".apply" do
     let(:path) { "Gemfile" }
 
-    it "prepends the freeze reminder when missing" do
+    it "returns template content without merging when strategy is :skip" do
       src = "gem \"foo\"\n"
-      result = described_class.apply(strategy: :skip, src: src, dest: "", path: path)
+      result = described_class.apply(strategy: :skip, src: src, dest: "gem \"bar\"\n", path: path)
       expect(result).to include("gem \"foo\"")
+      expect(result).not_to include("gem \"bar\"")
     end
 
     it "preserves kettle-jem:freeze blocks from the destination", :prism_merge_only do
@@ -378,8 +379,8 @@ RSpec.describe Kettle::Jem::SourceMerger do
   end
 
   describe ".normalize_strategy" do
-    it "returns :skip for nil" do
-      expect(described_class.normalize_strategy(nil)).to eq(:skip)
+    it "returns :merge for nil" do
+      expect(described_class.normalize_strategy(nil)).to eq(:merge)
     end
 
     it "converts string to symbol" do

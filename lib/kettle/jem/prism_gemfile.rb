@@ -141,8 +141,8 @@ module Kettle
 
         out = content.dup
         gem_nodes.each do |gn|
-          # Remove the gem call and its trailing newline to avoid blank lines
-          out = out.sub(/#{Regexp.escape(gn.slice)}[ \t]*\n?/, "")
+          # Remove the gem call, trailing comments, and the trailing newline to avoid orphaned comments
+          out = out.sub(/^[ \t]*#{Regexp.escape(gn.slice.strip)}[^\n]*\n?/, "")
         end
 
         out

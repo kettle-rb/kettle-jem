@@ -62,7 +62,7 @@ module Kettle
             end
 
             if arg_val && arg_val.to_s == gem_name.to_s
-              out = out.sub(stmt.slice, "")
+              out = out.sub(/^[ \t]*#{Regexp.escape(stmt.slice.strip)}[^\n]*\n?/, "")
             end
           end
         end
@@ -110,8 +110,21 @@ module Kettle
 
         pruned = content.dup
         edits.sort_by { |(start, _len)| -start }.each do |start, len|
-          pruned = pruned[0...start] + pruned[(start + len)..-1].to_s
+          end_pos = start + len
+          # Consume trailing whitespace and up to one newline after the removed block
+          while end_pos < pruned.length && pruned[end_pos] =~ /[ \t]/
+            end_pos += 1
+          end
+          end_pos += 1 if end_pos < pruned.length && pruned[end_pos] == "\n"
+          # Consume leading blank lines before the removed block (back up over preceding newlines)
+          while start > 0 && pruned[start - 1] == "\n" && (start < 2 || pruned[start - 2] == "\n")
+            start -= 1
+          end
+          pruned = pruned[0...start] + pruned[end_pos..-1].to_s
         end
+
+        # Collapse runs of 3+ consecutive newlines down to 2 (one blank line)
+        pruned.gsub!(/\n{3,}/, "\n\n")
 
         [pruned, removed]
       rescue StandardError => e

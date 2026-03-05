@@ -54,3 +54,17 @@ patterns:
 # Per-file configuration (nested directory structure)
 # Only files that need skip or raw_copy are listed; everything else defaults to merge.
 files: {}
+
+# To override specific files, add entries like:
+#
+# files:
+#   "some-binary-file.dat":
+#     strategy: raw_copy
+#
+#   "some-file-to-always-replace.txt":
+#     strategy: skip
+#
+#   "Rakefile":
+#     strategy: merge
+#     preference: "destination"
+#     add_template_only_nodes: false
