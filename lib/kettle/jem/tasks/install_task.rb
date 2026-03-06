@@ -17,8 +17,9 @@ module Kettle
           helpers = Kettle::Jem::TemplateHelpers
           project_root = helpers.project_root
 
-          # Run file templating via dedicated task first
+          helpers.clear_template_run_outcome!
           Rake::Task["kettle:jem:template"].invoke
+          return :bootstrap_only if helpers.template_run_outcome == :bootstrap_only
 
           # .tool-versions cleanup offers
           tool_versions_path = File.join(project_root, ".tool-versions")

@@ -1712,30 +1712,26 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
-            File.write(File.join(template_root, "README.md.example"), "# Template README\n\nTemplate body\n")
-            File.write(File.join(template_root, "SECURITY.md.example"), "# Template Security\n\nTemplate security body\n")
-
-            File.write(File.join(project_root, "README.md"), "# Destination README\n\nDestination body\n")
-            File.write(File.join(project_root, "SECURITY.md"), "# Destination Security\n\nDestination security body\n")
-            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
               defaults:
-                preference: template
-                add_template_only_nodes: true
-                freeze_token: kettle-jem
-              tokens: {}
-              patterns: []
-              files:
-                README.md:
-                  strategy: accept_template
-                SECURITY.md:
-                  strategy: keep_destination
+                freeze_token: "kettle-jem"
+              tokens:
+                author:
+                  name: "{KJ|AUTHOR:NAME}"
             YAML
+            File.write(File.join(template_root, "README.md.example"), <<~MD)
+              # {KJ|GEM_NAME}
+
+              Template README body
+            MD
+
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
                 spec.summary = "test"
-                spec.authors = ["Test User"]
+                spec.authors = ["Jane Doe"]
+                spec.email = ["jane@example.com"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
@@ -1749,10 +1745,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             )
             helpers.clear_kettle_config!
 
-            expect { described_class.run }.not_to raise_error
+            result = nil
+            expect { result = described_class.run }.not_to raise_error
 
-            expect(File.read(File.join(project_root, "README.md"))).to eq("# Template README\n\nTemplate body\n")
-            expect(File.read(File.join(project_root, "SECURITY.md"))).to eq("# Destination Security\n\nDestination security body\n")
+            expect(result).to eq(:bootstrap_only)
+            expect(File).to exist(File.join(project_root, ".kettle-jem.yml"))
+            expect(File).not_to exist(File.join(project_root, "README.md"))
           end
         end
       end
@@ -1762,25 +1760,27 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
-            File.write(File.join(template_root, "SECURITY.md.example"), "# Template Security\n\nTemplate security body\n")
-
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                freeze_token: "kettle-jem"
+              tokens:
+                author:
+                  name: "{KJ|AUTHOR:NAME}"
+            YAML
             File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
               defaults:
-                preference: template
-                add_template_only_nodes: true
-                freeze_token: kettle-jem
-              tokens: {}
-              patterns: []
-              files:
-                SECURITY.md:
-                  strategy: keep_destination
+                freeze_token: "destination-token"
+              tokens:
+                author:
+                  name: "Custom Author"
             YAML
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
                 spec.summary = "test"
-                spec.authors = ["Test User"]
+                spec.authors = ["Jane Marie Doe"]
+                spec.email = ["jane@example.com"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end

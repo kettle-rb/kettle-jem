@@ -681,6 +681,26 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         expect(t).to include('spec.description = "Desc"')
       end
     end
+
+    it "exits cleanly when templating bootstraps only .kettle-jem.yml" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, ".tool-versions"), "ruby 3.2.0\n")
+        File.write(File.join(project_root, ".ruby-version"), "3.2.0\n")
+
+        fake_task = double("template task")
+        allow(fake_task).to receive(:invoke) { helpers.template_run_outcome = :bootstrap_only }
+        allow(Rake::Task).to receive(:[]).with("kettle:jem:template").and_return(fake_task)
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: false,
+          template_results: {},
+        )
+
+        expect { described_class.run }.not_to raise_error
+        expect(File).to exist(File.join(project_root, ".ruby-version"))
+      end
+    end
   end
 
   describe "::task_abort" do

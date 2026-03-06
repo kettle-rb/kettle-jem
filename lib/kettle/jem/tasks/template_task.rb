@@ -220,9 +220,9 @@ module Kettle
         # Execute the template operation into the current project.
         # All options/IO are controlled via TemplateHelpers and ENV.
         def run
-          # Inline the former rake task body, but using helpers directly.
           helpers = Kettle::Jem::TemplateHelpers
           helpers.clear_warnings
+          helpers.clear_template_run_outcome!
 
           project_root = helpers.project_root
           template_root = helpers.template_root
@@ -276,6 +276,7 @@ module Kettle
           begin
             config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
             config_dest = File.join(project_root, ".kettle-jem.yml")
+            config_preexisted = File.exist?(config_dest)
             if File.exist?(config_src)
               seeded_config_content = begin
                 helpers.configure_tokens!(
@@ -301,29 +302,39 @@ module Kettle
                 )
               end
 
-              helpers.copy_file_with_prompt(
-                config_src,
-                config_dest,
-                allow_create: true,
-                allow_replace: true,
-                content_override: seeded_config_content,
-              ) do |content|
-                c = content
-                if File.exist?(config_dest)
-                  begin
-                    c = Psych::Merge::SmartMerger.new(
-                      c,
-                      File.read(config_dest),
-                      preference: :destination,
-                      add_template_only_nodes: true,
-                    ).merge
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
+              if config_preexisted
+                helpers.copy_file_with_prompt(
+                  config_src,
+                  config_dest,
+                  allow_create: true,
+                  allow_replace: true,
+                  content_override: seeded_config_content,
+                ) do |content|
+                  c = content
+                  if File.exist?(config_dest)
+                    begin
+                      c = Psych::Merge::SmartMerger.new(
+                        c,
+                        File.read(config_dest),
+                        preference: :destination,
+                        add_template_only_nodes: true,
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                    end
                   end
+                  c
                 end
-                c
+                helpers.clear_kettle_config!
+              else
+                helpers.write_file(config_dest, seeded_config_content)
+                helpers.record_template_result(config_dest, :create)
+                helpers.clear_kettle_config!
+                helpers.template_run_outcome = :bootstrap_only
+                puts "[kettle-jem] Wrote #{config_dest}."
+                puts "[kettle-jem] Review that file, fill in any missing token values, commit it, then re-run kettle-jem."
+                return :bootstrap_only
               end
-              helpers.clear_kettle_config!
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
@@ -1127,8 +1138,8 @@ module Kettle
           end
 
           helpers.print_warnings_summary
+          helpers.template_run_outcome = :complete
 
-          # Done
           nil
         end
 

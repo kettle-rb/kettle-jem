@@ -24,6 +24,10 @@ module Kettle
       # Warnings collected during template processing, for end-of-run summary.
       @@template_warnings = []
 
+      # Track the outcome of the last template run so InstallTask can exit cleanly
+      # after bootstrap-only config creation.
+      @@template_run_outcome = nil
+
       EXECUTABLE_GIT_HOOKS_RE = %r{[\\/]\.git-hooks[\\/](commit-msg|prepare-commit-msg)\z}
       # The minimum Ruby supported by setup-ruby GHA
       MIN_SETUP_RUBY = Gem::Version.create("2.3")
@@ -1107,6 +1111,18 @@ module Kettle
         puts
         puts "Important warnings:"
         msgs.each { |m| puts "  - #{m}" }
+      end
+
+      def template_run_outcome
+        @@template_run_outcome
+      end
+
+      def template_run_outcome=(value)
+        @@template_run_outcome = value
+      end
+
+      def clear_template_run_outcome!
+        @@template_run_outcome = nil
       end
     end
   end
