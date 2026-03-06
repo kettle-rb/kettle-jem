@@ -33,7 +33,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
             spec.add_development_dependency 'rexml', '>= 3'
             spec.add_development_dependency 'rspec', '>= 3'
             spec.add_development_dependency 'rspec-block_is_expected'
-            spec.add_development_dependency 'rspec-pending_for'
+            spec.add_development_dependency 'rspec-pending-for'
             spec.add_development_dependency 'rspec-stubbed_env'
             spec.add_development_dependency 'rubocop-lts', ['>= 2.0.3', '~>2.0']
             spec.add_development_dependency 'silent_stream'
@@ -635,6 +635,40 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"))
       cli.send(:run_kettle_install!)
+    end
+  end
+
+  describe "template source resolution" do
+    let(:cli) { described_class.allocate }
+
+    describe "#installed_path" do
+      it "prefers template .example files over same-path files at the gem root" do
+        path = cli.send(:installed_path, ".devcontainer/apt-install/install.sh")
+
+        expect(path).to end_with("template/.devcontainer/apt-install/install.sh.example")
+      end
+
+      it "does not fall back to non-template files from the gem root" do
+        expect(cli.send(:installed_path, "Gemfile.lock")).to be_nil
+      end
+    end
+
+    describe "#ensure_bin_setup!" do
+      around do |ex|
+        Dir.mktmpdir do |dir|
+          Dir.chdir(dir) { ex.run }
+        end
+      end
+
+      it "copies bin/setup from template/bin/setup.example" do
+        allow(cli).to receive(:say)
+
+        cli.send(:ensure_bin_setup!)
+
+        expect(File.read("bin/setup")).to eq(
+          File.read(File.expand_path("../../../template/bin/setup.example", __dir__)),
+        )
+      end
     end
   end
 

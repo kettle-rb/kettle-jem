@@ -41,7 +41,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
         expect(merged).not_to include('gem "rubocop-ruby2_3", "~> 2.0"')
       end
 
-      it "does not duplicate if blocks with same condition in append mode" do
+      it "does not duplicate if blocks with same condition during merge" do
         src = <<~RUBY
           if ENV["DEBUG"] == "true"
             gem "debug-gem", "~> 1.0"
@@ -54,9 +54,11 @@ RSpec.describe Kettle::Jem::SourceMerger do
           end
         RUBY
 
-        merged = described_class.apply(strategy: :append, src: src, dest: dest, path: path)
+        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
         if_count = merged.scan('if ENV["DEBUG"]').size
         expect(if_count).to eq(1)
+        expect(merged).to include('gem "debug-gem", "~> 1.0"')
+        expect(merged).not_to include('gem "debug-gem", "~> 0.5"')
       end
 
       it "keeps both if blocks when predicates are different", :prism_merge_only do

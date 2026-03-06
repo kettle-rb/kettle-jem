@@ -69,11 +69,17 @@ module Kettle
         "DEVTO" => "KJ_SOCIAL_DEVTO",
       }.freeze
 
-      # Fallback config path at the kettle-jem gem root
-      KETTLE_JEM_CONFIG_PATH = File.expand_path("../../..", __dir__) + "/.kettle-jem.yml"
+      # Default config path within the template tree
+      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
       RUBY_BASENAMES = %w[Gemfile Rakefile Appraisals Appraisal.root.gemfile .simplecov].freeze
       RUBY_SUFFIXES = %w[.gemspec .gemfile].freeze
       RUBY_EXTENSIONS = %w[.rb .rake].freeze
+      SUPPORTED_TEMPLATING_STRATEGIES = %i[
+        merge
+        accept_template
+        keep_destination
+        raw_copy
+      ].freeze
 
       # RuboCop LTS version map: min_ruby -> constraint.
       # Used to resolve {KJ|RUBOCOP_LTS_CONSTRAINT} and {KJ|RUBOCOP_RUBY_GEM} tokens.
@@ -160,20 +166,16 @@ module Kettle
       # @param funding_org [String, nil]
       # @param min_ruby [Gem::Version, String, nil]
       # @return [void]
-      def configure_tokens!(org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org: nil, min_ruby: nil)
+      def configure_tokens!(org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org: nil, min_ruby: nil, include_config_tokens: true)
         raise Error, "Org could not be derived" unless org && !org.empty?
         raise Error, "Gem name could not be derived" unless gem_name && !gem_name.empty?
 
         funding_org ||= org
+        meta = safe_gemspec_metadata
+        token_config = include_config_tokens ? token_config_values : {}
 
         # Derive min_ruby from gemspec if not provided
-        mr = begin
-          meta = gemspec_metadata
-          meta[:min_ruby]
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          nil
-        end
+        mr = meta[:min_ruby]
         if min_ruby.nil? || min_ruby.to_s.strip.empty?
           min_ruby = mr.respond_to?(:to_s) ? mr.to_s : mr
         end
@@ -190,8 +192,12 @@ module Kettle
 
         dashed = gem_name.tr("_", "-")
         ft = (kettle_config.dig("defaults", "freeze_token") || "kettle-jem").to_s
-        author_domain = ENV["KJ_AUTHOR_DOMAIN"]
-        author_domain = nil if author_domain.to_s.strip.empty?
+        author_name = resolved_author_name(meta, token_config)
+        author_email = resolved_author_email(meta, token_config)
+        author_domain = resolved_author_domain(author_email, token_config)
+        author_given_names = resolved_author_given_names(author_name, token_config)
+        author_family_names = resolved_author_family_names(author_name, token_config)
+        author_orcid = preferred_token_value(nil, token_config.dig("author", "orcid"), env_key: "KJ_AUTHOR_ORCID")
 
         replacements = {
           "KJ|GEM_NAME" => gem_name,
@@ -207,6 +213,12 @@ module Kettle
         }
         replacements["KJ|MIN_RUBY"] = min_ruby.to_s if min_ruby && !min_ruby.to_s.empty?
         replacements["KJ|MIN_DEV_RUBY"] = min_dev_ruby.to_s if min_dev_ruby && !min_dev_ruby.to_s.empty?
+        replacements["KJ|AUTHOR:NAME"] = author_name if present_string?(author_name)
+        replacements["KJ|AUTHOR:GIVEN_NAMES"] = author_given_names if present_string?(author_given_names)
+        replacements["KJ|AUTHOR:FAMILY_NAMES"] = author_family_names if present_string?(author_family_names)
+        replacements["KJ|AUTHOR:EMAIL"] = author_email if present_string?(author_email)
+        replacements["KJ|AUTHOR:DOMAIN"] = author_domain if present_string?(author_domain)
+        replacements["KJ|AUTHOR:ORCID"] = author_orcid if present_string?(author_orcid)
 
         # RuboCop LTS tokens — derived from min_ruby, used in style.gemfile and potentially others
         min_ruby_version = begin
@@ -220,29 +232,101 @@ module Kettle
 
         # Forge user tokens: {KJ|GH:USER}, {KJ|GL:USER}, {KJ|CB:USER}, {KJ|SH:USER}
         FORGE_USER_ENV_KEYS.each do |forge, env_key|
-          value = ENV[env_key]
-          replacements["KJ|#{forge}:USER"] = value if value && !value.strip.empty?
-        end
-
-        # Author identity tokens
-        AUTHOR_ENV_KEYS.each do |field, env_key|
-          value = ENV[env_key]
-          replacements["KJ|AUTHOR:#{field}"] = value if value && !value.strip.empty?
+          config_key = case forge
+          when "GH" then "gh_user"
+          when "GL" then "gl_user"
+          when "CB" then "cb_user"
+          when "SH" then "sh_user"
+          end
+          value = preferred_token_value(nil, token_config.dig("forge", config_key), env_key: env_key)
+          replacements["KJ|#{forge}:USER"] = value if present_string?(value)
         end
 
         # Funding platform tokens
         FUNDING_ENV_KEYS.each do |platform, env_key|
-          value = ENV[env_key]
-          replacements["KJ|FUNDING:#{platform}"] = value if value && !value.strip.empty?
+          value = preferred_token_value(nil, token_config.dig("funding", platform.downcase), env_key: env_key)
+          replacements["KJ|FUNDING:#{platform}"] = value if present_string?(value)
         end
 
         # Social/community platform tokens
         SOCIAL_ENV_KEYS.each do |platform, env_key|
-          value = ENV[env_key]
-          replacements["KJ|SOCIAL:#{platform}"] = value if value && !value.strip.empty?
+          value = preferred_token_value(nil, token_config.dig("social", platform.downcase), env_key: env_key)
+          replacements["KJ|SOCIAL:#{platform}"] = value if present_string?(value)
         end
 
         @@token_replacements = replacements
+      end
+
+      def token_config_values
+        config = kettle_config
+        raw = config.is_a?(Hash) ? config["tokens"] : nil
+        raw.is_a?(Hash) ? raw : {}
+      end
+
+      def safe_gemspec_metadata
+        gemspec_metadata
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        {}
+      end
+
+      def preferred_token_value(derived_value, config_value, env_key:)
+        env_value = ENV[env_key]
+        env_clean = env_value.to_s.strip
+        return env_clean if present_string?(env_clean) && !token_placeholder?(env_clean)
+
+        config_clean = config_value.to_s.strip
+        return config_clean if present_string?(config_clean) && !token_placeholder?(config_clean)
+        return nil unless present_string?(derived_value)
+
+        derived_value.to_s.strip
+      end
+
+      def token_placeholder?(value)
+        value.to_s.strip.match?(%r{\A\{KJ\|[A-Z][A-Z0-9_:]*\}\z})
+      end
+
+      def present_string?(value)
+        !value.to_s.strip.empty?
+      end
+
+      def first_present_value(values)
+        Array(values).find { |value| present_string?(value) }
+      end
+
+      def resolved_author_name(meta, token_config)
+        preferred_token_value(first_present_value(meta[:authors]), token_config.dig("author", "name"), env_key: "KJ_AUTHOR_NAME")
+      end
+
+      def resolved_author_email(meta, token_config)
+        preferred_token_value(first_present_value(meta[:email]), token_config.dig("author", "email"), env_key: "KJ_AUTHOR_EMAIL")
+      end
+
+      def resolved_author_domain(author_email, token_config)
+        derived_domain = author_email.to_s.split("@", 2)[1]
+        preferred_token_value(derived_domain, token_config.dig("author", "domain"), env_key: "KJ_AUTHOR_DOMAIN")
+      end
+
+      def resolved_author_given_names(author_name, token_config)
+        preferred_token_value(derive_given_names(author_name), token_config.dig("author", "given_names"), env_key: "KJ_AUTHOR_GIVEN_NAMES")
+      end
+
+      def resolved_author_family_names(author_name, token_config)
+        preferred_token_value(derive_family_names(author_name), token_config.dig("author", "family_names"), env_key: "KJ_AUTHOR_FAMILY_NAMES")
+      end
+
+      def derive_given_names(author_name)
+        parts = author_name.to_s.strip.split(/\s+/)
+        return nil if parts.size < 2
+
+        parts[0...-1].join(" ")
+      end
+
+      def derive_family_names(author_name)
+        parts = author_name.to_s.strip.split(/\s+/)
+        return nil if parts.size < 2
+
+        parts[-1]
       end
 
       # Clear configured tokens (for test isolation).
@@ -493,8 +577,9 @@ module Kettle
       # Copy a single file with interactive prompts for create/merge.
       # Yields content for transformation when block given.
       # @param raw [Boolean] when true, reads file verbatim (no token resolution, no yield)
+      # @param content_override [String, nil] explicit content to use instead of reading src_path
       # @return [void]
-      def copy_file_with_prompt(src_path, dest_path, allow_create: true, allow_replace: true, raw: false)
+      def copy_file_with_prompt(src_path, dest_path, allow_create: true, allow_replace: true, raw: false, content_override: nil)
         return unless File.exist?(src_path)
 
         # Apply optional inclusion filter via ENV["only"] (comma-separated glob patterns relative to project root)
@@ -552,7 +637,11 @@ module Kettle
           return
         end
 
-        content = raw ? File.read(src_path) : read_template(src_path)
+        content = if content_override
+          content_override
+        else
+          raw ? File.read(src_path) : read_template(src_path)
+        end
         content = yield(content) if block_given? && !raw
 
         unless raw
@@ -923,10 +1012,14 @@ module Kettle
         config = kettle_config
         defaults = config&.fetch("defaults", {}) || {}
 
-        result = {strategy: entry["strategy"].to_s.strip.downcase.to_sym}
+        strategy = entry["strategy"].to_s.strip.downcase.to_sym
+        unless SUPPORTED_TEMPLATING_STRATEGIES.include?(strategy)
+          raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}'"
+        end
+
+        result = {strategy: strategy}
         result[:path] = path if path
 
-        # For merge strategy, include merge options (from entry or defaults)
         if result[:strategy] == :merge
           %w[preference add_template_only_nodes freeze_token max_recursion_depth].each do |opt|
             value = entry.key?(opt) ? entry[opt] : defaults[opt]
@@ -952,15 +1045,16 @@ module Kettle
 
       # Load the raw kettle-jem config file.
       # Prefers the destination project's .kettle-jem.yml (so each gem can
-      # customize its merge strategies); falls back to the kettle-jem gem root.
+      # customize its merge strategies); falls back to the template default config.
       # @return [Hash] Parsed YAML config
       def kettle_config
         @@kettle_config ||= begin
-          project_config = File.join(project_root.to_s, ".kettle-jem.yml")
+          project_config = File.join(project_root.to_s, TEMPLATE_CONFIG_RELATIVE_PATH)
           if File.exist?(project_config)
             YAML.load_file(project_config)
           else
-            YAML.load_file(KETTLE_JEM_CONFIG_PATH)
+            template_config = prefer_example(File.join(template_root, TEMPLATE_CONFIG_RELATIVE_PATH))
+            File.exist?(template_config) ? YAML.load_file(template_config) : {}
           end
         rescue Errno::ENOENT
           {}

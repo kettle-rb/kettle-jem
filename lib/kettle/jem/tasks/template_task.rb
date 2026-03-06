@@ -277,7 +277,37 @@ module Kettle
             config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
             config_dest = File.join(project_root, ".kettle-jem.yml")
             if File.exist?(config_src)
-              helpers.copy_file_with_prompt(config_src, config_dest, allow_create: true, allow_replace: true) do |content|
+              seeded_config_content = begin
+                helpers.configure_tokens!(
+                  org: forge_org,
+                  gem_name: gem_name,
+                  namespace: namespace,
+                  namespace_shield: namespace_shield,
+                  gem_shield: gem_shield,
+                  funding_org: funding_org,
+                  min_ruby: min_ruby,
+                  include_config_tokens: false,
+                )
+                helpers.read_template(config_src)
+              ensure
+                helpers.configure_tokens!(
+                  org: forge_org,
+                  gem_name: gem_name,
+                  namespace: namespace,
+                  namespace_shield: namespace_shield,
+                  gem_shield: gem_shield,
+                  funding_org: funding_org,
+                  min_ruby: min_ruby,
+                )
+              end
+
+              helpers.copy_file_with_prompt(
+                config_src,
+                config_dest,
+                allow_create: true,
+                allow_replace: true,
+                content_override: seeded_config_content,
+              ) do |content|
                 c = content
                 if File.exist?(config_dest)
                   begin
@@ -293,7 +323,6 @@ module Kettle
                 end
                 c
               end
-              # Clear cached config so subsequent steps read the newly-written version
               helpers.clear_kettle_config!
             end
           rescue StandardError => e
@@ -313,10 +342,16 @@ module Kettle
               dest = File.join(project_root, ".devcontainer", dest_rel)
               next unless File.exist?(src)
 
+              file_strategy = helpers.strategy_for(dest)
+              next if file_strategy == :keep_destination
+              if file_strategy == :raw_copy
+                helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+                next
+              end
+
               helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                 c = content
-                # Merge with existing destination file using format-appropriate merger
-                if File.exist?(dest)
+                if file_strategy != :accept_template && File.exist?(dest)
                   begin
                     merger_class = case dest_rel
                     when /\.json$/
@@ -339,7 +374,6 @@ module Kettle
                     end
                   rescue StandardError => e
                     Kettle::Dev.debug_error(e, __method__)
-                    # Fall through with token-resolved content on merge failure
                   end
                 end
                 c
@@ -393,32 +427,33 @@ module Kettle
 
             selected.values.each do |orig_src|
               src = helpers.prefer_example_with_osc_check(orig_src)
-              # Destination path should never include the .example suffix.
               rel = orig_src.sub(/^#{Regexp.escape(template_root)}\/?/, "").sub(/\.example\z/, "")
               dest = File.join(project_root, rel)
+              next unless File.exist?(src)
 
-              # Skip opencollective-specific files when Open Collective is disabled
+              file_strategy = helpers.strategy_for(dest)
+              next if file_strategy == :keep_destination
+
               if helpers.skip_for_disabled_opencollective?(rel)
                 puts "Skipping #{rel} (Open Collective disabled)"
                 next
               end
 
-              # Optional file: .github/workflows/discord-notifier.yml should NOT be copied by default.
-              # Only copy when --include matches it.
               if rel == ".github/workflows/discord-notifier.yml"
                 unless matches_include.call(dest)
-                  # Explicitly skip without prompting
                   next
                 end
+              end
+
+              if file_strategy == :raw_copy
+                helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+                next
               end
 
               if File.basename(rel) == "FUNDING.yml"
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                   c = content
-                  # Merge resolved template with existing destination FUNDING.yml using psych-merge.
-                  # Template preference ensures updated funding values propagate while preserving
-                  # any custom keys the destination has added.
-                  if File.exist?(dest)
+                  if file_strategy != :accept_template && File.exist?(dest)
                     begin
                       c = Psych::Merge::SmartMerger.new(
                         c,
@@ -428,7 +463,6 @@ module Kettle
                       ).merge
                     rescue StandardError => e
                       Kettle::Dev.debug_error(e, __method__)
-                      # Fall through with token-resolved content on merge failure
                     end
                   end
                   c
@@ -436,9 +470,8 @@ module Kettle
               else
                 prepared = nil
                 if rel.start_with?(".github/workflows/")
-                  # Read template with tokens resolved
                   c = helpers.read_template(src)
-                  if File.exist?(dest)
+                  if file_strategy != :accept_template && File.exist?(dest)
                     begin
                       c = Psych::Merge::SmartMerger.new(
                         c,
@@ -461,21 +494,7 @@ module Kettle
                 end
 
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-                  c = prepared || content
-                  # Merge non-workflow .github YAML files with destination (e.g., .codecov.yml, dependabot.yml)
-                  if !prepared && File.exist?(dest)
-                    begin
-                      c = Psych::Merge::SmartMerger.new(
-                        c,
-                        File.read(dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
-                    end
-                  end
-                  c
+                  prepared || content
                 end
               end
             end
@@ -484,28 +503,40 @@ module Kettle
           # 3) .qlty/qlty.toml — merge with TOML-aware SmartMerger
           qlty_src = helpers.prefer_example(File.join(template_root, ".qlty/qlty.toml"))
           qlty_dest = File.join(project_root, ".qlty/qlty.toml")
-          helpers.copy_file_with_prompt(
-            qlty_src,
-            qlty_dest,
-            allow_create: true,
-            allow_replace: true,
-          ) do |content|
-            c = content
-            if File.exist?(qlty_dest)
-              begin
-                c = Toml::Merge::SmartMerger.new(
-                  c,
-                  File.read(qlty_dest),
-                  preference: :template,
-                  add_template_only_nodes: true,
-                  freeze_token: "kettle-jem",
-                ).merge
-              rescue StandardError => e
-                Kettle::Dev.debug_error(e, __method__)
-                # Fall through with token-resolved content on merge failure
+          qlty_strategy = helpers.strategy_for(qlty_dest)
+          unless qlty_strategy == :keep_destination
+            if qlty_strategy == :raw_copy
+              helpers.copy_file_with_prompt(
+                qlty_src,
+                qlty_dest,
+                allow_create: true,
+                allow_replace: true,
+                raw: true,
+              )
+            else
+              helpers.copy_file_with_prompt(
+                qlty_src,
+                qlty_dest,
+                allow_create: true,
+                allow_replace: true,
+              ) do |content|
+                c = content
+                if qlty_strategy != :accept_template && File.exist?(qlty_dest)
+                  begin
+                    c = Toml::Merge::SmartMerger.new(
+                      c,
+                      File.read(qlty_dest),
+                      preference: :template,
+                      add_template_only_nodes: true,
+                      freeze_token: "kettle-jem",
+                    ).merge
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                  end
+                end
+                c
               end
             end
-            c
           end
 
           # 4) gemfiles/modular/* and nested directories (delegated for DRYness)
@@ -539,22 +570,29 @@ module Kettle
             envlocal_src = File.join(template_root, ".env.local.example")
             envlocal_dest = File.join(project_root, ".env.local.example")
             if File.exist?(envlocal_src)
-              helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true) do |content|
-                if File.exist?(envlocal_dest)
-                  begin
-                    Dotenv::Merge::SmartMerger.new(
-                      content,
-                      File.read(envlocal_dest),
-                      preference: :destination,
-                      add_template_only_nodes: true,
-                      freeze_token: "kettle-jem",
-                    ).merge
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    content # Fall back to template content on merge failure
-                  end
+              envlocal_strategy = helpers.strategy_for(envlocal_dest)
+              unless envlocal_strategy == :keep_destination
+                if envlocal_strategy == :raw_copy
+                  helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true, raw: true)
                 else
-                  content
+                  helpers.copy_file_with_prompt(envlocal_src, envlocal_dest, allow_create: true, allow_replace: true) do |content|
+                    if envlocal_strategy != :accept_template && File.exist?(envlocal_dest)
+                      begin
+                        Dotenv::Merge::SmartMerger.new(
+                          content,
+                          File.read(envlocal_dest),
+                          preference: :destination,
+                          add_template_only_nodes: true,
+                          freeze_token: "kettle-jem",
+                        ).merge
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                        content
+                      end
+                    else
+                      content
+                    end
+                  end
                 end
               end
             end
@@ -583,81 +621,77 @@ module Kettle
                 end
               end
 
-              # If a destination gemspec already exists, get metadata from GemSpecReader via helpers
-              orig_meta = nil
-              dest_existed = File.exist?(dest_gemspec)
-              if dest_existed
-                begin
-                  orig_meta = helpers.gemspec_metadata(File.dirname(dest_gemspec))
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  orig_meta = nil
-                end
-              end
-
-              helpers.copy_file_with_prompt(gemspec_template_src, dest_gemspec, allow_create: true, allow_replace: true) do |content|
-                # Tokens are already resolved by read_template inside copy_file_with_prompt
-                c = content
-
-                if orig_meta
-                  # Build replacements using AST-aware helper to carry over fields
-                  repl = {}
-                  if (name = orig_meta[:gem_name]) && !name.to_s.empty?
-                    repl[:name] = name.to_s
-                  end
-                  repl[:authors] = Array(orig_meta[:authors]).map(&:to_s) if orig_meta[:authors]
-                  repl[:email] = Array(orig_meta[:email]).map(&:to_s) if orig_meta[:email]
-                  # Only carry over summary/description if they have actual content (not empty strings)
-                  repl[:summary] = orig_meta[:summary].to_s if orig_meta[:summary] && !orig_meta[:summary].to_s.strip.empty?
-                  repl[:description] = orig_meta[:description].to_s if orig_meta[:description] && !orig_meta[:description].to_s.strip.empty?
-                  repl[:licenses] = Array(orig_meta[:licenses]).map(&:to_s) if orig_meta[:licenses]
-                  if orig_meta[:required_ruby_version]
-                    repl[:required_ruby_version] = orig_meta[:required_ruby_version].to_s
-                  end
-                  repl[:require_paths] = Array(orig_meta[:require_paths]).map(&:to_s) if orig_meta[:require_paths]
-                  repl[:bindir] = orig_meta[:bindir].to_s if orig_meta[:bindir]
-                  repl[:executables] = Array(orig_meta[:executables]).map(&:to_s) if orig_meta[:executables]
-
+              gemspec_strategy = helpers.strategy_for(dest_gemspec)
+              unless gemspec_strategy == :keep_destination
+                orig_meta = nil
+                dest_existed = File.exist?(dest_gemspec)
+                if dest_existed
                   begin
-                    c = Kettle::Jem::PrismGemspec.replace_gemspec_fields(c, repl)
+                    orig_meta = helpers.gemspec_metadata(File.dirname(dest_gemspec))
                   rescue StandardError => e
                     Kettle::Dev.debug_error(e, __method__)
-                    # Best-effort carry-over; ignore failure and keep c as-is
+                    orig_meta = nil
                   end
                 end
 
-                # Ensure we do not introduce a self-dependency when templating the gemspec.
-                # If the template included a dependency on the template gem (e.g., "kettle-dev"),
-                # the common replacements would have turned it into the destination gem's name.
-                # Strip any dependency lines that name the destination gem.
-                begin
-                  if gem_name && !gem_name.to_s.empty?
+                if gemspec_strategy == :raw_copy
+                  helpers.copy_file_with_prompt(gemspec_template_src, dest_gemspec, allow_create: true, allow_replace: true, raw: true)
+                else
+                  helpers.copy_file_with_prompt(gemspec_template_src, dest_gemspec, allow_create: true, allow_replace: true) do |content|
+                    c = content
+
+                    if gemspec_strategy != :accept_template && orig_meta
+                      repl = {}
+                      if (name = orig_meta[:gem_name]) && !name.to_s.empty?
+                        repl[:name] = name.to_s
+                      end
+                      repl[:authors] = Array(orig_meta[:authors]).map(&:to_s) if orig_meta[:authors]
+                      repl[:email] = Array(orig_meta[:email]).map(&:to_s) if orig_meta[:email]
+                      repl[:summary] = orig_meta[:summary].to_s if orig_meta[:summary] && !orig_meta[:summary].to_s.strip.empty?
+                      repl[:description] = orig_meta[:description].to_s if orig_meta[:description] && !orig_meta[:description].to_s.strip.empty?
+                      repl[:licenses] = Array(orig_meta[:licenses]).map(&:to_s) if orig_meta[:licenses]
+                      if orig_meta[:required_ruby_version]
+                        repl[:required_ruby_version] = orig_meta[:required_ruby_version].to_s
+                      end
+                      repl[:require_paths] = Array(orig_meta[:require_paths]).map(&:to_s) if orig_meta[:require_paths]
+                      repl[:bindir] = orig_meta[:bindir].to_s if orig_meta[:bindir]
+                      repl[:executables] = Array(orig_meta[:executables]).map(&:to_s) if orig_meta[:executables]
+
+                      begin
+                        c = Kettle::Jem::PrismGemspec.replace_gemspec_fields(c, repl)
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
+                    end
+
                     begin
-                      c = Kettle::Jem::PrismGemspec.remove_spec_dependency(c, gem_name)
+                      if gem_name && !gem_name.to_s.empty?
+                        begin
+                          c = Kettle::Jem::PrismGemspec.remove_spec_dependency(c, gem_name)
+                        rescue StandardError => e
+                          Kettle::Dev.debug_error(e, __method__)
+                        end
+                      end
                     rescue StandardError => e
                       Kettle::Dev.debug_error(e, __method__)
                     end
-                  end
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  # If anything goes wrong, keep the content as-is rather than failing the task
-                end
 
-                if dest_existed
-                  begin
-                    merged = helpers.apply_strategy(c, dest_gemspec)
-                    c = merged if merged.is_a?(String) && !merged.empty?
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
+                    if gemspec_strategy != :accept_template && dest_existed
+                      begin
+                        merged = helpers.apply_strategy(c, dest_gemspec)
+                        c = merged if merged.is_a?(String) && !merged.empty?
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
+                    end
+
+                    c
                   end
                 end
-
-                c
               end
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            # Do not fail the entire template task if gemspec copy has issues
           end
 
           # 7) Discover and copy all remaining template files.
@@ -726,55 +760,59 @@ module Kettle
               end
 
               begin
+                file_strategy = helpers.strategy_for(dest)
+                if file_strategy == :keep_destination
+                  next
+                end
+
+                if file_strategy == :raw_copy
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+                  next
+                end
+
                 if File.basename(rel) == "README.md"
                   prev_readme = File.exist?(dest) ? File.read(dest) : nil
 
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                     c = content
-                    begin
-                      c = MarkdownMerger.merge(
-                        template_content: c,
-                        destination_content: prev_readme,
-                      )
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
-                      # Best effort; if anything fails, keep c as-is
+                    if file_strategy != :accept_template
+                      begin
+                        c = MarkdownMerger.merge(
+                          template_content: c,
+                          destination_content: prev_readme,
+                        )
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
                     end
-
-                    # Normalize spacing around Markdown structural elements using AST
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                     c
                   end
                 elsif File.basename(rel) == "CHANGELOG.md"
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                     c = content
-                    begin
-                      dest_content = File.file?(dest) ? File.read(dest) : ""
-                      c = ChangelogMerger.merge(
-                        template_content: c,
-                        destination_content: dest_content,
-                      )
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
-                      # On merge failure, keep token-resolved content;
-                      # normalize_markdown_spacing below handles whitespace via AST
+                    if file_strategy != :accept_template
+                      begin
+                        dest_content = File.file?(dest) ? File.read(dest) : ""
+                        c = ChangelogMerger.merge(
+                          template_content: c,
+                          destination_content: dest_content,
+                        )
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
                     end
-                    # Normalize spacing around Markdown structural elements using AST
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                     c
                   end
                 else
-                  # All other files: consult config for strategy
-                  file_strategy = helpers.strategy_for(dest)
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                     c = content
-                    if file_strategy == :skip
-                      # Token-resolved content wins; no merge with destination
+                    if file_strategy == :accept_template
+                      # token-resolved template content wins; no merge
                     elsif File.exist?(dest)
-                      # Merge with existing destination when it exists
                       c = merge_by_file_type(c, dest, rel, helpers)
                     end
-                    # Normalize spacing around Markdown structural elements using AST
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
                     c
                   end
@@ -895,55 +933,66 @@ module Kettle
               if dest_dir
                 FileUtils.mkdir_p(dest_dir)
 
-                # commit-subjects-goalie.txt — merge with Text::SmartMerger to preserve destination customizations
                 goalie_dest = File.join(dest_dir, "commit-subjects-goalie.txt")
-                helpers.copy_file_with_prompt(goalie_src, goalie_dest, allow_create: true, allow_replace: true) do |content|
-                  if File.exist?(goalie_dest)
-                    begin
-                      content = Ast::Merge::Text::SmartMerger.new(
-                        content,
-                        File.read(goalie_dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
-                        freeze_token: "kettle-jem",
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
+                goalie_strategy = helpers.strategy_for(goalie_dest)
+                unless goalie_strategy == :keep_destination
+                  if goalie_strategy == :raw_copy
+                    helpers.copy_file_with_prompt(goalie_src, goalie_dest, allow_create: true, allow_replace: true, raw: true)
+                  else
+                    helpers.copy_file_with_prompt(goalie_src, goalie_dest, allow_create: true, allow_replace: true) do |content|
+                      if goalie_strategy != :accept_template && File.exist?(goalie_dest)
+                        begin
+                          content = Ast::Merge::Text::SmartMerger.new(
+                            content,
+                            File.read(goalie_dest),
+                            preference: :template,
+                            add_template_only_nodes: true,
+                            freeze_token: "kettle-jem",
+                          ).merge
+                        rescue StandardError => e
+                          Kettle::Dev.debug_error(e, __method__)
+                        end
+                      end
+                      content
                     end
                   end
-                  content
                 end
 
-                # footer-template.erb.txt — resolve tokens, then merge with Text::SmartMerger
                 footer_dest = File.join(dest_dir, "footer-template.erb.txt")
-                helpers.copy_file_with_prompt(footer_src, footer_dest, allow_create: true, allow_replace: true) do |content|
-                  c = helpers.apply_common_replacements(
-                    content,
-                    org: forge_org,
-                    funding_org: funding_org,
-                    gem_name: gem_name,
-                    namespace: namespace,
-                    namespace_shield: namespace_shield,
-                    gem_shield: gem_shield,
-                    min_ruby: min_ruby,
-                  )
-                  if File.exist?(footer_dest)
-                    begin
-                      c = Ast::Merge::Text::SmartMerger.new(
-                        c,
-                        File.read(footer_dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
-                        freeze_token: "kettle-jem",
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
+                footer_strategy = helpers.strategy_for(footer_dest)
+                unless footer_strategy == :keep_destination
+                  if footer_strategy == :raw_copy
+                    helpers.copy_file_with_prompt(footer_src, footer_dest, allow_create: true, allow_replace: true, raw: true)
+                  else
+                    helpers.copy_file_with_prompt(footer_src, footer_dest, allow_create: true, allow_replace: true) do |content|
+                      c = helpers.apply_common_replacements(
+                        content,
+                        org: forge_org,
+                        funding_org: funding_org,
+                        gem_name: gem_name,
+                        namespace: namespace,
+                        namespace_shield: namespace_shield,
+                        gem_shield: gem_shield,
+                        min_ruby: min_ruby,
+                      )
+                      if footer_strategy != :accept_template && File.exist?(footer_dest)
+                        begin
+                          c = Ast::Merge::Text::SmartMerger.new(
+                            c,
+                            File.read(footer_dest),
+                            preference: :template,
+                            add_template_only_nodes: true,
+                            freeze_token: "kettle-jem",
+                          ).merge
+                        rescue StandardError => e
+                          Kettle::Dev.debug_error(e, __method__)
+                        end
+                      end
+                      c
                     end
                   end
-                  c
                 end
 
-                # Ensure readable (0644). These are data/templates, not executables.
                 [goalie_dest, footer_dest].each do |txt_dest|
                   File.chmod(0o644, txt_dest) if File.exist?(txt_dest)
                 rescue StandardError => e
@@ -954,7 +1003,6 @@ module Kettle
               end
             end
 
-            # Second: hook scripts — merge with Prism (Ruby) / Bash (shell), then set executable
             hook_dest_dir = File.join(project_root, ".git-hooks")
             begin
               FileUtils.mkdir_p(hook_dest_dir)
@@ -964,55 +1012,67 @@ module Kettle
             end
 
             if hook_dest_dir
-              # commit-msg (Ruby script) -- merge with Prism::Merge::SmartMerger
               if File.file?(hook_ruby_src)
                 commit_msg_dest = File.join(hook_dest_dir, "commit-msg")
-                helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true) do |content|
-                  if File.exist?(commit_msg_dest)
-                    begin
-                      content = Prism::Merge::SmartMerger.new(
-                        content,
-                        File.read(commit_msg_dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
-                        freeze_token: "kettle-jem",
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
+                commit_msg_strategy = helpers.strategy_for(commit_msg_dest)
+                unless commit_msg_strategy == :keep_destination
+                  if commit_msg_strategy == :raw_copy
+                    helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true, raw: true)
+                  else
+                    helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true) do |content|
+                      if commit_msg_strategy != :accept_template && File.exist?(commit_msg_dest)
+                        begin
+                          content = Prism::Merge::SmartMerger.new(
+                            content,
+                            File.read(commit_msg_dest),
+                            preference: :template,
+                            add_template_only_nodes: true,
+                            freeze_token: "kettle-jem",
+                          ).merge
+                        rescue StandardError => e
+                          Kettle::Dev.debug_error(e, __method__)
+                        end
+                      end
+                      content
                     end
                   end
-                  content
-                end
-                begin
-                  File.chmod(0o755, commit_msg_dest) if File.exist?(commit_msg_dest)
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
+                  begin
+                    File.chmod(0o755, commit_msg_dest) if File.exist?(commit_msg_dest)
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                  end
                 end
               end
 
-              # prepare-commit-msg (shell script) — merge with Bash::Merge::SmartMerger
               if File.file?(hook_sh_src)
                 prepare_msg_dest = File.join(hook_dest_dir, "prepare-commit-msg")
-                helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true) do |content|
-                  if File.exist?(prepare_msg_dest)
-                    begin
-                      content = Bash::Merge::SmartMerger.new(
-                        content,
-                        File.read(prepare_msg_dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
-                        freeze_token: "kettle-jem",
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
+                prepare_msg_strategy = helpers.strategy_for(prepare_msg_dest)
+                unless prepare_msg_strategy == :keep_destination
+                  if prepare_msg_strategy == :raw_copy
+                    helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true, raw: true)
+                  else
+                    helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true) do |content|
+                      if prepare_msg_strategy != :accept_template && File.exist?(prepare_msg_dest)
+                        begin
+                          content = Bash::Merge::SmartMerger.new(
+                            content,
+                            File.read(prepare_msg_dest),
+                            preference: :template,
+                            add_template_only_nodes: true,
+                            freeze_token: "kettle-jem",
+                          ).merge
+                        rescue StandardError => e
+                          Kettle::Dev.debug_error(e, __method__)
+                        end
+                      end
+                      content
                     end
                   end
-                  content
-                end
-                begin
-                  File.chmod(0o755, prepare_msg_dest) if File.exist?(prepare_msg_dest)
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
+                  begin
+                    File.chmod(0o755, prepare_msg_dest) if File.exist?(prepare_msg_dest)
+                  rescue StandardError => e
+                    Kettle::Dev.debug_error(e, __method__)
+                  end
                 end
               end
             end

@@ -260,4 +260,43 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
       end
     end
   end
+
+  describe "strategy handling" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "does not create a modular gemfile when strategy is keep_destination" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
+          FileUtils.mkdir_p(src_dir)
+          File.write(File.join(src_dir, "optional.gemfile"), "gem \"foo\"\n")
+
+          File.write(File.join(proj, ".kettle-jem.yml"), <<~YAML)
+            defaults:
+              preference: template
+              add_template_only_nodes: true
+              freeze_token: kettle-jem
+            tokens: {}
+            patterns: []
+            files:
+              gemfiles:
+                modular:
+                  optional.gemfile:
+                    strategy: keep_destination
+          YAML
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+            ask: true,
+          )
+          helpers.clear_kettle_config!
+
+          described_class.sync!(helpers: helpers, project_root: proj)
+
+          expect(File).not_to exist(File.join(proj, described_class::MODULAR_GEMFILE_DIR, "optional.gemfile"))
+        end
+      end
+    end
+  end
 end

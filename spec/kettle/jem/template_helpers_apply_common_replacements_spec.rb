@@ -341,6 +341,92 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         expect(result).to eq("https://dev.to/rubyist")
       end
     end
+
+    context "with token values from .kettle-jem.yml" do
+      before do
+        allow(helpers).to receive(:kettle_config).and_return(
+          {
+            "defaults" => {"freeze_token" => "kettle-jem"},
+            "tokens" => {
+              "forge" => {"gh_user" => "config-gh"},
+              "author" => {
+                "name" => "Config Author",
+                "given_names" => "Config",
+                "family_names" => "Author",
+                "email" => "config@example.test",
+                "domain" => "example.test",
+                "orcid" => "0000-0000-0000-0001",
+              },
+              "funding" => {"liberapay" => "config-liberapay"},
+              "social" => {"mastodon" => "config-masto"},
+            },
+          },
+        )
+      end
+
+      it "resolves tokens from config when env is absent" do
+        content = <<~CONTENT.chomp
+          gh: {KJ|GH:USER}
+          author: {KJ|AUTHOR:NAME}
+          liberapay: {KJ|FUNDING:LIBERAPAY}
+          mastodon: {KJ|SOCIAL:MASTODON}
+        CONTENT
+
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to eq(<<~EXPECTED.chomp)
+          gh: config-gh
+          author: Config Author
+          liberapay: config-liberapay
+          mastodon: config-masto
+        EXPECTED
+      end
+
+      it "lets env override config values" do
+        stub_env("KJ_GH_USER" => "env-gh", "KJ_AUTHOR_NAME" => "Env Author")
+
+        content = "{KJ|GH:USER} / {KJ|AUTHOR:NAME}"
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to eq("env-gh / Env Author")
+      end
+    end
+
+    context "with author identity derived from gemspec metadata" do
+      before do
+        allow(helpers).to receive(:kettle_config).and_return(
+          {"defaults" => {"freeze_token" => "kettle-jem"}, "tokens" => {}},
+        )
+        allow(helpers).to receive(:gemspec_metadata).and_return(
+          min_ruby: Gem::Version.create("3.2"),
+          authors: ["Jane Marie Doe"],
+          email: ["jane@example.com"],
+        )
+      end
+
+      it "derives AUTHOR:NAME, AUTHOR:EMAIL, and AUTHOR:DOMAIN from gemspec metadata" do
+        content = <<~CONTENT.chomp
+          name: {KJ|AUTHOR:NAME}
+          email: {KJ|AUTHOR:EMAIL}
+          domain: {KJ|AUTHOR:DOMAIN}
+        CONTENT
+
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to eq(<<~EXPECTED.chomp)
+          name: Jane Marie Doe
+          email: jane@example.com
+          domain: example.com
+        EXPECTED
+      end
+
+      it "derives AUTHOR:GIVEN_NAMES and AUTHOR:FAMILY_NAMES from the gemspec author name" do
+        content = "{KJ|AUTHOR:GIVEN_NAMES} / {KJ|AUTHOR:FAMILY_NAMES}"
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to eq("Jane Marie / Doe")
+      end
+    end
   end
 end
 # rubocop:enable RSpec/VerifiedDoubles, RSpec/MultipleExpectations

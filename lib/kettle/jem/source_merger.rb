@@ -5,7 +5,11 @@ require "prism/merge"
 module Kettle
   module Jem
     # Prism-based AST merging for templated Ruby files.
-    # Handles strategy dispatch (skip/replace/append/merge).
+    # Handles strategy dispatch for public strategies:
+    # - merge
+    # - accept_template
+    # - keep_destination
+    # - raw_copy
     #
     # Uses prism-merge for AST-aware merging with support for:
     # - Freeze blocks (kettle-jem:freeze / kettle-jem:unfreeze)
@@ -21,7 +25,7 @@ module Kettle
 
       # Apply a templating strategy to merge source and destination Ruby files
       #
-      # @param strategy [Symbol] Merge strategy - :skip, :replace, :append, or :merge
+      # @param strategy [Symbol] Merge strategy - :merge, :accept_template, :keep_destination, :raw_copy
       # @param src [String] Template source content
       # @param dest [String] Destination file content
       # @param path [String] File path (for error messages)
@@ -33,19 +37,20 @@ module Kettle
         dest ||= ""
         src_content = src.to_s
         dest_content = dest
+
+        return dest_content if strategy == :keep_destination
+
         detected_type = file_type || detect_file_type(path)
 
         result =
           case strategy
-          when :skip, :replace
+          when :accept_template
             # Token-resolved template content wins; no AST merge with destination
             src_content
           when :raw_copy
             # Verbatim template content; should not reach here (handled earlier),
             # but return source unchanged as a safety net
             src_content
-          when :append
-            apply_append(src_content, dest_content, file_type: detected_type)
           when :merge
             apply_merge(src_content, dest_content, file_type: detected_type)
           else
@@ -110,19 +115,6 @@ module Kettle
         end
       end
 
-      # Get the appropriate MergerConfig preset for append strategy.
-      #
-      # @param file_type [Symbol] File type
-      # @return [Ast::Merge::MergerConfig] The config preset
-      def config_for_file_type_append(file_type)
-        preset_class = preset_for(file_type)
-
-        preset_class.custom(
-          preference: :destination,
-          add_template_only: true,
-          freeze_token: FREEZE_TOKEN,
-        )
-      end
 
       # @param strategy [Symbol, String, nil] Strategy to normalize
       # @return [Symbol] Normalized strategy (:merge if nil)
@@ -136,25 +128,9 @@ module Kettle
       # @param text [String, nil] Text to process
       # @return [String] Text with trailing newline (empty string if nil)
       def ensure_trailing_newline(text)
-        return "" if text.nil?
-        text.end_with?("\n") ? text : text + "\n"
-      end
-
-      # Apply append strategy using prism-merge
-      #
-      # @param src_content [String] Template source content
-      # @param dest_content [String] Destination content
-      # @param file_type [Symbol] File type for preset selection
-      # @return [String] Merged content
-      def apply_append(src_content, dest_content, file_type: :ruby)
-        config = config_for_file_type_append(file_type)
-
-        merger = Prism::Merge::SmartMerger.new(
-          src_content,
-          dest_content,
-          **config.to_h,
-        )
-        merger.merge
+        str = text.to_s
+        return str if str.empty?
+        str.end_with?("\n") ? str : str + "\n"
       end
 
       # Apply merge strategy using prism-merge

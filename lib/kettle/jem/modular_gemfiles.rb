@@ -57,8 +57,20 @@ module Kettle
             modular_gemfile = "#{base}.gemfile"
             src = helpers.prefer_example(File.join(template_modular_dir, modular_gemfile))
             dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
+            strategy = helpers.strategy_for(dest)
+            next if strategy == :keep_destination
+
+            if strategy == :raw_copy
+              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+              next
+            end
+
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-              c = helpers.apply_strategy(content, dest)
+              c = if strategy == :accept_template
+                content
+              else
+                helpers.apply_strategy(content, dest)
+              end
               c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
               c
             end
@@ -88,8 +100,20 @@ module Kettle
 
             src = helpers.prefer_example(path)
             dest = File.join(dest_dir, rel.sub(/\.example\z/, ""))
+            strategy = helpers.strategy_for(dest)
+            next if strategy == :keep_destination
+
+            if strategy == :raw_copy
+              helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+              next
+            end
+
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-              c = helpers.apply_strategy(content, dest)
+              c = if strategy == :accept_template
+                content
+              else
+                helpers.apply_strategy(content, dest)
+              end
               c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
               c
             end
@@ -110,9 +134,20 @@ module Kettle
         modular_gemfile = "style.gemfile"
         src = helpers.prefer_example(File.join(helpers.template_root, MODULAR_GEMFILE_DIR, modular_gemfile))
         dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
+        strategy = helpers.strategy_for(dest)
+        return if strategy == :keep_destination
+
+        if strategy == :raw_copy
+          helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+          return
+        end
+
         helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
-          # Use apply_strategy for proper AST-based merging with Prism
-          c = helpers.apply_strategy(content, dest)
+          c = if strategy == :accept_template
+            content
+          else
+            helpers.apply_strategy(content, dest)
+          end
           c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
           c
         end

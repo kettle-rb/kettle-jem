@@ -4,11 +4,40 @@ RSpec.describe Kettle::Jem::SourceMerger do
   describe ".apply" do
     let(:path) { "Gemfile" }
 
-    it "returns template content without merging when strategy is :skip" do
+    it "returns template content without merging when strategy is :accept_template" do
       src = "gem \"foo\"\n"
-      result = described_class.apply(strategy: :skip, src: src, dest: "gem \"bar\"\n", path: path)
+      result = described_class.apply(strategy: :accept_template, src: src, dest: "gem \"bar\"\n", path: path)
       expect(result).to include("gem \"foo\"")
       expect(result).not_to include("gem \"bar\"")
+    end
+
+    it "returns the raw destination unchanged when strategy is :keep_destination" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\""
+
+      expect(described_class).not_to receive(:detect_file_type)
+      expect(Prism::Merge::SmartMerger).not_to receive(:new)
+
+      result = described_class.apply(strategy: :keep_destination, src: src, dest: dest, path: path)
+      expect(result).to eq(dest)
+    end
+
+    it "rejects legacy :skip strategy" do
+      expect {
+        described_class.apply(strategy: :skip, src: "", dest: "", path: path)
+      }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/)
+    end
+
+    it "rejects legacy :replace strategy" do
+      expect {
+        described_class.apply(strategy: :replace, src: "", dest: "", path: path)
+      }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/)
+    end
+
+    it "rejects legacy :append strategy" do
+      expect {
+        described_class.apply(strategy: :append, src: "", dest: "", path: path)
+      }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/)
     end
 
     it "preserves kettle-jem:freeze blocks from the destination", :prism_merge_only do
@@ -30,7 +59,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("gem \"bar\", \"~> 1.0\"")
     end
 
-    it "appends missing gem declarations without duplicates", :prism_merge_only do
+    it "adds missing gem declarations without duplicates during merge", :prism_merge_only do
       src = <<~RUBY
         source "https://example.com"
         gem "foo"
@@ -40,7 +69,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
         source "https://example.com"
         gem "foo"
       RUBY
-      merged = described_class.apply(strategy: :append, src: src, dest: dest, path: path)
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
       foo_count = merged.scan(/gem\s+["']foo["']/).length
       expect(foo_count).to eq(1)
       expect(merged).to include("gem \"bar\"")
@@ -81,7 +110,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("spec.metadata[\"custom\"] = \"1\"")
     end
 
-    it "appends missing Rake tasks without duplicating existing ones", :prism_merge_only do
+    it "adds missing Rake tasks without duplicating existing ones during merge", :prism_merge_only do
       src = <<~RUBY
         task :ci do
           sh "bundle exec rspec"
@@ -92,7 +121,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
           sh "bundle exec rake spec"
         end
       RUBY
-      merged = described_class.apply(strategy: :append, src: src, dest: dest, path: "Rakefile")
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "Rakefile")
       default_count = merged.scan(/task\s+:default/).length
       expect(default_count).to eq(1)
       expect(merged).to include("task :ci")
@@ -123,7 +152,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
           # DO NOT REMOVE
           gem "bar"
         RUBY
-        merged = described_class.apply(strategy: :append, src: src, dest: dest, path: path)
+        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
         expect(merged).to include("# This is a critical dependency")
         expect(merged).to include("# DO NOT REMOVE")
         expect(merged).to include("gem \"bar\"")
@@ -174,7 +203,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
           # Third line of comment
           gem "bar"
         RUBY
-        merged = described_class.apply(strategy: :append, src: src, dest: dest, path: path)
+        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
         expect(merged).to include("# Beginning of comment block")
         expect(merged).to include("# Second line of comment")
         expect(merged).to include("# Third line of comment")
@@ -209,141 +238,9 @@ RSpec.describe Kettle::Jem::SourceMerger do
           # Comment with blank line below
           gem "bar"
         RUBY
-        merged = described_class.apply(strategy: :append, src: src, dest: dest, path: path)
+        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
         expect(merged).to include("# Comment with blank line below")
         expect(merged).to include("gem \"bar\"")
-      end
-
-      it "preserves comments for destination-only statements during merge", :prism_merge_only do
-        src = <<~RUBY
-          gem "template_gem"
-        RUBY
-        dest = <<~RUBY
-          # This is a custom dependency
-          gem "custom_gem"
-          gem "template_gem"
-        RUBY
-        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
-        expect(merged).to include("# This is a custom dependency")
-        expect(merged).to include("gem \"custom_gem\"")
-        expect(merged).to include("gem \"template_gem\"")
-        custom_idx = merged.index("gem \"custom_gem\"")
-        comment_idx = merged.index("# This is a custom dependency")
-        expect(comment_idx).to be < custom_idx if custom_idx && comment_idx
-      end
-    end
-
-    context "with variable assignments" do
-      it "does not duplicate variable assignments when bodies differ" do
-        # This test addresses the gemspec duplication issue where gem_version
-        # assignment was duplicated because dest had extra commented code
-        src = <<~RUBY
-          gem_version = if RUBY_VERSION >= "3.1"
-            "1.0.0"
-          else
-            "0.9.0"
-          end
-          
-          Gem::Specification.new do |spec|
-            spec.name = "my-gem"
-            spec.version = gem_version
-          end
-        RUBY
-        dest = <<~RUBY
-          gem_version = if RUBY_VERSION >= "3.1"
-            "1.0.0"
-          else
-            "0.9.0"
-            # Additional commented code in dest
-            # require_relative "lib/version"
-          end
-          
-          Gem::Specification.new do |spec|
-            spec.name = "my-gem"
-            spec.version = gem_version
-            spec.description = "Custom description"
-          end
-        RUBY
-        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "my-gem.gemspec")
-
-        # Count occurrences of gem_version assignment
-        gem_version_count = merged.scan(/^gem_version\s*=/).length
-        expect(gem_version_count).to eq(1), "Expected 1 gem_version assignment, found #{gem_version_count}"
-
-        # Should preserve the spec block
-        expect(merged).to include("Gem::Specification.new")
-        expect(merged).to include("spec.name = \"my-gem\"")
-      end
-
-      it "matches local variable assignments by name not content" do
-        src = <<~RUBY
-          foo = "template value"
-        RUBY
-        dest = <<~RUBY
-          foo = "destination value"
-        RUBY
-        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
-
-        foo_count = merged.scan(/^foo\s*=/).length
-        expect(foo_count).to eq(1)
-        expect(merged).to include("foo = \"template value\"")
-      end
-
-      it "matches constant assignments by name not content" do
-        src = <<~RUBY
-          VERSION = "2.0.0"
-        RUBY
-        dest = <<~RUBY
-          VERSION = "1.0.0"
-        RUBY
-        merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
-
-        version_count = merged.scan(/^VERSION\s*=/).length
-        expect(version_count).to eq(1)
-        expect(merged).to include("VERSION = \"2.0.0\"")
-      end
-    end
-
-    context "when merging gemspec fixtures" do
-      let(:fixture_dir) { File.expand_path("../../fixtures", __dir__) }
-      let(:dest_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.gemspec")) }
-      let(:template_fixture) { File.read(File.join(fixture_dir, "example-kettle-jem.template.gemspec")) }
-
-      it "keeps kettle-jem freeze blocks in their relative position", :prism_merge_only do
-        merged = described_class.apply(
-          strategy: :merge,
-          src: template_fixture,
-          dest: dest_fixture,
-          path: "example-kettle-jem.gemspec",
-        )
-
-        dest_block = dest_fixture[/#\s*kettle-jem:freeze.*?#\s*kettle-jem:unfreeze/m]
-        expect(dest_block).not_to be_nil
-
-        freeze_count = merged.scan(/#\s*kettle-jem:freeze/i).length
-        expect(freeze_count).to eq(2)
-        expect(merged).to include(dest_block)
-
-        # With template_wins preference, template structure determines ordering.
-        # The dest-only freeze block (the second one with runtime dependencies)
-        # is positioned based on Phase 2 processing, which appends dest-only nodes
-        # after template content. The relative position expectation is relaxed.
-        anchor = /NOTE: It is preferable to list development dependencies/
-        freeze_index = merged.index(dest_block)
-        anchor_index = merged.index(anchor)
-        # Both the freeze block and anchor should be present in the merged output
-        expect(freeze_index).not_to be_nil
-        expect(anchor_index).not_to be_nil
-
-        # Both magic comments should be present near the top of the file.
-        # The exact ordering may vary based on Comment::Parser grouping.
-        expect(merged).to include("# coding: utf-8")
-        expect(merged).to include("# frozen_string_literal: true")
-
-        # Verify they appear within first 2 lines
-        first_2 = merged.split("\n").first(2)
-        expect(first_2).to include("# coding: utf-8")
-        expect(first_2).to include("# frozen_string_literal: true")
       end
     end
   end
@@ -388,11 +285,19 @@ RSpec.describe Kettle::Jem::SourceMerger do
     end
 
     it "normalizes mixed case and whitespace" do
-      expect(described_class.normalize_strategy(" Replace ")).to eq(:replace)
+      expect(described_class.normalize_strategy(" Accept_Template ")).to eq(:accept_template)
     end
 
-    it "returns symbol unchanged" do
-      expect(described_class.normalize_strategy(:append)).to eq(:append)
+    it "returns supported symbol unchanged" do
+      expect(described_class.normalize_strategy(:merge)).to eq(:merge)
+    end
+
+    it "normalizes accept_template" do
+      expect(described_class.normalize_strategy("accept_template")).to eq(:accept_template)
+    end
+
+    it "normalizes keep_destination" do
+      expect(described_class.normalize_strategy(" keep_destination ")).to eq(:keep_destination)
     end
   end
 

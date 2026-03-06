@@ -346,7 +346,7 @@ module Kettle
             ex_git_source_lines[name] = ln.rstrip
           elsif s.start_with?("gemspec")
             ex_has_gemspec = true
-          elsif (m = s.match(/^eval_gemfile\s+["']([^"']+)["']/))
+          elsif (m = s.match(%r{\Aeval_gemfile\s+["']([^"']+)["']}))
             ex_eval_paths << m[1]
           end
         end
@@ -361,7 +361,7 @@ module Kettle
         end
         tg_has_gemspec = !!target.each_line.find { |l| l.strip.start_with?("gemspec") }
         tg_eval_paths = target.each_line.map do |ln|
-          if (m = ln.strip.match(/^eval_gemfile\s+["']([^"']+)["']/))
+          if (m = ln.strip.match(%r{\Aeval_gemfile\s+["']([^"']+)["']}))
             m[1]
           end
         end.compact
@@ -504,7 +504,8 @@ module Kettle
         sh!(Shellwords.join(cmd))
       end
 
-      # Resolve a path to files shipped within the gem or repo checkout
+      # Resolve a path to a templated asset shipped within the installed gem or repo checkout.
+      # Template sources MUST come from template/ only; the gem root is never a template source.
       # @param rel [String]
       # @return [String, nil]
       def installed_path(rel)
@@ -514,13 +515,9 @@ module Kettle
         end
         roots << File.expand_path(File.join(__dir__, "..", "..", "..")) # lib/kettle/jem/ -> project root
 
-        # Check template/ subdirectory first, then gem root
         roots.each do |root|
-          template_path = File.join(root, "template", rel)
+          template_path = Kettle::Jem::TemplateHelpers.prefer_example(File.join(root, "template", rel))
           return template_path if File.exist?(template_path)
-
-          direct_path = File.join(root, rel)
-          return direct_path if File.exist?(direct_path)
         end
 
         nil

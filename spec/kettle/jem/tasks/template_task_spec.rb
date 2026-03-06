@@ -901,7 +901,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
-                spec.summary = "test gem"
+                spec.summary = "test"
                 spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
@@ -1640,7 +1640,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             G
             allow(helpers).to receive_messages(
               project_root: project_root,
-              template_root: template_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1686,7 +1686,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             G
             allow(helpers).to receive_messages(
               project_root: project_root,
-              template_root: template_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -1694,6 +1694,109 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             merged = File.read(File.join(project_root, "Appraisals"))
             expect(merged).to include('appraise "ruby-3.1"')
             expect(merged).to include('appraise "ruby-3.0"')
+          end
+        end
+      end
+    end
+
+    describe "strategy overrides" do
+      let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+      before do
+        stub_env("allowed" => "true")
+        stub_env("FUNDING_ORG" => "false")
+      end
+
+      it "accepts template content without merge for accept_template and preserves destination for keep_destination" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "README.md.example"), "# Template README\n\nTemplate body\n")
+            File.write(File.join(template_root, "SECURITY.md.example"), "# Template Security\n\nTemplate security body\n")
+
+            File.write(File.join(project_root, "README.md"), "# Destination README\n\nDestination body\n")
+            File.write(File.join(project_root, "SECURITY.md"), "# Destination Security\n\nDestination security body\n")
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens: {}
+              patterns: []
+              files:
+                README.md:
+                  strategy: accept_template
+                SECURITY.md:
+                  strategy: keep_destination
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+            helpers.clear_kettle_config!
+
+            expect { described_class.run }.not_to raise_error
+
+            expect(File.read(File.join(project_root, "README.md"))).to eq("# Template README\n\nTemplate body\n")
+            expect(File.read(File.join(project_root, "SECURITY.md"))).to eq("# Destination Security\n\nDestination security body\n")
+          end
+        end
+      end
+
+      it "does not create a missing file when strategy is keep_destination" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "SECURITY.md.example"), "# Template Security\n\nTemplate security body\n")
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens: {}
+              patterns: []
+              files:
+                SECURITY.md:
+                  strategy: keep_destination
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+            helpers.clear_kettle_config!
+
+            expect { described_class.run }.not_to raise_error
+
+            expect(File).not_to exist(File.join(project_root, "SECURITY.md"))
           end
         end
       end
@@ -1863,7 +1966,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             Gem::Specification.new do |spec|
               spec.name = "demo"
               spec.version = "0.1.0"
-              spec.summary = "test gem"
+              spec.summary = "test"
               spec.authors = ["Test"]
               spec.required_ruby_version = ">= 3.1"
               spec.homepage = "https://github.com/acme/demo"
@@ -2021,7 +2124,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              template_root: template_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -2069,7 +2172,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              template_root: template_root,
+              template_root: File.join(gem_root, "template"),
               ensure_clean_git!: nil,
               ask: true,
             )
@@ -2226,5 +2329,116 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           end
         end
       end
+  end
+
+  describe "Kettle::Jem::Tasks::TemplateTask::CONFIG_FILE merging", :config_file do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    before do
+      stub_env("allowed" => "true")
+      stub_env("FUNDING_ORG" => "false")
+    end
+
+    it "writes derived author values into a newly created .kettle-jem.yml" do
+      Dir.mktmpdir do |gem_root|
+        Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+            defaults:
+              freeze_token: "kettle-jem"
+            tokens:
+              author:
+                name: "{KJ|AUTHOR:NAME}"
+                given_names: "{KJ|AUTHOR:GIVEN_NAMES}"
+                family_names: "{KJ|AUTHOR:FAMILY_NAMES}"
+                email: "{KJ|AUTHOR:EMAIL}"
+                domain: "{KJ|AUTHOR:DOMAIN}"
+          YAML
+          File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test"
+              spec.authors = ["Jane Marie Doe"]
+              spec.email = ["jane@example.com"]
+              spec.required_ruby_version = ">= 3.1"
+              spec.homepage = "https://github.com/acme/demo"
+            end
+          GEMSPEC
+
+          allow(helpers).to receive_messages(
+            project_root: project_root,
+            template_root: template_root,
+            ensure_clean_git!: nil,
+            ask: true,
+          )
+
+          expect { described_class.run }.not_to raise_error
+
+          content = File.read(File.join(project_root, ".kettle-jem.yml"))
+          expect(content).to include('name: "Jane Marie Doe"')
+          expect(content).to include('given_names: "Jane Marie"')
+          expect(content).to include('family_names: "Doe"')
+          expect(content).to include('email: "jane@example.com"')
+          expect(content).to include('domain: "example.com"')
+        end
+      end
+    end
+
+    it "preserves destination values for existing .kettle-jem.yml keys while adding template-only author keys" do
+      Dir.mktmpdir do |gem_root|
+        Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+            defaults:
+              freeze_token: "kettle-jem"
+            tokens:
+              author:
+                name: "{KJ|AUTHOR:NAME}"
+                given_names: "{KJ|AUTHOR:GIVEN_NAMES}"
+                family_names: "{KJ|AUTHOR:FAMILY_NAMES}"
+                email: "{KJ|AUTHOR:EMAIL}"
+                domain: "{KJ|AUTHOR:DOMAIN}"
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+            defaults:
+              freeze_token: "destination-token"
+            tokens:
+              author:
+                name: "Custom Author"
+          YAML
+          File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test"
+              spec.authors = ["Jane Marie Doe"]
+              spec.email = ["jane@example.com"]
+              spec.required_ruby_version = ">= 3.1"
+              spec.homepage = "https://github.com/acme/demo"
+            end
+          GEMSPEC
+
+          allow(helpers).to receive_messages(
+            project_root: project_root,
+            template_root: template_root,
+            ensure_clean_git!: nil,
+            ask: true,
+          )
+
+          expect { described_class.run }.not_to raise_error
+
+          content = File.read(File.join(project_root, ".kettle-jem.yml"))
+          expect(content).to include('freeze_token: "destination-token"')
+          expect(content).to include('name: "Custom Author"')
+          expect(content).to include('given_names: "Jane Marie"')
+          expect(content).to include('family_names: "Doe"')
+          expect(content).to include('email: "jane@example.com"')
+          expect(content).to include('domain: "example.com"')
+        end
+      end
+    end
   end
 end
