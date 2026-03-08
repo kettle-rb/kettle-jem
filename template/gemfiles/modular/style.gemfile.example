@@ -18,11 +18,11 @@ platform :mri do
   gem "rubocop-on-rbs", "~> 1.8"                    # ruby >= 3.1.0
 
   if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
-    eval_gemfile("style.gemfile")
-  else
     gem "rubocop-lts", "{KJ|RUBOCOP_LTS_CONSTRAINT}"
     # "rubocop-lts-rspec" can't add here until other gems are updated.
     gem "rubocop-rspec", "~> 3.6"
     gem "{KJ|RUBOCOP_RUBY_GEM}"
+  else
+    eval_gemfile("style.gemfile")
   end
 end
