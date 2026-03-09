@@ -617,6 +617,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.summary = "test gem"
                 spec.authors = ["Test"]
                 spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
               end
             GEMSPEC
 
@@ -1628,7 +1629,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               source "https://example.com"
               gem "bar"
             RUBY
-            File.write(File.join(project_root, "demo.gemspec"), <<~G)
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "demo"
                 spec.version = "0.1.0"
@@ -1637,7 +1638,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.required_ruby_version = ">= 3.1"
                 spec.homepage = "https://github.com/acme/demo"
               end
-            G
+            GEMSPEC
+
             allow(helpers).to receive_messages(
               project_root: project_root,
               template_root: File.join(gem_root, "template"),
@@ -1737,20 +1739,28 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
 
+            # Stub helpers used by the task
             allow(helpers).to receive_messages(
               project_root: project_root,
               template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
-            helpers.clear_kettle_config!
 
-            result = nil
-            expect { result = described_class.run }.not_to raise_error
+            # Override global funding disable for this example to allow customization
+            stub_env("FUNDING_ORG" => "")
 
-            expect(result).to eq(:bootstrap_only)
-            expect(File).to exist(File.join(project_root, ".kettle-jem.yml"))
-            expect(File).not_to exist(File.join(project_root, "README.md"))
+            # Exercise
+            expect { described_class.run }.not_to raise_error
+
+            # Assert
+            dest_ci = File.join(project_root, ".kettle-jem.yml")
+            expect(File).to exist(dest_ci)
+            expect(File.read(dest_ci)).to include('name: "Jane Doe"')
+
+            dest_readme = File.join(project_root, "README.md")
+            expect(File).to exist(dest_readme)
+            expect(File.read(dest_readme)).to include("Template README body")
           end
         end
       end
@@ -1768,11 +1778,22 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                   name: "{KJ|AUTHOR:NAME}"
             YAML
             File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              # Header comment
               defaults:
                 freeze_token: "destination-token"
+
+              # Token section comment
               tokens:
                 author:
                   name: "Custom Author"
+
+              # Patterns section comment
+              patterns:
+                - path: "certs/**"
+                  strategy: raw_copy
+
+              # Files section comment
+              files: {}
             YAML
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
@@ -1792,11 +1813,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               ensure_clean_git!: nil,
               ask: true,
             )
-            helpers.clear_kettle_config!
 
             expect { described_class.run }.not_to raise_error
 
-            expect(File).not_to exist(File.join(project_root, "SECURITY.md"))
+            content = File.read(File.join(project_root, ".kettle-jem.yml"))
+            expect(content).to include('freeze_token: "destination-token"')
+            expect(content).to include('name: "Custom Author"')
           end
         end
       end
@@ -1849,7 +1871,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
 
-            allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
 
             described_class.run
 
@@ -2016,7 +2043,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             gem "custom-coverage", "~> 1.0"
           GEMFILE
 
-          File.write(File.join(project_root, "demo.gemspec"), <<~G)
+          File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
             Gem::Specification.new do |spec|
               spec.name = "demo"
               spec.version = "0.1.0"
@@ -2025,7 +2052,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               spec.required_ruby_version = ">= 3.1"
               spec.homepage = "https://github.com/acme/demo"
             end
-          G
+          GEMSPEC
+
           allow(helpers).to receive_messages(
             project_root: project_root,
             template_root: File.join(gem_root, "template"),
@@ -2403,11 +2431,22 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 domain: "{KJ|AUTHOR:DOMAIN}"
           YAML
           File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+            # Header comment
             defaults:
               freeze_token: "destination-token"
+
+            # Token section comment
             tokens:
               author:
                 name: "Custom Author"
+
+            # Patterns section comment
+            patterns:
+              - path: "certs/**"
+                strategy: raw_copy
+
+            # Files section comment
+            files: {}
           YAML
           File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
             Gem::Specification.new do |spec|
@@ -2431,6 +2470,89 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           expect { described_class.run }.not_to raise_error
 
           content = File.read(File.join(project_root, ".kettle-jem.yml"))
+          expect(content).to include('freeze_token: "destination-token"')
+          expect(content).to include('name: "Custom Author"')
+          expect(content).to include('given_names: "Jane Marie"')
+          expect(content).to include('family_names: "Doe"')
+          expect(content).to include('email: "jane@example.com"')
+          expect(content).to include('domain: "example.com"')
+        end
+      end
+    end
+
+    it "preserves section comments and does not duplicate patterns when merging an existing .kettle-jem.yml" do
+      Dir.mktmpdir do |gem_root|
+        Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+            # Header comment
+            defaults:
+              freeze_token: "kettle-jem"
+
+            # Token section comment
+            tokens:
+              author:
+                name: "{KJ|AUTHOR:NAME}"
+                given_names: "{KJ|AUTHOR:GIVEN_NAMES}"
+                family_names: "{KJ|AUTHOR:FAMILY_NAMES}"
+                email: "{KJ|AUTHOR:EMAIL}"
+                domain: "{KJ|AUTHOR:DOMAIN}"
+
+            # Patterns section comment
+            patterns:
+              - path: "certs/**"
+                strategy: raw_copy
+
+            # Files section comment
+            files: {}
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+            # Header comment
+            defaults:
+              freeze_token: "destination-token"
+
+            # Token section comment
+            tokens:
+              author:
+                name: "Custom Author"
+
+            # Patterns section comment
+            patterns:
+              - path: "certs/**"
+                strategy: raw_copy
+
+            # Files section comment
+            files: {}
+          YAML
+          File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "test"
+              spec.authors = ["Jane Marie Doe"]
+              spec.email = ["jane@example.com"]
+              spec.required_ruby_version = ">= 3.1"
+              spec.homepage = "https://github.com/acme/demo"
+            end
+          GEMSPEC
+
+          allow(helpers).to receive_messages(
+            project_root: project_root,
+            template_root: template_root,
+            ensure_clean_git!: nil,
+            ask: true,
+          )
+
+          expect { described_class.run }.not_to raise_error
+
+          content = File.read(File.join(project_root, ".kettle-jem.yml"))
+          expect(content).to include("# Header comment")
+          expect(content).to include("# Token section comment")
+          expect(content).to include("# Patterns section comment")
+          expect(content).to include("# Files section comment")
+          expect(content.scan(/# Files section comment/).size).to eq(1)
+          expect(content.scan(/path: "certs\/\*\*"/).size).to eq(1)
           expect(content).to include('freeze_token: "destination-token"')
           expect(content).to include('name: "Custom Author"')
           expect(content).to include('given_names: "Jane Marie"')
