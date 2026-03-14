@@ -2,23 +2,33 @@
 
 RSpec.describe "Newline normalization in templating" do
   describe "SourceMerger newline handling" do
+    def template_only(content, path:)
+      Kettle::Jem::SourceMerger.apply(
+        strategy: :accept_template,
+        src: content,
+        dest: "",
+        path: path,
+      )
+    end
+
+    def merge_template(template, dest:, path:)
+      Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template,
+        dest: dest,
+        path: path,
+      )
+    end
+
     it "preserves original formatting (prism-merge behavior)" do
       content = <<~RUBY
         # frozen_string_literal: true
         # We run code coverage
       RUBY
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: content,
-        dest: "",
-        path: "test.rb",
-      )
+      result = template_only(content, path: "test.rb")
 
-      lines = result.lines
-      expect(lines[0].strip).to eq("# frozen_string_literal: true")
-      # prism-merge preserves original formatting - no blank line is inserted
-      expect(lines[1].strip).to eq("# We run code coverage")
+      expect(result).to eq(content)
     end
 
     it "preserves blank lines as-is (prism-merge behavior)" do
@@ -33,29 +43,15 @@ RSpec.describe "Newline normalization in templating" do
         # Comment 2
       RUBY
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: content,
-        dest: "",
-        path: "test.rb",
-      )
+      result = template_only(content, path: "test.rb")
 
-      # prism-merge preserves original blank lines - it does not collapse them
-      # The source has multiple blank lines and they are preserved
-      expect(result).to include("# frozen_string_literal: true")
-      expect(result).to include("# Comment 1")
-      expect(result).to include("# Comment 2")
+      expect(result).to eq(content)
     end
 
     it "ensures single newline at end of file" do
       content = "# frozen_string_literal: true\n# Comment"
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: content,
-        dest: "",
-        path: "test.rb",
-      )
+      result = template_only(content, path: "test.rb")
 
       expect(result).to end_with("\n")
       expect(result).not_to end_with("\n\n")
@@ -64,25 +60,9 @@ RSpec.describe "Newline normalization in templating" do
     it "handles irregular empty lines fixture correctly" do
       fixture_content = File.read("spec/fixtures/modular_gemfile_with_irregular_empty_lines.rb")
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: fixture_content,
-        dest: "",
-        path: "coverage.gemfile",
-      )
+      result = template_only(fixture_content, path: "coverage.gemfile")
 
-      lines = result.lines(chomp: true)
-
-      # Should have frozen_string_literal
-      expect(lines[0]).to eq("# frozen_string_literal: true")
-
-      # prism-merge preserves original formatting from the source file
-      # Just verify the content is preserved correctly
-      expect(result).to include("# frozen_string_literal: true")
-
-      # Should end with single newline
-      expect(result).to end_with("\n")
-      expect(result).not_to end_with("\n\n")
+      expect(result).to eq(fixture_content)
     end
 
     it "preserves template content when merging" do
@@ -103,22 +83,14 @@ RSpec.describe "Newline normalization in templating" do
         # Old comment
       RUBY
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :replace,
-        src: template,
-        dest: dest,
-        path: "coverage.gemfile",
-      )
+      result = merge_template(template, dest: dest, path: "coverage.gemfile")
 
-      lines = result.lines(chomp: true)
-
-      # Should have magic comment
-      expect(lines[0]).to eq("# frozen_string_literal: true")
-
-      # prism-merge preserves template formatting
-      # Verify content is present
-      expect(result).to include("# We run code coverage")
+      expect(result.lines.first).to eq("# frozen_string_literal: true\n")
+      expect(result).to include("# We run code coverage on the latest version of Ruby only.")
       expect(result).to include("# Coverage")
+      expect(result).not_to include("# Old comment")
+      expect(result).to end_with("\n")
+      expect(result).not_to end_with("\n\n")
     end
 
     it "handles shebang with frozen_string_literal" do
@@ -128,37 +100,17 @@ RSpec.describe "Newline normalization in templating" do
         # Comment
       RUBY
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: content,
-        dest: "",
-        path: "test.rb",
-      )
+      result = template_only(content, path: "test.rb")
 
-      # After parsing and rebuilding, shebang should be preserved as the first line
-      # Note: Prism might handle shebangs specially - let's verify it's there somewhere
-      expect(result).to include("#!/usr/bin/env ruby")
-      expect(result).to include("# frozen_string_literal: true")
+      expect(result).to eq(content)
     end
 
     it "preserves content in real-world coverage.gemfile" do
       template_content = File.read("gemfiles/modular/coverage.gemfile")
 
-      result = Kettle::Jem::SourceMerger.apply(
-        strategy: :skip,
-        src: template_content,
-        dest: "",
-        path: "coverage.gemfile",
-      )
+      result = template_only(template_content, path: "coverage.gemfile")
 
-      lines = result.lines(chomp: true)
-
-      # First line should be frozen_string_literal
-      expect(lines[0]).to eq("# frozen_string_literal: true")
-
-      # prism-merge preserves original formatting
-      # Just verify the content is present
-      expect(result).to include("# frozen_string_literal: true")
+      expect(result).to eq(template_content)
     end
   end
 end

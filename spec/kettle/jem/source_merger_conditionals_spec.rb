@@ -8,7 +8,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       it "replaces if/else block with same predicate during merge" do
         src = <<~RUBY
           gem "foo"
-          if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+          unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
             home = ENV["HOME"] || Dir.home
             gem "rubocop-lts", path: "\#{home}/src/rubocop-lts/rubocop-lts"
             gem "rubocop-ruby2_3", path: "\#{home}/src/rubocop-lts/rubocop-ruby2_3"
@@ -20,7 +20,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
 
         dest = <<~RUBY
           gem "foo"
-          if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+          unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
             home = ENV["HOME"]
             gem "rubocop-lts", path: "\#{home}/src/rubocop-lts/rubocop-lts"
             gem "rubocop-ruby2_3", path: "\#{home}/src/rubocop-lts/rubocop-ruby2_3"
@@ -33,7 +33,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
         merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
 
         # Count occurrences of the if statement
-        if_count = merged.scan('if ENV.fetch("RUBOCOP_LTS_LOCAL"').size
+        if_count = merged.scan('unless ENV.fetch("RUBOCOP_LTS_LOCAL"').size
         expect(if_count).to eq(1), "Expected 1 if block, got #{if_count}. Content:\n#{merged}"
 
         # Should have the source version (with || Dir.home)

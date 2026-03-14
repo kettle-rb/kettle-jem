@@ -63,7 +63,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           # Std Lib extractions
           gem "benchmark", "~> 0.4", ">= 0.4.1" # Removed from Std Lib in Ruby 3.5
 
-          if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+          unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
             home = ENV["HOME"] || Dir.home
             gem "rubocop-lts", path: "\#{home}/src/rubocop-lts/rubocop-lts"
             gem "rubocop-lts-rspec", path: "\#{home}/src/rubocop-lts/rubocop-lts-rspec"
@@ -120,7 +120,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
         result = File.read(File.join(dest_dir, "style.gemfile"))
 
         # Verify the if statement is preserved
-        expect(result).to include('if ENV.fetch("RUBOCOP_LTS_LOCAL"')
+        expect(result).to include('unless ENV.fetch("RUBOCOP_LTS_LOCAL"')
         expect(result).to include("else")
         expect(result).to include("end")
 

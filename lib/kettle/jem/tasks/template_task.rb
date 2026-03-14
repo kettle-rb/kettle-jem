@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "set"
+require "find"
 
 module Kettle
   module Jem
@@ -217,6 +218,199 @@ module Kettle
           raise Kettle::Dev::Error, msg
         end
 
+        def token_options(meta, helpers)
+          forge_org = meta[:forge_org] || meta[:gh_org]
+          funding_org = helpers.opencollective_disabled? ? nil : meta[:funding_org] || forge_org
+
+          {
+            org: forge_org,
+            gem_name: meta[:gem_name],
+            namespace: meta[:namespace],
+            namespace_shield: meta[:namespace_shield],
+            gem_shield: meta[:gem_shield],
+            funding_org: funding_org,
+            min_ruby: meta[:min_ruby],
+          }
+        end
+
+        def prerequisite_validation_available?(options)
+          %i[org gem_name].all? { |key| !options[key].to_s.strip.empty? }
+        end
+
+        def seeded_kettle_config_content(helpers, config_src, token_options)
+          helpers.configure_tokens!(**token_options, include_config_tokens: false)
+          helpers.read_template(config_src)
+        ensure
+          helpers.clear_tokens!
+        end
+
+        def ensure_kettle_config_bootstrap!(helpers:, project_root:, template_root:, token_options:)
+          config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
+          config_dest = File.join(project_root, ".kettle-jem.yml")
+          return :missing_template unless File.exist?(config_src)
+          return :present if File.exist?(config_dest)
+
+          seeded_config_content = seeded_kettle_config_content(helpers, config_src, token_options)
+          helpers.write_file(config_dest, seeded_config_content)
+          helpers.record_template_result(config_dest, :create)
+          helpers.clear_kettle_config!
+          helpers.template_run_outcome = :bootstrap_only
+          puts "[kettle-jem] Wrote #{config_dest}."
+          puts "[kettle-jem] Review that file, fill in any missing token values, commit it, then re-run kettle-jem."
+          :bootstrap_only
+        end
+
+        def sync_existing_kettle_config!(helpers:, project_root:, template_root:, token_options:)
+          config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
+          config_dest = File.join(project_root, ".kettle-jem.yml")
+          return unless File.exist?(config_src) && File.exist?(config_dest)
+
+          seeded_config_content = seeded_kettle_config_content(helpers, config_src, token_options)
+          helpers.copy_file_with_prompt(
+            config_src,
+            config_dest,
+            allow_create: true,
+            allow_replace: true,
+            content_override: seeded_config_content,
+          ) do |content|
+            c = content
+            if File.exist?(config_dest)
+              begin
+                c = Psych::Merge::SmartMerger.new(
+                  c,
+                  File.read(config_dest),
+                  preference: :destination,
+                  add_template_only_nodes: true,
+                ).merge
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+              end
+            end
+            c
+          end
+          helpers.clear_kettle_config!
+        end
+
+        def preflight_destination_for(rel, project_root, gem_name)
+          return nil if rel == ".kettle-jem.yml"
+          return File.join(project_root, ".env.local.example") if rel == ".env.local"
+
+          return File.join(project_root, rel) unless rel.end_with?(".gemspec")
+
+          return File.join(project_root, "#{gem_name}.gemspec") if gem_name && !gem_name.to_s.empty?
+
+          Dir.glob(File.join(project_root, "*.gemspec")).sort.first || File.join(project_root, rel)
+        end
+
+        def logical_template_paths(template_root)
+          rels = Set.new
+          Find.find(template_root) do |path|
+            next if File.directory?(path)
+
+            rel = path.sub(%r{^#{Regexp.escape(template_root)}/?}, "")
+              .sub(/\.no-osc\.example\z/, "")
+              .sub(/\.example\z/, "")
+            rels << rel unless rel.empty?
+          end
+          rels.to_a.sort
+        end
+
+        def include_matches?(project_root, abs_dest)
+          include_patterns = ENV["include"].to_s.split(",").map { |s| s.strip }.reject(&:empty?)
+          return false if include_patterns.empty?
+
+          rel_dest = abs_dest.to_s
+          proj = project_root.to_s
+          if rel_dest.start_with?(proj + "/")
+            rel_dest = rel_dest[(proj.length + 1)..]
+          elsif rel_dest == proj
+            rel_dest = ""
+          end
+
+          include_patterns.any? do |pat|
+            if pat.end_with?("/**")
+              base = pat[0..-4]
+              rel_dest == base || rel_dest.start_with?(base + "/")
+            else
+              File.fnmatch?(pat, rel_dest, File::FNM_PATHNAME | File::FNM_EXTGLOB | File::FNM_DOTMATCH)
+            end
+          end
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          false
+        end
+
+        def unresolved_required_tokens(helpers:, project_root:, template_root:, gem_name:)
+          return {} unless Dir.exist?(template_root)
+
+          logical_template_paths(template_root).each_with_object({}) do |rel, unresolved_by_file|
+            next if rel == ".kettle-jem.yml"
+            next if helpers.skip_for_disabled_opencollective?(rel)
+
+            dest = preflight_destination_for(rel, project_root, gem_name)
+            next unless dest
+            next if rel == ".github/workflows/discord-notifier.yml" && !include_matches?(project_root, dest)
+
+            strategy = helpers.strategy_for(dest)
+            next if %i[keep_destination raw_copy].include?(strategy)
+
+            src = helpers.prefer_example_with_osc_check(File.join(template_root, rel))
+            next unless File.exist?(src)
+
+            tokens = helpers.unresolved_token_keys(File.read(src))
+            next if tokens.empty?
+
+            display_rel = helpers.rel_path(dest)
+            unresolved_by_file[display_rel] = tokens.sort
+          end
+        end
+
+        def validate_required_token_values!(helpers:, project_root:, template_root:, gem_name:)
+          unresolved_by_file = unresolved_required_tokens(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            gem_name: gem_name,
+          )
+          return if unresolved_by_file.empty?
+
+          msg_lines = ["Unresolved {KJ|...} tokens would be written to #{unresolved_by_file.size} template file(s):"]
+          unresolved_by_file.each do |rel, tokens|
+            msg_lines << "  #{rel}: #{tokens.join(", ")}"
+          end
+          msg_lines << ""
+          msg_lines << "Please set the required environment variables or add values to .kettle-jem.yml and re-run."
+          msg_lines << "Tip: .kettle-jem.yml is the first file to review when token values are missing."
+
+          helpers.add_warning(msg_lines.join("\n"))
+          helpers.print_warnings_summary
+          task_abort(msg_lines.first)
+        end
+
+        def ensure_template_prerequisites!(helpers:, project_root:, template_root:, meta:)
+          options = token_options(meta, helpers)
+          return :unavailable unless prerequisite_validation_available?(options)
+
+          bootstrap_result = ensure_kettle_config_bootstrap!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: options,
+          )
+          return bootstrap_result if bootstrap_result == :bootstrap_only
+
+          helpers.clear_kettle_config!
+          helpers.configure_tokens!(**options)
+          validate_required_token_values!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            gem_name: options[:gem_name],
+          )
+
+          :ready
+        end
+
         # Execute the template operation into the current project.
         # All options/IO are controlled via TemplateHelpers and ENV.
         def run
@@ -239,6 +433,14 @@ module Kettle
           namespace = meta[:namespace]
           namespace_shield = meta[:namespace_shield]
           gem_shield = meta[:gem_shield]
+
+          prerequisites = ensure_template_prerequisites!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            meta: meta,
+          )
+          return :bootstrap_only if prerequisites == :bootstrap_only
 
           # Configure token replacements once for the entire session.
           # All template reads (via read_template) will automatically resolve tokens.
@@ -270,72 +472,23 @@ module Kettle
             end
           end
 
-          # 0) .kettle-jem.yml — copy FIRST so user can fill in missing config and re-run.
-          # This must happen before other steps because token resolution depends on
-          # values that the user may need to configure in this file.
+          # 0) .kettle-jem.yml — keep existing config in sync with the template after
+          # preflight has confirmed we have the required token values.
           begin
-            config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
-            config_dest = File.join(project_root, ".kettle-jem.yml")
-            config_preexisted = File.exist?(config_dest)
-            if File.exist?(config_src)
-              seeded_config_content = begin
-                helpers.configure_tokens!(
-                  org: forge_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  funding_org: funding_org,
-                  min_ruby: min_ruby,
-                  include_config_tokens: false,
-                )
-                helpers.read_template(config_src)
-              ensure
-                helpers.configure_tokens!(
-                  org: forge_org,
-                  gem_name: gem_name,
-                  namespace: namespace,
-                  namespace_shield: namespace_shield,
-                  gem_shield: gem_shield,
-                  funding_org: funding_org,
-                  min_ruby: min_ruby,
-                )
-              end
-
-              if config_preexisted
-                helpers.copy_file_with_prompt(
-                  config_src,
-                  config_dest,
-                  allow_create: true,
-                  allow_replace: true,
-                  content_override: seeded_config_content,
-                ) do |content|
-                  c = content
-                  if File.exist?(config_dest)
-                    begin
-                      c = Psych::Merge::SmartMerger.new(
-                        c,
-                        File.read(config_dest),
-                        preference: :destination,
-                        add_template_only_nodes: true,
-                      ).merge
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
-                    end
-                  end
-                  c
-                end
-                helpers.clear_kettle_config!
-              else
-                helpers.write_file(config_dest, seeded_config_content)
-                helpers.record_template_result(config_dest, :create)
-                helpers.clear_kettle_config!
-                helpers.template_run_outcome = :bootstrap_only
-                puts "[kettle-jem] Wrote #{config_dest}."
-                puts "[kettle-jem] Review that file, fill in any missing token values, commit it, then re-run kettle-jem."
-                return :bootstrap_only
-              end
-            end
+            sync_existing_kettle_config!(
+              helpers: helpers,
+              project_root: project_root,
+              template_root: template_root,
+              token_options: {
+                org: forge_org,
+                gem_name: gem_name,
+                namespace: namespace,
+                namespace_shield: namespace_shield,
+                gem_shield: gem_shield,
+                funding_org: funding_org,
+                min_ruby: min_ruby,
+              },
+            )
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
           end

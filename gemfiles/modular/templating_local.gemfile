@@ -1,20 +1,33 @@
 # frozen_string_literal: true
 
 # Local path overrides for development.
-# This file is gitignored. Adjust paths to match your local directory structure.
-# Loaded by templating.gemfile when KETTLE_RB_DEV=true.
+# Loaded by the associated non-local gemfile when KETTLE_RB_DEV != "false".
 
+require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)
+
+local_gems = %w[
+  tree_haver
+  ast-merge
+  bash-merge
+  dotenv-merge
+  json-merge
+  jsonc-merge
+  markdown-merge
+  prism-merge
+  psych-merge
+  rbs-merge
+  toml-merge
+  markly-merge
+]
+
+# export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,dotenv-merge,json-merge,jsonc-merge,markdown-merge,prism-merge,psych-merge,rbs-merge,toml-merge,markly-merge
 platform :mri do
-  gem "tree_haver", path: "../../../tree_haver"
-  gem "ast-merge", path: "../../../../"
-  gem "bash-merge", path: "../../../bash-merge"
-  gem "dotenv-merge", path: "../../../dotenv-merge"
-  gem "json-merge", path: "../../../json-merge"
-  gem "jsonc-merge", path: "../../../jsonc-merge"
-  gem "markdown-merge", path: "../../../markdown-merge"
-  gem "prism-merge", path: "../../../prism-merge"
-  gem "psych-merge", path: "../../../psych-merge"
-  gem "rbs-merge", path: "../../../rbs-merge"
-  gem "toml-merge", path: "../../../toml-merge"
-  gem "markly-merge", path: "../../../markly-merge"
+  eval_nomono_gems(
+    gems: local_gems,
+    prefix: "KETTLE_RB",
+    path_env: "KETTLE_RB_DEV",
+    vendored_gems_env: "VENDORED_GEMS",
+    vendor_gem_dir_env: "VENDOR_GEM_DIR",
+    debug_env: "KETTLE_DEV_DEBUG"
+  )
 end

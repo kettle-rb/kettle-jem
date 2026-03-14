@@ -74,7 +74,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".validate_no_cross_nesting_duplicates
     let(:merged) do
       <<~RUBY
         gem "bash-merge", path: "../ast-merge/vendor/bash-merge"
-        if ENV.fetch("KETTLE_RB_DEV", "false").casecmp?("true")
+        unless ENV.fetch("KETTLE_RB_DEV", "false").casecmp("false").zero?
           gem "bash-merge", path: "../../../bash-merge"
         end
       RUBY
@@ -94,7 +94,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".validate_no_cross_nesting_duplicates
     it "shows both block signature contexts" do
       expect { validate(merged, template) }.to raise_error(Kettle::Jem::Error) do |error|
         expect(error.message).to include("top-level")
-        expect(error.message).to match(/if /)
+        expect(error.message).to match(/unless /)
       end
     end
   end

@@ -32,6 +32,8 @@ module Kettle
         debug_bundler_env({}, "kettle-jem startup")
         prechecks!
         debug_git_status("prechecks!")
+        prereq_result = ensure_template_prerequisites!
+        return if prereq_result == :bootstrap_only
         ensure_dev_deps!
         debug_git_status("ensure_dev_deps!")
         ensure_gemfile_from_example!
@@ -432,6 +434,24 @@ module Kettle
           min_ruby: min_ruby,
           gem_name: gem_name,
         )
+      end
+
+      def ensure_template_prerequisites!
+        helpers = Kettle::Jem::TemplateHelpers
+        meta = begin
+          helpers.gemspec_metadata(helpers.project_root)
+        rescue StandardError
+          {}
+        end
+
+        Kettle::Jem::Tasks::TemplateTask.ensure_template_prerequisites!(
+          helpers: helpers,
+          project_root: helpers.project_root,
+          template_root: helpers.template_root,
+          meta: meta,
+        )
+      rescue Kettle::Dev::Error => e
+        abort!(e.message)
       end
 
       # 5. Ensure Rakefile is present and merged with example

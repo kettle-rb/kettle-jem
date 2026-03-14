@@ -22,7 +22,7 @@ platform :mri do
   # AST parsing for advanced templating.
   # Set KETTLE_RB_DEV=true for local development with path-based dependencies.
   # When false (default / CI), gemspec runtime dependencies are used (no extras needed here).
-  if ENV.fetch("KETTLE_RB_DEV", "false").casecmp?("true")
+  unless ENV.fetch("KETTLE_RB_DEV", "false").casecmp("false").zero?
     eval_gemfile "templating_local.gemfile"
   end
 end

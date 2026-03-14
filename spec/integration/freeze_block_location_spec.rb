@@ -2,6 +2,15 @@
 
 RSpec.describe "Freeze Block Location Preservation" do
   describe "Kettle::Jem::SourceMerger" do
+    def self_merge(content, path:)
+      Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: content,
+        dest: content,
+        path: path,
+      )
+    end
+
     context "when file has existing freeze blocks" do
       it "preserves freeze block location inside Gem::Specification block" do
         input = <<~RUBY
@@ -22,12 +31,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -61,12 +65,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -102,12 +101,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -140,12 +134,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -176,12 +165,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -210,12 +194,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -263,12 +242,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           end
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "test.gemspec",
-        )
+        result = self_merge(input, path: "test.gemspec")
 
         lines = result.lines
 
@@ -308,12 +282,7 @@ RSpec.describe "Freeze Block Location Preservation" do
           gem "foo"
         RUBY
 
-        result = Kettle::Jem::SourceMerger.apply(
-          strategy: :skip,
-          src: input,
-          dest: "",
-          path: "Gemfile",
-        )
+        result = self_merge(input, path: "Gemfile")
 
         # Should not duplicate the reminder
         reminder_count = result.lines.count { |l| l.include?("To retain during kettle-jem templating") }

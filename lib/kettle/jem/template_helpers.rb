@@ -370,6 +370,20 @@ module Kettle
         resolver.resolve(doc, @@token_replacements)
       end
 
+      # Return the token keys that would remain unresolved with the current
+      # replacement map.
+      #
+      # @param content [String]
+      # @return [Array<String>]
+      def unresolved_token_keys(content)
+        doc = Token::Resolver::Document.new(content, config: TOKEN_CONFIG)
+        configured = @@token_replacements || {}
+
+        doc.token_keys.select { |key|
+          key.start_with?("KJ|") && !configured.key?(key)
+        }.uniq
+      end
+
       # Compute RuboCop LTS constraint and gem name from min_ruby.
       # @param min_ruby [Gem::Version, nil]
       # @return [Array(String, String)] [constraint, gem_name]
@@ -1047,18 +1061,37 @@ module Kettle
         RUBY_EXTENSIONS.include?(ext)
       end
 
+      def project_kettle_config_path
+        File.join(project_root.to_s, TEMPLATE_CONFIG_RELATIVE_PATH)
+      end
+
+      def template_kettle_config_path
+        prefer_example(File.join(template_root, TEMPLATE_CONFIG_RELATIVE_PATH))
+      end
+
+      def load_kettle_config_file(path)
+        return {} unless File.exist?(path)
+
+        config = YAML.load_file(path)
+        config.is_a?(Hash) ? config : {}
+      rescue Errno::ENOENT
+        {}
+      end
+
+      def project_kettle_config
+        load_kettle_config_file(project_kettle_config_path)
+      end
+
       # Load the raw kettle-jem config file.
       # Prefers the destination project's .kettle-jem.yml (so each gem can
       # customize its merge strategies); falls back to the template default config.
       # @return [Hash] Parsed YAML config
       def kettle_config
         @@kettle_config ||= begin
-          project_config = File.join(project_root.to_s, TEMPLATE_CONFIG_RELATIVE_PATH)
-          if File.exist?(project_config)
-            YAML.load_file(project_config)
+          if File.exist?(project_kettle_config_path)
+            load_kettle_config_file(project_kettle_config_path)
           else
-            template_config = prefer_example(File.join(template_root, TEMPLATE_CONFIG_RELATIVE_PATH))
-            File.exist?(template_config) ? YAML.load_file(template_config) : {}
+            load_kettle_config_file(template_kettle_config_path)
           end
         rescue Errno::ENOENT
           {}

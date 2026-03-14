@@ -91,6 +91,25 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "setup preflight" do
+    it "returns early when template prerequisites bootstrap only the config file" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(cli).to receive(:say)
+      allow(cli).to receive(:prechecks!).and_return(nil)
+      allow(cli).to receive(:ensure_template_prerequisites!).and_return(:bootstrap_only)
+      expect(cli).not_to receive(:ensure_dev_deps!)
+      expect(cli).not_to receive(:ensure_modular_gemfiles!)
+
+      expect { cli.run! }.not_to raise_error
+    end
+  end
+
   describe "#ensure_modular_gemfiles!" do
     it "calls ModularGemfiles.sync! and rescues metadata errors (min_ruby=nil)" do
       cli = described_class.allocate
@@ -702,7 +721,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
       allow(cli).to receive(:parse!)
-      %i[prechecks! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+      %i[prechecks! ensure_template_prerequisites! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+        allow(cli).to receive(:ensure_template_prerequisites!).and_return(:ready) if m == :ensure_template_prerequisites!
         expect(cli).to receive(m).ordered
       end
       expect { cli.run! }.not_to raise_error
@@ -718,7 +738,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:parse!)
 
       call_order = []
-      %i[prechecks! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+      allow(cli).to receive(:ensure_template_prerequisites!).and_return(:ready)
+      %i[prechecks! ensure_template_prerequisites! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
         allow(cli).to receive(m) { call_order << m }
       end
 

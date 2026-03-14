@@ -22,6 +22,21 @@ This project is a **RubyGem** managed with the [kettle-rb](https://github.com/ke
 
 **CRITICAL**: The canonical project environment now lives in `mise.toml`, with local overrides in `.env.local` loaded via `dotenvy`.
 
+⚠️ **Watch for trust prompts**: After editing `mise.toml` or `.env.local`, `mise` may require trust to be refreshed before commands can load the project environment. Until that trust step is handled, commands can appear hung or produce no output, which can look like terminal access is broken.
+
+**Recovery rule**: If a `mise exec` command goes silent, appears hung, or terminal polling keeps returning `null`, assume `mise trust` is the first thing to check. Recover by running:
+
+```bash
+mise trust -C /path/to/project
+mise exec -C /path/to/project -- bundle exec rspec
+```
+
+Do this before spending time on unrelated debugging; in this workspace pattern, silent `mise` commands are usually a trust problem first.
+
+```bash
+mise trust -C /path/to/project
+```
+
 ✅ **CORRECT** — Run self-contained commands with `mise exec`:
 ```bash
 mise exec -C /path/to/project -- bundle exec rspec

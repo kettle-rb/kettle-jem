@@ -191,6 +191,217 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     end
 
     describe "::run" do
+      it "writes .kettle-jem.yml and exits before templating when the project config is missing" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), "# {KJ|GEM_NAME}\n")
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect(described_class.run).to eq(:bootstrap_only)
+            expect(File).to exist(File.join(project_root, ".kettle-jem.yml"))
+            expect(File).not_to exist(File.join(project_root, "README.md"))
+            expect(helpers.template_run_outcome).to eq(:bootstrap_only)
+          end
+        end
+      end
+
+      it "fails before templating when an existing config still leaves required tokens unresolved" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), "Sponsor: {KJ|GH:USER}\n")
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect {
+              described_class.run
+            }.to raise_error(Kettle::Dev::Error, /Unresolved \{KJ\|\.\.\.\} tokens would be written/)
+            expect(File).not_to exist(File.join(project_root, "README.md"))
+          end
+        end
+      end
+
+      it "keeps the existing .kettle-jem.yml comments, blank lines, and inline comment alignment when syncing config" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            template_config = <<~YAML
+              # kettle-jem configuration file
+              #
+              # Header docs
+
+              # Default merge options
+              defaults:
+                preference: "template"
+                add_template_only_nodes: true
+                freeze_token: "kettle-jem"
+
+              # Token replacement values.
+              #
+              # General rules:
+              tokens:
+                forge:
+                  gh_user: ""        # GitHub username only, no @, no URL. Used for GitHub Sponsors and profile links. ENV: KJ_GH_USER
+                  gl_user: ""        # GitLab username only, no @, no URL. Used for profile links. ENV: KJ_GL_USER
+
+                author:
+                  name: "{KJ|AUTHOR:NAME}"                 # Full display name. Example: Peter H. Boling. ENV: KJ_AUTHOR_NAME. Auto-seeded from gemspec authors.first
+                  given_names: "{KJ|AUTHOR:GIVEN_NAMES}"   # Given/personal names only. Example: Peter H. ENV: KJ_AUTHOR_GIVEN_NAMES. Auto-seeded when AUTHOR:NAME can be split
+
+              # Glob patterns evaluated in order (first match wins)
+              patterns:
+                - path: "certs/**"
+                  strategy: raw_copy
+
+              # Per-file configuration (nested directory structure)
+              # Only files that need overrides belong here. Everything else defaults to merge.
+              files: {}
+
+              # To override specific files, add entries like:
+              #
+              # files:
+              #   README.md:
+              #     strategy: accept_template
+            YAML
+
+            existing_config = <<~YAML
+              # kettle-jem configuration file
+              #
+              # Header docs
+
+              # Default merge options
+              defaults:
+                preference: "template"
+                add_template_only_nodes: true
+                freeze_token: "kettle-jem"
+
+              # Token replacement values.
+              #
+              # General rules:
+              tokens:
+                forge:
+                  gh_user: ""        # GitHub username only, no @, no URL. Used for GitHub Sponsors and profile links. ENV: KJ_GH_USER
+                  gl_user: ""        # GitLab username only, no @, no URL. Used for profile links. ENV: KJ_GL_USER
+
+                author:
+                  name: "Jane Doe"                       # Full display name. Example: Peter H. Boling. ENV: KJ_AUTHOR_NAME. Auto-seeded from gemspec authors.first
+                  given_names: "Jane"                    # Given/personal names only. Example: Peter H. ENV: KJ_AUTHOR_GIVEN_NAMES. Auto-seeded when AUTHOR:NAME can be split
+
+              # Glob patterns evaluated in order (first match wins)
+              patterns:
+                - path: "certs/**"
+                  strategy: raw_copy
+
+              # Per-file configuration (nested directory structure)
+              # Only files that need overrides belong here. Everything else defaults to merge.
+              files: {}
+
+              # To override specific files, add entries like:
+              #
+              # files:
+              #   README.md:
+              #     strategy: accept_template
+            YAML
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+            dest_config = File.join(project_root, ".kettle-jem.yml")
+            File.write(dest_config, existing_config)
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Jane Doe"]
+                spec.email = ["jane@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+            expect(File.read(dest_config)).to eq(existing_config)
+          end
+        end
+      end
+
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
@@ -429,7 +640,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             style_dir = File.join(gem_root, "template", "gemfiles", "modular")
             FileUtils.mkdir_p(style_dir)
             File.write(File.join(style_dir, "style.gemfile.example"), <<~GEMFILE)
-              if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+              unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
                 gem "rubocop-lts", path: "src/rubocop-lts/rubocop-lts"
                 gem "rubocop-lts-rspec", path: "src/rubocop-lts/rubocop-lts-rspec"
                 gem "{KJ|RUBOCOP_RUBY_GEM}", path: "src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
@@ -476,7 +687,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             style_dir = File.join(gem_root, "template", "gemfiles", "modular")
             FileUtils.mkdir_p(style_dir)
             File.write(File.join(style_dir, "style.gemfile.example"), <<~GEMFILE)
-              if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+              unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
                 gem "rubocop-lts", path: "src/rubocop-lts/rubocop-lts"
                 gem "rubocop-lts-rspec", path: "src/rubocop-lts/rubocop-lts-rspec"
                 gem "{KJ|RUBOCOP_RUBY_GEM}", path: "src/rubocop-lts/{KJ|RUBOCOP_RUBY_GEM}"
@@ -1759,8 +1970,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(File.read(dest_ci)).to include('name: "Jane Doe"')
 
             dest_readme = File.join(project_root, "README.md")
-            expect(File).to exist(dest_readme)
-            expect(File.read(dest_readme)).to include("Template README body")
+            expect(File).not_to exist(dest_readme)
           end
         end
       end

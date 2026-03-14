@@ -18,7 +18,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
         # Std Lib extractions
         gem "benchmark", "~> 0.4", ">= 0.4.1" # Removed from Std Lib in Ruby 3.5
 
-        if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+        unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
           home = ENV["HOME"] || Dir.home
           gem "rubocop-lts", path: "#{home}/src/rubocop-lts/rubocop-lts"
           gem "rubocop-lts-rspec", path: "#{home}/src/rubocop-lts/rubocop-lts-rspec"
@@ -48,7 +48,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
         # Std Lib extractions
         gem "benchmark", "~> 0.4", ">= 0.4.1" # Removed from Std Lib in Ruby 3.5
 
-        if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+        unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
           home = ENV["HOME"]
           gem "rubocop-lts", path: "#{home}/src/rubocop-lts/rubocop-lts"
           gem "rubocop-lts-rspec", path: "#{home}/src/rubocop-lts/rubocop-lts-rspec"
@@ -71,7 +71,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
       )
 
       # Count occurrences of the if statement
-      if_count = result.scan('if ENV.fetch("RUBOCOP_LTS_LOCAL"').size
+      if_count = result.scan('unless ENV.fetch("RUBOCOP_LTS_LOCAL"').size
 
       expect(if_count).to eq(1),
         "Expected exactly 1 if block, got #{if_count}.\n\nResult:\n#{result}"
@@ -118,7 +118,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
         "Third merge should be identical to first"
 
       # Verify no duplication
-      if_count = third_merge.scan('if ENV.fetch("RUBOCOP_LTS_LOCAL"').size
+      if_count = third_merge.scan('unless ENV.fetch("RUBOCOP_LTS_LOCAL"').size
       expect(if_count).to eq(1),
         "Expected exactly 1 if block after multiple merges, got #{if_count}"
     end
@@ -148,7 +148,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
         # Std Lib extractions
         gem "benchmark", "~> 0.4", ">= 0.4.1" # Removed from Std Lib in Ruby 3.5
 
-        if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+        unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
           home = ENV["HOME"]
           gem "rubocop-lts", path: "#{home}/src/rubocop-lts/rubocop-lts"
           gem "rubocop-lts-rspec", path: "#{home}/src/rubocop-lts/rubocop-lts-rspec"
@@ -160,7 +160,7 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
           gem "rubocop-rspec", "~> 3.6"
         end
 
-        if ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("true").zero?
+        unless ENV.fetch("RUBOCOP_LTS_LOCAL", "false").casecmp("false").zero?
           home = ENV["HOME"] || Dir.home
           gem "rubocop-lts", path: "#{home}/src/rubocop-lts/rubocop-lts"
           gem "rubocop-lts-rspec", path: "#{home}/src/rubocop-lts/rubocop-lts-rspec"
@@ -182,8 +182,8 @@ RSpec.describe "style.gemfile conditional block duplication fix", :prism_merge_o
       )
 
       # The buggy result has 2 if blocks - our fix should only produce 1
-      buggy_if_count = buggy_result.scan('if ENV.fetch("RUBOCOP_LTS_LOCAL"').size
-      fixed_if_count = result.scan('if ENV.fetch("RUBOCOP_LTS_LOCAL"').size
+      buggy_if_count = buggy_result.scan('unless ENV.fetch("RUBOCOP_LTS_LOCAL"').size
+      fixed_if_count = result.scan('unless ENV.fetch("RUBOCOP_LTS_LOCAL"').size
 
       expect(buggy_if_count).to eq(2), "Sanity check: buggy result should have 2 if blocks"
       expect(fixed_if_count).to eq(1), "Fixed result should have only 1 if block"
