@@ -1,6 +1,7 @@
 # Build Artifacts
 /pkg/
-/tmp/
+/tmp/*
+!/tmp/.gitignore
 *.gem
 
 # Bundler

@@ -146,11 +146,18 @@ module Kettle
                 signature_generator: TOOL_VERSIONS_SIGNATURE_GENERATOR,
               ).merge
             else
-              # Text files (gitignore, rspec, yardopts, etc.): text-merge
+              # Text files: text-merge. For .gitignore specifically, include
+              # template-only lines so new ignore rules are added to existing
+              # destination files.
+              text_merge_options = {
+                preference: :template,
+              }
+              text_merge_options[:add_template_only_nodes] = true if File.basename(rel.to_s) == ".gitignore"
+
               Ast::Merge::Text::SmartMerger.new(
                 content,
                 dest_content,
-                preference: :template,
+                **text_merge_options,
               ).merge
             end
 
