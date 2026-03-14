@@ -73,6 +73,16 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(result).to eq("ruby >= 3.2")
     end
 
+    it "resolves dynamic kettle-jem version and template run timestamp tokens" do
+      allow(helpers).to receive(:kettle_jem_version).and_return("9.9.9")
+      allow(helpers).to receive(:template_run_timestamp).and_return(Time.new(2026, 3, 14, 12, 0, 0, "+00:00"))
+
+      content = "v{KJ|KETTLE_JEM_VERSION} on {KJ|TEMPLATE_RUN_DATE} ({KJ|TEMPLATE_RUN_YEAR})"
+      result = helpers.apply_common_replacements(content, **base_args)
+
+      expect(result).to eq("v9.9.9 on 2026-03-14 (2026)")
+    end
+
     it "keeps unresolved tokens when on_missing is :keep" do
       content = "{KJ|UNKNOWN_TOKEN} stays"
       result = helpers.apply_common_replacements(content, **base_args)

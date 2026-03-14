@@ -280,7 +280,7 @@ See [LICENSE.txt][📄license] for the official [Copyright Notice][📄copyright
 
 <ul>
     <li>
-        Copyright (c) 2023, 2025 Peter H. Boling, of
+        Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:GIVEN_NAMES} {KJ|AUTHOR:FAMILY_NAMES}, of
         <a href="https://discord.gg/3qme4XHNKN">
             Galtzo.com
             <picture>
@@ -348,7 +348,7 @@ Thanks for RTFM. ☺️
 [🚂maint-contact]: http://www.railsbling.com/contact
 [🚂maint-contact-img]: https://img.shields.io/badge/Contact-Maintainer-0093D0.svg?style=flat&logo=rubyonrails&logoColor=red
 [💖🖇linkedin]: http://www.linkedin.com/in/peterboling
-[💖🖇linkedin-img]: https://img.shields.io/badge/PeterBoling-LinkedIn-0B66C2?style=flat&logo=newjapanprowrestling
+[💖🖇linkedin-img]: https://img.shields.io/badge/LinkedIn-Profile-0B66C2?style=flat&logo=newjapanprowrestling
 [💖✌️wellfound]: https://wellfound.com/u/peter-boling
 [💖✌️wellfound-img]: https://img.shields.io/badge/peter--boling-orange?style=flat&logo=wellfound
 [💖💲crunchbase]: https://www.crunchbase.com/person/peter-boling

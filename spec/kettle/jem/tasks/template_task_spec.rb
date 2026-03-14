@@ -254,6 +254,77 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "renders dynamic template metadata for Rakefile, README, and LICENSE" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "Rakefile.example"), <<~RUBY)
+              # {KJ|GEM_NAME} Rakefile v{KJ|KETTLE_JEM_VERSION} - {KJ|TEMPLATE_RUN_DATE}
+              # Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
+            RUBY
+            File.write(File.join(template_root, "README.md.example"), <<~MARKDOWN)
+              Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:GIVEN_NAMES} {KJ|AUTHOR:FAMILY_NAMES}, of {KJ|GEM_NAME} contributors.
+            MARKDOWN
+            File.write(File.join(template_root, "LICENSE.txt.example"), <<~TEXT)
+              Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:GIVEN_NAMES} {KJ|AUTHOR:FAMILY_NAMES}
+            TEXT
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+              template_run_timestamp: Time.new(2026, 3, 14, 12, 0, 0, "+00:00"),
+              kettle_jem_version: "9.9.9",
+              gemspec_metadata: {
+                gem_name: "demo",
+                min_ruby: Gem::Version.create("3.1"),
+                forge_org: "acme",
+                funding_org: nil,
+                namespace: "Demo",
+                namespace_shield: "Demo",
+                gem_shield: "demo",
+                authors: ["Test User"],
+                email: ["test@example.com"],
+                entrypoint_require: "demo",
+              },
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            expect(File.read(File.join(project_root, "Rakefile"))).to include("# demo Rakefile v9.9.9 - 2026-03-14")
+            expect(File.read(File.join(project_root, "Rakefile"))).to include("# Copyright (c) 2026 Test User (example.com)")
+            expect(File.read(File.join(project_root, "README.md"))).to include("Copyright (c) 2026 Test User")
+            expect(File.read(File.join(project_root, "LICENSE.txt"))).to include("Copyright (c) 2026 Test User")
+          end
+        end
+      end
+
       it "writes .kettle-jem.yml and exits before templating when the project config is missing" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|

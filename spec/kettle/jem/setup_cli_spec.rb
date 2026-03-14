@@ -759,23 +759,38 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
-    # BUG REPRO: ensure_rakefile! writes raw token content from
-    # Rakefile.example. This is acceptable as a bootstrap placeholder
-    # because run_kettle_install! (template task) will overwrite it
-    # with resolved tokens. But the commit must happen AFTER the
-    # template task, not before. This test documents the raw-write
-    # behavior.
-    it "writes raw Rakefile.example content (tokens are resolved by template task later)" do
+    after do
+      Kettle::Jem::TemplateHelpers.clear_tokens!
+    end
+
+    it "writes a token-resolved Rakefile header using kettle-jem version and template run date" do
       cli = described_class.allocate
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
-      File.write(src, "# {KJ|GEM_NAME} Rakefile\nrequire 'bundler/gem_tasks'\n")
+      File.write(src, <<~RUBY)
+        # {KJ|GEM_NAME} Rakefile v{KJ|KETTLE_JEM_VERSION} - {KJ|TEMPLATE_RUN_DATE}
+        # Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
+        require "bundler/gem_tasks"
+      RUBY
       allow(cli).to receive(:installed_path).and_return(src)
+      allow(Kettle::Jem::TemplateHelpers).to receive(:project_root).and_return(Dir.pwd)
+      allow(Kettle::Jem::TemplateHelpers).to receive(:gemspec_metadata).and_return(
+        gem_name: "demo-gem",
+        min_ruby: Gem::Version.create("3.2"),
+        forge_org: "acme",
+        namespace: "DemoGem",
+        namespace_shield: "Demo__Gem",
+        gem_shield: "demo__gem",
+        authors: ["Test User"],
+        email: ["test@example.com"],
+      )
+      allow(Kettle::Jem::TemplateHelpers).to receive(:template_run_timestamp).and_return(Time.new(2026, 3, 14, 12, 0, 0, "+00:00"))
+      allow(Kettle::Jem::TemplateHelpers).to receive(:kettle_jem_version).and_return("9.9.9")
 
       cli.send(:ensure_rakefile!)
 
       content = File.read("Rakefile")
-      # The raw file still has unresolved tokens
-      expect(content).to include("{KJ|GEM_NAME}")
+      expect(content).to include("# demo-gem Rakefile v9.9.9 - 2026-03-14")
+      expect(content).to include("# Copyright (c) 2026 Test User (example.com)")
     end
   end
 end

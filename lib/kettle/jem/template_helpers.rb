@@ -177,6 +177,7 @@ module Kettle
         funding_org ||= org
         meta = safe_gemspec_metadata
         token_config = include_config_tokens ? token_config_values : {}
+        template_run_at = template_run_timestamp
 
         # Derive min_ruby from gemspec if not provided
         mr = meta[:min_ruby]
@@ -212,6 +213,9 @@ module Kettle
           "KJ|NAMESPACE_SHIELD" => namespace_shield,
           "KJ|OPENCOLLECTIVE_ORG" => funding_org || "opencollective",
           "KJ|FREEZE_TOKEN" => ft,
+          "KJ|KETTLE_JEM_VERSION" => kettle_jem_version,
+          "KJ|TEMPLATE_RUN_DATE" => template_run_at.strftime("%Y-%m-%d"),
+          "KJ|TEMPLATE_RUN_YEAR" => template_run_at.year.to_s,
           "KJ|KETTLE_DEV_GEM" => "kettle-dev",
           "KJ|YARD_HOST" => "#{dashed}.#{author_domain || "example.com"}",
         }
@@ -272,6 +276,14 @@ module Kettle
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         {}
+      end
+
+      def template_run_timestamp
+        Time.now
+      end
+
+      def kettle_jem_version
+        Kettle::Jem::Version::VERSION
       end
 
       def preferred_token_value(derived_value, config_value, env_key:)

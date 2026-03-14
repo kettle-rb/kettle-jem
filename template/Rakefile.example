@@ -6,12 +6,12 @@
 # {KJ|GEM_NAME} will then preserve content between those markers across template runs.
 # {KJ|FREEZE_TOKEN}:unfreeze
 
-# {KJ|GEM_NAME} Rakefile v1.2.5 - 2025-11-28
+# {KJ|GEM_NAME} Rakefile v{KJ|KETTLE_JEM_VERSION} - {KJ|TEMPLATE_RUN_DATE}
 # Ruby 2.3 (Safe Navigation) or higher required
 #
 # MIT License (see License.txt)
 #
-# Copyright (c) 2025 {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
+# Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
 #
 # Expected to work in any project that uses Bundler.
 #

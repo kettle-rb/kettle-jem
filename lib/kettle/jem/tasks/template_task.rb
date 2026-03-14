@@ -500,6 +500,24 @@ module Kettle
             Kettle::Dev.debug_error(e, __method__)
           end
 
+          # sync_existing_kettle_config! temporarily seeds and clears token state
+          # while rewriting .kettle-jem.yml, so restore the full replacement map
+          # before templating the rest of the project files.
+          begin
+            helpers.configure_tokens!(
+              org: forge_org,
+              gem_name: gem_name,
+              namespace: namespace,
+              namespace_shield: namespace_shield,
+              gem_shield: gem_shield,
+              funding_org: funding_org,
+              min_ruby: min_ruby,
+            )
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            $stderr.puts("[kettle-jem] WARNING: Token configuration failed after syncing .kettle-jem.yml: #{e.message}")
+          end
+
           # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
           devcontainer_src_dir = File.join(template_root, ".devcontainer")
           if Dir.exist?(devcontainer_src_dir)

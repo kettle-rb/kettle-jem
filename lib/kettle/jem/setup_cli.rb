@@ -413,20 +413,16 @@ module Kettle
         namespace_shield = meta[:namespace_shield]
         gem_shield = meta[:gem_shield]
 
-        # Configure tokens once so read_template resolves them automatically
-        begin
-          helpers.configure_tokens!(
-            org: forge_org,
-            gem_name: gem_name,
-            namespace: namespace,
-            namespace_shield: namespace_shield,
-            gem_shield: gem_shield,
-            funding_org: funding_org,
-            min_ruby: min_ruby,
-          )
-        rescue StandardError => e
-          debug("Token configuration failed: #{e.class}: #{e.message}")
-        end
+        configure_template_tokens!(
+          helpers: helpers,
+          forge_org: forge_org,
+          gem_name: gem_name,
+          namespace: namespace,
+          namespace_shield: namespace_shield,
+          gem_shield: gem_shield,
+          funding_org: funding_org,
+          min_ruby: min_ruby,
+        )
 
         Kettle::Jem::ModularGemfiles.sync!(
           helpers: helpers,
@@ -434,6 +430,21 @@ module Kettle
           min_ruby: min_ruby,
           gem_name: gem_name,
         )
+      end
+
+      def configure_template_tokens!(helpers:, forge_org:, gem_name:, namespace:, namespace_shield:, gem_shield:, funding_org:, min_ruby:)
+        helpers.configure_tokens!(
+          org: forge_org,
+          gem_name: gem_name,
+          namespace: namespace,
+          namespace_shield: namespace_shield,
+          gem_shield: gem_shield,
+          funding_org: funding_org,
+          min_ruby: min_ruby,
+        )
+      rescue StandardError => e
+        helpers.clear_tokens! if helpers.respond_to?(:clear_tokens!)
+        debug("Token configuration failed: #{e.class}: #{e.message}")
       end
 
       def ensure_template_prerequisites!
@@ -459,7 +470,26 @@ module Kettle
         source = installed_path("Rakefile.example")
         abort!("Internal error: Rakefile.example not found within installed gem.") unless source && File.exist?(source)
 
-        content = File.read(source)
+        helpers = Kettle::Jem::TemplateHelpers
+        meta = begin
+          helpers.gemspec_metadata(helpers.project_root)
+        rescue StandardError
+          {}
+        end
+        forge_org = meta[:forge_org] || meta[:gh_org]
+        funding_org = helpers.opencollective_disabled? ? nil : (meta[:funding_org] || forge_org)
+        configure_template_tokens!(
+          helpers: helpers,
+          forge_org: forge_org,
+          gem_name: meta[:gem_name],
+          namespace: meta[:namespace],
+          namespace_shield: meta[:namespace_shield],
+          gem_shield: meta[:gem_shield],
+          funding_org: funding_org,
+          min_ruby: meta[:min_ruby],
+        )
+
+        content = helpers.read_template(source)
         if File.exist?("Rakefile")
           begin
             existing = File.read("Rakefile")
