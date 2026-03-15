@@ -48,12 +48,24 @@ if ARGV.include?("-h") || ARGV.include?("--help")
   puts <<~USAGE
     Usage: kettle-jem [options]
 
-    Bootstraps a host gem repository to use kettle-jem tooling.
+    Primary entry point for adopting kettle-jem in a host gem repository.
 
-    Options (passed through to rake kettle:jem:install):
+    First-run behavior:
+      - if .kettle-jem.yml is missing, seed it from the template and exit early
+      - after you review and commit that config, re-run kettle-jem to continue
+
+    Configured-project behavior:
+      - perform the bootstrap/update workflow
+      - finish by invoking rake kettle:jem:install
+
+    Related rake tasks:
+      - kettle:jem:template smart-merges template files according to .kettle-jem.yml
+      - kettle:jem:install runs template, then post-template checks/prompts
+
+    Options (passed through to rake kettle:jem:install once bootstrap continues):
       --allowed=VAL           Acknowledge prior direnv allow, etc.
       --force                 Accept prompts non-interactively
-      --hook_templates=VAL    Control git hook templating (local|global|skip)
+      --hook_templates=VAL    Control git hook templating (local, global, skip)
       --only=VAL              Restrict install scope
       --include=VAL           Include optional files by glob
       --failure-mode=VAL      Merge failure handling: error (default) or rescue

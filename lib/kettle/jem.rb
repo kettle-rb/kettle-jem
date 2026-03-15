@@ -73,6 +73,8 @@ module Kettle
     # Recipe-driven mergers
     autoload :MarkdownMerger, "kettle/jem/markdown_merger"
     autoload :ChangelogMerger, "kettle/jem/changelog_merger"
+    autoload :ReadmeGemspecSynchronizer, "kettle/jem/readme_gemspec_synchronizer"
+    autoload :ReadmePostProcessor, "kettle/jem/readme_post_processor"
 
     # Task modules (moved from kettle-dev)
     module Tasks

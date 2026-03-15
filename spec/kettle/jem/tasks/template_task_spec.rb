@@ -325,6 +325,218 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "re-templates README compatibility badges when min_ruby increases" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            readme_template = <<~MARKDOWN
+              | Works with JRuby        | ![JRuby 9.1 Compat][💎jruby-9.1i] ![JRuby 9.2 Compat][💎jruby-9.2i] ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-10.0i]][🚎11-c-wf] [![JRuby current Compat][💎jruby-c-i]][🚎12-j-wf] [![JRuby HEAD Compat][💎jruby-headi]][🚎3-hd-wf] |
+              | Works with Truffle Ruby | ![Truffle Ruby 22.3 Compat][💎truby-22.3i] ![Truffle Ruby 23.0 Compat][💎truby-23.0i] ![Truffle Ruby 23.1 Compat][💎truby-23.1i] <br/> [![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] [![Truffle Ruby 24.2 Compat][💎truby-24.2i]][🚎9-t-wf] [![Truffle Ruby 25.0 Compat][💎truby-25.0i]][🚎9-t-wf] [![Truffle Ruby current Compat][💎truby-c-i]][🚎11-c-wf] |
+              | Works with MRI Ruby 3   | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby current Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf] |
+
+              ### Compatibility
+
+              Compatible with MRI Ruby 3.2+, and concordant releases of JRuby, and TruffleRuby.
+
+              [💎jruby-9.1i]: https://example/jruby-91
+              [💎jruby-9.2i]: https://example/jruby-92
+              [💎jruby-9.3i]: https://example/jruby-93
+              [💎jruby-9.4i]: https://example/jruby-94
+              [💎jruby-10.0i]: https://example/jruby-100
+              [💎jruby-c-i]: https://example/jruby-current
+              [💎jruby-headi]: https://example/jruby-head
+              [💎truby-22.3i]: https://example/truby-223
+              [💎truby-23.0i]: https://example/truby-230
+              [💎truby-23.1i]: https://example/truby-231
+              [💎truby-23.2i]: https://example/truby-232
+              [💎truby-24.2i]: https://example/truby-242
+              [💎truby-25.0i]: https://example/truby-250
+              [💎truby-c-i]: https://example/truby-current
+              [💎ruby-3.2i]: https://example/ruby-32
+              [💎ruby-3.3i]: https://example/ruby-33
+              [💎ruby-c-i]: https://example/ruby-current
+              [💎ruby-headi]: https://example/ruby-head
+              [🚎3-hd-wf]: https://example/head
+              [🚎6-s-wf]: https://example/supported
+              [🚎9-t-wf]: https://example/truffle
+              [🚎10-j-wf]: https://example/jruby
+              [🚎11-c-wf]: https://example/current
+              [🚎12-j-wf]: https://example/jruby-current
+            MARKDOWN
+
+            File.write(File.join(template_root, "README.md.example"), readme_template)
+            File.write(File.join(project_root, "README.md"), readme_template)
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+              gemspec_metadata: {
+                gem_name: "demo",
+                min_ruby: Gem::Version.create("3.2"),
+                forge_org: "acme",
+                funding_org: nil,
+                namespace: "Demo",
+                namespace_shield: "Demo",
+                gem_shield: "demo",
+                authors: ["Test User"],
+                email: ["test@example.com"],
+                entrypoint_require: "demo",
+              },
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            edited = File.read(File.join(project_root, "README.md"))
+            jruby_line = edited.lines.find { |line| line.start_with?("| Works with JRuby") }
+            truby_line = edited.lines.find { |line| line.start_with?("| Works with Truffle Ruby") }
+
+            expect(jruby_line).to include("jruby-10.0i")
+            expect(jruby_line).to include("jruby-c-i")
+            expect(jruby_line).to include("jruby-headi")
+            expect(jruby_line).not_to include("jruby-9.4i")
+            expect(truby_line).to include("truby-23.2i")
+            expect(truby_line).to include("truby-24.2i")
+            expect(truby_line).to include("truby-25.0i")
+            expect(truby_line).to include("truby-c-i")
+            expect(truby_line).not_to include("truby-23.1i")
+            expect(edited).not_to match(/^\[💎jruby-9\.4i\]:/)
+            expect(edited).to match(/^\[💎jruby-10\.0i\]:/)
+            expect(edited).not_to match(/^\[🚎10-j-wf\]:/)
+            expect(edited).to match(/^\[🚎12-j-wf\]:/)
+            expect(edited).not_to match(/^\[💎truby-23\.1i\]:/)
+            expect(edited).to match(/^\[💎truby-23\.2i\]:/)
+            expect(edited).to match(/^\[💎truby-24\.2i\]:/)
+            expect(edited).to match(/^\[💎truby-25\.0i\]:/)
+            expect(edited).to match(/^\[🚎9-t-wf\]:/)
+            expect(edited).to match(/^\[🚎11-c-wf\]:/)
+          end
+        end
+      end
+
+      it "synchronizes gemspec summary and description to the merged README H1 grapheme" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            File.write(File.join(template_root, "README.md.example"), <<~MARKDOWN)
+              # 🍕 Template Title
+
+              ## Synopsis
+              Template synopsis.
+            MARKDOWN
+
+            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "kettle-jem"
+                spec.version = "1.0.0"
+                spec.summary = "🍕 Template summary"
+                spec.description = "🍕 Template description"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            File.write(File.join(project_root, "README.md"), <<~MARKDOWN)
+              # 🚀 Existing Title
+
+              ## Synopsis
+              Existing synopsis.
+            MARKDOWN
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "🍲 Existing summary"
+                spec.description = "🍲 Existing description"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+              gemspec_metadata: {
+                gem_name: "demo",
+                min_ruby: Gem::Version.create("3.2"),
+                forge_org: "acme",
+                funding_org: nil,
+                namespace: "Demo",
+                namespace_shield: "Demo",
+                gem_shield: "demo",
+                authors: ["Test User"],
+                email: ["test@example.com"],
+                entrypoint_require: "demo",
+                summary: "🍲 Existing summary",
+                description: "🍲 Existing description",
+              },
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            expect(File.read(File.join(project_root, "README.md")).lines.first).to eq("# 🚀 Existing Title\n")
+
+            gemspec = File.read(File.join(project_root, "demo.gemspec"))
+            expect(gemspec).to match(/spec.summary\s*=\s*"🚀 Existing summary"/)
+            expect(gemspec).to match(/spec.description\s*=\s*"🚀 Existing description"/)
+          end
+        end
+      end
+
       it "writes .kettle-jem.yml and exits before templating when the project config is missing" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|

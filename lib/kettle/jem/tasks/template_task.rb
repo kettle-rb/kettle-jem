@@ -93,6 +93,27 @@ module Kettle
           MARKDOWN_HEADING_EXTENSIONS.include?(ext)
         end
 
+        def sync_readme_gemspec_grapheme!(helpers:, project_root:, gem_name:)
+          actual_root = helpers.output_dir || project_root
+          readme_path = File.join(actual_root, "README.md")
+          gemspec_path = File.join(actual_root, "#{gem_name}.gemspec")
+          return unless File.file?(readme_path) && File.file?(gemspec_path)
+
+          readme = File.read(readme_path)
+          gemspec = File.read(gemspec_path)
+          synced_readme, synced_gemspec, chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.synchronize(
+            readme_content: readme,
+            gemspec_content: gemspec,
+          )
+          return unless chosen_grapheme
+
+          helpers.write_file(File.join(project_root, "README.md"), synced_readme) if synced_readme != readme
+          helpers.write_file(File.join(project_root, "#{gem_name}.gemspec"), synced_gemspec) if synced_gemspec != gemspec
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          puts "WARNING: Could not synchronize README H1 grapheme with gemspec metadata: #{e.class}: #{e.message}"
+        end
+
         # Merge template content with an existing destination file using the
         # appropriate AST-aware merge gem based on file type.
         #
@@ -975,6 +996,7 @@ module Kettle
                       end
                     end
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
+                    c = Kettle::Jem::ReadmePostProcessor.process(content: c, min_ruby: min_ruby)
                     c
                   end
                 elsif File.basename(rel) == "CHANGELOG.md"
@@ -1012,6 +1034,8 @@ module Kettle
               end
             end
           end
+
+          sync_readme_gemspec_grapheme!(helpers: helpers, project_root: project_root, gem_name: gem_name)
 
           # After creating or replacing .envrc or .env.local.example, require review and exit unless allowed
           begin

@@ -521,16 +521,33 @@ files:
 
 ### The `kettle-jem` command
 
-kettle-jem ships a single executable, `kettle-jem`, that bootstraps a host gem repository to use kettle-jem tooling. Run it from inside the target gem's repository working directory.
+`kettle-jem` is the primary user-facing entry point. Run it from inside the target gem repository.
+
+Its behavior depends on whether the project already has a `.kettle-jem.yml` file:
+
+1. **No `.kettle-jem.yml` yet** — `kettle-jem` seeds that file from `template/.kettle-jem.yml.example`, fills whatever token values it can derive safely from the gemspec, and then **stops before templating the rest of the project**.
+2. **`.kettle-jem.yml` already present** — `kettle-jem` performs the full bootstrap/update workflow and finishes by invoking `rake kettle:jem:install`.
+
+That first-run stop is intentional: `.kettle-jem.yml` is the seam between “install kettle-jem into this repo” and “apply the template to this repo.” It is the place where you decide merge strategies and provide any token values that cannot be derived automatically.
 
 ```console
 kettle-jem [options]
 # e.g., kettle-jem --allowed=true --force
 ```
 
+#### How the entry points fit together
+
+| Entry point | Purpose | What happens when `.kettle-jem.yml` is missing? | Typical use |
+|-------------|---------|--------------------------------------------------|-------------|
+| `kettle-jem` | Preferred top-level bootstrap command | Writes `.kettle-jem.yml` and exits early | First adoption of kettle-jem in a repo |
+| `rake kettle:jem:template` | Low-level templating engine | Writes `.kettle-jem.yml` and exits early | Re-run templating after config changes, or when you only want file merges |
+| `rake kettle:jem:install` | Wrapper around `template` plus post-template checks/prompts | Exits cleanly after the config bootstrap | Templating plus install-time guidance like `.envrc`, `.gitignore`, and post-merge checks |
+
+Both `kettle-jem` and `rake kettle:jem:install` are already gated by the same template preflight. In other words, you do **not** need to guess whether to run “install” or “template” first: if the config is missing, the shared preflight seeds it and stops before broader changes are made.
+
 #### What it does
 
-The `kettle-jem` command performs the following steps in order:
+When `.kettle-jem.yml` already exists, the `kettle-jem` command performs the following steps in order:
 
 1. **Prechecks** — Verifies you're inside a git repo with a clean working tree, a gemspec, and a Gemfile
 2. **Sync dev dependencies** — Updates your gemspec's `add_development_dependency` entries to match the kettle-jem template
@@ -565,10 +582,21 @@ All options are passed through to the underlying `rake kettle:jem:install` task:
 
 #### Examples
 
-Bootstrap a new gem repository with all defaults (interactive prompts):
+First run in a repository that has not been configured yet:
 
 ```console
 cd my-gem
+kettle-jem
+```
+
+That first run writes `.kettle-jem.yml` and exits. Review it, fill in any missing token values, commit it, then re-run `kettle-jem`.
+
+Complete the bootstrap after reviewing the config:
+
+```console
+$EDITOR .kettle-jem.yml
+git add .kettle-jem.yml
+git commit -m "Configure kettle-jem"
 kettle-jem
 ```
 
@@ -584,14 +612,26 @@ Only install git hooks locally:
 kettle-jem --hook_templates=local
 ```
 
+Run only the templating layer after changing `.kettle-jem.yml`:
+
+```console
+bundle exec rake kettle:jem:template allowed=true
+```
+
+Run templating plus install-time follow-up checks and prompts:
+
+```console
+bundle exec rake kettle:jem:install allowed=true
+```
+
 #### Rake tasks
 
 After initial setup, the following rake tasks are available for ongoing use:
 
 | Task | Description |
 |------|-------------|
-| `rake kettle:jem:install` | Full template merge (same as what `kettle-jem` runs at the end) |
-| `rake kettle:jem:template` | File templating only (AST-based smart merge of all template files) |
+| `rake kettle:jem:install` | Runs `kettle:jem:template`, then performs install-time follow-up work such as summarizing changed files, checking `.envrc`, and offering `.gitignore` updates |
+| `rake kettle:jem:template` | Smart-merges template files according to `.kettle-jem.yml`; if the config file is missing, it writes `.kettle-jem.yml` and exits before templating the rest of the project |
 | `rake kettle:jem:selftest` | Validate that templating kettle-jem against itself produces expected output |
 
 ### Using Presets

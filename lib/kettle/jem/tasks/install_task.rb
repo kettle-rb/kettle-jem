@@ -6,24 +6,6 @@ module Kettle
       module InstallTask
         module_function
 
-        # Fixed-version engine badges mapped to the MRI they target.
-        # "current" and "HEAD" badges are intentionally left dynamic.
-        ENGINE_COMPATIBILITY_MRI_VERSION = {
-          "jruby" => {
-            "9.1" => Gem::Version.new("2.3"),
-            "9.2" => Gem::Version.new("2.5"),
-            "9.3" => Gem::Version.new("2.6"),
-            "9.4" => Gem::Version.new("3.1"),
-          }.freeze,
-          "truby" => {
-            "22.3" => Gem::Version.new("3.0"),
-            "23.0" => Gem::Version.new("3.0"),
-            "23.1" => Gem::Version.new("3.1"),
-          }.freeze,
-        }.freeze
-        COMPATIBILITY_ROW_PREFIX_RE = /\A\| Works with (?:MRI Ruby|JRuby|Truffle Ruby)/.freeze
-        COMPATIBILITY_REFERENCE_LABEL_RE = /\A(?:💎(?:ruby|jruby|truby)-|🚎)/.freeze
-
         # Abort wrapper that avoids terminating the current rake task process.
         # Always raise Kettle::Dev::Error so callers can decide whether to handle
         # it without terminating the process (e.g., in tests or non-interactive runs).
@@ -32,84 +14,25 @@ module Kettle
         end
 
         def trim_readme_compatibility_badges!(readme_path, min_ruby)
-          content = File.read(readme_path)
-          content = remove_incompatible_compatibility_badges(content, min_ruby)
-          content = normalize_compatibility_rows(content)
-          content = prune_unused_compatibility_reference_definitions(content)
+          content = Kettle::Jem::ReadmePostProcessor.process(content: File.read(readme_path), min_ruby: min_ruby)
           File.open(readme_path, "w") { |f| f.write(content) }
         end
 
-        def remove_incompatible_compatibility_badges(content, min_ruby)
-          labels = content.scan(/\[(💎(?:ruby|jruby|truby)-[^\]]+)\]/).flatten.uniq
+        def sync_readme_gemspec_grapheme!(readme_path, gemspec_path, grapheme: nil)
+          readme = File.read(readme_path)
+          gemspec = File.read(gemspec_path)
+          synced_readme, synced_gemspec, chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.synchronize(
+            readme_content: readme,
+            gemspec_content: gemspec,
+            grapheme: grapheme,
+          )
+          return unless chosen_grapheme
 
-          labels.each do |label|
-            badge_min_mri = compatibility_badge_min_mri(label)
-            next unless badge_min_mri && badge_min_mri < min_ruby
-
-            content = remove_badge_occurrences(content, label)
-          end
-
-          content
+          File.open(readme_path, "w") { |f| f.write(synced_readme) } if synced_readme != readme
+          File.open(gemspec_path, "w") { |f| f.write(synced_gemspec) } if synced_gemspec != gemspec
+          chosen_grapheme
         end
 
-        def compatibility_badge_min_mri(label)
-          if (match = label.match(/\A💎ruby-(?<version>\d+\.\d+)i\z/))
-            Gem::Version.new(match[:version])
-          elsif (match = label.match(/\A💎(?<engine>jruby|truby)-(?<version>\d+\.\d+)i\z/))
-            ENGINE_COMPATIBILITY_MRI_VERSION.dig(match[:engine], match[:version])
-          end
-        rescue StandardError => e
-          Kettle::Dev.debug_error(e, __method__)
-          nil
-        end
-
-        def remove_badge_occurrences(content, label)
-          label_re = Regexp.escape(label)
-          content = content.gsub(/\s*\[!\[[^\]]*?\]\s*\[#{label_re}\]\s*\]\s*\[[^\]]+\]\s*/, " ")
-          content.gsub(/\s*!\[[^\]]*?\]\s*\[#{label_re}\]\s*/, " ")
-        end
-
-        def normalize_compatibility_rows(content)
-          content.lines.filter_map do |line|
-            next line unless compatibility_row?(line)
-
-            cells = line.split("|", -1)
-            badge_cell = normalize_compatibility_badge_cell(cells[2])
-            next if badge_cell.empty?
-
-            cells[2] = " #{badge_cell}"
-            cells.join("|")
-          end.join
-        end
-
-        def normalize_compatibility_badge_cell(cell)
-          normalized = cell.to_s.gsub(/[ \t]+/, " ").strip
-          normalized = normalized.gsub(/\s*<br\/>\s*/i, " <br/> ").gsub(/[ \t]{2,}/, " ").strip
-          normalized = normalized.sub(/\A<br\/>\s*/i, "")
-          normalized = normalized.sub(/\s*<br\/>\z/i, "")
-          normalized.strip
-        end
-
-        def compatibility_row?(line)
-          COMPATIBILITY_ROW_PREFIX_RE.match?(line)
-        end
-
-        def prune_unused_compatibility_reference_definitions(content)
-          referenced_labels = {}
-
-          content.lines.each do |line|
-            next if line.match?(/^\[[^\]]+\]:/)
-
-            line.scan(/\]\[([^\]]+)\]/) do |match|
-              referenced_labels[match.first] = true
-            end
-          end
-
-          content.lines.reject do |line|
-            label = line[/^\[([^\]]+)\]:/, 1]
-            label && COMPATIBILITY_REFERENCE_LABEL_RE.match?(label) && !referenced_labels[label]
-          end.join
-        end
 
         def run
           helpers = Kettle::Jem::TemplateHelpers
@@ -156,21 +79,7 @@ module Kettle
               first_h1_idx = readme.lines.index { |ln| ln =~ /^#\s+/ }
               chosen_grapheme = nil
               if first_h1_idx
-                lines = readme.split("\n", -1)
-                h1 = lines[first_h1_idx]
-                tail = h1.sub(/^#\s+/, "")
-                begin
-                  emoji_re = Kettle::EmojiRegex::REGEX
-                  # Extract first emoji grapheme cluster if present
-                  if /\A#{emoji_re.source}/u.match?(tail)
-                    cluster = tail[/\A\X/u]
-                    chosen_grapheme = cluster unless cluster.to_s.empty?
-                  end
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  # Fallback: take first Unicode grapheme if any non-space char
-                  chosen_grapheme ||= tail[/\A\X/u]
-                end
+                chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.extract_readme_h1_grapheme(readme)
               end
 
               # If no grapheme found in README H1, either use a default in force mode, or ask the user.
@@ -189,73 +98,11 @@ module Kettle
               end
 
               if chosen_grapheme
-                # 1) Normalize README H1 to exactly one grapheme + single space after '#'
                 begin
-                  lines = readme.split("\n", -1)
-                  idx = lines.index { |ln| ln =~ /^#\s+/ }
-                  if idx
-                    rest = lines[idx].sub(/^#\s+/, "")
-                    begin
-                      emoji_re = Kettle::EmojiRegex::REGEX
-                      # Remove any leading emojis from the H1 by peeling full grapheme clusters
-                      tmp = rest.dup
-                      while tmp =~ /\A#{emoji_re.source}/u
-                        cluster = tmp[/\A\X/u]
-                        tmp = tmp[cluster.length..-1].to_s
-                      end
-                      rest_wo_emoji = tmp.sub(/\A\s+/, "")
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
-                      rest_wo_emoji = rest.sub(/\A\s+/, "")
-                    end
-                    # Build H1 with single spaces only around separators; preserve inner spacing in rest_wo_emoji
-                    new_line = ["#", chosen_grapheme, rest_wo_emoji].join(" ").sub(/^#\s+/, "# ")
-                    lines[idx] = new_line
-                    new_readme = lines.join("\n")
-                    File.open(readme_path, "w") { |f| f.write(new_readme) }
-                  end
+                  sync_readme_gemspec_grapheme!(readme_path, gemspec_path, grapheme: chosen_grapheme)
                 rescue StandardError => e
                   Kettle::Dev.debug_error(e, __method__)
-                  # ignore README normalization errors
-                end
-
-                # 2) Update gemspec summary and description to start with grapheme + single space
-                begin
-                  gspec = File.read(gemspec_path)
-
-                  normalize_field = lambda do |text, field|
-                    # Match the assignment line and the first quoted string
-                    text.gsub(/(\b#{Regexp.escape(field)}\s*=\s*)(["'])([^\"']*)(\2)/) do
-                      pre = Regexp.last_match(1)
-                      q = Regexp.last_match(2)
-                      body = Regexp.last_match(3)
-                      # Strip existing leading emojis and spaces
-                      begin
-                        emoji_re = Kettle::EmojiRegex::REGEX
-                        tmp = body.dup
-                        tmp = tmp.sub(/\A\s+/, "")
-                        while tmp =~ /\A#{emoji_re.source}/u
-                          cluster = tmp[/\A\X/u]
-                          tmp = tmp[cluster.length..-1].to_s
-                        end
-                        tmp = tmp.sub(/\A\s+/, "")
-                        body_wo = tmp
-                      rescue StandardError => e
-                        Kettle::Dev.debug_error(e, __method__)
-                        body_wo = body.sub(/\A\s+/, "")
-                      end
-                      pre + q + ("#{chosen_grapheme} " + body_wo) + q
-                    end
-                  end
-
-                  gspec2 = normalize_field.call(gspec, "spec.summary")
-                  gspec3 = normalize_field.call(gspec2, "spec.description")
-                  if gspec3 != gspec
-                    File.open(gemspec_path, "w") { |f| f.write(gspec3) }
-                  end
-                rescue StandardError => e
-                  Kettle::Dev.debug_error(e, __method__)
-                  # ignore gemspec edits on error
+                  # ignore README / gemspec synchronization errors
                 end
               end
             end
@@ -263,24 +110,6 @@ module Kettle
             puts "WARNING: Skipped grapheme synchronization due to #{e.class}: #{e.message}"
           end
 
-          # Perform final whitespace normalization for README: only squish whitespace between word characters (non-table lines)
-          begin
-            readme_path = File.join(project_root, "README.md")
-            if File.file?(readme_path)
-              content = File.read(readme_path)
-              content = content.lines.map do |ln|
-                if ln.start_with?("|")
-                  ln
-                else
-                  ln.gsub(/(\w)[ \t]{2,}(\w)/u, "\\1 \\2")
-                end
-              end.join
-              File.open(readme_path, "w") { |f| f.write(content) }
-            end
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
-            # ignore whitespace normalization errors
-          end
 
           # Validate gemspec homepage points to GitHub and is a non-interpolated string
           begin

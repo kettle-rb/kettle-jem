@@ -90,19 +90,23 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         G
 
         readme = <<~MD
-          | Works with JRuby        | ![JRuby 9.1 Compat][💎jruby-9.1i] ![JRuby 9.2 Compat][💎jruby-9.2i] ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-c-i]][🚎11-c-wf] [![JRuby HEAD Compat][💎jruby-headi]][🚎3-hd-wf] |
-          | Works with Truffle Ruby | ![Truffle Ruby 22.3 Compat][💎truby-22.3i] ![Truffle Ruby 23.0 Compat][💎truby-23.0i] <br/> [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] [![Truffle Ruby 24.1 Compat][💎truby-c-i]][🚎11-c-wf] |
-          | Works with MRI Ruby 3   | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby 3.4 Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf] |
+          | Works with JRuby        | ![JRuby 9.1 Compat][💎jruby-9.1i] ![JRuby 9.2 Compat][💎jruby-9.2i] ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-10.0i]][🚎11-c-wf] [![JRuby current Compat][💎jruby-c-i]][🚎12-j-wf] [![JRuby HEAD Compat][💎jruby-headi]][🚎3-hd-wf] |
+          | Works with Truffle Ruby | ![Truffle Ruby 22.3 Compat][💎truby-22.3i] ![Truffle Ruby 23.0 Compat][💎truby-23.0i] ![Truffle Ruby 23.1 Compat][💎truby-23.1i] <br/> [![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] [![Truffle Ruby 24.2 Compat][💎truby-24.2i]][🚎9-t-wf] [![Truffle Ruby 25.0 Compat][💎truby-25.0i]][🚎9-t-wf] [![Truffle Ruby current Compat][💎truby-c-i]][🚎11-c-wf] |
+          | Works with MRI Ruby 3   | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby current Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf] |
 
           [💎jruby-9.1i]: https://example/jruby-91
           [💎jruby-9.2i]: https://example/jruby-92
           [💎jruby-9.3i]: https://example/jruby-93
           [💎jruby-9.4i]: https://example/jruby-94
+          [💎jruby-10.0i]: https://example/jruby-100
           [💎jruby-c-i]: https://example/jruby-current
           [💎jruby-headi]: https://example/jruby-head
           [💎truby-22.3i]: https://example/truby-223
           [💎truby-23.0i]: https://example/truby-230
           [💎truby-23.1i]: https://example/truby-231
+          [💎truby-23.2i]: https://example/truby-232
+          [💎truby-24.2i]: https://example/truby-242
+          [💎truby-25.0i]: https://example/truby-250
           [💎truby-c-i]: https://example/truby-current
           [💎ruby-3.2i]: https://example/ruby-32
           [💎ruby-3.3i]: https://example/ruby-33
@@ -113,6 +117,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           [🚎9-t-wf]: https://example/truffle
           [🚎10-j-wf]: https://example/jruby
           [🚎11-c-wf]: https://example/current
+          [🚎12-j-wf]: https://example/jruby-current
         MD
         File.write(File.join(project_root, "README.md"), readme)
 
@@ -134,45 +139,74 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         expect(jruby_line).not_to include("jruby-9.2i")
         expect(jruby_line).not_to include("jruby-9.3i")
         expect(jruby_line).not_to include("jruby-9.4i")
+        expect(jruby_line).to include("jruby-10.0i")
 
         expect(truby_line).to include("truby-c-i")
         expect(truby_line).not_to include("truby-22.3i")
         expect(truby_line).not_to include("truby-23.0i")
         expect(truby_line).not_to include("truby-23.1i")
+        expect(truby_line).to include("truby-23.2i")
+        expect(truby_line).to include("truby-24.2i")
+        expect(truby_line).to include("truby-25.0i")
         expect(truby_line).not_to match(/\|\s*<br\/>/)
 
         expect(edited).not_to match(/^\[💎jruby-9\.4i\]:/)
+        expect(edited).to match(/^\[💎jruby-10\.0i\]:/)
         expect(edited).not_to match(/^\[💎truby-23\.1i\]:/)
         expect(edited).not_to match(/^\[🚎10-j-wf\]:/)
-        expect(edited).not_to match(/^\[🚎9-t-wf\]:/)
+        expect(edited).to match(/^\[🚎12-j-wf\]:/)
+        expect(edited).to match(/^\[🚎9-t-wf\]:/)
+        expect(edited).to match(/^\[💎truby-23\.2i\]:/)
+        expect(edited).to match(/^\[💎truby-24\.2i\]:/)
+        expect(edited).to match(/^\[💎truby-25\.0i\]:/)
         expect(edited).to match(/^\[🚎11-c-wf\]:/)
         expect(edited).to match(/^\[🚎3-hd-wf\]:/)
       end
     end
 
-    it "keeps JRuby and TruffleRuby badges whose target MRI matches the minimum version" do
+    it "does not broadly squish intentional double spaces in non-table README prose" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, "README.md"), "# 🍕 My Library\n\nAlpha  Beta\n")
+        gemspec = File.join(project_root, "demo.gemspec")
+        File.write(gemspec, <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.summary = "🍕 A lib"
+            spec.description = "🍕 Desc"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        G
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+
+        described_class.run
+
+        expect(File.read(File.join(project_root, "README.md"))).to include("Alpha  Beta\n")
+      end
+    end
+
+    it "keeps a fixed JRuby 10.0 badge whose target MRI matches the minimum version" do
       Dir.mktmpdir do |project_root|
         File.write(File.join(project_root, "demo.gemspec"), <<~G)
           Gem::Specification.new do |spec|
             spec.name = "demo"
-            spec.required_ruby_version = ">= 3.1"
+            spec.required_ruby_version = ">= 3.4"
             spec.homepage = "https://github.com/acme/demo"
           end
         G
 
         readme = <<~MD
-          | Works with JRuby        | ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-c-i]][🚎11-c-wf] |
-          | Works with Truffle Ruby | ![Truffle Ruby 23.0 Compat][💎truby-23.0i] <br/> [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] [![Truffle Ruby 24.1 Compat][💎truby-c-i]][🚎11-c-wf] |
+          | Works with JRuby        | ![JRuby 9.4 Compat][💎jruby-9.4i] <br/> [![JRuby 10.0 Compat][💎jruby-10.0i]][🚎11-c-wf] [![JRuby current Compat][💎jruby-c-i]][🚎12-j-wf] |
 
-          [💎jruby-9.3i]: https://example/jruby-93
           [💎jruby-9.4i]: https://example/jruby-94
+          [💎jruby-10.0i]: https://example/jruby-100
           [💎jruby-c-i]: https://example/jruby-current
-          [💎truby-23.0i]: https://example/truby-230
-          [💎truby-23.1i]: https://example/truby-231
-          [💎truby-c-i]: https://example/truby-current
-          [🚎9-t-wf]: https://example/truffle
-          [🚎10-j-wf]: https://example/jruby
           [🚎11-c-wf]: https://example/current
+          [🚎12-j-wf]: https://example/jruby-current
         MD
         File.write(File.join(project_root, "README.md"), readme)
 
@@ -186,16 +220,56 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
         edited = File.read(File.join(project_root, "README.md"))
         jruby_line = edited.lines.find { |line| line.start_with?("| Works with JRuby") }
+
+        expect(jruby_line).not_to include("jruby-9.4i")
+        expect(jruby_line).to include("jruby-10.0i")
+        expect(jruby_line).to include("jruby-c-i")
+        expect(edited).not_to match(/^\[💎jruby-9\.4i\]:/)
+        expect(edited).to match(/^\[💎jruby-10\.0i\]:/)
+        expect(edited).to match(/^\[🚎11-c-wf\]:/)
+        expect(edited).to match(/^\[🚎12-j-wf\]:/)
+      end
+    end
+
+    it "keeps a fixed TruffleRuby 23.2 badge whose target MRI matches the minimum version" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, "demo.gemspec"), <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.required_ruby_version = ">= 3.2"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        G
+
+        readme = <<~MD
+          | Works with Truffle Ruby | ![Truffle Ruby 23.1 Compat][💎truby-23.1i] <br/> [![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] [![Truffle Ruby current Compat][💎truby-c-i]][🚎11-c-wf] |
+
+          [💎truby-23.1i]: https://example/truby-231
+          [💎truby-23.2i]: https://example/truby-232
+          [💎truby-c-i]: https://example/truby-current
+          [🚎9-t-wf]: https://example/truffle
+          [🚎11-c-wf]: https://example/current
+        MD
+        File.write(File.join(project_root, "README.md"), readme)
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+
+        described_class.run
+
+        edited = File.read(File.join(project_root, "README.md"))
         truby_line = edited.lines.find { |line| line.start_with?("| Works with Truffle Ruby") }
 
-        expect(jruby_line).to include("jruby-9.4i")
-        expect(jruby_line).to include("jruby-c-i")
-        expect(jruby_line).not_to include("jruby-9.3i")
-        expect(truby_line).to include("truby-23.1i")
+        expect(truby_line).not_to include("truby-23.1i")
+        expect(truby_line).to include("truby-23.2i")
         expect(truby_line).to include("truby-c-i")
-        expect(truby_line).not_to include("truby-23.0i")
-        expect(edited).to match(/^\[🚎10-j-wf\]:/)
+        expect(edited).not_to match(/^\[💎truby-23\.1i\]:/)
+        expect(edited).to match(/^\[💎truby-23\.2i\]:/)
         expect(edited).to match(/^\[🚎9-t-wf\]:/)
+        expect(edited).to match(/^\[🚎11-c-wf\]:/)
       end
     end
 
@@ -314,7 +388,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           end
         G
         readme = <<~MD
-          | Works with MRI Ruby 3   | [![Ruby 3.0 Compat][💎ruby-3.0i]][🚎4-lg-wf] [![Ruby 3.1 Compat][💎ruby-3.1i]][🚎6-s-wf] [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby 3.4 Compat][💎ruby-c-i]][🚎11-c-wf] |
+          | Works with MRI Ruby 3   | [![Ruby 3.0 Compat][💎ruby-3.0i]][🚎4-lg-wf] [![Ruby 3.1 Compat][💎ruby-3.1i]][🚎6-s-wf] [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby current Compat][💎ruby-c-i]][🚎11-c-wf] |
           | Works with MRI Ruby 2   | ![Ruby 2.0 Compat][💎ruby-2.0i] ![Ruby 2.1 Compat][💎ruby-2.1i] [![Ruby 2.3 Compat][💎ruby-2.3i]][🚎1-an-wf] |
 
           [💎ruby-2.0i]: https://example/20
@@ -865,7 +939,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
   end
 
   describe "::task_abort" do
-    it "preserves repeated spaces in README during install (H1 and body)" do
+    it "preserves repeated spaces in README during install while inserting a grapheme" do
       Dir.mktmpdir do |project_root|
         # Minimal gemspec so homepage checks do not abort
         File.write(File.join(project_root, "demo.gemspec"), <<~G)
@@ -900,9 +974,8 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
         edited = File.read(File.join(project_root, "README.md"))
         first_line = edited.lines.first.chomp
-        # With the new rule, only whitespace between word characters is squished
-        expect(first_line).to eq("# 🍕 Title with multiple spaces")
-        expect(edited).to include("A body line with many spaces.")
+        expect(first_line).to eq("# 🍕 Title   with   multiple   spaces")
+        expect(edited).to include("A  body   line    with     many      spaces.")
       end
     end
   end
