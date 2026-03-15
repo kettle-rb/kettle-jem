@@ -26,4 +26,5 @@ platform :mri do
 
   # MRI Backend
   gem "ruby_tree_sitter", "~> 2.1"
+
 end
