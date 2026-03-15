@@ -145,6 +145,9 @@ module Kettle
           out = out.sub(/^[ \t]*#{Regexp.escape(gn.slice.strip)}[^\n]*\n?/, "")
         end
 
+        out = remove_word_from_local_gems_array(out, gem_name)
+        out = remove_word_from_vendored_gems_export_comment(out, gem_name)
+
         out
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
@@ -153,6 +156,48 @@ module Kettle
           Kernel.warn("[#{__method__}] #{e.class}: #{e.message}")
         end
         content
+      end
+
+      def remove_word_from_local_gems_array(content, gem_name)
+        gem_word = gem_name.to_s.strip
+        return content if gem_word.empty?
+
+        content.gsub(/^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m) do
+          match = Regexp.last_match
+          words = match[:body].split(/\s+/).reject(&:empty?)
+          filtered = words.reject { |word| word == gem_word }
+          next match[0] if filtered == words
+
+          indent = match[:indent]
+          suffix = match[:suffix].to_s
+          multiline = match[:body].include?("\n")
+
+          if multiline
+            rebuilt_body = if filtered.empty?
+              ""
+            else
+              "\n" + filtered.map { |word| "#{indent}  #{word}" }.join("\n") + "\n#{indent}"
+            end
+            "#{indent}local_gems = %w[#{rebuilt_body}]#{suffix}"
+          else
+            joined = filtered.join(" ")
+            "#{indent}local_gems = %w[#{joined}]#{suffix}"
+          end
+        end
+      end
+
+      def remove_word_from_vendored_gems_export_comment(content, gem_name)
+        gem_word = gem_name.to_s.strip
+        return content if gem_word.empty?
+
+        content.gsub(/^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/) do
+          match = Regexp.last_match
+          words = match[:body].split(",").map(&:strip).reject(&:empty?)
+          filtered = words.reject { |word| word == gem_word }
+          next match[0] if filtered == words
+
+          "#{match[:prefix]}#{filtered.join(",")}"
+        end
       end
 
       # Recursively find all gem CallNodes matching gem_name throughout the AST.

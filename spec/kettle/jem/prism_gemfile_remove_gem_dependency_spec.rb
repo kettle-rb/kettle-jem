@@ -107,5 +107,26 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).not_to include('gem "tree_haver"')
       expect(out).to include('gem "ast-merge"')
     end
+
+    it "removes the current gem from local_gems arrays and vendored comments" do
+      src = <<~RUBY
+        local_gems = %w[
+          ast-merge
+          kettle-jem
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=ast-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "kettle-jem")
+      expect(out).to include("ast-merge")
+      expect(out).to include("prism-merge")
+      expect(out).not_to include("kettle-jem\n")
+      expect(out).to include("# export VENDORED_GEMS=ast-merge,prism-merge")
+    end
   end
 end

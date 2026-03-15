@@ -217,6 +217,95 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
         end
       end
     end
+
+    it "strips the destination gem from local_gems arrays used by eval_nomono_gems" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
+          FileUtils.mkdir_p(src_dir)
+          FileUtils.mkdir_p(dest_dir)
+
+          File.write(File.join(src_dir, "templating_local.gemfile"), <<~RUBY)
+            require "nomono/bundler"
+
+            local_gems = %w[
+              ast-merge
+              kettle-jem
+              prism-merge
+            ]
+
+            # export VENDORED_GEMS=ast-merge,kettle-jem,prism-merge
+            platform :mri do
+              eval_nomono_gems(gems: local_gems)
+            end
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+            ask: true,
+          )
+
+          described_class.sync!(
+            helpers: helpers,
+            project_root: proj,
+            gem_name: "kettle-jem",
+          )
+
+          result = File.read(File.join(dest_dir, "templating_local.gemfile"))
+          expect(result).to include("ast-merge")
+          expect(result).to include("prism-merge")
+          expect(result).not_to include("kettle-jem\n")
+          expect(result).to include("# export VENDORED_GEMS=ast-merge,prism-merge")
+        end
+      end
+    end
+
+    it "strips local overrides for gems already declared by the destination gemspec" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
+          FileUtils.mkdir_p(src_dir)
+          FileUtils.mkdir_p(dest_dir)
+
+          File.write(File.join(proj, "demo.gemspec"), <<~RUBY)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.version = "0.1.0"
+              spec.summary = "demo"
+              spec.authors = ["Tester"]
+              spec.files = []
+              spec.add_dependency "ast-merge", ">= 0"
+              spec.add_development_dependency "kettle-test", ">= 0"
+            end
+          RUBY
+
+          File.write(File.join(src_dir, "coverage_local.gemfile"), <<~RUBY)
+            local_gems = %w[ast-merge kettle-test prism-merge]
+            # export VENDORED_GEMS=ast-merge,kettle-test,prism-merge
+            platform :mri do
+              eval_nomono_gems(gems: local_gems)
+            end
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+            ask: true,
+          )
+
+          described_class.sync!(helpers: helpers, project_root: proj)
+
+          result = File.read(File.join(dest_dir, "coverage_local.gemfile"))
+          expect(result).not_to include("ast-merge")
+          expect(result).not_to include("kettle-test")
+          expect(result).to include("prism-merge")
+          expect(result).to include("# export VENDORED_GEMS=prism-merge")
+        end
+      end
+    end
   end
 
   describe "min ruby bucket pruning" do
