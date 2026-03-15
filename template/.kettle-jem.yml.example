@@ -116,6 +116,12 @@ tokens:
 patterns:
   - path: "certs/**"
     strategy: raw_copy
+  - path: ".devcontainer/**/*"
+    strategy: accept_template
+  - path: ".github/workflows/**"
+    strategy: accept_template
+  - path: ".gitlab-ci.yml"
+    strategy: accept_template
 
 # Per-file configuration (nested directory structure)
 # Only files that need overrides belong here. Everything else defaults to merge.

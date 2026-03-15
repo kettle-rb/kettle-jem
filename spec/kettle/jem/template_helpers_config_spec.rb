@@ -111,6 +111,21 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         path = File.join(project_root, "certs/pboling.pem")
         expect(described_class.strategy_for(path)).to eq(:raw_copy)
       end
+
+      it "returns :accept_template for .devcontainer files" do
+        path = File.join(project_root, ".devcontainer/apt-install/install.sh")
+        expect(described_class.strategy_for(path)).to eq(:accept_template)
+      end
+
+      it "returns :accept_template for GitHub workflow files" do
+        path = File.join(project_root, ".github/workflows/current.yml")
+        expect(described_class.strategy_for(path)).to eq(:accept_template)
+      end
+
+      it "returns :accept_template for .gitlab-ci.yml" do
+        path = File.join(project_root, ".gitlab-ci.yml")
+        expect(described_class.strategy_for(path)).to eq(:accept_template)
+      end
     end
 
     context "when file is not found in config (defaults to merge)" do
@@ -193,6 +208,13 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       certs_entry = manifest.find { |e| e[:path] == "certs/**" }
       expect(certs_entry).not_to be_nil
       expect(certs_entry[:strategy]).to eq(:raw_copy)
+    end
+
+    it "includes accept_template strategy for .devcontainer/**/*" do
+      manifest = described_class.load_manifest
+      entry = manifest.find { |e| e[:path] == ".devcontainer/**/*" }
+      expect(entry).not_to be_nil
+      expect(entry[:strategy]).to eq(:accept_template)
     end
   end
 
