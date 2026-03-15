@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "yaml"
 require "set"
 require "find"
 
@@ -272,6 +273,106 @@ module Kettle
           helpers.clear_tokens!
         end
 
+        def placeholder_or_blank_scalar?(raw_value)
+          stripped = raw_value.to_s.strip
+          return true if stripped.empty?
+
+          parsed = begin
+            YAML.safe_load(stripped, permitted_classes: [], aliases: false)
+          rescue StandardError
+            stripped.delete_prefix('"').delete_suffix('"').delete_prefix("'").delete_suffix("'")
+          end
+
+          value = parsed.is_a?(String) ? parsed : parsed.to_s
+          value.to_s.strip.empty? || Kettle::Jem::TemplateHelpers.token_placeholder?(value)
+        end
+
+        def yaml_scalar_for_backfill(value, current_raw)
+          stripped = current_raw.to_s.strip
+          if stripped.start_with?("'") && stripped.end_with?("'")
+            "'#{value.to_s.gsub("'", "''")}'"
+          else
+            value.to_s.dump
+          end
+        end
+
+        def backfill_kettle_config_token_lines(content, token_values, helpers:)
+          in_tokens = false
+          current_section = nil
+          changed = false
+
+          updated = content.lines.map do |line|
+            stripped = line.lstrip
+            indent = line[/\A\s*/].to_s.length
+
+            if indent.zero? && stripped.match?(/\Atokens:\s*(?:#.*)?\z/)
+              in_tokens = true
+              current_section = nil
+              next line
+            elsif indent.zero? && stripped.match?(/\A[\w-]+:\s*(?:#.*)?\z/)
+              in_tokens = false
+              current_section = nil
+            end
+
+            next line unless in_tokens
+
+            if indent == 2 && (match = stripped.match(/\A([a-z_]+):\s*(?:#.*)?\z/))
+              current_section = match[1]
+              next line
+            end
+
+            next line unless indent == 4 && current_section
+
+            match = line.match(/\A(\s*)([a-z_]+):(\s*)([^#\n]*?)(\s*(?:#.*)?)?(\n?)\z/)
+            next line unless match
+
+            key = match[2]
+            desired_value = token_values.dig(current_section, key)
+            next line unless helpers.present_string?(desired_value)
+            next line unless placeholder_or_blank_scalar?(match[4])
+
+            changed = true
+            "#{match[1]}#{key}:#{match[3]}#{yaml_scalar_for_backfill(desired_value, match[4])}#{match[5]}#{match[6]}"
+          end.join
+
+          [updated, changed]
+        end
+
+        def merge_missing_backfilled_token_values(destination_content, token_values)
+          source_hash = {"tokens" => token_values}
+          source_content = YAML.dump(source_hash)
+          Psych::Merge::SmartMerger.new(
+            source_content,
+            destination_content,
+            preference: :destination,
+            add_template_only_nodes: true,
+          ).merge
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          destination_content
+        end
+
+        def backfill_project_kettle_config_tokens!(helpers:, project_root:)
+          config_dest = File.join(project_root, ".kettle-jem.yml")
+          return false unless File.exist?(config_dest)
+
+          token_values = helpers.derived_token_config_values
+          return false if token_values.empty?
+
+          current_content = File.read(config_dest)
+          updated_content, replaced_existing_values = backfill_kettle_config_token_lines(current_content, token_values, helpers: helpers)
+          merged_content = merge_missing_backfilled_token_values(updated_content, token_values)
+          return false if merged_content == current_content
+
+          normalized = merged_content.to_s
+          normalized += "\n" unless normalized.empty? || normalized.end_with?("\n")
+          FileUtils.mkdir_p(File.dirname(config_dest))
+          File.open(config_dest, "w") { |f| f.write(normalized) }
+          helpers.record_template_result(config_dest, :replace)
+          helpers.clear_kettle_config!
+          replaced_existing_values || merged_content != updated_content
+        end
+
         def ensure_kettle_config_bootstrap!(helpers:, project_root:, template_root:, token_options:)
           config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
           config_dest = File.join(project_root, ".kettle-jem.yml")
@@ -393,6 +494,47 @@ module Kettle
           end
         end
 
+        def unresolved_written_tokens(helpers:, project_root:)
+          token_pattern = /\{KJ\|[A-Z][A-Z0-9_:]*\}/
+          scan_root = (helpers.output_dir || project_root).to_s
+          unresolved_by_file = {}
+          scan_paths = []
+
+          helpers.template_results.each do |dest_path, record|
+            actual_path = helpers.output_path(dest_path)
+
+            case record[:action]
+            when :create, :replace
+              scan_paths << actual_path if File.file?(actual_path)
+            when :dir_create, :dir_replace
+              next unless Dir.exist?(actual_path)
+
+              Find.find(actual_path) do |path|
+                scan_paths << path if File.file?(path)
+              end
+            end
+          end
+
+          scan_paths.uniq.each do |path|
+            rel = path.sub(%r{^#{Regexp.escape(scan_root)}/?}, "")
+            next if rel.empty? || rel == ".kettle-jem.yml"
+
+            ext = File.extname(path)
+            next unless %w[.rb .gemspec .gemfile .yml .yaml .toml .md .txt .sh .json .jsonc .cff .example .lock].include?(ext) ||
+              File.basename(path).match?(/\A(Gemfile|Rakefile|Appraisals|REEK|\.envrc|\.env|\.rspec|\.yardopts|\.gitignore|\.rubocop|LICENSE)\z/i)
+
+            begin
+              content = File.read(path)
+              tokens = content.scan(token_pattern).uniq
+              unresolved_by_file[rel] = tokens unless tokens.empty?
+            rescue StandardError
+              # Skip files that can't be read as text.
+            end
+          end
+
+          unresolved_by_file
+        end
+
         def validate_required_token_values!(helpers:, project_root:, template_root:, gem_name:)
           unresolved_by_file = unresolved_required_tokens(
             helpers: helpers,
@@ -426,6 +568,11 @@ module Kettle
             token_options: options,
           )
           return bootstrap_result if bootstrap_result == :bootstrap_only
+
+          backfill_project_kettle_config_tokens!(
+            helpers: helpers,
+            project_root: project_root,
+          )
 
           helpers.clear_kettle_config!
           helpers.configure_tokens!(**options)
@@ -1129,12 +1276,19 @@ module Kettle
               puts "  [s] Skip copying"
               # Allow non-interactive selection via environment
               # Precedence: CLI switch (hook_templates) > KETTLE_DEV_HOOK_TEMPLATES > prompt
+              force_mode = Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
+              non_interactive_mode = force_mode || !helpers.output_dir.nil?
               env_choice = ENV["hook_templates"]
               env_choice = ENV["KETTLE_DEV_HOOK_TEMPLATES"] if env_choice.nil? || env_choice.strip.empty?
               choice = env_choice&.strip
               unless choice && !choice.empty?
-                print("Choose (l/g/s) [l]: ")
-                choice = Kettle::Dev::InputAdapter.gets&.strip
+                if non_interactive_mode
+                  choice = "l"
+                  puts "Choose (l/g/s) [l]: l (non-interactive)"
+                else
+                  print("Choose (l/g/s) [l]: ")
+                  choice = Kettle::Dev::InputAdapter.gets&.strip
+                end
               end
               choice = "l" if choice.nil? || choice.empty?
               dest_dir = case choice.downcase
@@ -1296,28 +1450,10 @@ module Kettle
           # FUNDING_LIBERAPAY). The user should add missing values to .kettle-jem.yml
           # or environment variables and re-run.
           begin
-            token_pattern = /\{KJ\|[A-Z][A-Z0-9_:]*\}/
-            project_root_path = project_root.to_s
-            unresolved_by_file = {}
-            require "find"
-            Find.find(project_root_path) do |path|
-              next if File.directory?(path)
-              # Skip binary files, vendored dirs, and non-text files
-              rel = path.sub(%r{^#{Regexp.escape(project_root_path)}/?}, "")
-              next if rel.start_with?("vendor/", ".git/", "coverage/", "tmp/", "pkg/", "node_modules/")
-              next unless File.file?(path)
-              # Only check text files by extension
-              ext = File.extname(path)
-              next unless %w[.rb .gemspec .gemfile .yml .yaml .toml .md .txt .sh .json .jsonc .cff .example .lock].include?(ext) ||
-                File.basename(path).match?(/\A(Gemfile|Rakefile|Appraisals|REEK|\.envrc|\.env|\.rspec|\.yardopts|\.gitignore|\.rubocop|LICENSE)\z/i)
-              begin
-                content = File.read(path)
-                tokens = content.scan(token_pattern).uniq
-                unresolved_by_file[rel] = tokens unless tokens.empty?
-              rescue StandardError
-                # Skip files that can't be read
-              end
-            end
+            unresolved_by_file = unresolved_written_tokens(
+              helpers: helpers,
+              project_root: project_root,
+            )
 
             unless unresolved_by_file.empty?
               msg_lines = ["Unresolved {KJ|...} tokens found in #{unresolved_by_file.size} file(s):"]

@@ -11,7 +11,7 @@
 #
 # MIT License (see License.txt)
 #
-# Copyright (c) 2025 {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
+# Copyright (c) 2025 Peter H. Boling (galtzo.com)
 #
 # Expected to work in any project that uses Bundler.
 #

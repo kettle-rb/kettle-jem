@@ -581,6 +581,318 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "backfills blank token values in an existing .kettle-jem.yml from ENV before templating" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+                funding:
+                  kofi: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), "Donate: https://ko-fi.com/{KJ|FUNDING:KOFI}\n")
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+                funding:
+                  kofi: "" # comment preserved
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            stub_env("KJ_FUNDING_KOFI" => "BackfillMe")
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+            expect(File.read(File.join(project_root, ".kettle-jem.yml"))).to include('kofi: "BackfillMe" # comment preserved')
+            expect(File.read(File.join(project_root, "README.md"))).to include("https://ko-fi.com/BackfillMe")
+          end
+        end
+      end
+
+      it "backfills missing token keys in an existing .kettle-jem.yml from ENV before templating" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+                funding:
+                  kofi: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), "Donate: https://ko-fi.com/{KJ|FUNDING:KOFI}\n")
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            stub_env("KJ_FUNDING_KOFI" => "AddedFromEnv")
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+            config = File.read(File.join(project_root, ".kettle-jem.yml"))
+            expect(config).to include("funding:")
+            expect(config).to match(/kofi:\s+(?:"AddedFromEnv"|AddedFromEnv)/)
+            expect(File.read(File.join(project_root, "README.md"))).to include("https://ko-fi.com/AddedFromEnv")
+          end
+        end
+      end
+
+      it "still fails when unresolved tokens remain after ENV backfill" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+                funding:
+                  kofi: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), <<~MD)
+              Sponsor: {KJ|GH:USER}
+              Donate: https://ko-fi.com/{KJ|FUNDING:KOFI}
+            MD
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+                funding:
+                  kofi: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            stub_env("KJ_FUNDING_KOFI" => "BackfillOnlyThis")
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect {
+              described_class.run
+            }.to raise_error(Kettle::Dev::Error, /Unresolved \{KJ\|\.\.\.\} tokens would be written/)
+            config = File.read(File.join(project_root, ".kettle-jem.yml"))
+            expect(config).to include('kofi: "BackfillOnlyThis"')
+            expect(config).to include('gh_user: ""')
+            expect(File).not_to exist(File.join(project_root, "README.md"))
+          end
+        end
+      end
+
+      it "only audits unresolved tokens in written outputs when output is redirected" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            Dir.mktmpdir do |output_dir|
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+              FileUtils.mkdir_p(File.join(project_root, "template"))
+
+              File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                tokens:
+                  forge:
+                    gh_user: ""
+                patterns: []
+                files: {}
+              YAML
+              File.write(File.join(template_root, "README.md.example"), "# {KJ|GEM_NAME}\n")
+              File.write(File.join(project_root, "template", "README.md.example"), "Unresolved source token: {KJ|AUTHOR:NAME}\n")
+              File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                tokens:
+                  forge:
+                    gh_user: ""
+                patterns: []
+                files: {}
+              YAML
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Test User"]
+                  spec.email = ["test@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+              helpers.send(:output_dir=, output_dir)
+
+              expect { described_class.run }.not_to raise_error
+              expect(File.read(File.join(output_dir, "README.md"))).to include("# demo")
+              expect(File.read(File.join(project_root, "template", "README.md.example"))).to include("{KJ|AUTHOR:NAME}")
+            end
+          end
+        end
+      end
+
+      it "backfills the project .kettle-jem.yml before templating when output is redirected" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            Dir.mktmpdir do |output_dir|
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+
+              File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                tokens:
+                  forge:
+                    gh_user: ""
+                  funding:
+                    kofi: ""
+                patterns: []
+                files: {}
+              YAML
+              File.write(File.join(template_root, "README.md.example"), "Donate: https://ko-fi.com/{KJ|FUNDING:KOFI}\n")
+              File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                tokens:
+                  forge:
+                    gh_user: ""
+                  funding:
+                    kofi: ""
+                patterns: []
+                files: {}
+              YAML
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Test User"]
+                  spec.email = ["test@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              stub_env("KJ_FUNDING_KOFI" => "RedirectSafe")
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+              helpers.send(:output_dir=, output_dir)
+
+              expect { described_class.run }.not_to raise_error
+              expect(File.read(File.join(project_root, ".kettle-jem.yml"))).to include('kofi: "RedirectSafe"')
+              expect(File).not_to exist(File.join(project_root, "README.md"))
+              expect(File.read(File.join(output_dir, "README.md"))).to include("https://ko-fi.com/RedirectSafe")
+            end
+          end
+        end
+      end
+
       it "fails before templating when an existing config still leaves required tokens unresolved" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
@@ -1868,6 +2180,47 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("")
               described_class.run
               expect(File).to exist(File.join(project_root, ".git-hooks", "commit-subjects-goalie.txt"))
+            end
+          end
+        end
+
+        it "does not prompt for hook template destination in force mode", :check_output do
+          Dir.mktmpdir do |gem_root|
+            Dir.mktmpdir do |project_root|
+              hooks_src = File.join(gem_root, ".git-hooks")
+              FileUtils.mkdir_p(hooks_src)
+              File.write(File.join(hooks_src, "commit-subjects-goalie.txt"), "x")
+              File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
+              File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                tokens:
+                  forge:
+                    gh_user: ""
+                patterns: []
+                files: {}
+              YAML
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Test User"]
+                  spec.email = ["test@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+              allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
+              stub_env("force" => "true")
+              expect(Kettle::Dev::InputAdapter).not_to receive(:gets)
+
+              described_class.run
+
+              expect(File).to exist(File.join(project_root, ".git-hooks", "commit-subjects-goalie.txt"))
+              expect(File).to exist(File.join(project_root, ".git-hooks", "footer-template.erb.txt"))
             end
           end
         end

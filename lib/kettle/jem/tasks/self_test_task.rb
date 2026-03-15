@@ -212,8 +212,14 @@ module Kettle
             # Force mode: skip all interactive prompts and git-clean check
             prev_force = ENV["force"]
             prev_allowed = ENV["allowed"]
+            prev_hook_templates = ENV["hook_templates"]
+            prev_dev_hook_templates = ENV["KETTLE_DEV_HOOK_TEMPLATES"]
             ENV["force"] = "true"
             ENV["allowed"] = "true"
+            ENV["hook_templates"] = "l" if prev_hook_templates.nil? || prev_hook_templates.strip.empty?
+            if prev_dev_hook_templates.nil? || prev_dev_hook_templates.strip.empty?
+              ENV["KETTLE_DEV_HOOK_TEMPLATES"] = "l"
+            end
 
             # Bypass ensure_clean_git! — the sandbox is a disposable copy
             helpers.define_singleton_method(:ensure_clean_git!) { |**_| nil }
@@ -226,6 +232,8 @@ module Kettle
             # Restore prior state
             ENV["force"] = prev_force
             ENV["allowed"] = prev_allowed
+            ENV["hook_templates"] = prev_hook_templates
+            ENV["KETTLE_DEV_HOOK_TEMPLATES"] = prev_dev_hook_templates
             helpers.send(:output_dir=, prior_output_dir)
             helpers.send(:class_variable_set, :@@template_results, prior_results)
 

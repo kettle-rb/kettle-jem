@@ -271,6 +271,55 @@ module Kettle
         raw.is_a?(Hash) ? raw : {}
       end
 
+      # Return token config values that can be safely backfilled into
+      # .kettle-jem.yml from the current process environment, intentionally
+      # ignoring the existing config content.
+      #
+      # This is used by TemplateTask preflight to persist concrete values into an
+      # existing project config before unresolved-token validation runs.
+      # @return [Hash<String, Hash<String, String>>]
+      def derived_token_config_values
+        forge = {
+          "gh_user" => preferred_token_value(nil, nil, env_key: "KJ_GH_USER"),
+          "gl_user" => preferred_token_value(nil, nil, env_key: "KJ_GL_USER"),
+          "cb_user" => preferred_token_value(nil, nil, env_key: "KJ_CB_USER"),
+          "sh_user" => preferred_token_value(nil, nil, env_key: "KJ_SH_USER"),
+        }
+
+        author = {
+          "name" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_NAME"),
+          "given_names" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_GIVEN_NAMES"),
+          "family_names" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_FAMILY_NAMES"),
+          "email" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_EMAIL"),
+          "domain" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_DOMAIN"),
+          "orcid" => preferred_token_value(nil, nil, env_key: "KJ_AUTHOR_ORCID"),
+        }
+
+        funding = {
+          "patreon" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_PATREON"),
+          "kofi" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_KOFI"),
+          "paypal" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_PAYPAL"),
+          "buymeacoffee" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_BUYMEACOFFEE"),
+          "polar" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_POLAR"),
+          "liberapay" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_LIBERAPAY"),
+          "issuehunt" => preferred_token_value(nil, nil, env_key: "KJ_FUNDING_ISSUEHUNT"),
+        }
+
+        social = {
+          "mastodon" => preferred_token_value(nil, nil, env_key: "KJ_SOCIAL_MASTODON"),
+          "bluesky" => preferred_token_value(nil, nil, env_key: "KJ_SOCIAL_BLUESKY"),
+          "linktree" => preferred_token_value(nil, nil, env_key: "KJ_SOCIAL_LINKTREE"),
+          "devto" => preferred_token_value(nil, nil, env_key: "KJ_SOCIAL_DEVTO"),
+        }
+
+        {
+          "forge" => forge.select { |_, value| present_string?(value) },
+          "author" => author.select { |_, value| present_string?(value) },
+          "funding" => funding.select { |_, value| present_string?(value) },
+          "social" => social.select { |_, value| present_string?(value) },
+        }.reject { |_, values| values.empty? }
+      end
+
       def safe_gemspec_metadata
         gemspec_metadata
       rescue StandardError => e

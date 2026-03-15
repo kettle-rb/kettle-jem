@@ -363,6 +363,110 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       # Should be restored afterwards
       expect(helpers.project_root).not_to eq(dest_dir)
     end
+
+    it "backfills the sandbox config in dest_dir while still writing rendered files to output_dir" do
+      Dir.mktmpdir("selftest_template_root") do |gem_root|
+        template_root = File.join(gem_root, "template")
+        FileUtils.mkdir_p(template_root)
+
+        File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          tokens:
+            forge:
+              gh_user: ""
+            funding:
+              kofi: ""
+          patterns: []
+          files: {}
+        YAML
+        File.write(File.join(template_root, "README.md.example"), "Donate: https://ko-fi.com/{KJ|FUNDING:KOFI}\n")
+
+        File.write(File.join(dest_dir, ".kettle-jem.yml"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          tokens:
+            forge:
+              gh_user: ""
+            funding:
+              kofi: ""
+          patterns: []
+          files: {}
+        YAML
+        File.write(File.join(dest_dir, "demo.gemspec"), <<~GEMSPEC)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.version = "0.1.0"
+            spec.summary = "test"
+            spec.authors = ["Test User"]
+            spec.email = ["test@example.com"]
+            spec.required_ruby_version = ">= 3.1"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        GEMSPEC
+
+        stub_env("KJ_FUNDING_KOFI" => "SelftestSafe")
+
+        allow(helpers).to receive_messages(
+          template_root: template_root,
+          ask: true,
+        )
+
+        expect { described_class.run_template(helpers, dest_dir, output_dir) }.not_to raise_error
+
+        expect(File.read(File.join(dest_dir, ".kettle-jem.yml"))).to include('kofi: "SelftestSafe"')
+        expect(File.read(File.join(output_dir, "README.md"))).to include("https://ko-fi.com/SelftestSafe")
+      end
+    end
+
+    it "does not prompt for hook template destination and writes hooks into the redirected output sandbox" do
+      Dir.mktmpdir("selftest_template_root") do |gem_root|
+        template_root = File.join(gem_root, "template")
+        hooks_root = File.join(template_root, ".git-hooks")
+        FileUtils.mkdir_p(hooks_root)
+
+        File.write(File.join(dest_dir, ".kettle-jem.yml"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          tokens:
+            forge:
+              gh_user: ""
+          patterns: []
+          files: {}
+        YAML
+        File.write(File.join(dest_dir, "demo.gemspec"), <<~GEMSPEC)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.version = "0.1.0"
+            spec.summary = "test"
+            spec.authors = ["Test User"]
+            spec.email = ["test@example.com"]
+            spec.required_ruby_version = ">= 3.1"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        GEMSPEC
+
+        File.write(File.join(hooks_root, "commit-subjects-goalie.txt.example"), "subject-prefix\n")
+        File.write(File.join(hooks_root, "footer-template.erb.txt.example"), "footer\n")
+
+        allow(helpers).to receive_messages(
+          template_root: template_root,
+          ask: true,
+        )
+        expect(Kettle::Dev::InputAdapter).not_to receive(:gets)
+
+        expect { described_class.run_template(helpers, dest_dir, output_dir) }.not_to raise_error
+
+        expect(File).to exist(File.join(output_dir, ".git-hooks", "commit-subjects-goalie.txt"))
+        expect(File).to exist(File.join(output_dir, ".git-hooks", "footer-template.erb.txt"))
+      end
+    end
   end
 
   describe ".copy_gem_tree edge cases" do
