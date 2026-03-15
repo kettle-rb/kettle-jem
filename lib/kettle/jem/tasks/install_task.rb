@@ -6,11 +6,109 @@ module Kettle
       module InstallTask
         module_function
 
+        # Fixed-version engine badges mapped to the MRI they target.
+        # "current" and "HEAD" badges are intentionally left dynamic.
+        ENGINE_COMPATIBILITY_MRI_VERSION = {
+          "jruby" => {
+            "9.1" => Gem::Version.new("2.3"),
+            "9.2" => Gem::Version.new("2.5"),
+            "9.3" => Gem::Version.new("2.6"),
+            "9.4" => Gem::Version.new("3.1"),
+          }.freeze,
+          "truby" => {
+            "22.3" => Gem::Version.new("3.0"),
+            "23.0" => Gem::Version.new("3.0"),
+            "23.1" => Gem::Version.new("3.1"),
+          }.freeze,
+        }.freeze
+        COMPATIBILITY_ROW_PREFIX_RE = /\A\| Works with (?:MRI Ruby|JRuby|Truffle Ruby)/.freeze
+        COMPATIBILITY_REFERENCE_LABEL_RE = /\A(?:💎(?:ruby|jruby|truby)-|🚎)/.freeze
+
         # Abort wrapper that avoids terminating the current rake task process.
         # Always raise Kettle::Dev::Error so callers can decide whether to handle
         # it without terminating the process (e.g., in tests or non-interactive runs).
         def task_abort(msg)
           raise Kettle::Dev::Error, msg
+        end
+
+        def trim_readme_compatibility_badges!(readme_path, min_ruby)
+          content = File.read(readme_path)
+          content = remove_incompatible_compatibility_badges(content, min_ruby)
+          content = normalize_compatibility_rows(content)
+          content = prune_unused_compatibility_reference_definitions(content)
+          File.open(readme_path, "w") { |f| f.write(content) }
+        end
+
+        def remove_incompatible_compatibility_badges(content, min_ruby)
+          labels = content.scan(/\[(💎(?:ruby|jruby|truby)-[^\]]+)\]/).flatten.uniq
+
+          labels.each do |label|
+            badge_min_mri = compatibility_badge_min_mri(label)
+            next unless badge_min_mri && badge_min_mri < min_ruby
+
+            content = remove_badge_occurrences(content, label)
+          end
+
+          content
+        end
+
+        def compatibility_badge_min_mri(label)
+          if (match = label.match(/\A💎ruby-(?<version>\d+\.\d+)i\z/))
+            Gem::Version.new(match[:version])
+          elsif (match = label.match(/\A💎(?<engine>jruby|truby)-(?<version>\d+\.\d+)i\z/))
+            ENGINE_COMPATIBILITY_MRI_VERSION.dig(match[:engine], match[:version])
+          end
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          nil
+        end
+
+        def remove_badge_occurrences(content, label)
+          label_re = Regexp.escape(label)
+          content = content.gsub(/\s*\[!\[[^\]]*?\]\s*\[#{label_re}\]\s*\]\s*\[[^\]]+\]\s*/, " ")
+          content.gsub(/\s*!\[[^\]]*?\]\s*\[#{label_re}\]\s*/, " ")
+        end
+
+        def normalize_compatibility_rows(content)
+          content.lines.filter_map do |line|
+            next line unless compatibility_row?(line)
+
+            cells = line.split("|", -1)
+            badge_cell = normalize_compatibility_badge_cell(cells[2])
+            next if badge_cell.empty?
+
+            cells[2] = " #{badge_cell}"
+            cells.join("|")
+          end.join
+        end
+
+        def normalize_compatibility_badge_cell(cell)
+          normalized = cell.to_s.gsub(/[ \t]+/, " ").strip
+          normalized = normalized.gsub(/\s*<br\/>\s*/i, " <br/> ").gsub(/[ \t]{2,}/, " ").strip
+          normalized = normalized.sub(/\A<br\/>\s*/i, "")
+          normalized = normalized.sub(/\s*<br\/>\z/i, "")
+          normalized.strip
+        end
+
+        def compatibility_row?(line)
+          COMPATIBILITY_ROW_PREFIX_RE.match?(line)
+        end
+
+        def prune_unused_compatibility_reference_definitions(content)
+          referenced_labels = {}
+
+          content.lines.each do |line|
+            next if line.match?(/^\[[^\]]+\]:/)
+
+            line.scan(/\]\[([^\]]+)\]/) do |match|
+              referenced_labels[match.first] = true
+            end
+          end
+
+          content.lines.reject do |line|
+            label = line[/^\[([^\]]+)\]:/, 1]
+            label && COMPATIBILITY_REFERENCE_LABEL_RE.match?(label) && !referenced_labels[label]
+          end.join
         end
 
         def run
@@ -35,117 +133,17 @@ module Kettle
             end
           end
 
-          # Trim MRI Ruby version badges in README.md to >= required_ruby_version from gemspec
+          # Trim README compatibility badges that target MRI versions below required_ruby_version from the gemspec
           begin
             readme_path = File.join(project_root, "README.md")
             if File.file?(readme_path)
               md = helpers.gemspec_metadata(project_root)
               min_ruby = md[:min_ruby] # an instance of Gem::Version
-              if min_ruby
-                content = File.read(readme_path)
-
-                # Detect all MRI ruby badge labels present
-                removed_labels = []
-
-                content.scan(/\[(?<label>💎ruby-(?<ver>\d+\.\d+)i)\]/) do |arr|
-                  label, ver_s = arr
-                  begin
-                    ver = Gem::Version.new(ver_s)
-                    if ver < min_ruby
-                      # Remove occurrences of badges using this label
-                      label_re = Regexp.escape(label)
-                      # Linked form: [![...][label]][...]
-                      content = content.gsub(/\[!\[[^\]]*?\]\s*\[#{label_re}\]\s*\]\s*\[[^\]]+\]/, "")
-                      # Unlinked form: ![...][label]
-                      content = content.gsub(/!\[[^\]]*?\]\s*\[#{label_re}\]/, "")
-                      removed_labels << label
-                    end
-                  rescue StandardError => e
-                    Kettle::Dev.debug_error(e, __method__)
-                    # ignore
-                  end
-                end
-
-                # Fix leading <br/> in MRI rows and remove rows that end up empty. Also normalize leading whitespace in badge cell to a single space.
-                content = content.lines.map { |ln|
-                  if ln.start_with?("| Works with MRI Ruby")
-                    cells = ln.split("|", -1)
-                    # cells[0] is empty (leading |), cells[1] = label cell, cells[2] = badges cell
-                    badge_cell = cells[2] || ""
-                    # If badge cell is only a <br/> (possibly with whitespace), treat as empty (row will be removed later)
-                    if badge_cell.strip == "<br/>"
-                      cells[2] = " "
-                      cells.join("|")
-                    elsif /\A\s*<br\/>/i.match?(badge_cell)
-                      # If badge cell starts with <br/> and there are no badges before it, strip the leading <br/>
-                      # We consider "no badges before" as any leading whitespace followed immediately by <br/>
-                      cleaned = badge_cell.sub(/\A\s*<br\/>\s*/i, "")
-                      cells[2] = " #{cleaned}" # prefix with a single space
-                      cells.join("|")
-                    elsif /\A[ \t]{2,}\S/.match?(badge_cell)
-                      # Collapse multiple leading spaces/tabs to exactly one
-                      cells[2] = " " + badge_cell.lstrip
-                      cells.join("|")
-                    elsif /\A[ \t]+\S/.match?(badge_cell)
-                      # If there is any leading whitespace at all, normalize it to exactly one space
-                      cells[2] = " " + badge_cell.lstrip
-                      cells.join("|")
-                    else
-                      ln
-                    end
-                  else
-                    ln
-                  end
-                }.reject { |ln|
-                  if ln.start_with?("| Works with MRI Ruby")
-                    cells = ln.split("|", -1)
-                    badge_cell = cells[2] || ""
-                    badge_cell.strip.empty?
-                  else
-                    false
-                  end
-                }.join
-
-                # Clean up extra repeated whitespace only when it appears between word characters, and only for non-table lines.
-                # This preserves Markdown table alignment and spacing around punctuation/symbols.
-                content = content.lines.map do |ln|
-                  if ln.start_with?("|")
-                    ln
-                  else
-                    # Squish only runs of spaces/tabs between word characters
-                    ln.gsub(/(\w)[ \t]{2,}(\w)/u, "\\1 \\2")
-                  end
-                end.join
-
-                # Remove reference definitions for removed labels that are no longer used
-                unless removed_labels.empty?
-                  # Unique
-                  removed_labels.uniq!
-                  # Determine which labels are still referenced after edits
-                  still_referenced = {}
-                  removed_labels.each do |lbl|
-                    lbl_re = Regexp.escape(lbl)
-                    # Consider a label referenced only when it appears not as a definition (i.e., not followed by colon)
-                    still_referenced[lbl] = !!(content =~ /\[#{lbl_re}\](?!:)/)
-                  end
-
-                  new_lines = content.lines.map do |line|
-                    if line =~ /^\[(?<lab>[^\]]+)\]:/ && removed_labels.include?(Regexp.last_match(:lab))
-                      # Only drop if not referenced anymore
-                      still_referenced[Regexp.last_match(:lab)] ? line : nil
-                    else
-                      line
-                    end
-                  end.compact
-                  content = new_lines.join
-                end
-
-                File.open(readme_path, "w") { |f| f.write(content) }
-              end
+              trim_readme_compatibility_badges!(readme_path, min_ruby) if min_ruby
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            puts "WARNING: Skipped trimming MRI Ruby badges in README.md due to #{e.class}: #{e.message}"
+            puts "WARNING: Skipped trimming compatibility badges in README.md due to #{e.class}: #{e.message}"
           end
 
           # Synchronize leading grapheme (emoji) between README H1 and gemspec summary/description

@@ -79,6 +79,167 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
+    it "trims JRuby and TruffleRuby badges below gemspec required_ruby_version and removes unused compatibility refs" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, "demo.gemspec"), <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.required_ruby_version = ">= 3.2"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        G
+
+        readme = <<~MD
+          | Works with JRuby        | ![JRuby 9.1 Compat][💎jruby-9.1i] ![JRuby 9.2 Compat][💎jruby-9.2i] ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-c-i]][🚎11-c-wf] [![JRuby HEAD Compat][💎jruby-headi]][🚎3-hd-wf] |
+          | Works with Truffle Ruby | ![Truffle Ruby 22.3 Compat][💎truby-22.3i] ![Truffle Ruby 23.0 Compat][💎truby-23.0i] <br/> [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] [![Truffle Ruby 24.1 Compat][💎truby-c-i]][🚎11-c-wf] |
+          | Works with MRI Ruby 3   | [![Ruby 3.2 Compat][💎ruby-3.2i]][🚎6-s-wf] [![Ruby 3.3 Compat][💎ruby-3.3i]][🚎6-s-wf] [![Ruby 3.4 Compat][💎ruby-c-i]][🚎11-c-wf] [![Ruby HEAD Compat][💎ruby-headi]][🚎3-hd-wf] |
+
+          [💎jruby-9.1i]: https://example/jruby-91
+          [💎jruby-9.2i]: https://example/jruby-92
+          [💎jruby-9.3i]: https://example/jruby-93
+          [💎jruby-9.4i]: https://example/jruby-94
+          [💎jruby-c-i]: https://example/jruby-current
+          [💎jruby-headi]: https://example/jruby-head
+          [💎truby-22.3i]: https://example/truby-223
+          [💎truby-23.0i]: https://example/truby-230
+          [💎truby-23.1i]: https://example/truby-231
+          [💎truby-c-i]: https://example/truby-current
+          [💎ruby-3.2i]: https://example/ruby-32
+          [💎ruby-3.3i]: https://example/ruby-33
+          [💎ruby-c-i]: https://example/ruby-current
+          [💎ruby-headi]: https://example/ruby-head
+          [🚎3-hd-wf]: https://example/head
+          [🚎6-s-wf]: https://example/supported
+          [🚎9-t-wf]: https://example/truffle
+          [🚎10-j-wf]: https://example/jruby
+          [🚎11-c-wf]: https://example/current
+        MD
+        File.write(File.join(project_root, "README.md"), readme)
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+
+        described_class.run
+
+        edited = File.read(File.join(project_root, "README.md"))
+        jruby_line = edited.lines.find { |line| line.start_with?("| Works with JRuby") }
+        truby_line = edited.lines.find { |line| line.start_with?("| Works with Truffle Ruby") }
+
+        expect(jruby_line).to include("jruby-c-i")
+        expect(jruby_line).to include("jruby-headi")
+        expect(jruby_line).not_to include("jruby-9.1i")
+        expect(jruby_line).not_to include("jruby-9.2i")
+        expect(jruby_line).not_to include("jruby-9.3i")
+        expect(jruby_line).not_to include("jruby-9.4i")
+
+        expect(truby_line).to include("truby-c-i")
+        expect(truby_line).not_to include("truby-22.3i")
+        expect(truby_line).not_to include("truby-23.0i")
+        expect(truby_line).not_to include("truby-23.1i")
+        expect(truby_line).not_to match(/\|\s*<br\/>/)
+
+        expect(edited).not_to match(/^\[💎jruby-9\.4i\]:/)
+        expect(edited).not_to match(/^\[💎truby-23\.1i\]:/)
+        expect(edited).not_to match(/^\[🚎10-j-wf\]:/)
+        expect(edited).not_to match(/^\[🚎9-t-wf\]:/)
+        expect(edited).to match(/^\[🚎11-c-wf\]:/)
+        expect(edited).to match(/^\[🚎3-hd-wf\]:/)
+      end
+    end
+
+    it "keeps JRuby and TruffleRuby badges whose target MRI matches the minimum version" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, "demo.gemspec"), <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.required_ruby_version = ">= 3.1"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        G
+
+        readme = <<~MD
+          | Works with JRuby        | ![JRuby 9.3 Compat][💎jruby-9.3i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] [![JRuby 10.0 Compat][💎jruby-c-i]][🚎11-c-wf] |
+          | Works with Truffle Ruby | ![Truffle Ruby 23.0 Compat][💎truby-23.0i] <br/> [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] [![Truffle Ruby 24.1 Compat][💎truby-c-i]][🚎11-c-wf] |
+
+          [💎jruby-9.3i]: https://example/jruby-93
+          [💎jruby-9.4i]: https://example/jruby-94
+          [💎jruby-c-i]: https://example/jruby-current
+          [💎truby-23.0i]: https://example/truby-230
+          [💎truby-23.1i]: https://example/truby-231
+          [💎truby-c-i]: https://example/truby-current
+          [🚎9-t-wf]: https://example/truffle
+          [🚎10-j-wf]: https://example/jruby
+          [🚎11-c-wf]: https://example/current
+        MD
+        File.write(File.join(project_root, "README.md"), readme)
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+
+        described_class.run
+
+        edited = File.read(File.join(project_root, "README.md"))
+        jruby_line = edited.lines.find { |line| line.start_with?("| Works with JRuby") }
+        truby_line = edited.lines.find { |line| line.start_with?("| Works with Truffle Ruby") }
+
+        expect(jruby_line).to include("jruby-9.4i")
+        expect(jruby_line).to include("jruby-c-i")
+        expect(jruby_line).not_to include("jruby-9.3i")
+        expect(truby_line).to include("truby-23.1i")
+        expect(truby_line).to include("truby-c-i")
+        expect(truby_line).not_to include("truby-23.0i")
+        expect(edited).to match(/^\[🚎10-j-wf\]:/)
+        expect(edited).to match(/^\[🚎9-t-wf\]:/)
+      end
+    end
+
+    it "removes JRuby and TruffleRuby rows that end up empty after filtering" do
+      Dir.mktmpdir do |project_root|
+        File.write(File.join(project_root, "demo.gemspec"), <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.required_ruby_version = ">= 4.0"
+            spec.homepage = "https://github.com/acme/demo"
+          end
+        G
+
+        readme = <<~MD
+          | Works with JRuby        | ![JRuby 9.1 Compat][💎jruby-9.1i] <br/> [![JRuby 9.4 Compat][💎jruby-9.4i]][🚎10-j-wf] |
+          | Works with Truffle Ruby | ![Truffle Ruby 22.3 Compat][💎truby-22.3i] <br/> [![Truffle Ruby 23.1 Compat][💎truby-23.1i]][🚎9-t-wf] |
+
+          [💎jruby-9.1i]: https://example/jruby-91
+          [💎jruby-9.4i]: https://example/jruby-94
+          [💎truby-22.3i]: https://example/truby-223
+          [💎truby-23.1i]: https://example/truby-231
+          [🚎9-t-wf]: https://example/truffle
+          [🚎10-j-wf]: https://example/jruby
+        MD
+        File.write(File.join(project_root, "README.md"), readme)
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+
+        described_class.run
+
+        edited = File.read(File.join(project_root, "README.md"))
+        expect(edited.lines.grep(/^\| Works with JRuby/)).to be_empty
+        expect(edited.lines.grep(/^\| Works with Truffle Ruby/)).to be_empty
+        expect(edited).not_to match(/^\[💎jruby-9\.1i\]:/)
+        expect(edited).not_to match(/^\[💎truby-23\.1i\]:/)
+        expect(edited).not_to match(/^\[🚎10-j-wf\]:/)
+        expect(edited).not_to match(/^\[🚎9-t-wf\]:/)
+      end
+    end
+
     it "cleans a leading <br/> when no badges precede it and keeps the row" do
       Dir.mktmpdir do |project_root|
         File.write(File.join(project_root, "demo.gemspec"), <<~G)
