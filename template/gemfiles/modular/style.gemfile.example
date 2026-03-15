@@ -23,6 +23,6 @@ platform :mri do
     gem "rubocop-rspec", "~> 3.6"
     gem "{KJ|RUBOCOP_RUBY_GEM}"
   else
-    eval_gemfile("style.gemfile")
+    eval_gemfile("style_local.gemfile")
   end
 end
