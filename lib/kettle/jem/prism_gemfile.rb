@@ -145,9 +145,6 @@ module Kettle
           out = out.sub(/^[ \t]*#{Regexp.escape(gn.slice.strip)}[^\n]*\n?/, "")
         end
 
-        out = remove_word_from_local_gems_array(out, gem_name)
-        out = remove_word_from_vendored_gems_export_comment(out, gem_name)
-
         out
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
@@ -156,6 +153,42 @@ module Kettle
           Kernel.warn("[#{__method__}] #{e.class}: #{e.message}")
         end
         content
+      end
+
+      def merge_local_gem_overrides(content, destination_content, excluded_gems: [])
+        merged_local_gems_match = local_gems_array_match(content)
+        destination_local_gems_match = local_gems_array_match(destination_content)
+        merged_vendored_match = vendored_gems_export_match(content)
+        destination_vendored_match = vendored_gems_export_match(destination_content)
+
+        return content unless merged_local_gems_match || destination_local_gems_match || merged_vendored_match || destination_vendored_match
+
+        excluded = Array(excluded_gems).map { |name| name.to_s.strip }.reject(&:empty?).to_set
+        merged_words = local_gems_words_from_match(merged_local_gems_match)
+        destination_words = local_gems_words_from_match(destination_local_gems_match)
+        vendored_words = vendored_gems_words_from_match(merged_vendored_match) | vendored_gems_words_from_match(destination_vendored_match)
+
+        words = (destination_words + merged_words + vendored_words).uniq.reject { |word| excluded.include?(word) }
+        out = content.dup
+
+        if merged_local_gems_match
+          out.sub!(merged_local_gems_match[0], rebuild_local_gems_array(merged_local_gems_match, words))
+        elsif destination_local_gems_match
+          out = "#{rebuild_local_gems_array(destination_local_gems_match, words)}\n#{out}" unless words.empty?
+        end
+
+        export_line = rebuild_vendored_gems_export_line(merged_vendored_match || destination_vendored_match, words)
+        if merged_vendored_match
+          out.sub!(merged_vendored_match[0], export_line)
+        elsif export_line && merged_local_gems_match
+          insertion = out.index(merged_local_gems_match[0])
+          if insertion
+            array_text = rebuild_local_gems_array(merged_local_gems_match, words)
+            out.sub!(array_text, "#{array_text}\n\n#{export_line}")
+          end
+        end
+
+        out
       end
 
       def remove_word_from_local_gems_array(content, gem_name)
@@ -198,6 +231,49 @@ module Kettle
 
           "#{match[:prefix]}#{filtered.join(",")}"
         end
+      end
+
+      def local_gems_array_match(content)
+        content.to_s.match(/^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m)
+      end
+
+      def local_gems_words_from_match(match)
+        return [] unless match
+
+        match[:body].to_s.split(/\s+/).reject(&:empty?)
+      end
+
+      def vendored_gems_export_match(content)
+        content.to_s.match(/^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/)
+      end
+
+      def vendored_gems_words_from_match(match)
+        return [] unless match
+
+        match[:body].to_s.split(",").map(&:strip).reject(&:empty?)
+      end
+
+      def rebuild_local_gems_array(match, words)
+        indent = match[:indent].to_s
+        suffix = match[:suffix].to_s
+        multiline = match[:body].to_s.include?("\n") || words.length > 1
+
+        if multiline
+          rebuilt_body = if words.empty?
+            ""
+          else
+            "\n" + words.map { |word| "#{indent}  #{word}" }.join("\n") + "\n#{indent}"
+          end
+          "#{indent}local_gems = %w[#{rebuilt_body}]#{suffix}"
+        else
+          "#{indent}local_gems = %w[#{words.join(" ")}]#{suffix}"
+        end
+      end
+
+      def rebuild_vendored_gems_export_line(match, words)
+        return unless match
+
+        "#{match[:prefix]}#{words.join(",")}"
       end
 
       # Recursively find all gem CallNodes matching gem_name throughout the AST.

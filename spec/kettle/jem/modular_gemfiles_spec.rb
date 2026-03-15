@@ -218,7 +218,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
       end
     end
 
-    it "strips the destination gem from local_gems arrays used by eval_nomono_gems" do
+    it "preserves destination-only local workspace gems while adding template-only ones and excluding the current gem" do
       Dir.mktmpdir do |proj|
         Dir.mktmpdir do |gemroot|
           src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
@@ -230,12 +230,27 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
             require "nomono/bundler"
 
             local_gems = %w[
-              ast-merge
+              bash-merge
               kettle-jem
               prism-merge
             ]
 
-            # export VENDORED_GEMS=ast-merge,kettle-jem,prism-merge
+            # export VENDORED_GEMS=bash-merge,kettle-jem,prism-merge
+            platform :mri do
+              eval_nomono_gems(gems: local_gems)
+            end
+          RUBY
+
+          File.write(File.join(dest_dir, "templating_local.gemfile"), <<~RUBY)
+            require "nomono/bundler"
+
+            local_gems = %w[
+              ast-merge
+              tree_haver
+              prism-merge
+            ]
+
+            # export VENDORED_GEMS=ast-merge,tree_haver,prism-merge
             platform :mri do
               eval_nomono_gems(gems: local_gems)
             end
@@ -255,14 +270,16 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
 
           result = File.read(File.join(dest_dir, "templating_local.gemfile"))
           expect(result).to include("ast-merge")
+          expect(result).to include("tree_haver")
+          expect(result).to include("bash-merge")
           expect(result).to include("prism-merge")
           expect(result).not_to include("kettle-jem\n")
-          expect(result).to include("# export VENDORED_GEMS=ast-merge,prism-merge")
+          expect(result).to include("# export VENDORED_GEMS=ast-merge,tree_haver,prism-merge,bash-merge")
         end
       end
     end
 
-    it "strips local overrides for gems already declared by the destination gemspec" do
+    it "preserves local override wiring even when the same gems are also declared in the destination gemspec" do
       Dir.mktmpdir do |proj|
         Dir.mktmpdir do |gemroot|
           src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
@@ -299,10 +316,10 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           described_class.sync!(helpers: helpers, project_root: proj)
 
           result = File.read(File.join(dest_dir, "coverage_local.gemfile"))
-          expect(result).not_to include("ast-merge")
-          expect(result).not_to include("kettle-test")
+          expect(result).to include("ast-merge")
+          expect(result).to include("kettle-test")
           expect(result).to include("prism-merge")
-          expect(result).to include("# export VENDORED_GEMS=prism-merge")
+          expect(result).to include("# export VENDORED_GEMS=ast-merge,kettle-test,prism-merge")
         end
       end
     end

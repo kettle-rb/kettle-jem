@@ -254,7 +254,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "renders dynamic template metadata for Rakefile, README, and LICENSE" do
+      it "renders dynamic template metadata for Rakefile, README, LICENSE, and Gemfile comments" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
@@ -281,6 +281,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             File.write(File.join(template_root, "LICENSE.txt.example"), <<~TEXT)
               Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:GIVEN_NAMES} {KJ|AUTHOR:FAMILY_NAMES}
             TEXT
+            File.write(File.join(template_root, "Gemfile.example"), <<~RUBY)
+              # Include dependencies from {KJ|GEM_NAME}.gemspec
+              gemspec
+            RUBY
 
             File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
               defaults:
@@ -321,6 +325,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(File.read(File.join(project_root, "Rakefile"))).to include("# Copyright (c) 2026 Test User (example.com)")
             expect(File.read(File.join(project_root, "README.md"))).to include("Copyright (c) 2026 Test User")
             expect(File.read(File.join(project_root, "LICENSE.txt"))).to include("Copyright (c) 2026 Test User")
+            expect(File.read(File.join(project_root, "Gemfile"))).to include("# Include dependencies from demo.gemspec")
+            expect(File.read(File.join(project_root, "Gemfile"))).not_to include("<gem name>")
           end
         end
       end

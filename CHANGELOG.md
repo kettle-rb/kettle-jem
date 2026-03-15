@@ -33,6 +33,10 @@ Please file a bug if you notice a violation of semantic versioning.
   headings (Added/Changed/Deprecated/Removed/Fixed/Security) were emitted with
   no blank lines between them. Also strips trailing blank lines from item groups
   to prevent double blank lines between populated sections.
+- Modular `*_local.gemfile` templating now preserves destination workspace
+  override wiring (`local_gems` / `VENDORED_GEMS`) instead of stripping entries
+  merely because those gems also appear in the destination gemspec, while still
+  excluding the current gem from self-referential local override lists
 
 ### Security
 

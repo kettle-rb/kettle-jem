@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 module Kettle
   module Jem
     # Utilities for copying modular Gemfiles and related directories
@@ -36,8 +34,6 @@ module Kettle
           return
         end
 
-        declared_dependency_names = gemspec_dependency_names(project_root)
-
         # Discover flat gemfiles (*.gemfile or *.gemfile.example) and subdirectories
         flat_gemfiles = []
         subdirectories = []
@@ -56,7 +52,7 @@ module Kettle
         # Copy flat modular gemfiles, with special handling for style.gemfile
         flat_gemfiles.each do |base|
           if base == "style"
-            sync_style_gemfile!(helpers: helpers, project_root: project_root, min_ruby: min_ruby, gem_name: gem_name, declared_dependency_names: declared_dependency_names)
+            sync_style_gemfile!(helpers: helpers, project_root: project_root, min_ruby: min_ruby, gem_name: gem_name)
           else
             modular_gemfile = "#{base}.gemfile"
             src = helpers.prefer_example(File.join(template_modular_dir, modular_gemfile))
@@ -70,13 +66,18 @@ module Kettle
             end
 
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+              existing_content = File.exist?(dest) ? File.read(dest) : nil
               c = if strategy == :accept_template
                 content
               else
                 helpers.apply_strategy(content, dest)
               end
-              c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
-              c = prune_declared_local_gem_overrides(c, modular_gemfile, declared_dependency_names)
+              if modular_gemfile.end_with?("_local.gemfile")
+                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+                c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
+              else
+                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+              end
               c
             end
           end
@@ -114,13 +115,18 @@ module Kettle
             end
 
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+              existing_content = File.exist?(dest) ? File.read(dest) : nil
               c = if strategy == :accept_template
                 content
               else
                 helpers.apply_strategy(content, dest)
               end
-              c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
-              c = prune_declared_local_gem_overrides(c, dest, declared_dependency_names)
+              if File.basename(dest).end_with?("_local.gemfile")
+                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+                c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
+              else
+                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+              end
               c
             end
           end
@@ -136,7 +142,7 @@ module Kettle
       # @param min_ruby [Gem::Version, nil] minimum Ruby version
       # @param gem_name [String, nil] destination gem name (to strip self-dependencies)
       # @return [void]
-      def sync_style_gemfile!(helpers:, project_root:, min_ruby: nil, gem_name: nil, declared_dependency_names: Set.new)
+      def sync_style_gemfile!(helpers:, project_root:, min_ruby: nil, gem_name: nil)
         modular_gemfile = "style.gemfile"
         src = helpers.prefer_example(File.join(helpers.template_root, MODULAR_GEMFILE_DIR, modular_gemfile))
         dest = File.join(project_root, MODULAR_GEMFILE_DIR, modular_gemfile)
@@ -149,38 +155,22 @@ module Kettle
         end
 
         helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
+          existing_content = File.exist?(dest) ? File.read(dest) : nil
           c = if strategy == :accept_template
             content
           else
             helpers.apply_strategy(content, dest)
           end
-          c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
-          c = prune_declared_local_gem_overrides(c, modular_gemfile, declared_dependency_names)
+          if modular_gemfile.end_with?("_local.gemfile")
+            c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+            c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
+          else
+            c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+          end
           c
         end
       end
 
-      def gemspec_dependency_names(project_root)
-        gemspec_path = Dir.glob(File.join(project_root.to_s, "*.gemspec")).first
-        return Set.new unless gemspec_path && File.file?(gemspec_path)
-
-        spec = Gem::Specification.load(gemspec_path)
-        return Set.new unless spec
-
-        spec.dependencies.map(&:name).to_set
-      rescue StandardError => e
-        Kettle::Dev.debug_error(e, __method__)
-        Set.new
-      end
-
-      def prune_declared_local_gem_overrides(content, path, declared_dependency_names)
-        return content unless File.basename(path.to_s).end_with?("_local.gemfile")
-        return content if declared_dependency_names.nil? || declared_dependency_names.empty?
-
-        declared_dependency_names.reduce(content) do |memo, dependency_name|
-          PrismGemfile.remove_gem_dependency(memo, dependency_name)
-        end
-      end
 
       # Determine if a Ruby bucket (e.g., rMAJOR.MINOR) should be kept based on min_ruby.
       #

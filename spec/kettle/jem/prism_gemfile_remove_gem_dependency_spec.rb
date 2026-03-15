@@ -108,7 +108,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to include('gem "ast-merge"')
     end
 
-    it "removes the current gem from local_gems arrays and vendored comments" do
+    it "does not strip local_gems arrays or vendored comments when removing gem declarations" do
       src = <<~RUBY
         local_gems = %w[
           ast-merge
@@ -123,10 +123,46 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       RUBY
 
       out = described_class.remove_gem_dependency(src, "kettle-jem")
+      expect(out).to eq(src)
+    end
+  end
+
+  describe ".merge_local_gem_overrides" do
+    it "keeps destination-only local workspace gems, adds template-only gems, and excludes the current gem" do
+      merged = <<~RUBY
+        local_gems = %w[
+          bash-merge
+          kettle-jem
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=bash-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[
+          ast-merge
+          tree_haver
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=ast-merge,tree_haver,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
+
       expect(out).to include("ast-merge")
+      expect(out).to include("tree_haver")
+      expect(out).to include("bash-merge")
       expect(out).to include("prism-merge")
       expect(out).not_to include("kettle-jem\n")
-      expect(out).to include("# export VENDORED_GEMS=ast-merge,prism-merge")
+      expect(out).to include("# export VENDORED_GEMS=ast-merge,tree_haver,prism-merge,bash-merge")
     end
   end
 end
