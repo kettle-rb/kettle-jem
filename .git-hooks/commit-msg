@@ -10,6 +10,8 @@
 # Do not rely on Bundler; allow running outside a Bundler context
 begin
   require "rubygems"
+rescue LoadError
+  # continue
 end
 
 begin
@@ -45,4 +47,13 @@ begin
     puts denied
     exit(1)
   end
+rescue LoadError => e
+  failure = <<~EOM
+    gitmoji-regex gem not found: #{e.class}: #{e.message}.
+      Skipping gitmoji check and allowing commit to proceed.
+      Recommendation: add 'gitmoji-regex' to your development dependencies to enable this check.
+    
+  EOM
+  warn(failure)
+  exit(0)
 end
