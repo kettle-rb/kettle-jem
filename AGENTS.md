@@ -277,3 +277,171 @@ All specs use `require "kettle/test/rspec"` for RSpec helpers (stubbed_env, bloc
 4. **Terminal commands do not share shell state** — Previous `cd`, `export`, aliases, and functions are not available to the next command.
 5. **Use `tmp/` for temporary files** — Never use `/tmp` or other system directories.
 6. **Presets return `MergerConfig` objects** — Use `.to_h` to pass options to SmartMerger constructors.
+
+# AGENTS.md - Development Guide
+
+This project is a **RubyGem** managed with the [kettle-rb](https://github.com/kettle-rb) toolchain.
+**Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
+**Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
+⚠️ **Watch for trust prompts**: After editing `mise.toml` or `.env.local`, `mise` may require trust to be refreshed before commands can load the project environment. Until that trust step is handled, commands can appear hung or produce no output, which can look like terminal access is broken.
+**Recovery rule**: If a `mise exec` command goes silent, appears hung, or terminal polling keeps returning `null`, assume `mise trust` is the first thing to check. Recover by running:
+
+```bash
+mise trust -C /path/to/project
+mise exec -C /path/to/project -- bundle exec rspec
+```
+
+Do this before spending time on unrelated debugging; in this workspace pattern, silent `mise` commands are usually a trust problem first.
+
+```bash
+mise trust -C /path/to/project
+```
+
+```bash
+mise exec -C /path/to/project -- bundle exec rspec
+```
+
+```bash
+eval "$(mise env -C /path/to/project -s bash)" && bundle exec rspec
+```
+
+```bash
+cd /path/to/project
+bundle exec rspec
+```
+
+```bash
+cd /path/to/project && bundle exec rspec
+```
+
+```bash
+mise exec -C /path/to/project -- bundle exec rspec
+```
+
+### Toolchain Dependencies
+
+This gem is part of the **kettle-rb** ecosystem. Key development tools:
+
+| Tool | Purpose |
+|------|---------|
+| `kettle-dev` | Development dependency: Rake tasks, release tooling, CI helpers |
+| `kettle-test` | Test infrastructure: RSpec helpers, stubbed_env, timecop |
+| `kettle-jem` | Template management and gem scaffolding |
+
+### Executables (from kettle-dev)
+
+| Executable | Purpose |
+|-----------|---------|
+| `kettle-release` | Full gem release workflow |
+| `kettle-pre-release` | Pre-release validation |
+| `kettle-changelog` | Changelog generation |
+| `kettle-dvcs` | DVCS (git) workflow automation |
+| `kettle-commit-msg` | Commit message validation |
+| `kettle-check-eof` | EOF newline validation |
+
+```
+lib/
+├── <gem_namespace>/           # Main library code
+│   └── version.rb             # Version constant (managed by kettle-release)
+spec/
+├── fixtures/                  # Test fixture files (NOT auto-loaded)
+├── support/
+│   ├── classes/               # Helper classes for specs
+│   └── shared_contexts/       # Shared RSpec contexts
+├── spec_helper.rb             # RSpec configuration (loaded by .rspec)
+gemfiles/
+├── modular/                   # Modular Gemfile components
+│   ├── coverage.gemfile       # SimpleCov dependencies
+│   ├── debug.gemfile          # Debugging tools
+│   ├── documentation.gemfile  # YARD/documentation
+│   ├── optional.gemfile       # Optional dependencies
+│   ├── rspec.gemfile          # RSpec testing
+│   ├── style.gemfile          # RuboCop/linting
+│   └── x_std_libs.gemfile     # Extracted stdlib gems
+├── ruby_*.gemfile             # Per-Ruby-version Appraisal Gemfiles
+└── Appraisal.root.gemfile     # Root Gemfile for Appraisal builds
+.git-hooks/
+├── commit-msg                 # Commit message validation hook
+├── prepare-commit-msg         # Commit message preparation
+├── commit-subjects-goalie.txt # Commit subject prefix filters
+└── footer-template.erb.txt    # Commit footer ERB template
+```
+
+```bash
+mise exec -C /path/to/project -- bundle exec rspec
+```
+
+```bash
+mise exec -C /path/to/project -- env K_SOUP_COV_MIN_HARD=false bundle exec rspec spec/path/to/spec.rb
+```
+
+```bash
+mise exec -C /path/to/project -- bin/rake coverage
+mise exec -C /path/to/project -- bin/kettle-soup-cover -d
+```
+
+**Key ENV variables** (set in `mise.toml`, with local overrides in `.env.local`):
+- `K_SOUP_COV_DO=true` – Enable coverage
+- `K_SOUP_COV_MIN_LINE` – Line coverage threshold
+- `K_SOUP_COV_MIN_BRANCH` – Branch coverage threshold
+- `K_SOUP_COV_MIN_HARD=true` – Fail if thresholds not met
+
+### Code Quality
+
+```bash
+mise exec -C /path/to/project -- bundle exec rake reek
+mise exec -C /path/to/project -- bundle exec rubocop-gradual
+```
+
+### Releasing
+
+```bash
+bin/kettle-pre-release    # Validate everything before release
+bin/kettle-release        # Full release workflow
+```
+
+### Freeze Block Preservation
+
+Template updates preserve custom code wrapped in freeze blocks:
+
+```ruby
+# kettle-jem:freeze
+# ... custom code preserved across template runs ...
+# kettle-jem:unfreeze
+```
+
+### Modular Gemfile Architecture
+
+Gemfiles are split into modular components under `gemfiles/modular/`. Each component handles a specific concern (coverage, style, debug, etc.). The main `Gemfile` loads these modular components via `eval_gemfile`.
+**CRITICAL**: All constructors and public API methods that accept keyword arguments MUST include `**options` as the final parameter for forward compatibility.
+
+### Test Infrastructure
+
+- Uses `kettle-test` for RSpec helpers (stubbed_env, block_is_expected, silent_stream, timecop)
+- Uses `Dir.mktmpdir` for isolated filesystem tests
+- Spec helper is loaded by `.rspec` — never add `require "spec_helper"` to spec files
+
+### Environment Variable Helpers
+
+```ruby
+before do
+  stub_env("MY_ENV_VAR" => "value")
+end
+
+before do
+  hide_env("HOME", "USER")
+end
+```
+
+Use dependency tags to conditionally skip tests when optional dependencies are not available:
+
+```ruby
+RSpec.describe SomeClass, :prism_merge do
+  # Skipped if prism-merge is not available
+end
+```
+
+1. **NEVER add backward compatibility** — No shims, aliases, or deprecation layers. Bump major version instead.
+2. **NEVER expect `cd` to persist** — Every terminal command is isolated; use a self-contained `mise exec -C ... -- ...` invocation.
+3. **NEVER pipe test output through `head`/`tail`** — Run tests without truncation so you can inspect the full output.
+4. **Terminal commands do not share shell state** — Previous `cd`, `export`, aliases, and functions are not available to the next command.

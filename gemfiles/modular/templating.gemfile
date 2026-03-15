@@ -3,8 +3,16 @@
 # All *-merge gems are runtime dependencies declared in the gemspec.
 # They are listed here only when we need to pin a specific version
 # that differs from the gemspec constraint, e.g. for pre-release testing.
-
 platform :mri do
+  # AST parsing for advanced templating.
+  # Set KETTLE_RB_DEV=true (or path) for local development with path-based dependencies.
+  # When false (default / CI), gemspec runtime dependencies are used (no extras needed here).
+  if ENV.fetch("KETTLE_RB_DEV", "false").casecmp("false").zero?
+    # AST parsing for advanced templating (remote/released)
+  else
+    eval_gemfile "templating_local.gemfile"
+  end
+
   gem "toml"
   gem "parslet"
   gem "prism", "~> 1.6"
@@ -18,11 +26,4 @@ platform :mri do
 
   # MRI Backend
   gem "ruby_tree_sitter", "~> 2.1"
-
-  # AST parsing for advanced templating.
-  # Set KETTLE_RB_DEV=true for local development with path-based dependencies.
-  # When false (default / CI), gemspec runtime dependencies are used (no extras needed here).
-  unless ENV.fetch("KETTLE_RB_DEV", "false").casecmp("false").zero?
-    eval_gemfile "templating_local.gemfile"
-  end
 end

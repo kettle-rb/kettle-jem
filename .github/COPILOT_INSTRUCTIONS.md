@@ -346,3 +346,5 @@ bin/rspec
 - You cannot see terminal output anyway - the user will copy relevant portions for you
 - Truncating output often hides the actual errors or relevant information
 - The user knows what's important and will share it with you
+
+See AGENTS.md for important information on tool use and project context.
