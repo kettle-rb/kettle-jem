@@ -1,4 +1,7 @@
+# For a guide to configuration, visit https://qlty.sh/d/config
+# Or for a full reference, visit https://qlty.sh/d/qlty-toml
 config_version = "0"
+
 exclude_patterns = [
   "*_min.*",
   "*-min.*",
@@ -32,6 +35,7 @@ exclude_patterns = [
   "**/vendor/**",
   ".github/workflows/codeql-analysis.yml"
 ]
+
 test_patterns = [
   "**/test/**",
   "**/spec/**",
@@ -42,146 +46,34 @@ test_patterns = [
   "**/test_*.*",
   "**/spec_*.*",
 ]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
-[smells]
+
 [smells]
 mode = "comment"
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
-[smells.boolean_logic]
+
 [smells.boolean_logic]
 threshold = 4
 enabled = true
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
-[smells.file_complexity]
+
 [smells.file_complexity]
 threshold = 55
 enabled = false
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
-[smells.return_statements]
+
 [smells.return_statements]
 threshold = 4
 enabled = true
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
-[smells.nested_control_flow]
+
 [smells.nested_control_flow]
 threshold = 4
 enabled = true
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
-[smells.function_parameters]
+
 [smells.function_parameters]
 threshold = 4
 enabled = true
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
-[smells.function_complexity]
+
 [smells.function_complexity]
 threshold = 5
 enabled = true
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
-[smells.duplication]
+
 [smells.duplication]
 enabled = true
 threshold = 20
