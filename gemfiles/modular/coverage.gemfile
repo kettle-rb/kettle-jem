@@ -12,4 +12,3 @@ if ENV.fetch("KETTLE_RB_DEV", "false").casecmp("false").zero?
 else
   eval_gemfile "coverage_local.gemfile"
 end
-# We run code coverage on the latest version of Ruby only.
