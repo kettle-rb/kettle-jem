@@ -12,22 +12,13 @@
 
 ## ⚠️ AI Agent Terminal Limitations
 
-### Terminal Output Is Available, but Each Command Is Isolated
-
-**CRITICAL**: AI agents can reliably read terminal output when commands run in the background and the output is polled afterward. However, each terminal command should be treated as a fresh shell with no shared state.
-
-**Use this pattern**:
-1. Run commands with background execution enabled.
-2. Fetch the output afterward.
-3. Make every command self-contained — do **not** rely on a previous `cd`, `export`, alias, or shell function.
-
 ### Use `mise` for Project Environment
 
-**CRITICAL**: The canonical project environment now lives in `mise.toml`, with local overrides in `.env.local` loaded via `dotenvy`.
+**CRITICAL**: The canonical project environment lives in `mise.toml`, with local overrides in `.env.local` loaded via `dotenvy`.
 
 ⚠️ **Watch for trust prompts**: After editing `mise.toml` or `.env.local`, `mise` may require trust to be refreshed before commands can load the project environment. That interactive trust screen can masquerade as missing terminal output, so commands may appear hung or silent until you handle it.
 
-**Recovery rule**: If a `mise exec` command in this repo goes silent, appears hung, or terminal polling stops returning useful output, assume `mise trust` is needed first and recover with:
+**Recovery rule**: If a `mise exec` command in this repo goes silent or appears hung, assume `mise trust` is needed first and recover with:
 
 ```bash
 mise trust -C /home/pboling/src/kettle-rb/kettle-jem
@@ -284,7 +275,7 @@ This project is a **RubyGem** managed with the [kettle-rb](https://github.com/ke
 **Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
 **Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
 ⚠️ **Watch for trust prompts**: After editing `mise.toml` or `.env.local`, `mise` may require trust to be refreshed before commands can load the project environment. Until that trust step is handled, commands can appear hung or produce no output, which can look like terminal access is broken.
-**Recovery rule**: If a `mise exec` command goes silent, appears hung, or terminal polling keeps returning `null`, assume `mise trust` is the first thing to check. Recover by running:
+**Recovery rule**: If a `mise exec` command goes silent or appears hung, assume `mise trust` is the first thing to check. Recover by running:
 
 ```bash
 mise trust -C /path/to/project
@@ -450,6 +441,6 @@ This project is a **RubyGem** managed with the [kettle-rb](https://github.com/ke
 **Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
 **Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
 ⚠️ **Watch for trust prompts**: After editing `mise.toml` or `.env.local`, `mise` may require trust to be refreshed before commands can load the project environment. Until that trust step is handled, commands can appear hung or produce no output, which can look like terminal access is broken.
-**Recovery rule**: If a `mise exec` command goes silent, appears hung, or terminal polling keeps returning `null`, assume `mise trust` is the first thing to check. Recover by running:
+**Recovery rule**: If a `mise exec` command goes silent or appears hung, assume `mise trust` is the first thing to check. Recover by running:
 Gemfiles are split into modular components under `gemfiles/modular/`. Each component handles a specific concern (coverage, style, debug, etc.). The main `Gemfile` loads these modular components via `eval_gemfile`.
 **CRITICAL**: All constructors and public API methods that accept keyword arguments MUST include `**options` as the final parameter for forward compatibility.
