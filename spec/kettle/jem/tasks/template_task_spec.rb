@@ -190,6 +190,80 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
 
+    describe ".kettle-jem.yml token backfill merging" do
+      it "does not duplicate the destination-only per-file configuration comment block" do
+        destination_content = <<~YAML
+          # Default merge options
+          defaults:
+            preference: "template"
+            add_template_only_nodes: true
+            freeze_token: "kettle-jem"
+
+          # Token replacement values.
+          #
+          # General rules:
+          #   - Empty strings are treated as unset.
+          #   - Use the bare identifier/slug/handle expected by the inline comment.
+          #   - Do NOT paste full URLs unless the comment explicitly says to.
+          #
+          # Tip:
+          #   The author fields in a newly created destination config are normally seeded
+          #   from the gemspec via safe derivation. After that, destination values win.
+          tokens:
+            forge:
+              gh_user: "pboling"        # GitHub username only, no @, no URL. Used for GitHub Sponsors and profile links. ENV: KJ_GH_USER
+              gl_user: "pboling"        # GitLab username only, no @, no URL. Used for profile links. ENV: KJ_GL_USER
+              cb_user: "pboling"        # Codeberg username only, no @, no URL. Used for profile links. ENV: KJ_CB_USER
+              sh_user: "galtzo"         # SourceHut username only, no leading ~, no URL. Used as https://sr.ht/~<value>/. ENV: KJ_SH_USER
+            author:
+              name: "{KJ|AUTHOR:NAME}"                 # Full display name. Example: Ada Lovelace. ENV: KJ_AUTHOR_NAME. Auto-seeded from gemspec authors.first
+              given_names: "{KJ|AUTHOR:GIVEN_NAMES}"   # Given/personal names only. Example: Ada. ENV: KJ_AUTHOR_GIVEN_NAMES. Auto-seeded when AUTHOR:NAME can be split
+              family_names: "{KJ|AUTHOR:FAMILY_NAMES}" # Family/surname only. Example: Lovelace. ENV: KJ_AUTHOR_FAMILY_NAMES. Auto-seeded when AUTHOR:NAME can be split
+              email: "floss@glatzo.com"                # Primary public email address. Example: floss@galtzo.com. ENV: KJ_AUTHOR_EMAIL. Auto-seeded from gemspec email.first
+              domain: "galtzo.com"                     # Bare domain only, no scheme, no email. Example: galtzo.com. ENV: KJ_AUTHOR_DOMAIN. Auto-seeded from AUTHOR:EMAIL
+              orcid: "0009-0008-8519-441X"             # ORCID identifier only, not the full URL. Example: 0000-0001-2345-6789. ENV: KJ_AUTHOR_ORCID
+            funding:
+              patreon: "galtzo"       # Patreon account slug only. Used as https://patreon.com/<value>. ENV: KJ_FUNDING_PATREON
+              kofi: "pboling"         # Ko-fi handle/slug only. Used as https://ko-fi.com/<value>. ENV: KJ_FUNDING_KOFI
+              paypal: "pboling"       # PayPal.Me slug only. Used as https://www.paypal.com/paypalme/<value>. ENV: KJ_FUNDING_PAYPAL
+              buymeacoffee: "pboling" # Buy Me a Coffee slug only. Used as https://www.buymeacoffee.com/<value>. ENV: KJ_FUNDING_BUYMEACOFFEE
+              polar: "pboling"        # Polar handle/slug only. Used as https://polar.sh/<value>. ENV: KJ_FUNDING_POLAR
+              liberapay: "pboling"    # Liberapay account slug only. Used as https://liberapay.com/<value>/donate. ENV: KJ_FUNDING_LIBERAPAY
+              issuehunt: "pboling"    # IssueHunt identifier/handle only, not a URL. ENV: KJ_FUNDING_ISSUEHUNT
+            social:
+              mastodon: "galtzo"      # Local handle only for the instance assumed by the template link. Current template uses https://ruby.social/@<value>. ENV: KJ_SOCIAL_MASTODON
+              bluesky: "galtzo.com"   # Full Bluesky handle. Example: peterboling.dev or alice.bsky.social. Used as https://bsky.app/profile/<value>. ENV: KJ_SOCIAL_BLUESKY
+              linktree: "pboling"     # Linktree username only. Used as https://linktr.ee/<value>. ENV: KJ_SOCIAL_LINKTREE
+              devto: "galtzo"         # DEV Community username only. Used as https://dev.to/<value>. ENV: KJ_SOCIAL_DEVTO
+          # Glob patterns evaluated in order (first match wins)
+          patterns:
+            - path: "certs/**"
+              strategy: raw_copy
+
+          # Per-file configuration (nested directory structure)
+          # Only files that need overrides belong here. Everything else defaults to merge.
+          files:
+            ".git-hooks":
+              commit-msg:
+                strategy: accept_template
+                file_type: ruby
+        YAML
+
+        result = described_class.send(
+          :merge_missing_backfilled_token_values,
+          destination_content,
+          {
+            "forge" => {"gh_user" => "pboling"},
+          },
+        )
+
+        expect(result.scan(/# Glob patterns evaluated in order \(first match wins\)/).size).to eq(1)
+        expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
+        expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
+        expect(result.scan(/files:/).size).to eq(1)
+      end
+    end
+
     describe "::run" do
       it "creates tmp via tmp/.gitignore" do
         Dir.mktmpdir do |gem_root|
@@ -1209,6 +1283,105 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(File.read(dest_config)).to eq(existing_config)
           end
         end
+      end
+
+        it "does not duplicate the destination-only per-file configuration comment block during full config sync" do
+          Dir.mktmpdir do |gem_root|
+            Dir.mktmpdir do |project_root|
+              template_root = File.join(gem_root, "template")
+              FileUtils.mkdir_p(template_root)
+
+              template_config = <<~YAML
+                # kettle-jem configuration file
+                #
+                # Header docs
+
+                # Default merge options
+                defaults:
+                  preference: "template"
+                  add_template_only_nodes: true
+                  freeze_token: "kettle-jem"
+
+                # Token replacement values.
+                #
+                # General rules:
+                tokens:
+                  forge:
+                    gh_user: ""
+                    gl_user: ""
+
+                # Glob patterns evaluated in order (first match wins)
+                patterns:
+                  - path: "certs/**"
+                    strategy: raw_copy
+
+                # Per-file configuration (nested directory structure)
+                # Only files that need overrides belong here. Everything else defaults to merge.
+                files: {}
+              YAML
+
+              existing_config = <<~YAML
+                # Default merge options
+                defaults:
+                  preference: "template"
+                  add_template_only_nodes: true
+                  freeze_token: "kettle-jem"
+
+                # Token replacement values.
+                #
+                # General rules:
+                #   - Empty strings are treated as unset.
+                tokens:
+                  forge:
+                    gh_user: "pboling"
+
+                # Glob patterns evaluated in order (first match wins)
+                patterns:
+                  - path: "certs/**"
+                    strategy: raw_copy
+
+                # Per-file configuration (nested directory structure)
+                # Only files that need overrides belong here. Everything else defaults to merge.
+                files:
+                  ".git-hooks":
+                    commit-msg:
+                      strategy: accept_template
+                      file_type: ruby
+              YAML
+
+              File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+              dest_config = File.join(project_root, ".kettle-jem.yml")
+              File.write(dest_config, existing_config)
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Jane Doe"]
+                  spec.email = ["jane@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+
+              expect { described_class.run }.not_to raise_error
+
+              result = File.read(dest_config)
+              expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
+              expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
+              expect(result.scan(/^files:/).size).to eq(1)
+              expect(result).to include('gl_user: ""')
+              expect(result).to include('commit-msg:')
+              expect(result).to include('file_type: ruby')
+            end
+          end
       end
 
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do
