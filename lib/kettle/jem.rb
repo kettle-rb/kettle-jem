@@ -64,6 +64,7 @@ module Kettle
     autoload :PrismGemfile, "kettle/jem/prism_gemfile"
     autoload :PrismAppraisals, "kettle/jem/prism_appraisals"
     autoload :SourceMerger, "kettle/jem/source_merger"
+    autoload :TemplatingReport, "kettle/jem/templating_report"
 
     # Templating and setup (moved from kettle-dev)
     autoload :TemplateHelpers, "kettle/jem/template_helpers"

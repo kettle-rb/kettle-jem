@@ -162,6 +162,36 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   describe ".config_for" do
+    it "returns configured file_type for an extensionless hook script" do
+      Dir.mktmpdir do |dir|
+        project_root = File.join(dir, "project")
+        template_root = File.join(dir, "template")
+        FileUtils.mkdir_p(project_root)
+        FileUtils.mkdir_p(template_root)
+        File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          patterns: []
+          files:
+            ".git-hooks":
+              commit-msg:
+                strategy: merge
+                file_type: ruby
+        YAML
+
+        allow(described_class).to receive_messages(project_root: project_root, template_root: template_root)
+        described_class.clear_kettle_config!
+
+        config = described_class.config_for(".git-hooks/commit-msg")
+        expect(config[:strategy]).to eq(:merge)
+        expect(config[:file_type]).to eq(:ruby)
+        expect(described_class.configured_file_type_for(File.join(project_root, ".git-hooks/commit-msg"))).to eq(:ruby)
+        expect(described_class.ruby_template?(File.join(project_root, ".git-hooks/commit-msg"))).to be(true)
+      end
+    end
+
     it "returns config for certs/pboling.pem via pattern (raw_copy)" do
       config = described_class.config_for("certs/pboling.pem")
       expect(config[:strategy]).to eq(:raw_copy)
@@ -218,6 +248,19 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   describe ".build_config_entry" do
+    it "accepts a supported file_type hint" do
+      result = described_class.build_config_entry(nil, {"strategy" => "merge", "file_type" => "ruby"})
+
+      expect(result[:strategy]).to eq(:merge)
+      expect(result[:file_type]).to eq(:ruby)
+    end
+
+    it "rejects unknown file_type hints" do
+      expect {
+        described_class.build_config_entry(nil, {"strategy" => "merge", "file_type" => "banana"})
+      }.to raise_error(Kettle::Jem::Error, /Unknown templating file_type/i)
+    end
+
     it "rejects legacy replace strategy" do
       expect {
         described_class.build_config_entry(nil, {"strategy" => "replace"})

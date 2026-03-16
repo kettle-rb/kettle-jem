@@ -62,6 +62,10 @@ module Kettle
           Gemfile.lock
         ].freeze
 
+        GENERATED_RUNTIME_PREFIXES = %w[
+          tmp/kettle-jem/templating-report-
+        ].freeze
+
         module_function
 
         # Entry point invoked by the rake task.
@@ -81,6 +85,7 @@ module Kettle
           diffs_dir = File.join(report_dir, "diffs")
 
           threshold = (ENV["KJ_SELFTEST_THRESHOLD"] || DEFAULT_THRESHOLD).to_f
+          templating_environment = Kettle::Jem::TemplatingReport.snapshot
 
           # ── Step 0: Clean slate ───────────────────────────────────────────
           FileUtils.rm_rf(base_dir)
@@ -112,6 +117,7 @@ module Kettle
 
           # ── Step 5: Compare ───────────────────────────────────────────
           comparison = manifest.compare(before, after)
+          comparison[:added] = comparison[:added].reject { |rel| generated_runtime_artifact?(rel) }
 
           # Classify "removed" files into expected skips vs truly unexpected.
           # Files under lib/, spec/, template/, exe/, sig/, etc. are part of
@@ -136,7 +142,11 @@ module Kettle
           end
 
           # ── Step 7: Report ────────────────────────────────────────────────
-          report = reporter.summary(comparison, output_dir: output_dir)
+          report = reporter.summary(
+            comparison,
+            output_dir: output_dir,
+            templating_environment: templating_environment,
+          )
           report_path = File.join(report_dir, "summary.md")
           File.write(report_path, report)
 
@@ -269,6 +279,10 @@ module Kettle
           out.split("\0").reject(&:empty?)
         rescue StandardError
           nil
+        end
+
+        def generated_runtime_artifact?(relative_path)
+          GENERATED_RUNTIME_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) }
         end
       end
     end

@@ -84,6 +84,23 @@ module Kettle
         keep_destination
         raw_copy
       ].freeze
+      SUPPORTED_FILE_TYPES = %i[
+        ruby
+        gemfile
+        appraisals
+        gemspec
+        rakefile
+        yaml
+        markdown
+        bash
+        tool_versions
+        text
+        json
+        jsonc
+        toml
+        dotenv
+        rbs
+      ].freeze
 
       # RuboCop LTS version map: min_ruby -> constraint.
       # Used to resolve {KJ|RUBOCOP_LTS_CONSTRAINT} and {KJ|RUBOCOP_RUBY_GEM} tokens.
@@ -1033,9 +1050,17 @@ module Kettle
 
       def apply_strategy(content, dest_path)
         return content unless ruby_template?(dest_path)
+
         strategy = strategy_for(dest_path)
         dest_content = File.exist?(dest_path) ? File.read(dest_path) : ""
-        Kettle::Jem::SourceMerger.apply(strategy: strategy, src: content, dest: dest_content, path: rel_path(dest_path))
+        file_type = configured_file_type_for(dest_path)
+        Kettle::Jem::SourceMerger.apply(
+          strategy: strategy,
+          src: content,
+          dest: dest_content,
+          path: rel_path(dest_path),
+          file_type: file_type,
+        )
       end
 
       def manifestation
@@ -1059,6 +1084,15 @@ module Kettle
         manifestation.find do |entry|
           File.fnmatch?(entry[:path], relative_path, File::FNM_PATHNAME | File::FNM_EXTGLOB | File::FNM_DOTMATCH)
         end
+      end
+
+      def configured_file_type_for(path_or_relative)
+        relative_path = path_or_relative.to_s
+        if relative_path.start_with?(project_root.to_s)
+          relative_path = rel_path(relative_path)
+        end
+
+        config_for(relative_path)&.fetch(:file_type, nil)
       end
 
       # Find configuration for a specific file in the nested files structure
@@ -1099,6 +1133,15 @@ module Kettle
         result = {strategy: strategy}
         result[:path] = path if path
 
+        if entry.key?("file_type")
+          file_type = entry["file_type"].to_s.strip.downcase.tr("-", "_").to_sym
+          unless SUPPORTED_FILE_TYPES.include?(file_type)
+            raise Kettle::Jem::Error, "Unknown templating file_type '#{entry["file_type"]}'"
+          end
+
+          result[:file_type] = file_type
+        end
+
         if result[:strategy] == :merge
           %w[preference add_template_only_nodes freeze_token max_recursion_depth].each do |opt|
             value = entry.key?(opt) ? entry[opt] : defaults[opt]
@@ -1115,6 +1158,9 @@ module Kettle
       end
 
       def ruby_template?(dest_path)
+        configured_type = configured_file_type_for(dest_path)
+        return true if Kettle::Jem::SourceMerger.ruby_file_type?(configured_type)
+
         base = File.basename(dest_path.to_s)
         return true if RUBY_BASENAMES.include?(base)
         return true if RUBY_SUFFIXES.any? { |suffix| base.end_with?(suffix) }

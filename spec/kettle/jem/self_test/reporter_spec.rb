@@ -182,6 +182,31 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
       expect(result).to include(output_dir)
     end
 
+    it "includes the merge gem environment when provided" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: []}
+      templating_environment = {
+        workspace_root: "/workspace",
+        merge_gems: [
+          {
+            name: "ast-merge",
+            version: "4.0.6",
+            path: "/workspace/ast-merge",
+            local_path: true,
+            loaded: true,
+          },
+        ],
+      }
+
+      result = reporter.summary(
+        comparison,
+        output_dir: output_dir,
+        templating_environment: templating_environment,
+      )
+
+      expect(result).to include("## Merge Gem Environment")
+      expect(result).to include("| ast-merge | 4.0.6 | local path | `/workspace/ast-merge` |")
+    end
+
     it "includes an ISO 8601 date" do
       comparison = {matched: [], changed: [], added: [], removed: []}
       result = reporter.summary(comparison, output_dir: output_dir)

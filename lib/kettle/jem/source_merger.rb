@@ -20,6 +20,7 @@ module Kettle
     module SourceMerger
       BUG_URL = "https://github.com/kettle-rb/kettle-jem/issues"
       FREEZE_TOKEN = "kettle-jem"
+      RUBY_FILE_TYPES = %i[ruby gemfile appraisals gemspec rakefile].freeze
 
       module_function
 
@@ -40,7 +41,12 @@ module Kettle
 
         return dest_content if strategy == :keep_destination
 
-        detected_type = file_type || detect_file_type(path)
+        configured_type = normalize_file_type(file_type)
+        if configured_type && !ruby_file_type?(configured_type)
+          raise Kettle::Jem::Error, "Unsupported Ruby merge file_type '#{file_type}' for #{path}."
+        end
+
+        detected_type = configured_type || detect_file_type(path)
 
         result =
           case strategy
@@ -98,6 +104,16 @@ module Kettle
         else
           :ruby
         end
+      end
+
+      def normalize_file_type(file_type)
+        return nil if file_type.nil?
+
+        file_type.to_s.downcase.strip.tr("-", "_").to_sym
+      end
+
+      def ruby_file_type?(file_type)
+        RUBY_FILE_TYPES.include?(normalize_file_type(file_type))
       end
 
       # Get the appropriate MergerConfig preset for a file type.

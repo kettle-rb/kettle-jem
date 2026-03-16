@@ -218,6 +218,40 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect(File.read(summary_path)).to include("# My Report")
     end
 
+    it "passes the templating environment snapshot to the reporter" do
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: %w[Gemfile], changed: [], added: [], removed: [],
+      })
+      allow(reporter).to receive(:summary).and_return("# Report\n")
+      templating_environment = {merge_gems: [{name: "ast-merge", version: "4.0.6", loaded: true, local_path: true}]}
+      allow(Kettle::Jem::TemplatingReport).to receive(:snapshot).and_return(templating_environment)
+
+      described_class.run
+
+      expect(reporter).to have_received(:summary).with(
+        anything,
+        output_dir: File.join(base_dir, "output"),
+        templating_environment: templating_environment,
+      )
+    end
+
+    it "ignores generated per-run templating reports in the added-file list" do
+      before_manifest = {}
+      after_manifest = {
+        "tmp/kettle-jem/templating-report-20260316-123456-000000-4321.md" => "abc123",
+      }
+      allow(manifest).to receive(:generate).and_return(before_manifest, after_manifest)
+      allow(reporter).to receive(:summary).and_return("# Report\n")
+
+      described_class.run
+
+      expect(reporter).to have_received(:summary).with(
+        hash_including(added: []),
+        output_dir: File.join(base_dir, "output"),
+        templating_environment: anything,
+      )
+    end
+
     it "partitions removed files into skipped and truly removed" do
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [],

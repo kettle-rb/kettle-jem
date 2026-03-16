@@ -126,11 +126,12 @@ module Kettle
         # @raise [Kettle::Dev::Error] When merge fails and failure_mode is error (default)
         def merge_by_file_type(content, dest, rel, helpers)
           dest_content = File.read(dest)
+          file_type = merge_file_type_for(rel, dest, helpers)
           merged =
-            if helpers.ruby_template?(dest)
+            if Kettle::Jem::SourceMerger.ruby_file_type?(file_type)
               # Ruby files: prism-merge via SourceMerger
               helpers.apply_strategy(content, dest)
-            elsif yaml_file?(rel)
+            elsif file_type == :yaml
               # YAML files: psych-merge
               Psych::Merge::SmartMerger.new(
                 content,
@@ -138,7 +139,7 @@ module Kettle
                 preference: :template,
                 add_template_only_nodes: true,
               ).merge
-            elsif markdown_heading_file?(rel)
+            elsif file_type == :markdown
               # Markdown files (not README/CHANGELOG, which have dedicated steps):
               # use SmartMerger with template preference
               Markdown::Merge::SmartMerger.new(
@@ -147,7 +148,7 @@ module Kettle
                 preference: :template,
                 add_template_only_nodes: true,
               ).merge
-            elsif bash_file?(rel)
+            elsif file_type == :bash
               # Shell / bash files: bash-merge
               Bash::Merge::SmartMerger.new(
                 content,
@@ -155,7 +156,47 @@ module Kettle
                 preference: :template,
                 add_template_only_nodes: true,
               ).merge
-            elsif tool_versions_file?(rel)
+            elsif file_type == :dotenv
+              Dotenv::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                freeze_token: "kettle-jem",
+              ).merge
+            elsif file_type == :json
+              Json::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                freeze_token: "kettle-jem",
+              ).merge
+            elsif file_type == :jsonc
+              Jsonc::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                freeze_token: "kettle-jem",
+              ).merge
+            elsif file_type == :toml
+              Toml::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                freeze_token: "kettle-jem",
+              ).merge
+            elsif file_type == :rbs
+              RBS::Merge::SmartMerger.new(
+                content,
+                dest_content,
+                preference: :template,
+                add_template_only_nodes: true,
+                freeze_token: "kettle-jem",
+              ).merge
+            elsif file_type == :tool_versions
               # .tool-versions: text-merge with first-word signature matching.
               # Lines match by tool name (e.g., "ruby"), so template version
               # values replace destination values while destination-only tools
@@ -193,6 +234,58 @@ module Kettle
           else
             raise Kettle::Dev::Error, "Merge failed for #{rel}: #{e.class}: #{e.message}"
           end
+        end
+
+        def merge_file_type_for(rel, dest, helpers)
+          helpers.configured_file_type_for(dest) ||
+            if helpers.ruby_template?(dest)
+              :ruby
+            elsif yaml_file?(rel)
+              :yaml
+            elsif markdown_heading_file?(rel)
+              :markdown
+            elsif bash_file?(rel)
+              :bash
+            elsif tool_versions_file?(rel)
+              :tool_versions
+            else
+              :text
+            end
+        end
+
+        def write_templating_run_report(
+          project_root:,
+          output_dir:,
+          snapshot:,
+          run_started_at:,
+          finished_at: nil,
+          status: nil,
+          warnings: [],
+          error: nil,
+          report_path: nil
+        )
+          Kettle::Jem::TemplatingReport.write(
+            project_root: project_root,
+            output_dir: output_dir,
+            snapshot: snapshot,
+            report_path: report_path,
+            run_started_at: run_started_at,
+            finished_at: finished_at,
+            status: status,
+            warnings: warnings,
+            error: error,
+          )
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          warn("[kettle-jem] WARNING: Could not write templating report: #{e.class}: #{e.message}")
+          report_path
+        end
+
+        def templating_run_status(helpers, error)
+          outcome = helpers.template_run_outcome
+          return outcome || :failed if error
+
+          outcome || :complete
         end
 
         # Determine the failure mode for merge operations.
@@ -595,6 +688,17 @@ module Kettle
 
           project_root = helpers.project_root
           template_root = helpers.template_root
+          run_started_at = helpers.template_run_timestamp
+          templating_environment = Kettle::Jem::TemplatingReport.snapshot
+          templating_report_path = write_templating_run_report(
+            project_root: project_root,
+            output_dir: helpers.output_dir,
+            snapshot: templating_environment,
+            run_started_at: run_started_at,
+            status: :started,
+          )
+          Kettle::Jem::TemplatingReport.print(snapshot: templating_environment)
+          puts "[kettle-jem] Per-run report: #{templating_report_path}" if templating_report_path
 
           # Ensure git working tree is clean before making changes (when run standalone)
           helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")
@@ -1387,20 +1491,9 @@ module Kettle
                     helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true, raw: true)
                   else
                     helpers.copy_file_with_prompt(hook_ruby_src, commit_msg_dest, allow_create: true, allow_replace: true) do |content|
-                      if commit_msg_strategy != :accept_template && File.exist?(commit_msg_dest)
-                        begin
-                          content = Prism::Merge::SmartMerger.new(
-                            content,
-                            File.read(commit_msg_dest),
-                            preference: :template,
-                            add_template_only_nodes: true,
-                            freeze_token: "kettle-jem",
-                          ).merge
-                        rescue StandardError => e
-                          Kettle::Dev.debug_error(e, __method__)
-                        end
-                      end
-                      content
+                      c = content
+                      c = merge_by_file_type(c, commit_msg_dest, helpers.rel_path(commit_msg_dest), helpers) if commit_msg_strategy != :accept_template && File.exist?(commit_msg_dest)
+                      c
                     end
                   end
                   begin
@@ -1419,20 +1512,9 @@ module Kettle
                     helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true, raw: true)
                   else
                     helpers.copy_file_with_prompt(hook_sh_src, prepare_msg_dest, allow_create: true, allow_replace: true) do |content|
-                      if prepare_msg_strategy != :accept_template && File.exist?(prepare_msg_dest)
-                        begin
-                          content = Bash::Merge::SmartMerger.new(
-                            content,
-                            File.read(prepare_msg_dest),
-                            preference: :template,
-                            add_template_only_nodes: true,
-                            freeze_token: "kettle-jem",
-                          ).merge
-                        rescue StandardError => e
-                          Kettle::Dev.debug_error(e, __method__)
-                        end
-                      end
-                      content
+                      c = content
+                      c = merge_by_file_type(c, prepare_msg_dest, helpers.rel_path(prepare_msg_dest), helpers) if prepare_msg_strategy != :accept_template && File.exist?(prepare_msg_dest)
+                      c
                     end
                   end
                   begin
@@ -1479,6 +1561,21 @@ module Kettle
           helpers.template_run_outcome = :complete
 
           nil
+        ensure
+          if project_root && run_started_at && templating_environment
+            error = $!
+            write_templating_run_report(
+              project_root: project_root,
+              output_dir: helpers.output_dir,
+              snapshot: templating_environment,
+              report_path: templating_report_path,
+              run_started_at: run_started_at,
+              finished_at: helpers.template_run_timestamp,
+              status: templating_run_status(helpers, error),
+              warnings: helpers.warnings,
+              error: error,
+            )
+          end
         end
 
         def prune_workflow_matrix_by_appraisals(content, removed_appraisals)

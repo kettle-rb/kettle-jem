@@ -45,8 +45,9 @@ module Kettle
         #   When +:skipped+ is provided, only truly unexpected removals appear under
         #   "Removed Files"; skipped files get an informational collapsed section.
         # @param output_dir [String] path to the output directory (for the report header)
+        # @param templating_environment [Hash, nil] templating environment snapshot
         # @return [String] markdown report
-        def summary(comparison, output_dir:)
+        def summary(comparison, output_dir:, templating_environment: nil)
           matched = comparison.fetch(:matched, [])
           changed = comparison.fetch(:changed, [])
           added = comparison.fetch(:added, [])
@@ -63,6 +64,11 @@ module Kettle
           lines << "**Output**: `#{output_dir}`"
           lines << "**Score**: #{score}% (#{matched.size}/#{total} files unchanged)"
           lines << ""
+
+          environment_section = Kettle::Jem::TemplatingReport.markdown_section(snapshot: templating_environment) if templating_environment
+          if environment_section && !environment_section.empty?
+            lines << environment_section
+          end
 
           if changed.any?
             lines << "## Changed Files (#{changed.size})"

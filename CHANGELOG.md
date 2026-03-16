@@ -20,6 +20,10 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Added
 
+- Templating now writes a dedicated per-run Markdown report under
+  `tmp/kettle-jem/`, capturing run status, warnings or errors, and the active
+  merge-gem environment.
+
 ### Changed
 
 ### Deprecated

@@ -40,6 +40,11 @@
 #     false - do not add template-only nodes
 #   freeze_token:
 #     Marker name used for frozen sections (default: kettle-jem)
+#   file_type:
+#     Optional explicit merge-engine hint for extensionless or ambiguous files.
+#     Supported values: ruby, gemfile, appraisals, gemspec, rakefile,
+#     yaml, markdown, bash, tool_versions, text, json, jsonc, toml,
+#     dotenv, rbs
 #   max_recursion_depth:
 #     Limit for recursive merging when a merger supports it
 #
@@ -119,7 +124,11 @@ patterns:
 
 # Per-file configuration (nested directory structure)
 # Only files that need overrides belong here. Everything else defaults to merge.
-files: {}
+files:
+  ".git-hooks":
+    commit-msg:
+      strategy: accept_template
+      file_type: ruby
 
 # To override specific files, add entries like:
 #
@@ -133,6 +142,11 @@ files: {}
 #   certs:
 #     pboling.pem:
 #       strategy: raw_copy
+#
+#   .git-hooks:
+#     commit-msg:
+#       strategy: merge
+#       file_type: ruby
 #
 #   Rakefile:
 #     strategy: merge

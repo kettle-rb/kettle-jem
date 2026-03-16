@@ -254,6 +254,145 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "writes a dedicated per-run templating report under tmp/kettle-jem" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(File.join(template_root, "tmp"))
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "tmp", ".gitignore.example"), <<~GITIGNORE)
+              *
+              !.gitignore
+            GITIGNORE
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+              template_run_timestamp: Time.utc(2026, 3, 16, 12, 34, 56),
+            )
+            allow(Kettle::Jem::TemplatingReport).to receive(:snapshot).and_return(
+              {
+                kettle_jem: {
+                  name: "kettle-jem",
+                  version: "1.0.0",
+                  path: gem_root,
+                  local_path: true,
+                  loaded: true,
+                },
+                workspace_root: "/workspace",
+                merge_gems: [
+                  {
+                    name: "ast-merge",
+                    version: "4.0.6",
+                    path: File.join(gem_root, "../ast-merge"),
+                    local_path: true,
+                    loaded: true,
+                  },
+                ],
+              },
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            report_paths = Dir.glob(File.join(project_root, "tmp", "kettle-jem", "templating-report-*.md"))
+
+            expect(report_paths.size).to eq(1)
+            report = File.read(report_paths.first)
+            expect(report).to include("# kettle-jem Templating Run Report")
+            expect(report).to include("**Status**: `complete`")
+            expect(report).to include("## Merge Gem Environment")
+            expect(report).to include("| ast-merge | 4.0.6 | local path |")
+          end
+        end
+      end
+
+      it "finalizes the per-run report with failed status when setup aborts early" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ask: true,
+              template_run_timestamp: Time.utc(2026, 3, 16, 12, 34, 56),
+            )
+            allow(helpers).to receive(:ensure_clean_git!).and_raise(RuntimeError, "dirty tree")
+            allow(Kettle::Jem::TemplatingReport).to receive(:snapshot).and_return(
+              {
+                kettle_jem: {
+                  name: "kettle-jem",
+                  version: "1.0.0",
+                  path: gem_root,
+                  local_path: true,
+                  loaded: true,
+                },
+                workspace_root: "/workspace",
+                merge_gems: [],
+              },
+            )
+
+            expect { described_class.run }.to raise_error(RuntimeError, "dirty tree")
+
+            report_paths = Dir.glob(File.join(project_root, "tmp", "kettle-jem", "templating-report-*.md"))
+
+            expect(report_paths.size).to eq(1)
+            report = File.read(report_paths.first)
+            expect(report).to include("**Status**: `failed`")
+            expect(report).to include("RuntimeError: dirty tree")
+          end
+        end
+      end
+
       it "renders dynamic template metadata for Rakefile, README, LICENSE, and Gemfile comments" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
@@ -577,12 +716,18 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
+              template_run_timestamp: Time.utc(2026, 3, 16, 12, 34, 56),
             )
 
             expect(described_class.run).to eq(:bootstrap_only)
             expect(File).to exist(File.join(project_root, ".kettle-jem.yml"))
             expect(File).not_to exist(File.join(project_root, "README.md"))
             expect(helpers.template_run_outcome).to eq(:bootstrap_only)
+
+            report_paths = Dir.glob(File.join(project_root, "tmp", "kettle-jem", "templating-report-*.md"))
+
+            expect(report_paths.size).to eq(1)
+            expect(File.read(report_paths.first)).to include("**Status**: `bootstrap_only`")
           end
         end
       end
@@ -2284,6 +2429,78 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               described_class.run
               expect(File.executable?(commit_hook)).to be(true)
               expect(File.executable?(prepare_hook)).to be(true)
+            end
+          end
+        end
+
+        it "keeps commit-msg syntactically valid by accepting the template when configured" do
+          Dir.mktmpdir do |gem_root|
+            Dir.mktmpdir do |project_root|
+              template_root = File.join(gem_root, "template")
+              hooks_src = File.join(template_root, ".git-hooks")
+              FileUtils.mkdir_p(hooks_src)
+
+              hook_template = <<~RUBY
+                #!/usr/bin/env ruby
+                begin
+                  denied = <<~EOM
+                    hello
+                  EOM
+                  puts denied
+                rescue LoadError => e
+                  warn(e.message)
+                end
+              RUBY
+              File.write(File.join(hooks_src, "commit-msg.example"), hook_template)
+
+              File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+                defaults:
+                  preference: template
+                  add_template_only_nodes: true
+                  freeze_token: kettle-jem
+                patterns: []
+                files:
+                  ".git-hooks":
+                    commit-msg:
+                      strategy: accept_template
+                      file_type: ruby
+              YAML
+
+              FileUtils.mkdir_p(File.join(project_root, ".git-hooks"))
+              File.write(File.join(project_root, ".git-hooks", "commit-msg"), <<~BROKEN)
+                #!/usr/bin/env ruby
+                begin
+                  denied = <<~EOM
+                    broken
+                rescue LoadError => e
+                  warn(e.message)
+                end
+              BROKEN
+
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Test User"]
+                  spec.email = ["test@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+
+              described_class.run
+
+              result = File.read(File.join(project_root, ".git-hooks", "commit-msg"))
+              expect(result).to eq(hook_template)
+              expect(Prism.parse(result).errors).to be_empty
             end
           end
         end
