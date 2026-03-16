@@ -759,8 +759,14 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
+    before do
+      Kettle::Jem::TemplateHelpers.clear_tokens!
+      Kettle::Jem::TemplateHelpers.clear_kettle_config!
+    end
+
     after do
       Kettle::Jem::TemplateHelpers.clear_tokens!
+      Kettle::Jem::TemplateHelpers.clear_kettle_config!
     end
 
     it "writes a token-resolved Rakefile header using kettle-jem version and template run date" do

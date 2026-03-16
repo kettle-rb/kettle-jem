@@ -112,19 +112,19 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         expect(described_class.strategy_for(path)).to eq(:raw_copy)
       end
 
-      it "returns :accept_template for .devcontainer files" do
+      it "returns :merge for .devcontainer files when no explicit override exists" do
         path = File.join(project_root, ".devcontainer/apt-install/install.sh")
-        expect(described_class.strategy_for(path)).to eq(:accept_template)
+        expect(described_class.strategy_for(path)).to eq(:merge)
       end
 
-      it "returns :accept_template for GitHub workflow files" do
+      it "returns :merge for GitHub workflow files when no explicit override exists" do
         path = File.join(project_root, ".github/workflows/current.yml")
-        expect(described_class.strategy_for(path)).to eq(:accept_template)
+        expect(described_class.strategy_for(path)).to eq(:merge)
       end
 
-      it "returns :accept_template for .gitlab-ci.yml" do
+      it "returns :merge for .gitlab-ci.yml when no explicit override exists" do
         path = File.join(project_root, ".gitlab-ci.yml")
-        expect(described_class.strategy_for(path)).to eq(:accept_template)
+        expect(described_class.strategy_for(path)).to eq(:merge)
       end
     end
 
@@ -210,11 +210,10 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(certs_entry[:strategy]).to eq(:raw_copy)
     end
 
-    it "includes accept_template strategy for .devcontainer/**/*" do
+    it "does not include a dedicated .devcontainer/**/* override" do
       manifest = described_class.load_manifest
       entry = manifest.find { |e| e[:path] == ".devcontainer/**/*" }
-      expect(entry).not_to be_nil
-      expect(entry[:strategy]).to eq(:accept_template)
+      expect(entry).to be_nil
     end
   end
 

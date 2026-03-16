@@ -15,6 +15,9 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   before do
+    helpers.clear_tokens!
+    helpers.clear_kettle_config!
+
     stub_env(
       "FUNDING_ORG" => "false",
       # Forge
@@ -45,6 +48,12 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     )
     allow(helpers).to receive(:gemspec_metadata).and_return(
       min_ruby: Gem::Version.create("3.2"),
+    )
+    allow(helpers).to receive(:kettle_config).and_return(
+      {
+        "defaults" => {"freeze_token" => "kettle-jem"},
+        "tokens" => {},
+      },
     )
   end
 
