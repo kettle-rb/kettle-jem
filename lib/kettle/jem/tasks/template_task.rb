@@ -12,6 +12,10 @@ module Kettle
       module TemplateTask
         MODULAR_GEMFILE_DIR = "gemfiles/modular"
         MARKDOWN_HEADING_EXTENSIONS = %w[.md .markdown].freeze
+        MARKDOWN_PARAGRAPH_MATCH_REFINER = Ast::Merge::ContentMatchRefiner.new(
+          threshold: 0.3,
+          node_types: [:paragraph],
+        )
 
         module_function
 
@@ -41,6 +45,7 @@ module Kettle
           merged = Markdown::Merge::SmartMerger.new(
             text,
             text,
+            backend: :markly,
             preference: :destination,
             normalize_whitespace: :basic,
           ).merge
@@ -141,12 +146,17 @@ module Kettle
               ).merge
             elsif file_type == :markdown
               # Markdown files (not README/CHANGELOG, which have dedicated steps):
-              # use SmartMerger with template preference
+              # use SmartMerger with template preference. Fuzzy paragraph
+              # matching helps near-matching unmatched paragraphs align so they
+              # are not emitted separately as destination-only and template-only
+              # blocks.
               Markdown::Merge::SmartMerger.new(
                 content,
                 dest_content,
+                backend: :markly,
                 preference: :template,
                 add_template_only_nodes: true,
+                match_refiner: MARKDOWN_PARAGRAPH_MATCH_REFINER,
               ).merge
             elsif file_type == :bash
               # Shell / bash files: bash-merge

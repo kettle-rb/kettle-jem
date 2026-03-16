@@ -24,10 +24,6 @@ mise exec -C /path/to/project -- bundle exec rspec
 
 Do this before spending time on unrelated debugging; in this workspace pattern, silent `mise` commands are usually a trust problem first.
 
-```bash
-mise trust -C /path/to/project
-```
-
 ✅ **CORRECT** — Run self-contained commands with `mise exec`:
 ```bash
 mise exec -C /path/to/project -- bundle exec rspec
@@ -67,17 +63,7 @@ Only use terminal for:
 - Git operations that require interaction
 - Commands that actually need to execute (not just gather info)
 
-### NEVER Pipe Test Commands Through head/tail
-
-❌ **ABSOLUTELY FORBIDDEN**:
-```bash
-bundle exec rspec 2>&1 | tail -50
-```
-
-✅ **CORRECT** — Run the plain command and read the full output afterward:
-```bash
-mise exec -C /path/to/project -- bundle exec rspec
-```
+When you do run tests, keep the full output visible so you can inspect failures completely.
 
 ## 🏗️ Architecture
 

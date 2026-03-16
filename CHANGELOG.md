@@ -41,6 +41,10 @@ Please file a bug if you notice a violation of semantic versioning.
   override wiring (`local_gems` / `VENDORED_GEMS`) instead of stripping entries
   merely because those gems also appear in the destination gemspec, while still
   excluding the current gem from self-referential local override lists
+- Markdown templating now uses low-threshold paragraph refinement for
+  non-README/CHANGELOG merges, preventing near-matching `AGENTS.md`
+  paragraphs from being misclassified as separate destination-only and
+  template-only blocks and then both surviving output during self-merges.
 
 ### Security
 

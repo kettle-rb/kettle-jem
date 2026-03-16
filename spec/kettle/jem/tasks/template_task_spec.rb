@@ -3385,6 +3385,74 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           end
         end
       end
+
+      it "does not append a duplicate template paragraph when AGENTS.md contains a malformed near-match paragraph" do
+        Dir.mktmpdir do |dir|
+          dest = File.join(dir, "AGENTS.md")
+          File.write(dest, <<~MARKDOWN)
+            # AGENTS.md - kettle-jem Development Guide
+
+            ## 🎯 Project Overview
+
+            `kettle-jem` is a collection of merge presets and utilities for gem templating.
+
+            This project is a **RubyGem** managed with the [kettle-rb](https://github.com/kettle-rb) toolchain.
+            **Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
+            **Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
+            **CRITICAL**: The canonical project environment lives in `mise.toml`, with local overrides in `.env.local` loaded via `dotenvy`.
+            **Recovery rule**: If a `mise exec` command goes silent or appears hung, assume `mise trust` is the first thing to check. Recover by running:
+            Gemfiles are split into modular components under `gemfiles/modular/`. Each component handles a specific concern (coverage, style, debug, etc.). The main `Gemfile` loads these modular components via `eval_gemfile`.
+            **CRITICAL**: All constructors and public API methods that accept keyword arguments MUST include `**options` as the final parameter for forward compatibility.
+          MARKDOWN
+
+          template = <<~MARKDOWN
+            # AGENTS.md - Development Guide
+
+            ## 🎯 Project Overview
+
+            This project is a **RubyGem** managed with the [kettle-rb](https://github.com/kettle-rb) toolchain.
+            **Minimum Supported Ruby**: See the gemspec `required_ruby_version` constraint.
+            **Local Development Ruby**: See `.tool-versions` for the version used in local development (typically the latest stable Ruby).
+
+            ## ⚠️ AI Agent Terminal Limitations
+
+            ### Use `mise` for Project Environment
+
+            **CRITICAL**: The canonical project environment lives in `mise.toml`, with local overrides in `.env.local` loaded via `dotenvy`.
+
+            **Recovery rule**: If a `mise exec` command goes silent or appears hung, assume `mise trust` is the first thing to check. Recover by running:
+
+            ## 📝 Project Conventions
+
+            ### Modular Gemfile Architecture
+
+            Gemfiles are split into modular components under `gemfiles/modular/`. Each component handles a specific concern (coverage, style, debug, etc.). The main `Gemfile` loads these modular components via `eval_gemfile`.
+
+            ### Forward Compatibility with `**options`
+
+            **CRITICAL**: All constructors and public API methods that accept keyword arguments MUST include `**options` as the final parameter for forward compatibility.
+          MARKDOWN
+
+          result = described_class.merge_by_file_type(template, dest, "AGENTS.md", Kettle::Jem::TemplateHelpers)
+          tail = result.lines.last(6).join
+
+          expect(result.scan(/This project is a \*\*RubyGem\*\* managed with the \[kettle-rb\]/).size).to eq(1)
+          expect(tail).not_to include("This project is a **RubyGem**")
+          expect(tail).not_to include("**CRITICAL**: The canonical project environment lives")
+          expect(tail).not_to include("**Recovery rule**:")
+          expect(result).to include("### Modular Gemfile Architecture")
+        end
+      end
+    end
+
+    describe "AGENTS template content" do
+      it "avoids repeated trust and test-output guidance in the template source" do
+        template_path = File.expand_path("../../../../template/AGENTS.md.example", __dir__)
+        template = File.read(template_path)
+
+        expect(template.scan("mise trust -C /path/to/project").size).to eq(1)
+        expect(template.scan("head`/`tail").size).to eq(1)
+      end
     end
   end
 
