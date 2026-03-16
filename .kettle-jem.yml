@@ -47,8 +47,4 @@ patterns:
 
 # Per-file configuration (nested directory structure)
 # Only files that need overrides belong here. Everything else defaults to merge.
-files:
-  ".git-hooks":
-    commit-msg:
-      strategy: accept_template
-      file_type: ruby
+files: {}

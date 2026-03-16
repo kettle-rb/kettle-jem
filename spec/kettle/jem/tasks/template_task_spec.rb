@@ -262,6 +262,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
         expect(result.scan(/files:/).size).to eq(1)
       end
+
     end
 
     describe "::run" do
@@ -1285,103 +1286,103 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-        it "does not duplicate the destination-only per-file configuration comment block during full config sync" do
-          Dir.mktmpdir do |gem_root|
-            Dir.mktmpdir do |project_root|
-              template_root = File.join(gem_root, "template")
-              FileUtils.mkdir_p(template_root)
+      it "does not duplicate the destination-only per-file configuration comment block during full config sync" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
 
-              template_config = <<~YAML
-                # kettle-jem configuration file
-                #
-                # Header docs
+            template_config = <<~YAML
+              # kettle-jem configuration file
+              #
+              # Header docs
 
-                # Default merge options
-                defaults:
-                  preference: "template"
-                  add_template_only_nodes: true
-                  freeze_token: "kettle-jem"
+              # Default merge options
+              defaults:
+                preference: "template"
+                add_template_only_nodes: true
+                freeze_token: "kettle-jem"
 
-                # Token replacement values.
-                #
-                # General rules:
-                tokens:
-                  forge:
-                    gh_user: ""
-                    gl_user: ""
+              # Token replacement values.
+              #
+              # General rules:
+              tokens:
+                forge:
+                  gh_user: ""
+                  gl_user: ""
 
-                # Glob patterns evaluated in order (first match wins)
-                patterns:
-                  - path: "certs/**"
-                    strategy: raw_copy
+              # Glob patterns evaluated in order (first match wins)
+              patterns:
+                - path: "certs/**"
+                  strategy: raw_copy
 
-                # Per-file configuration (nested directory structure)
-                # Only files that need overrides belong here. Everything else defaults to merge.
-                files: {}
-              YAML
+              # Per-file configuration (nested directory structure)
+              # Only files that need overrides belong here. Everything else defaults to merge.
+              files: {}
+            YAML
 
-              existing_config = <<~YAML
-                # Default merge options
-                defaults:
-                  preference: "template"
-                  add_template_only_nodes: true
-                  freeze_token: "kettle-jem"
+            existing_config = <<~YAML
+              # Default merge options
+              defaults:
+                preference: "template"
+                add_template_only_nodes: true
+                freeze_token: "kettle-jem"
 
-                # Token replacement values.
-                #
-                # General rules:
-                #   - Empty strings are treated as unset.
-                tokens:
-                  forge:
-                    gh_user: "pboling"
+              # Token replacement values.
+              #
+              # General rules:
+              #   - Empty strings are treated as unset.
+              tokens:
+                forge:
+                  gh_user: "pboling"
 
-                # Glob patterns evaluated in order (first match wins)
-                patterns:
-                  - path: "certs/**"
-                    strategy: raw_copy
+              # Glob patterns evaluated in order (first match wins)
+              patterns:
+                - path: "certs/**"
+                  strategy: raw_copy
 
-                # Per-file configuration (nested directory structure)
-                # Only files that need overrides belong here. Everything else defaults to merge.
-                files:
-                  ".git-hooks":
-                    commit-msg:
-                      strategy: accept_template
-                      file_type: ruby
-              YAML
+              # Per-file configuration (nested directory structure)
+              # Only files that need overrides belong here. Everything else defaults to merge.
+              files:
+                ".git-hooks":
+                  commit-msg:
+                    strategy: accept_template
+                    file_type: ruby
+            YAML
 
-              File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
-              dest_config = File.join(project_root, ".kettle-jem.yml")
-              File.write(dest_config, existing_config)
-              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
-                Gem::Specification.new do |spec|
-                  spec.name = "demo"
-                  spec.version = "0.1.0"
-                  spec.summary = "test"
-                  spec.authors = ["Jane Doe"]
-                  spec.email = ["jane@example.com"]
-                  spec.required_ruby_version = ">= 3.1"
-                  spec.homepage = "https://github.com/acme/demo"
-                end
-              GEMSPEC
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+            dest_config = File.join(project_root, ".kettle-jem.yml")
+            File.write(dest_config, existing_config)
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Jane Doe"]
+                spec.email = ["jane@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
 
-              allow(helpers).to receive_messages(
-                project_root: project_root,
-                template_root: template_root,
-                ensure_clean_git!: nil,
-                ask: true,
-              )
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
 
-              expect { described_class.run }.not_to raise_error
+            expect { described_class.run }.not_to raise_error
 
-              result = File.read(dest_config)
-              expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
-              expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
-              expect(result.scan(/^files:/).size).to eq(1)
-              expect(result).to include('gl_user: ""')
-              expect(result).to include('commit-msg:')
-              expect(result).to include('file_type: ruby')
-            end
+            result = File.read(dest_config)
+            expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
+            expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
+            expect(result.scan(/^files:/).size).to eq(1)
+            expect(result).to include('gl_user: ""')
+            expect(result).to include('commit-msg:')
+            expect(result).to include('file_type: ruby')
           end
+        end
       end
 
       it "prefers .example files under .github/workflows and writes without .example and customizes FUNDING.yml" do

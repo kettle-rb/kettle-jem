@@ -467,10 +467,9 @@ module Kettle
           merged_content = merge_missing_backfilled_token_values(updated_content, token_values)
           return false if merged_content == current_content
 
-          normalized = merged_content.to_s
-          normalized += "\n" unless normalized.empty? || normalized.end_with?("\n")
+          merged_content += "\n" unless merged_content.empty? || merged_content.end_with?("\n")
           FileUtils.mkdir_p(File.dirname(config_dest))
-          File.open(config_dest, "w") { |f| f.write(normalized) }
+          File.open(config_dest, "w") { |f| f.write(merged_content) }
           helpers.record_template_result(config_dest, :replace)
           helpers.clear_kettle_config!
           replaced_existing_values || merged_content != updated_content
