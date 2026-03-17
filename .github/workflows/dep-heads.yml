@@ -53,7 +53,6 @@ jobs:
             gemfile: "Appraisal.root"
             rubygems: default
             bundler: default
-
           # jruby-10.0 (targets Ruby 3.4 compatibility)
           - ruby: "jruby"
             appraisal: "dep-heads"
