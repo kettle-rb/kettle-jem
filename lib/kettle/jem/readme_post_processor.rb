@@ -23,17 +23,68 @@ module Kettle
           "23.2" => Gem::Version.new("3.2"),
           "24.2" => Gem::Version.new("3.3"),
           "25.0" => Gem::Version.new("3.3"),
+          "33.0" => Gem::Version.new("3.3"),
         }.freeze,
       }.freeze
       COMPATIBILITY_ROW_PREFIX_RE = /\A\| Works with (?:MRI Ruby|JRuby|Truffle Ruby)/.freeze
       COMPATIBILITY_REFERENCE_LABEL_RE = /\A(?:💎(?:ruby|jruby|truby)-|🚎)/.freeze
 
-      def process(content:, min_ruby:)
-        return content unless min_ruby
+      # Maps engine names (as used in .kettle-jem.yml engines:) to the
+      # compatibility row prefix and badge label prefixes used in README.md.
+      ENGINE_ROW_PATTERNS = {
+        "jruby" => {
+          row_re: /\A\| Works with JRuby/,
+          badge_prefixes: %w[💎jruby-],
+          ref_prefixes: [/\A🚎jruby-/, /\A🚎\d+-j-/],
+        }.freeze,
+        "truffleruby" => {
+          row_re: /\A\| Works with Truffle Ruby/,
+          badge_prefixes: %w[💎truby-],
+          ref_prefixes: [/\A🚎truby-/, /\A🚎\d+-t-/],
+        }.freeze,
+      }.freeze
 
-        processed = remove_incompatible_compatibility_badges(content, min_ruby)
+      def process(content:, min_ruby:, engines: nil)
+        processed = content
+        processed = remove_disabled_engine_content(processed, engines) if engines
+        return processed unless min_ruby
+
+        processed = remove_incompatible_compatibility_badges(processed, min_ruby)
         processed = normalize_compatibility_rows(processed)
         prune_unused_compatibility_reference_definitions(processed)
+      end
+
+      # Remove entire compatibility rows, all badge occurrences, and orphaned
+      # reference-link definitions for engines that are not in the enabled list.
+      # @param content [String]
+      # @param engines [Array<String>] list of enabled engine names
+      # @return [String]
+      def remove_disabled_engine_content(content, engines)
+        enabled = Array(engines).map { |e| e.to_s.strip.downcase }
+        processed = content
+
+        ENGINE_ROW_PATTERNS.each do |engine, patterns|
+          next if enabled.include?(engine)
+
+          # 1) Remove the entire table row
+          processed = processed.lines.reject { |line| patterns[:row_re].match?(line) }.join
+
+          # 2) Remove every badge image/link that matches the engine
+          labels = processed.scan(/\[(💎(?:ruby|jruby|truby)-[^\]]+)\]/).flatten.uniq
+          labels.each do |label|
+            next unless patterns[:badge_prefixes].any? { |pfx| label.start_with?(pfx) }
+            processed = remove_badge_occurrences(processed, label)
+          end
+
+          # 3) Remove orphaned reference-link definitions for the engine
+          processed = processed.lines.reject do |line|
+            ref_label = line[/^\[([^\]]+)\]:/, 1]
+            next false unless ref_label
+            patterns[:ref_prefixes].any? { |re| re.match?(ref_label) }
+          end.join
+        end
+
+        processed
       end
 
       def remove_incompatible_compatibility_badges(content, min_ruby)

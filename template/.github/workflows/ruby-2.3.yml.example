@@ -1,11 +1,7 @@
-# Targets the evergreen latest release of ruby
-name: Current MRI
+name: Ruby 2.3
 
 permissions:
   contents: read
-
-env:
-  K_SOUP_COV_DO: false
 
 on:
   push:
@@ -30,20 +26,20 @@ jobs:
   test:
     if: "!contains(github.event.commits[0].message, '[ci skip]') && !contains(github.event.commits[0].message, '[skip ci]')"
     name: Specs ${{ matrix.ruby }}@${{ matrix.appraisal }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     continue-on-error: ${{ matrix.experimental || endsWith(matrix.ruby, 'head') }}
     env: # $BUNDLE_GEMFILE must be set at job level, so it is set for all steps
       BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}.gemfile
     strategy:
       matrix:
         include:
-          # Ruby 4.0
-          - ruby: "ruby"
-            appraisal: "current"
+          # Ruby 2.3
+          - ruby: "ruby-2.3"
+            appraisal: "ruby-2-3"
             exec_cmd: "rake test"
             gemfile: "Appraisal.root"
-            rubygems: latest
-            bundler: latest
+            rubygems: "3.3.27"
+            bundler: "2.3.27"
 
     steps:
       - name: Checkout
@@ -60,13 +56,10 @@ jobs:
       - name: "[Attempt 1] Appraisal for ${{ matrix.ruby }}@${{ matrix.appraisal }}"
         id: bundleAppraisalAttempt1
         run: bundle exec appraisal ${{ matrix.appraisal }} install
-        # Continue to the next step on failure
         continue-on-error: true
 
-      # Effectively an automatic retry of the previous step.
       - name: "[Attempt 2] Appraisal for ${{ matrix.ruby }}@${{ matrix.appraisal }}"
         id: bundleAppraisalAttempt2
-        # If bundleAppraisalAttempt1 failed, try again here; Otherwise skip.
         if: ${{ steps.bundleAppraisalAttempt1.outcome == 'failure' }}
         run: bundle exec appraisal ${{ matrix.appraisal }} install
 

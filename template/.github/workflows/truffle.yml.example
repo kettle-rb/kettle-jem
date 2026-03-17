@@ -1,4 +1,4 @@
-name: Truffle
+name: Current TruffleRuby
 
 permissions:
   contents: read
@@ -28,8 +28,8 @@ concurrency:
 jobs:
   test:
     if: "!contains(github.event.commits[0].message, '[ci skip]') && !contains(github.event.commits[0].message, '[skip ci]')"
-    name: Specs ${{ matrix.ruby }} ${{ matrix.appraisal }}${{ matrix.name_extra || '' }}
-    runs-on: ubuntu-22.04
+    name: Specs ${{ matrix.ruby }}@${{ matrix.appraisal }}
+    runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental || endsWith(matrix.ruby, 'head') }}
     env: # $BUNDLE_GEMFILE must be set at job level, so it is set for all steps
       BUNDLE_GEMFILE: ${{ github.workspace }}/${{ matrix.gemfile }}.gemfile
@@ -37,10 +37,10 @@ jobs:
       matrix:
         include:
           # NOTE: truffleruby does not support upgrading rubygems.
-          # truffleruby-23.1 (targets Ruby 3.2 compatibility)
-          - ruby: "truffleruby-23.1"
-            appraisal: "ruby-3-2"
-            exec_cmd: "rake spec"
+          # truffleruby-33.0 (targets Ruby 3.3 compatibility)
+          - ruby: "truffleruby"
+            appraisal: "current"
+            exec_cmd: "rake test"
             gemfile: "Appraisal.root"
             rubygems: default
             bundler: default

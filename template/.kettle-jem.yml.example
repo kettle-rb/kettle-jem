@@ -71,6 +71,18 @@
 #
 # Everything else should be set explicitly here or via ENV.
 
+# Engines this project supports.
+# List the Ruby engines that your gem targets. kettle-jem uses this to decide
+# which CI workflows, README compatibility rows, and badge references to
+# include. Engines not listed here are pruned from generated files.
+#
+# Supported values: ruby, jruby, truffleruby
+# Default (when key is absent): all three engines.
+engines:
+  - ruby
+  - jruby
+  - truffleruby
+
 # Default merge options
 defaults:
   preference: "template"

@@ -12,6 +12,7 @@ module Kettle
       module TemplateTask
         MODULAR_GEMFILE_DIR = "gemfiles/modular"
         MARKDOWN_HEADING_EXTENSIONS = %w[.md .markdown].freeze
+        OBSOLETE_WORKFLOWS = %w[ancient.yml legacy.yml supported.yml unsupported.yml main.yml hoary.yml].freeze
         MARKDOWN_PARAGRAPH_MATCH_REFINER = Ast::Merge::ContentMatchRefiner.new(
           threshold: 0.3,
           node_types: [:paragraph],
@@ -909,6 +910,11 @@ module Kettle
                 next
               end
 
+              if helpers.skip_for_disabled_engine?(rel)
+                puts "Skipping #{rel} (engine disabled)"
+                next
+              end
+
               if rel == ".github/workflows/discord-notifier.yml"
                 unless matches_include.call(dest)
                   next
@@ -960,6 +966,13 @@ module Kettle
                     end
                     next
                   end
+                  c, _eng_removed, _eng_total, eng_empty = prune_workflow_matrix_by_engines(c, helpers.engines_config)
+                  if eng_empty
+                    if File.exist?(dest)
+                      helpers.add_warning("Workflow #{rel} has no remaining matrix entries after engine filtering; consider removing the file")
+                    end
+                    next
+                  end
                   prepared = c
                 end
 
@@ -967,6 +980,21 @@ module Kettle
                   prepared || content
                 end
               end
+            end
+          end
+
+          # 2b) Clean up obsolete workflow files that were replaced by per-ruby workflows.
+          #     These filenames no longer exist in the template and would remain as orphans.
+          actual_root = helpers.output_dir || project_root
+          OBSOLETE_WORKFLOWS.each do |wf|
+            wf_path = File.join(actual_root, ".github", "workflows", wf)
+            next unless File.exist?(wf_path)
+
+            if helpers.ask("Remove obsolete workflow #{wf}?", true)
+              FileUtils.rm_f(wf_path)
+              puts "Removed obsolete workflow: .github/workflows/#{wf}"
+            else
+              puts "Kept obsolete workflow: .github/workflows/#{wf}"
             end
           end
 
@@ -1256,7 +1284,7 @@ module Kettle
                       end
                     end
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
-                    c = Kettle::Jem::ReadmePostProcessor.process(content: c, min_ruby: min_ruby)
+                    c = Kettle::Jem::ReadmePostProcessor.process(content: c, min_ruby: min_ruby, engines: helpers.engines_config)
                     c
                   end
                 elsif File.basename(rel) == "CHANGELOG.md"
@@ -1654,6 +1682,78 @@ module Kettle
             k.respond_to?(:scalar?) && k.scalar? && k.value.to_s == key_name.to_s
           end
           pair ? pair[1] : nil
+        end
+
+        # Remove matrix include entries whose `ruby:` value belongs to a
+        # disabled engine. Uses the same YAML-aware approach as
+        # prune_workflow_matrix_by_appraisals.
+        #
+        # @param content [String] YAML workflow content
+        # @param engines [Array<String>] enabled engine names (e.g. ["ruby", "jruby"])
+        # @return [Array(String, Integer, Integer, Boolean)]
+        def prune_workflow_matrix_by_engines(content, engines)
+          enabled = Array(engines).map { |e| e.to_s.strip.downcase }
+          disabled_prefixes = Kettle::Jem::TemplateHelpers::ENGINE_MATRIX_PREFIXES.each_with_object([]) do |(engine, prefixes), acc|
+            acc.concat(prefixes) unless enabled.include?(engine)
+          end
+          return [content, 0, 0, false] if disabled_prefixes.empty?
+
+          analysis = Psych::Merge::FileAnalysis.new(content)
+          return [content, 0, 0, false] unless analysis.valid?
+
+          lines = content.lines
+          remove_lines = Set.new
+          removed_count = 0
+          total_count = 0
+
+          root_entries = analysis.root_mapping_entries
+          jobs_value = mapping_value_for(root_entries, "jobs")
+          return [content, 0, 0, false] unless jobs_value&.mapping?
+
+          jobs_value.mapping_entries(comment_tracker: analysis.comment_tracker).each do |_job_key, job_value|
+            next unless job_value.mapping?
+            strategy_value = mapping_value_for(job_value.mapping_entries(comment_tracker: analysis.comment_tracker), "strategy")
+            next unless strategy_value&.mapping?
+            matrix_value = mapping_value_for(strategy_value.mapping_entries(comment_tracker: analysis.comment_tracker), "matrix")
+            next unless matrix_value&.mapping?
+            include_value = mapping_value_for(matrix_value.mapping_entries(comment_tracker: analysis.comment_tracker), "include")
+            next unless include_value&.sequence?
+
+            items = include_value.sequence_items(comment_tracker: analysis.comment_tracker)
+            total_count += items.size
+
+            items.each do |item|
+              next unless item.mapping?
+              ruby_value = mapping_value_for(item.mapping_entries(comment_tracker: analysis.comment_tracker), "ruby")
+              next unless ruby_value&.scalar?
+
+              ruby_str = ruby_value.value.to_s
+              next unless disabled_prefixes.any? { |prefix| ruby_str.start_with?(prefix) }
+
+              removed_count += 1
+              start_line = item.start_line
+              leading = item.leading_comments
+              if leading && leading.any?
+                start_line = [start_line, leading.first[:line]].min
+              end
+              end_line = item.end_line || start_line
+
+              (start_line..end_line).each { |ln| remove_lines << ln }
+            end
+          end
+
+          return [content, 0, 0, false] if removed_count.zero?
+
+          new_lines = []
+          lines.each_with_index do |line, idx|
+            new_lines << line unless remove_lines.include?(idx + 1)
+          end
+
+          empty = total_count.positive? && removed_count == total_count
+          [new_lines.join, removed_count, total_count, empty]
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          [content, 0, 0, false]
         end
       end
     end

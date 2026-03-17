@@ -32,6 +32,37 @@ module Kettle
       # The minimum Ruby supported by setup-ruby GHA
       MIN_SETUP_RUBY = Gem::Version.create("2.3")
 
+      # All engines that kettle-jem currently knows about.
+      # When the engines: key is absent from .kettle-jem.yml, all are enabled.
+      DEFAULT_ENGINES = %w[ruby jruby truffleruby].freeze
+
+      # Maps workflow filenames (without .yml / .yml.example) to the engine they
+      # belong to. Only engine-specific workflow files are listed; shared
+      # workflows (heads, dep-heads, current, etc.) are handled via matrix
+      # pruning instead.
+      ENGINE_WORKFLOW_MAP = {
+        "jruby" => "jruby",
+        "jruby-9.1" => "jruby",
+        "jruby-9.2" => "jruby",
+        "jruby-9.3" => "jruby",
+        "jruby-9.4" => "jruby",
+        "truffle" => "truffleruby",
+        "truffleruby-22.3" => "truffleruby",
+        "truffleruby-23.0" => "truffleruby",
+        "truffleruby-23.1" => "truffleruby",
+        "truffleruby-23.2" => "truffleruby",
+        "truffleruby-24.2" => "truffleruby",
+        "truffleruby-25.0" => "truffleruby",
+      }.freeze
+
+      # Engine-specific prefixes used in multi-engine workflow matrix entries
+      # (heads.yml, dep-heads.yml). When an engine is disabled the matrix
+      # items whose "ruby:" value starts with any of these prefixes are removed.
+      ENGINE_MATRIX_PREFIXES = {
+        "jruby" => %w[jruby],
+        "truffleruby" => %w[truffleruby],
+      }.freeze
+
       # Multi-separator token config: {KJ|SECTION:NAME}
       TOKEN_CONFIG = Token::Resolver::Config.new(separators: ["|", ":"]).freeze
 
@@ -573,6 +604,39 @@ module Kettle
         ]
 
         opencollective_files.include?(relative_path)
+      end
+
+      # Return the normalised list of enabled engines for the current project.
+      # Falls back to DEFAULT_ENGINES when the key is absent or not an array.
+      # @return [Array<String>]
+      def engines_config
+        raw = kettle_config["engines"]
+        engines = if raw.is_a?(Array) && !raw.empty?
+          raw.map { |e| e.to_s.strip.downcase }.reject(&:empty?)
+        else
+          DEFAULT_ENGINES.dup
+        end
+        engines.empty? ? DEFAULT_ENGINES.dup : engines
+      end
+
+      # Whether a specific engine is enabled in the current config.
+      # @param engine [String] one of "ruby", "jruby", "truffleruby"
+      # @return [Boolean]
+      def engine_enabled?(engine)
+        engines_config.include?(engine.to_s.downcase)
+      end
+
+      # Check if a workflow file should be skipped because its engine is
+      # disabled. Only applies to engine-dedicated workflow files listed in
+      # ENGINE_WORKFLOW_MAP.
+      # @param relative_path [String] relative path from project root (e.g. ".github/workflows/jruby.yml")
+      # @return [Boolean]
+      def skip_for_disabled_engine?(relative_path)
+        basename = File.basename(relative_path.to_s, ".yml")
+        engine = ENGINE_WORKFLOW_MAP[basename]
+        return false unless engine
+
+        !engine_enabled?(engine)
       end
 
       # Record a template action for a destination path

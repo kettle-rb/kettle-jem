@@ -13,8 +13,8 @@ module Kettle
           raise Kettle::Dev::Error, msg
         end
 
-        def trim_readme_compatibility_badges!(readme_path, min_ruby)
-          content = Kettle::Jem::ReadmePostProcessor.process(content: File.read(readme_path), min_ruby: min_ruby)
+        def trim_readme_compatibility_badges!(readme_path, min_ruby, engines: nil)
+          content = Kettle::Jem::ReadmePostProcessor.process(content: File.read(readme_path), min_ruby: min_ruby, engines: engines)
           File.open(readme_path, "w") { |f| f.write(content) }
         end
 
@@ -62,7 +62,8 @@ module Kettle
             if File.file?(readme_path)
               md = helpers.gemspec_metadata(project_root)
               min_ruby = md[:min_ruby] # an instance of Gem::Version
-              trim_readme_compatibility_badges!(readme_path, min_ruby) if min_ruby
+              engines = helpers.engines_config
+              trim_readme_compatibility_badges!(readme_path, min_ruby, engines: engines) if min_ruby
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
