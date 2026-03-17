@@ -57,11 +57,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Install tree-sitter library
-        uses: kettle-rb/ts-grammar-action@main
-        with:
-          java-version: "23"
-
       - name: Setup Ruby & RubyGems
         uses: ruby/setup-ruby@v1
         with:
@@ -72,7 +67,6 @@ jobs:
 
       - name: "[Attempt 1] Appraisal for ${{ matrix.ruby }}@${{ matrix.appraisal }}"
         id: bundleAppraisalAttempt1
-        if: ${{ !env.ACT || (! startsWith(matrix.ruby, 'jruby') && !startsWith(matrix.ruby, 'truffleruby')) }}
         run: bundle exec appraisal ${{ matrix.appraisal }} install
         # Continue to the next step on failure
         continue-on-error: true
@@ -81,7 +75,7 @@ jobs:
       - name: "[Attempt 2] Appraisal for ${{ matrix.ruby }}@${{ matrix.appraisal }}"
         id: bundleAppraisalAttempt2
         # If bundleAppraisalAttempt1 failed, try again here; Otherwise skip.
-        if: ${{ steps.bundleAppraisalAttempt1.outcome == 'failure' && (!env.ACT || (! startsWith(matrix.ruby, 'jruby') && !startsWith(matrix.ruby, 'truffleruby'))) }}
+        if: ${{ steps.bundleAppraisalAttempt1.outcome == 'failure' }}
         run: bundle exec appraisal ${{ matrix.appraisal }} install
 
       - name: Tests for ${{ matrix.ruby }}@current via ${{ matrix.exec_cmd }}
