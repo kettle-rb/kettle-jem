@@ -65,6 +65,8 @@ module Kettle
       end
 
       def run_bundled_phase!
+        ensure_project_files!
+        debug_git_status("ensure_project_files! (bundled)")
         load_bundled_runtime!
         debug_git_status("load_bundled_runtime!")
         ensure_dev_deps!
@@ -302,16 +304,18 @@ module Kettle
           end
         end
 
-        # gemspec
+        ensure_project_files!
+
+        # Seed FUNDING_ORG from git remote origin org when not provided elsewhere
+        derive_funding_org_from_git_if_missing!
+      end
+
+      def ensure_project_files!
         gemspecs = Dir["*.gemspec"]
         abort!("No gemspec found in current directory.") if gemspecs.empty?
         @gemspec_path = gemspecs.first
 
-        # Gemfile
         abort!("No Gemfile found; bundler is required.") unless File.exist?("Gemfile")
-
-        # Seed FUNDING_ORG from git remote origin org when not provided elsewhere
-        derive_funding_org_from_git_if_missing!
       end
 
       # 3. Sync dev dependencies from this gem's example gemspec into target gemspec
