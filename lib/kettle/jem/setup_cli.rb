@@ -170,6 +170,10 @@ module Kettle
             ENV["force"] = "true"
             @passthrough << "force=true"
           end
+          opts.on("--quiet", "Run quieter setup commands and pass --quiet through to downstream steps") do
+            @quiet = true
+            @passthrough << "--quiet"
+          end
           opts.on("--hook_templates=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "hook_templates=#{v}" }
           opts.on("--only=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "only=#{v}" }
           opts.on("--include=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "include=#{v}" }
@@ -194,6 +198,10 @@ module Kettle
 
       def say(msg)
         puts "[kettle-jem] #{msg}"
+      end
+
+      def quiet?
+        @quiet || Array(@passthrough).include?("--quiet") || Array(@original_argv).include?("--quiet")
       end
 
       def abort!(msg)
@@ -678,7 +686,9 @@ module Kettle
 
       # 6. Run bin/setup
       def run_bin_setup!
-        sh!(Shellwords.join([File.join("bin", "setup")]))
+        cmd = [File.join("bin", "setup")]
+        cmd << "--quiet" if quiet?
+        sh!(Shellwords.join(cmd))
       end
 
       # 7. Run bundle binstubs --all
@@ -716,7 +726,7 @@ module Kettle
 
       # 9. Invoke rake install task with passthrough
       def run_kettle_install!
-        cmd = ["bin/rake", "kettle:jem:install"] + @passthrough
+        cmd = ["bin/rake", "kettle:jem:install"] + Array(@passthrough)
         sh!(Shellwords.join(cmd))
       end
 

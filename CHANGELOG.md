@@ -32,6 +32,10 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- `kettle-jem --quiet` now propagates into the bootstrap `bin/setup` step so its
+  `bundle install` runs with `--quiet`, shell tracing is suppressed for that
+  setup script, and the quiet flag is preserved for the final bundled install
+  handoff.
 - `ChangelogMerger` now inserts blank lines between subheadings in the Unreleased
   section, following Keep-a-Changelog convention. Previously, the canonical
   headings (Added/Changed/Deprecated/Removed/Fixed/Security) were emitted with

@@ -365,10 +365,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
   describe "#initialize and parse!" do
     it "collects passthrough options and remaining args; shows help and exits with 0", :check_output do
-      argv = ["--allowed=foo", "--force", "--hook_templates=bar", "--only=baz", "-h"]
+      argv = ["--allowed=foo", "--force", "--quiet", "--hook_templates=bar", "--only=baz", "-h"]
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
-      end.to output(/Usage: kettle-jem/).to_stdout
+      end.to output(/Usage: kettle-jem.*--quiet/m).to_stdout
     end
 
     it "rescues parse errors, prints usage, and exits 2", :check_output do
@@ -384,6 +384,13 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "appends remaining argv into @passthrough when no special flags" do
       cli = described_class.new(["foo=1", "bar"])
       expect(cli.instance_variable_get(:@passthrough)).to include("foo=1", "bar")
+    end
+
+    it "tracks --quiet for downstream setup commands and rake passthrough" do
+      cli = described_class.new(["--quiet"])
+
+      expect(cli.instance_variable_get(:@passthrough)).to include("--quiet")
+      expect(cli.send(:quiet?)).to be(true)
     end
   end
 
@@ -712,6 +719,14 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.send(:run_bundle_binstubs!)
     end
 
+    it "run_bin_setup! passes --quiet through to bin/setup when requested" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@quiet, true)
+
+      expect(cli).to receive(:sh!).with("bin/setup --quiet")
+      cli.send(:run_bin_setup!)
+    end
+
     it "handoff_to_bundled_phase! re-enters through bundle exec kettle-jem with the original argv" do
       cli = described_class.allocate
       cli.instance_variable_set(:@original_argv, ["--allowed=true", "--force"])
@@ -720,10 +735,26 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.send(:handoff_to_bundled_phase!)
     end
 
+    it "handoff_to_bundled_phase! preserves --quiet in the bundled re-entry" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@original_argv, ["--allowed=true", "--quiet"])
+
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --quiet"))
+      cli.send(:handoff_to_bundled_phase!)
+    end
+
     it "run_kettle_install! builds rake cmd with passthrough" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"))
+      cli.send(:run_kettle_install!)
+    end
+
+    it "run_kettle_install! preserves --quiet for the final rake invocation" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@passthrough, ["--quiet", "only=hooks"])
+
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install --quiet only\\=hooks"))
       cli.send(:run_kettle_install!)
     end
   end

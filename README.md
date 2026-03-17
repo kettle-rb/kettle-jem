@@ -531,7 +531,7 @@ That first-run stop is intentional: `.kettle-jem.yml` is the seam between “ins
 
 ```console
 kettle-jem [options]
-# e.g., kettle-jem --allowed=true --force
+# e.g., kettle-jem --allowed=true --force --quiet
 ```
 
 #### How the entry points fit together
@@ -567,6 +567,7 @@ All options are passed through to the underlying `rake kettle:jem:install` task:
 |--------|-------------|
 | `--allowed=VAL` | Acknowledge prior direnv allow, etc. Passed as `allowed=VAL` to the rake task. |
 | `--force` | Accept all prompts non-interactively (sets `force=true`). Useful for CI or scripted setups. |
+| `--quiet` | Passes `--quiet` into the bootstrap `bundle install`, suppresses `bin/setup` shell tracing, and preserves `--quiet` for the final `rake kettle:jem:install` invocation. |
 | `--hook_templates=VAL` | Control git hook templating. Values: `local` (install to `.git/hooks`), `global` (install to `~/.git-templates`), `skip` (do not install hooks). |
 | `--only=VAL` | Restrict install scope to a specific subset of files. |
 | `--include=VAL` | Include optional files by glob pattern. |
@@ -602,7 +603,7 @@ kettle-jem
 Non-interactive setup for CI:
 
 ```console
-kettle-jem --force
+kettle-jem --force --quiet
 ```
 
 Only install git hooks locally:
