@@ -92,19 +92,82 @@ RSpec.describe Kettle::Jem::SetupCLI do
   end
 
   describe "setup preflight" do
-    it "returns early when template prerequisites bootstrap only the config file" do
+    it "returns early when bootstrap writes the template config file" do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
       cli.instance_variable_set(:@passthrough, [])
       cli.send(:parse!)
 
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
+      allow(cli).to receive(:bundled_execution_context?).and_return(false)
       allow(cli).to receive(:prechecks!).and_return(nil)
-      allow(cli).to receive(:ensure_template_prerequisites!).and_return(:bootstrap_only)
+      allow(cli).to receive(:template_config_present?).and_return(false)
+      allow(cli).to receive(:ensure_template_config_bootstrap!).and_return(:bootstrap_only)
+      expect(cli).not_to receive(:ensure_gemfile_from_example!)
+      expect(cli).not_to receive(:ensure_bootstrap_modular_gemfiles!)
+      expect(cli).not_to receive(:handoff_to_bundled_phase!)
       expect(cli).not_to receive(:ensure_dev_deps!)
       expect(cli).not_to receive(:ensure_modular_gemfiles!)
+
+      expect { cli.run! }.not_to raise_error
+    end
+
+    it "runs only the minimal bootstrap steps before handing off to bundler when the config already exists" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(cli).to receive(:say)
+      allow(cli).to receive(:bundled_execution_context?).and_return(false)
+      allow(cli).to receive(:prechecks!).and_return(nil)
+      allow(cli).to receive(:template_config_present?).and_return(true)
+
+      expect(cli).not_to receive(:ensure_template_config_bootstrap!)
+      expect(cli).not_to receive(:ensure_dev_deps!)
+      expect(cli).not_to receive(:ensure_modular_gemfiles!)
+      expect(cli).not_to receive(:ensure_rakefile!)
+      expect(cli).not_to receive(:run_kettle_install!)
+      expect(cli).not_to receive(:commit_bootstrap_changes!)
+      expect(cli).to receive(:ensure_gemfile_from_example!).with(eval_paths: ["gemfiles/modular/templating.gemfile"]).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_bootstrap_modular_gemfiles!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
+      expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
+      expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
+      expect(cli).to receive(:handoff_to_bundled_phase!).ordered.and_return(nil)
+
+      expect { cli.run! }.not_to raise_error
+    end
+
+    it "runs the heavy setup steps only after bundler is active" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(cli).to receive(:say)
+      allow(cli).to receive(:bundled_execution_context?).and_return(true)
+
+      expect(cli).not_to receive(:prechecks!)
+      expect(cli).not_to receive(:ensure_template_config_bootstrap!)
+      expect(cli).to receive(:load_bundled_runtime!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_dev_deps!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_gemfile_from_example!).with(no_args).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_modular_gemfiles!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_rakefile!).ordered.and_return(nil)
+      expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
+      expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
+      expect(cli).to receive(:run_kettle_install!).ordered.and_return(nil)
+      expect(cli).to receive(:commit_bootstrap_changes!).ordered.and_return(nil)
 
       expect { cli.run! }.not_to raise_error
     end
@@ -649,6 +712,14 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.send(:run_bundle_binstubs!)
     end
 
+    it "handoff_to_bundled_phase! re-enters through bundle exec kettle-jem with the original argv" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@original_argv, ["--allowed=true", "--force"])
+
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --force"))
+      cli.send(:handoff_to_bundled_phase!)
+    end
+
     it "run_kettle_install! builds rake cmd with passthrough" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
@@ -717,36 +788,37 @@ RSpec.describe Kettle::Jem::SetupCLI do
   end
 
   describe "#run! end-to-end sequencing" do
-    it "calls steps in order" do
+    it "runs bootstrap steps in order before the bundled handoff" do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
       allow(cli).to receive(:parse!)
-      %i[prechecks! ensure_template_prerequisites! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
-        allow(cli).to receive(:ensure_template_prerequisites!).and_return(:ready) if m == :ensure_template_prerequisites!
+      allow(cli).to receive(:bundled_execution_context?).and_return(false)
+      %i[prechecks! template_config_present? ensure_gemfile_from_example! ensure_bootstrap_modular_gemfiles! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
+        allow(cli).to receive(:template_config_present?).and_return(true) if m == :template_config_present?
         expect(cli).to receive(m).ordered
       end
       expect { cli.run! }.not_to raise_error
     end
 
-    # BUG REPRO: commit_bootstrap_changes! must run AFTER run_kettle_install!
-    # so that template-resolved files (with {KJ|...} tokens replaced) are
-    # included in the commit. Previously the commit ran before the template
-    # task, leaving raw tokens committed and template output uncommitted.
-    it "commits AFTER run_kettle_install! so resolved tokens are committed" do
+    it "runs the bundled phase steps in order once bundler is active" do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
       allow(cli).to receive(:parse!)
 
       call_order = []
-      allow(cli).to receive(:ensure_template_prerequisites!).and_return(:ready)
-      %i[prechecks! ensure_template_prerequisites! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_bin_setup! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+      allow(cli).to receive(:bundled_execution_context?).and_return(true)
+      %i[load_bundled_runtime! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
         allow(cli).to receive(m) { call_order << m }
       end
 
       cli.run!
 
+      load_idx = call_order.index(:load_bundled_runtime!)
       install_idx = call_order.index(:run_kettle_install!)
       commit_idx = call_order.index(:commit_bootstrap_changes!)
+      expect(load_idx).to eq(0)
       expect(install_idx).to be < commit_idx,
         "Expected run_kettle_install! (idx=#{install_idx}) to run before commit_bootstrap_changes! (idx=#{commit_idx})"
     end

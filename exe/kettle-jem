@@ -36,10 +36,13 @@ begin
   require "open3"
   require "optparse"
 
-  require "kettle/jem"
+  require_relative "../lib/kettle/jem/version"
+  require_relative "../lib/kettle/jem/setup_cli"
   puts "== #{script_basename} v#{Kettle::Jem::Version::VERSION} begin =="
-rescue LoadError => e
-  warn("[kettle-jem] Warning: could not fully load kettle/jem (#{e.class}: #{e.message}). Proceeding with limited features.")
+rescue LoadError, StandardError => e
+  warn("[kettle-jem] ERROR: could not load bootstrap runtime (#{e.class}: #{e.message})")
+  warn(e.backtrace.join("\n")) if ENV["DEBUG"]
+  exit(1)
 end
 
 # Always execute when this file is loaded (e.g., via a Bundler binstub).

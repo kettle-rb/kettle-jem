@@ -17,9 +17,15 @@ module Kettle
     # Options are parsed from argv and passed through to the rake task as
     # key=value pairs (e.g., --force => force=true).
     class SetupCLI
+      BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE".freeze
+      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
+      BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
+      BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
+
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
         @argv = argv
+        @original_argv = argv.dup
         @passthrough = []
         @options = {}
         parse!
@@ -30,18 +36,43 @@ module Kettle
       def run!
         say("Starting kettle-jem setup…")
         debug_bundler_env({}, "kettle-jem startup")
+        return run_bundled_phase! if bundled_execution_context?
+
+        run_bootstrap_phase!
+      end
+
+      def run_bootstrap_phase!
         prechecks!
         debug_git_status("prechecks!")
-        prereq_result = ensure_template_prerequisites!
+        prereq_result = if template_config_present?
+          :present
+        else
+          ensure_template_config_bootstrap!
+        end
         return if prereq_result == :bootstrap_only
+
+        ensure_gemfile_from_example!(eval_paths: BOOTSTRAP_GEMFILE_EVAL_PATHS)
+        debug_git_status("ensure_gemfile_from_example! (bootstrap)")
+        ensure_bootstrap_modular_gemfiles!
+        debug_git_status("ensure_bootstrap_modular_gemfiles!")
+        ensure_bin_setup!
+        debug_git_status("ensure_bin_setup!")
+        run_bin_setup!
+        debug_git_status("run_bin_setup!")
+        run_bundle_binstubs!
+        debug_git_status("run_bundle_binstubs!")
+        handoff_to_bundled_phase!
+      end
+
+      def run_bundled_phase!
+        load_bundled_runtime!
+        debug_git_status("load_bundled_runtime!")
         ensure_dev_deps!
         debug_git_status("ensure_dev_deps!")
         ensure_gemfile_from_example!
         debug_git_status("ensure_gemfile_from_example!")
         ensure_modular_gemfiles!
         debug_git_status("ensure_modular_gemfiles!")
-        ensure_bin_setup!
-        debug_git_status("ensure_bin_setup!")
         ensure_rakefile!
         debug_git_status("ensure_rakefile!")
         run_bin_setup!
@@ -55,6 +86,21 @@ module Kettle
       end
 
       private
+
+      def template_config_present?
+        File.exist?(File.join(Dir.pwd, TEMPLATE_CONFIG_RELATIVE_PATH))
+      end
+
+      def bundled_execution_context?
+        env_val = ENV[BUNDLED_GEMFILE_ENV].to_s.strip
+        !env_val.empty?
+      end
+
+      def load_bundled_runtime!
+        return if defined?(Kettle::Dev::ExitAdapter) && defined?(Kettle::Jem::TemplateHelpers)
+
+        require "kettle/jem"
+      end
 
       def debug(msg)
         return if ENV.fetch("DEBUG", "false").casecmp("true").nonzero?
@@ -133,7 +179,7 @@ module Kettle
           end
           opts.on("-h", "--help", "Show help") do
             puts opts
-            Kettle::Dev::ExitAdapter.exit(0)
+            exit_with_status(0)
           end
         end
         begin
@@ -141,7 +187,7 @@ module Kettle
         rescue OptionParser::ParseError => e
           warn("[kettle-jem] #{e.class}: #{e.message}")
           puts parser
-          Kettle::Dev::ExitAdapter.exit(2)
+          exit_with_status(2)
         end
         @passthrough.concat(@argv)
       end
@@ -151,7 +197,19 @@ module Kettle
       end
 
       def abort!(msg)
-        Kettle::Dev::ExitAdapter.abort("[kettle-jem] ERROR: #{msg}")
+        if defined?(Kettle::Dev::ExitAdapter)
+          Kettle::Dev::ExitAdapter.abort("[kettle-jem] ERROR: #{msg}")
+        else
+          Kernel.abort("[kettle-jem] ERROR: #{msg}")
+        end
+      end
+
+      def exit_with_status(status)
+        if defined?(Kettle::Dev::ExitAdapter)
+          Kettle::Dev::ExitAdapter.exit(status)
+        else
+          exit(status)
+        end
       end
 
       # Environment variables that affect bundler resolution / Gemfile evaluation.
@@ -305,6 +363,93 @@ module Kettle
         end
       end
 
+      def ensure_template_config_bootstrap!
+        source = installed_path(TEMPLATE_CONFIG_RELATIVE_PATH)
+        abort!("Internal error: #{TEMPLATE_CONFIG_RELATIVE_PATH}.example not found within the installed gem.") unless source && File.exist?(source)
+
+        content = seed_bootstrap_template_config(File.read(source))
+        File.write(TEMPLATE_CONFIG_RELATIVE_PATH, ensure_trailing_newline(content))
+        say("Wrote #{File.join(Dir.pwd, TEMPLATE_CONFIG_RELATIVE_PATH)}.")
+        say("Review that file, fill in any missing token values, commit it, then re-run kettle-jem.")
+        :bootstrap_only
+      end
+
+      def seed_bootstrap_template_config(content)
+        values = bootstrap_template_config_values
+        values.reduce(content.to_s) do |memo, (token, value)|
+          next memo if value.to_s.strip.empty?
+
+          memo.gsub("{#{token}}", value)
+        end
+      end
+
+      def bootstrap_template_config_values
+        author_name = preferred_bootstrap_env("KJ_AUTHOR_NAME") || first_gemspec_array_value("authors")
+        author_email = preferred_bootstrap_env("KJ_AUTHOR_EMAIL") || first_gemspec_array_value("email")
+        author_domain = preferred_bootstrap_env("KJ_AUTHOR_DOMAIN") || author_email.to_s.split("@", 2)[1]
+        given_names, family_names = split_author_name(author_name)
+
+        {
+          "KJ|AUTHOR:NAME" => author_name,
+          "KJ|AUTHOR:GIVEN_NAMES" => preferred_bootstrap_env("KJ_AUTHOR_GIVEN_NAMES") || given_names,
+          "KJ|AUTHOR:FAMILY_NAMES" => preferred_bootstrap_env("KJ_AUTHOR_FAMILY_NAMES") || family_names,
+          "KJ|AUTHOR:EMAIL" => author_email,
+          "KJ|AUTHOR:DOMAIN" => author_domain,
+          "KJ|AUTHOR:ORCID" => preferred_bootstrap_env("KJ_AUTHOR_ORCID"),
+          "KJ|GH:USER" => preferred_bootstrap_env("KJ_GH_USER"),
+          "KJ|GL:USER" => preferred_bootstrap_env("KJ_GL_USER"),
+          "KJ|CB:USER" => preferred_bootstrap_env("KJ_CB_USER"),
+          "KJ|SH:USER" => preferred_bootstrap_env("KJ_SH_USER"),
+          "KJ|FUNDING:PATREON" => preferred_bootstrap_env("KJ_FUNDING_PATREON"),
+          "KJ|FUNDING:KOFI" => preferred_bootstrap_env("KJ_FUNDING_KOFI"),
+          "KJ|FUNDING:PAYPAL" => preferred_bootstrap_env("KJ_FUNDING_PAYPAL"),
+          "KJ|FUNDING:BUYMEACOFFEE" => preferred_bootstrap_env("KJ_FUNDING_BUYMEACOFFEE"),
+          "KJ|FUNDING:POLAR" => preferred_bootstrap_env("KJ_FUNDING_POLAR"),
+          "KJ|FUNDING:LIBERAPAY" => preferred_bootstrap_env("KJ_FUNDING_LIBERAPAY"),
+          "KJ|FUNDING:ISSUEHUNT" => preferred_bootstrap_env("KJ_FUNDING_ISSUEHUNT"),
+          "KJ|SOCIAL:MASTODON" => preferred_bootstrap_env("KJ_SOCIAL_MASTODON"),
+          "KJ|SOCIAL:BLUESKY" => preferred_bootstrap_env("KJ_SOCIAL_BLUESKY"),
+          "KJ|SOCIAL:LINKTREE" => preferred_bootstrap_env("KJ_SOCIAL_LINKTREE"),
+          "KJ|SOCIAL:DEVTO" => preferred_bootstrap_env("KJ_SOCIAL_DEVTO"),
+        }
+      end
+
+      def preferred_bootstrap_env(key)
+        value = ENV[key].to_s
+        return nil if value.strip.empty?
+
+        value
+      end
+
+      def first_gemspec_array_value(name)
+        return nil unless @gemspec_path && File.exist?(@gemspec_path)
+
+        content = File.read(@gemspec_path)
+        match = content.match(/spec\.(?:#{Regexp.escape(name)})\s*=\s*\[(.*?)\]/m)
+        return nil unless match
+
+        values = match[1].scan(/["']([^"']+)["']/).flatten
+        values.first
+      rescue StandardError => e
+        debug("Could not seed #{name} from #{@gemspec_path}: #{e.class}: #{e.message}")
+        nil
+      end
+
+      def split_author_name(author_name)
+        parts = author_name.to_s.strip.split(/\s+/)
+        return [nil, nil] if parts.empty?
+        return [parts.first, nil] if parts.length == 1
+
+        [parts[0..-2].join(" "), parts[-1]]
+      end
+
+      def ensure_trailing_newline(text)
+        str = text.to_s
+        return str if str.empty? || str.end_with?("\n")
+
+        str + "\n"
+      end
+
       # 4. Ensure bin/setup present (copy from gem if missing)
       def ensure_bin_setup!
         target = File.join("bin", "setup")
@@ -321,7 +466,7 @@ module Kettle
       # 3b. Ensure Gemfile contains required lines from example without duplicating directives
       #    - Copies source, git_source, gemspec, and eval_gemfile lines that are missing
       #    - Idempotent (running multiple times does not duplicate entries)
-      def ensure_gemfile_from_example!
+      def ensure_gemfile_from_example!(eval_paths: nil)
         source_path = installed_path("Gemfile.example")
         abort!("Internal error: Gemfile.example not found within installed gem.") unless source_path && File.exist?(source_path)
 
@@ -349,7 +494,8 @@ module Kettle
           elsif s.start_with?("gemspec")
             ex_has_gemspec = true
           elsif (m = s.match(%r{\Aeval_gemfile\s+["']([^"']+)["']}))
-            ex_eval_paths << m[1]
+            path = m[1]
+            ex_eval_paths << path if eval_paths.nil? || eval_paths.include?(path)
           end
         end
 
@@ -393,6 +539,21 @@ module Kettle
         new_content = target + additions.join("\n") + "\n"
         File.write(target_path, new_content)
         say("Updated Gemfile with entries from Gemfile.example (added #{additions.size}).")
+      end
+
+      def ensure_bootstrap_modular_gemfiles!
+        BOOTSTRAP_MODULAR_GEMFILES.each do |filename|
+          rel = File.join("gemfiles", "modular", filename)
+          source = installed_path(rel)
+          abort!("Internal error: #{rel}.example not found within the installed gem.") unless source && File.exist?(source)
+
+          dest = File.join("gemfiles", "modular", filename)
+          next if File.exist?(dest)
+
+          FileUtils.mkdir_p(File.dirname(dest))
+          FileUtils.cp(source, dest)
+          say("Copied #{dest}.")
+        end
       end
 
       # 3c. Ensure gemfiles/modular/* are present (copied like template task)
@@ -525,6 +686,11 @@ module Kettle
         sh!("bundle exec bundle binstubs --all")
       end
 
+      def handoff_to_bundled_phase!
+        cmd = ["bundle", "exec", "kettle-jem"] + @original_argv
+        sh!(Shellwords.join(cmd))
+      end
+
       # 8. Commit template bootstrap changes if any
       def commit_bootstrap_changes!
         dirty = begin
@@ -566,11 +732,18 @@ module Kettle
         roots << File.expand_path(File.join(__dir__, "..", "..", "..")) # lib/kettle/jem/ -> project root
 
         roots.each do |root|
-          template_path = Kettle::Jem::TemplateHelpers.prefer_example(File.join(root, "template", rel))
+          template_path = prefer_example(File.join(root, "template", rel))
           return template_path if File.exist?(template_path)
         end
 
         nil
+      end
+
+      def prefer_example(path)
+        return path if path.end_with?(".example")
+
+        example = path + ".example"
+        File.exist?(example) ? example : path
       end
     end
   end
