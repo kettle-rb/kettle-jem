@@ -169,10 +169,17 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       File.write(File.join(gem_root, "lib/foo.rb"), "# foo\n")
       File.write(File.join(gem_root, "spec/foo_spec.rb"), "# spec\n")
 
-      # Stub helpers — template_root is gem_root/template; gem_root is derived from it
-      allow(helpers).to receive(:template_root).and_return(File.join(gem_root, "template"))
+      allow(helpers).to receive_messages(
+        project_root: gem_root,
+        template_root: File.join(gem_root, "template"),
+        kettle_config: {},
+      )
       allow(described_class).to receive(:copy_gem_tree)
       allow(described_class).to receive(:run_template)
+    end
+
+    after do
+      helpers.clear_kettle_config!
     end
 
     it "creates the directory structure" do
@@ -187,6 +194,27 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect(File).to exist(File.join(base_dir, "output"))
       expect(File).to exist(File.join(base_dir, "report"))
       expect(File).to exist(File.join(base_dir, "report", "diffs"))
+    end
+
+    it "copies the current project root rather than the kettle-jem gem root" do
+      other_template_owner = Dir.mktmpdir("selftest_template_owner")
+      allow(helpers).to receive_messages(
+        project_root: gem_root,
+        template_root: File.join(other_template_owner, "template"),
+      )
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: %w[Gemfile], changed: [], added: [], removed: [],
+      })
+      allow(reporter).to receive(:summary).and_return("# Report\n")
+
+      described_class.run
+
+      expect(described_class).to have_received(:copy_gem_tree).with(
+        gem_root,
+        File.join(base_dir, "destination"),
+      )
+    ensure
+      FileUtils.rm_rf(other_template_owner)
     end
 
     it "writes before and after manifests as JSON" do
@@ -313,6 +341,27 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
 
     it "does not raise when score meets threshold" do
       stub_env("KJ_SELFTEST_THRESHOLD" => "50")
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
+
+      expect { described_class.run }.not_to raise_error
+    end
+
+    it "raises when divergence meets the configured min_divergence_threshold" do
+      allow(helpers).to receive(:kettle_config).and_return({"min_divergence_threshold" => 40})
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
+      })
+      allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
+
+      expect { described_class.run }.to raise_error(Kettle::Dev::Error, /divergence 50.0%/)
+    end
+
+    it "lets KJ_SELFTEST_THRESHOLD override min_divergence_threshold" do
+      stub_env("KJ_SELFTEST_THRESHOLD" => "50")
+      allow(helpers).to receive(:kettle_config).and_return({"min_divergence_threshold" => 40})
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
       })

@@ -83,6 +83,13 @@ engines:
   - jruby
   - truffleruby
 
+# Self-test / templating CI threshold.
+# Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once
+# divergence reaches or exceeds that percent. Leave blank to report only.
+# Divergence is currently measured as the percent of produced files that would
+# change or be added during templating (100 - unchanged-file score).
+min_divergence_threshold:
+
 # Default merge options
 defaults:
   preference: "template"

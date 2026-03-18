@@ -39,7 +39,7 @@ module Kettle
           tmp
         ].freeze
 
-        # Default score threshold (percentage of unchanged files).
+        # Default minimum unchanged-score threshold (percentage of unchanged files).
         # Override via ENV["KJ_SELFTEST_THRESHOLD"].
         DEFAULT_THRESHOLD = 0
 
@@ -75,16 +75,15 @@ module Kettle
           manifest = Kettle::Jem::SelfTest::Manifest
           reporter = Kettle::Jem::SelfTest::Reporter
 
-          # Derive the gem root from template_root (which is <gem_root>/template)
-          gem_root = File.dirname(helpers.template_root)
-          base_dir = File.join(gem_root, "tmp", "template_test")
+          project_root = helpers.project_root
+          base_dir = File.join(project_root, "tmp", "template_test")
 
           dest_dir = File.join(base_dir, "destination")
           output_dir = File.join(base_dir, "output")
           report_dir = File.join(base_dir, "report")
           diffs_dir = File.join(report_dir, "diffs")
 
-          threshold = (ENV["KJ_SELFTEST_THRESHOLD"] || DEFAULT_THRESHOLD).to_f
+          threshold_mode, threshold = self_test_threshold(helpers)
           templating_environment = Kettle::Jem::TemplatingReport.snapshot
 
           # ── Step 0: Clean slate ───────────────────────────────────────────
@@ -92,8 +91,8 @@ module Kettle
           [dest_dir, output_dir, report_dir, diffs_dir].each { |d| FileUtils.mkdir_p(d) }
 
           # ── Step 1: Copy gem into destination/ ────────────────────────────
-          puts "[selftest] Copying #{gem_root} → #{dest_dir}"
-          copy_gem_tree(gem_root, dest_dir)
+          puts "[selftest] Copying #{project_root} → #{dest_dir}"
+          copy_gem_tree(project_root, dest_dir)
 
           # ── Step 2: Manifest A (before) ───────────────────────────────────
           before = manifest.generate(dest_dir)
@@ -150,17 +149,71 @@ module Kettle
           report_path = File.join(report_dir, "summary.md")
           File.write(report_path, report)
 
-          total = comparison[:matched].size + comparison[:changed].size + comparison[:added].size
-          score = total.zero? ? 0.0 : (comparison[:matched].size.to_f / total * 100).round(1)
+          score, divergence = score_and_divergence(comparison)
 
           puts
           puts report
           puts "[selftest] Report written to #{report_path}"
-          puts "[selftest] Score: #{score}% (threshold: #{threshold}%)"
+          puts "[selftest] Score: #{score}%"
+          puts "[selftest] Divergence: #{divergence}%"
+          puts "[selftest] Threshold: #{threshold_label(threshold_mode, threshold)}"
 
-          if score < threshold
+          if threshold_failed?(threshold_mode, threshold, score, divergence)
             raise Kettle::Dev::Error,
-              "[selftest] FAIL — score #{score}% is below threshold #{threshold}%"
+              threshold_failure_message(threshold_mode, threshold, score, divergence)
+          end
+        end
+
+        def score_and_divergence(comparison)
+          total = comparison[:matched].size + comparison[:changed].size + comparison[:added].size
+          score = total.zero? ? 0.0 : (comparison[:matched].size.to_f / total * 100).round(1)
+          divergence = (100.0 - score).round(1)
+          [score, divergence]
+        end
+
+        def self_test_threshold(helpers)
+          env_threshold = ENV["KJ_SELFTEST_THRESHOLD"].to_s.strip
+          return [:score, env_threshold.to_f] unless env_threshold.empty?
+
+          configured_threshold = helpers.kettle_config["min_divergence_threshold"]
+          return [:none, nil] if configured_threshold.nil? || configured_threshold.to_s.strip.empty?
+
+          [:divergence, Float(configured_threshold)]
+        rescue ArgumentError, TypeError
+          raise Kettle::Dev::Error,
+            "[selftest] Invalid min_divergence_threshold #{configured_threshold.inspect} in .kettle-jem.yml"
+        end
+
+        def threshold_failed?(mode, threshold, score, divergence)
+          case mode
+          when :score
+            score < threshold
+          when :divergence
+            divergence >= threshold
+          else
+            false
+          end
+        end
+
+        def threshold_label(mode, threshold)
+          case mode
+          when :score
+            "minimum unchanged score #{threshold}%"
+          when :divergence
+            "fail when divergence reaches #{threshold}%"
+          else
+            "none"
+          end
+        end
+
+        def threshold_failure_message(mode, threshold, score, divergence)
+          case mode
+          when :score
+            "[selftest] FAIL — score #{score}% is below threshold #{threshold}%"
+          when :divergence
+            "[selftest] FAIL — divergence #{divergence}% meets or exceeds threshold #{threshold}%"
+          else
+            "[selftest] FAIL — threshold condition triggered"
           end
         end
 

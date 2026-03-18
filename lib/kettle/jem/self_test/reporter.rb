@@ -56,6 +56,7 @@ module Kettle
 
           total = matched.size + changed.size + added.size
           score = total.zero? ? 0.0 : (matched.size.to_f / total * 100).round(1)
+          divergence = (100.0 - score).round(1)
 
           lines = []
           lines << "# Template Self-Test Report"
@@ -63,6 +64,7 @@ module Kettle
           lines << "**Date**: #{Time.now.iso8601}"
           lines << "**Output**: `#{output_dir}`"
           lines << "**Score**: #{score}% (#{matched.size}/#{total} files unchanged)"
+          lines << "**Divergence**: #{divergence}% (#{changed.size + added.size}/#{total} files changed or added)"
           lines << ""
 
           environment_section = Kettle::Jem::TemplatingReport.markdown_section(snapshot: templating_environment) if templating_environment

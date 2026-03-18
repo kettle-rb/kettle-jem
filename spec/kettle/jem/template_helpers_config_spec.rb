@@ -23,6 +23,29 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(defaults["freeze_token"]).to eq("kettle-jem")
     end
 
+    it "loads min_divergence_threshold when present" do
+      Dir.mktmpdir do |dir|
+        project_root = File.join(dir, "project")
+        template_root = File.join(dir, "template")
+        FileUtils.mkdir_p(project_root)
+        FileUtils.mkdir_p(template_root)
+        File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+          min_divergence_threshold: 12.5
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          patterns: []
+          files: {}
+        YAML
+
+        allow(described_class).to receive_messages(project_root: project_root, template_root: template_root)
+        described_class.clear_kettle_config!
+
+        expect(described_class.kettle_config["min_divergence_threshold"]).to eq(12.5)
+      end
+    end
+
     it "falls back to template/.kettle-jem.yml.example when the destination has no config" do
       Dir.mktmpdir do |dir|
         template_root = File.join(dir, "template")
@@ -30,6 +53,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         FileUtils.mkdir_p(template_root)
         FileUtils.mkdir_p(project_root)
         File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+          min_divergence_threshold: 25
           defaults:
             preference: destination
             add_template_only_nodes: false
@@ -44,6 +68,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         )
 
         config = described_class.kettle_config
+        expect(config["min_divergence_threshold"]).to eq(25)
         expect(config.dig("defaults", "freeze_token")).to eq("from-template")
         expect(config.dig("defaults", "preference")).to eq("destination")
         expect(config.dig("defaults", "add_template_only_nodes")).to be(false)

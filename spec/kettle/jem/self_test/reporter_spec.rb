@@ -109,6 +109,7 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
       expect(result).to include("50.0%")
       expect(result).to include("1/2 files unchanged")
+      expect(result).to include("**Divergence**: 50.0% (1/2 files changed or added)")
       expect(result).to include("## Changed Files (1)")
       expect(result).to include("| b.txt | modified |")
     end
