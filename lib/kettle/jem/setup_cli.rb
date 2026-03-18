@@ -78,6 +78,8 @@ module Kettle
         debug_git_status("ensure_modular_gemfiles!")
         ensure_rakefile!
         debug_git_status("ensure_rakefile!")
+        ensure_bin_setup!
+        debug_git_status("ensure_bin_setup! (bundled)")
         run_bin_setup!
         debug_git_status("run_bin_setup!")
         run_bundle_binstubs!

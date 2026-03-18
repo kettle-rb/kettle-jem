@@ -185,6 +185,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli).to receive(:ensure_gemfile_from_example!).with(no_args).ordered.and_return(nil)
       expect(cli).to receive(:ensure_modular_gemfiles!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_rakefile!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
       expect(cli).to receive(:run_kettle_install!).ordered.and_return(nil)
@@ -1019,6 +1020,24 @@ RSpec.describe Kettle::Jem::SetupCLI do
           File.read(File.expand_path("../../../template/bin/setup.example", __dir__)),
         )
       end
+
+      it "overwrites an existing stale bin/setup when force is enabled" do
+        allow(cli).to receive(:say)
+        cli.instance_variable_set(:@force, true)
+        FileUtils.mkdir_p("bin")
+        File.write("bin/setup", <<~BASH)
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          bundle install
+        BASH
+
+        cli.send(:ensure_bin_setup!)
+
+        expect(File.read("bin/setup")).to eq(
+          File.read(File.expand_path("../../../template/bin/setup.example", __dir__)),
+        )
+      end
     end
   end
 
@@ -1069,7 +1088,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       call_order = []
       allow(cli).to receive(:bundled_execution_context?).and_return(true)
-      %i[ensure_project_files! load_bundled_runtime! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_rakefile! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+      %i[ensure_project_files! load_bundled_runtime! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_rakefile! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
         allow(cli).to receive(m) { call_order << m }
       end
 

@@ -313,6 +313,9 @@ module Kettle
         BASH_EXTENSIONS = %w[.sh .bash].freeze
         # Basenames that are shell scripts without a shell extension
         BASH_BASENAMES = %w[.envrc].freeze
+        # Tool-owned bootstrap files that should be refreshed from the template
+        # rather than structurally merged.
+        ACCEPT_TEMPLATE_PATHS = %w[bin/setup].freeze
         # Basenames that use "tool version" key-value format (first word = key)
         TOOL_VERSIONS_BASENAMES = %w[.tool-versions].freeze
 
@@ -344,6 +347,10 @@ module Kettle
         def tool_versions_file?(relative_path)
           base = File.basename(relative_path.to_s)
           TOOL_VERSIONS_BASENAMES.include?(base)
+        end
+
+        def accept_template_path?(relative_path)
+          ACCEPT_TEMPLATE_PATHS.include?(relative_path.to_s)
         end
 
         # Abort wrapper that avoids terminating the entire process during specs
@@ -1268,7 +1275,9 @@ module Kettle
                   next
                 end
 
-                if File.basename(rel) == "README.md"
+                if accept_template_path?(rel)
+                  helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
+                elsif File.basename(rel) == "README.md"
                   prev_readme = File.exist?(dest) ? File.read(dest) : nil
 
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|

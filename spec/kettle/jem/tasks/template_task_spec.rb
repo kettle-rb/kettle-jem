@@ -144,6 +144,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it("rejects .rb") { expect(described_class.send(:bash_file?, "lib/foo.rb")).to be false }
       end
 
+      describe "::accept_template_path?" do
+        it("detects bin/setup") { expect(described_class.send(:accept_template_path?, "bin/setup")).to be true }
+        it("rejects arbitrary files") { expect(described_class.send(:accept_template_path?, "bin/other")).to be false }
+      end
+
       describe "::tool_versions_file?" do
         it("detects .tool-versions") { expect(described_class.send(:tool_versions_file?, ".tool-versions")).to be true }
         it("rejects .ruby-version") { expect(described_class.send(:tool_versions_file?, ".ruby-version")).to be false }
@@ -325,6 +330,71 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(File).to exist(tmp_gitignore_path)
             expect(File.read(tmp_gitignore_path)).to eq("*\n!.gitignore\n")
             expect(File).to be_directory(File.join(project_root, "tmp"))
+          end
+        end
+      end
+
+      it "refreshes bin/setup from the template instead of leaving a stale copy untouched" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(File.join(template_root, "bin"))
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            template_setup = File.read(File.expand_path("../../../../template/bin/setup.example", __dir__))
+            File.write(File.join(template_root, "bin", "setup.example"), template_setup)
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+            FileUtils.mkdir_p(File.join(project_root, "bin"))
+            File.write(File.join(project_root, "bin", "setup"), <<~BASH)
+              #!/usr/bin/env bash
+              set -euo pipefail
+              IFS=$'\n\t'
+                set -vx
+
+              bundle install
+            BASH
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+            expect(File.read(File.join(project_root, "bin", "setup"))).to eq(template_setup)
           end
         end
       end
