@@ -552,8 +552,8 @@ When `.kettle-jem.yml` already exists, the `kettle-jem` command performs the fol
 1. **Prechecks** — Verifies you're inside a git repo with a clean working tree, a gemspec, and a Gemfile
 2. **Sync dev dependencies** — Updates your gemspec's `add_development_dependency` entries to match the kettle-jem template
 3. **Sync Gemfile** — Ensures your Gemfile contains required `source`, `git_source`, `gemspec`, and `eval_gemfile` directives from the template
-4. **Sync modular gemfiles** — Copies `gemfiles/modular/*.gemfile` files from the template
-5. **Ensure bin/setup** — Copies `bin/setup` from the template if missing
+4. **Sync modular gemfiles** — Ensures the bootstrap modular gemfiles are present; with `--force`, refreshes `gemfiles/modular/templating.gemfile` from the template while preserving `templating_local.gemfile`
+5. **Ensure bin/setup** — Ensures `bin/setup` matches the template bootstrap script; with `--force`, refreshes it from the template even if already present
 6. **Ensure Rakefile** — Replaces your Rakefile with the kettle-jem template Rakefile
 7. **Run bin/setup** — Executes `bin/setup` to install dependencies
 8. **Generate binstubs** — Runs `bundle binstubs --all`
@@ -567,8 +567,8 @@ All options are passed through to the underlying `rake kettle:jem:install` task:
 | Option | Description |
 |--------|-------------|
 | `--allowed=VAL` | Acknowledge prior direnv allow, etc. Passed as `allowed=VAL` to the rake task. |
-| `--force` | Accept all prompts non-interactively (sets `force=true`). Useful for CI or scripted setups. |
-| `--quiet` | Passes `--quiet` into the bootstrap `bundle install`, suppresses `bin/setup` shell tracing, and preserves `--quiet` for the final `rake kettle:jem:install` invocation. |
+| `--force` | Accept all prompts non-interactively (sets `force=true`). Also refreshes tool-owned bootstrap files such as `bin/setup` and `gemfiles/modular/templating.gemfile`, while preserving project config and local override wiring such as `.kettle-jem.yml` and `templating_local.gemfile`. Useful for CI or scripted setups. |
+| `--quiet` | Passes `--quiet` into `bin/setup` so each setup-time `bundle install` stays quiet, suppresses extra setup progress banners and direct `bundle binstubs` chatter, and preserves `--quiet` for the final `rake kettle:jem:install` invocation. |
 | `--hook_templates=VAL` | Control git hook templating. Values: `local` (install to `.git/hooks`), `global` (install to `~/.git-templates`), `skip` (do not install hooks). |
 | `--only=VAL` | Restrict install scope to a specific subset of files. |
 | `--include=VAL` | Include optional files by glob pattern. |

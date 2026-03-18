@@ -86,12 +86,32 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "run_kettle_install! includes include=... in the rake command" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["include=foo/bar/**"])
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"))
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
   end
 
   describe "setup preflight" do
+    it "suppresses startup and completion chatter when quiet is enabled", :check_output do
+      cli = described_class.new(["--quiet"])
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(cli).to receive(:bundled_execution_context?).and_return(true)
+      allow(cli).to receive(:ensure_project_files!).and_return(nil)
+      allow(cli).to receive(:load_bundled_runtime!).and_return(nil)
+      allow(cli).to receive(:ensure_dev_deps!).and_return(nil)
+      allow(cli).to receive(:ensure_gemfile_from_example!).and_return(nil)
+      allow(cli).to receive(:ensure_modular_gemfiles!).and_return(nil)
+      allow(cli).to receive(:ensure_rakefile!).and_return(nil)
+      allow(cli).to receive(:run_bin_setup!).and_return(nil)
+      allow(cli).to receive(:run_bundle_binstubs!).and_return(nil)
+      allow(cli).to receive(:run_kettle_install!).and_return(nil)
+      allow(cli).to receive(:commit_bootstrap_changes!).and_return(nil)
+
+      expect { cli.run! }.to output("").to_stdout
+    end
+
     it "returns early when bootstrap writes the template config file" do
       cli = described_class.allocate
       cli.instance_variable_set(:@argv, [])
@@ -457,6 +477,13 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect { cli.send(:say, "msg") }.to output(/\[kettle-jem\] msg/).to_stdout
     end
 
+    it "say suppresses verbose-only messages when quiet", :check_output do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@quiet, true)
+
+      expect { cli.send(:say, "msg", verbose_only: true) }.to output("").to_stdout
+    end
+
     it "abort! uses ExitAdapter and raises MockSystemExit with message" do
       cli = described_class.allocate
       expect { cli.send(:abort!, "boom") }.to raise_error(MockSystemExit, /ERROR: boom/)
@@ -477,6 +504,35 @@ RSpec.describe Kettle::Jem::SetupCLI do
       status = instance_double(Process::Status, success?: true)
       allow(Open3).to receive(:capture3).with({"A" => "1"}, "cmd").and_return(["", "", status])
       expect { cli.send(:sh!, "cmd", env: {"A" => "1"}) }.to output(/exec: cmd/).to_stdout
+    end
+
+    it "suppresses successful command logging and output when requested", :check_output do
+      cli = described_class.allocate
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).with({}, "bundle binstubs --all").and_return(["out", "err", status])
+
+      expect { cli.send(:sh!, "bundle binstubs --all", suppress_output: true, suppress_command_log: true) }
+        .to output("").to_stdout.and output("").to_stderr
+    end
+
+    it "suppresses successful command logging while still streaming subprocess output", :check_output do
+      cli = described_class.allocate
+      status = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3).with({}, "bin/setup --quiet").and_return(["out", "err", status])
+
+      expect { cli.send(:sh!, "bin/setup --quiet", suppress_command_log: true) }
+        .to output("out").to_stdout.and output("err").to_stderr
+    end
+
+    it "replays suppressed command logging and output when a suppressed command fails", :check_output do
+      cli = described_class.allocate
+      status = instance_double(Process::Status, success?: false)
+      allow(Open3).to receive(:capture3).with({}, "bundle binstubs --all").and_return(["out", "err", status])
+
+      expect do
+        expect { cli.send(:sh!, "bundle binstubs --all", suppress_output: true, suppress_command_log: true) }
+          .to raise_error(MockSystemExit, /Command failed/)
+      end.to output(/exec: bundle binstubs --all\nout/).to_stdout.and output("err").to_stderr
     end
   end
 
@@ -690,6 +746,78 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "#ensure_bootstrap_modular_gemfiles!" do
+    around do |ex|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { ex.run }
+      end
+    end
+
+    def stub_bootstrap_modular_sources(cli, templating_source:, templating_local_source:)
+      allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
+        case rel
+        when File.join("gemfiles", "modular", "templating.gemfile")
+          templating_source
+        when File.join("gemfiles", "modular", "templating_local.gemfile")
+          templating_local_source
+        else
+          orig.call(rel)
+        end
+      end
+    end
+
+    it "copies bootstrap modular gemfiles when missing", :check_output do
+      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
+      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
+      File.write(templating_source, "gem 'templating-new'\n")
+      File.write(templating_local_source, "gem 'templating-local-new'\n")
+
+      cli = described_class.allocate
+      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+
+      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
+        .to output(/Copied gemfiles\/modular\/templating\.gemfile\..*Copied gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
+      expect(File.read(File.join("gemfiles", "modular", "templating.gemfile"))).to eq("gem 'templating-new'\n")
+      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
+    end
+
+    it "overwrites bootstrap templating.gemfile when --force is provided", :check_output do
+      FileUtils.mkdir_p(File.join("gemfiles", "modular"))
+      File.write(File.join("gemfiles", "modular", "templating.gemfile"), "gem 'templating-old'\n")
+      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
+
+      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
+      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
+      File.write(templating_source, "gem 'templating-new'\n")
+      File.write(templating_local_source, "gem 'templating-local-new'\n")
+
+      cli = described_class.new(["--force"])
+      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+
+      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
+        .to output(/Overwrote gemfiles\/modular\/templating\.gemfile\./).to_stdout
+      expect(File.read(File.join("gemfiles", "modular", "templating.gemfile"))).to eq("gem 'templating-new'\n")
+      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
+    end
+
+    it "preserves bootstrap templating_local.gemfile even when --force is provided" do
+      FileUtils.mkdir_p(File.join("gemfiles", "modular"))
+      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
+
+      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
+      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
+      File.write(templating_source, "gem 'templating-new'\n")
+      File.write(templating_local_source, "gem 'templating-local-new'\n")
+
+      cli = described_class.new(["--force"])
+      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+
+      cli.send(:ensure_bootstrap_modular_gemfiles!)
+
+      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
+    end
+  end
+
   describe "#ensure_bin_setup! and #ensure_rakefile!" do
     around do |ex|
       Dir.mktmpdir do |dir|
@@ -711,9 +839,25 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "says present when bin/setup exists", :check_output do
       FileUtils.mkdir_p("bin")
-      File.write("bin/setup", "#!/usr/bin/env ruby\n")
+      File.write("bin/setup", "#!/usr/bin/env ruby\nputs :existing\n")
       cli = described_class.allocate
       expect { cli.send(:ensure_bin_setup!) }.to output(/bin\/setup present\./).to_stdout
+      expect(File.read("bin/setup")).to include("puts :existing")
+    end
+
+    it "overwrites an existing bin/setup when --force is provided", :check_output do
+      FileUtils.mkdir_p("bin")
+      File.write("bin/setup", "#!/usr/bin/env ruby\nputs :old\n")
+      src = File.expand_path("src_bin_setup", Dir.pwd)
+      File.write(src, "#!/usr/bin/env ruby\nputs :new\n")
+      FileUtils.chmod("+x", src)
+      cli = described_class.new(["--force"])
+      allow(cli).to receive(:installed_path).and_return(src)
+
+      expect { cli.send(:ensure_bin_setup!) }.to output(/Overwrote bin\/setup/).to_stdout
+      expect(File.read("bin/setup")).to include("puts :new")
+      expect(File.read("bin/setup")).not_to include("puts :old")
+      expect(File.stat("bin/setup").mode & 0o111).to be > 0
     end
 
     it "writes Rakefile from example and announces merge or creation", :check_output do
@@ -788,9 +932,9 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "run_bin_setup! and run_bundle_binstubs! invoke sh! with proper command" do
       cli = described_class.allocate
-      expect(cli).to receive(:sh!).with(/bin\/setup/)
+      expect(cli).to receive(:sh!).with(/bin\/setup/, suppress_command_log: false)
       cli.send(:run_bin_setup!)
-      expect(cli).to receive(:sh!).with("bundle exec bundle binstubs --all")
+      expect(cli).to receive(:sh!).with("bundle binstubs --all", suppress_output: false, suppress_command_log: false)
       cli.send(:run_bundle_binstubs!)
     end
 
@@ -798,38 +942,48 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@quiet, true)
 
-      expect(cli).to receive(:sh!).with("bin/setup --quiet")
+      expect(cli).to receive(:sh!).with("bin/setup --quiet", suppress_command_log: true)
       cli.send(:run_bin_setup!)
+    end
+
+    it "run_bundle_binstubs! suppresses direct bundler output when quiet is requested" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@quiet, true)
+
+      expect(cli).to receive(:sh!).with("bundle binstubs --all", suppress_output: true, suppress_command_log: true)
+      cli.send(:run_bundle_binstubs!)
     end
 
     it "handoff_to_bundled_phase! re-enters through bundle exec kettle-jem with the original argv" do
       cli = described_class.allocate
       cli.instance_variable_set(:@original_argv, ["--allowed=true", "--force"])
 
-      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --force"))
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --force"), suppress_command_log: false)
       cli.send(:handoff_to_bundled_phase!)
     end
 
     it "handoff_to_bundled_phase! preserves --quiet in the bundled re-entry" do
       cli = described_class.allocate
+      cli.instance_variable_set(:@quiet, true)
       cli.instance_variable_set(:@original_argv, ["--allowed=true", "--quiet"])
 
-      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --quiet"))
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --quiet"), suppress_command_log: true)
       cli.send(:handoff_to_bundled_phase!)
     end
 
     it "run_kettle_install! builds rake cmd with passthrough" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"))
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
 
     it "run_kettle_install! preserves --quiet for the final rake invocation" do
       cli = described_class.allocate
+      cli.instance_variable_set(:@quiet, true)
       cli.instance_variable_set(:@passthrough, ["--quiet", "only=hooks"])
 
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install --quiet only\\=hooks"))
+      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install --quiet only\\=hooks"), suppress_command_log: true)
       cli.send(:run_kettle_install!)
     end
   end

@@ -21,6 +21,7 @@ module Kettle
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
+      BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile].freeze
 
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
@@ -34,7 +35,7 @@ module Kettle
       # Execute the full setup workflow.
       # @return [void]
       def run!
-        say("Starting kettle-jem setup…")
+        say("Starting kettle-jem setup…", verbose_only: true)
         debug_bundler_env({}, "kettle-jem startup")
         return run_bundled_phase! if bundled_execution_context?
 
@@ -84,7 +85,7 @@ module Kettle
         run_kettle_install!
         debug_git_status("run_kettle_install!")
         commit_bootstrap_changes!
-        say("kettle-jem setup complete.")
+        say("kettle-jem setup complete.", verbose_only: true)
       end
 
       private
@@ -169,6 +170,7 @@ module Kettle
           opts.on("--allowed=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "allowed=#{v}" }
           opts.on("--force", "Pass through to kettle:jem:install") do
             # Ensure in-process helpers (TemplateHelpers.ask) also see force mode
+            @force = true
             ENV["force"] = "true"
             @passthrough << "force=true"
           end
@@ -198,12 +200,19 @@ module Kettle
         @passthrough.concat(@argv)
       end
 
-      def say(msg)
+      def say(msg, verbose_only: false)
+        return if verbose_only && quiet?
+
         puts "[kettle-jem] #{msg}"
       end
 
       def quiet?
         @quiet || Array(@passthrough).include?("--quiet") || Array(@original_argv).include?("--quiet")
+      end
+
+      def force?
+        env_force = ENV["force"].to_s.strip
+        @force || env_force.casecmp("true").zero? || Array(@passthrough).include?("force=true") || Array(@original_argv).include?("--force")
       end
 
       def abort!(msg)
@@ -237,10 +246,19 @@ module Kettle
         RUBYLIB
       ].freeze
 
-      def sh!(cmd, env: {})
-        say("exec: #{cmd}")
+      def sh!(cmd, env: {}, suppress_output: false, suppress_command_log: false)
+        say("exec: #{cmd}") unless suppress_command_log
         debug_bundler_env(env, cmd)
         stdout_str, stderr_str, status = Open3.capture3(env, cmd)
+        if status.success?
+          unless suppress_output
+            $stdout.print(stdout_str) unless stdout_str.empty?
+            $stderr.print(stderr_str) unless stderr_str.empty?
+          end
+          return
+        end
+
+        say("exec: #{cmd}") if suppress_command_log
         $stdout.print(stdout_str) unless stdout_str.empty?
         $stderr.print(stderr_str) unless stderr_str.empty?
         abort!("Command failed: #{cmd}") unless status.success?
@@ -364,14 +382,14 @@ module Kettle
           modified_deps = extract_deps.call(modified)
           if modified_deps != target_deps
             File.write(@gemspec_path, modified)
-            say("Updated development dependencies in #{@gemspec_path}.")
+            say("Updated development dependencies in #{@gemspec_path}.", verbose_only: true)
           else
-            say("Development dependencies already up to date.")
+            say("Development dependencies already up to date.", verbose_only: true)
           end
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           # Fall back to previous behavior: write nothing and report up-to-date
-          say("Development dependencies already up to date.")
+          say("Development dependencies already up to date.", verbose_only: true)
         end
       end
 
@@ -462,17 +480,20 @@ module Kettle
         str + "\n"
       end
 
-      # 4. Ensure bin/setup present (copy from gem if missing)
+      # 4. Ensure bin/setup present (copy from gem if missing, or overwrite when forced)
       def ensure_bin_setup!
         target = File.join("bin", "setup")
-        return say("bin/setup present.") if File.exist?(target)
+        existed_before = File.exist?(target)
+        if existed_before && !force?
+          return say("bin/setup present.", verbose_only: true)
+        end
 
         source = installed_path(File.join("bin", "setup"))
         abort!("Internal error: source bin/setup not found within installed gem.") unless source && File.exist?(source)
         FileUtils.mkdir_p("bin")
         FileUtils.cp(source, target)
         FileUtils.chmod("+x", target)
-        say("Copied bin/setup.")
+        say(existed_before ? "Overwrote bin/setup." : "Copied bin/setup.", verbose_only: true)
       end
 
       # 3b. Ensure Gemfile contains required lines from example without duplicating directives
@@ -544,13 +565,13 @@ module Kettle
           additions << "eval_gemfile \"#{path}\""
         end
 
-        return say("Gemfile already contains required entries from example.") if additions.empty?
+        return say("Gemfile already contains required entries from example.", verbose_only: true) if additions.empty?
 
         # Ensure file ends with a newline
         target << "\n" unless target.end_with?("\n") || target.empty?
         new_content = target + additions.join("\n") + "\n"
         File.write(target_path, new_content)
-        say("Updated Gemfile with entries from Gemfile.example (added #{additions.size}).")
+        say("Updated Gemfile with entries from Gemfile.example (added #{additions.size}).", verbose_only: true)
       end
 
       def ensure_bootstrap_modular_gemfiles!
@@ -560,11 +581,13 @@ module Kettle
           abort!("Internal error: #{rel}.example not found within the installed gem.") unless source && File.exist?(source)
 
           dest = File.join("gemfiles", "modular", filename)
-          next if File.exist?(dest)
+          existed_before = File.exist?(dest)
+          overwrite = existed_before && force? && BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES.include?(filename)
+          next if existed_before && !overwrite
 
           FileUtils.mkdir_p(File.dirname(dest))
           FileUtils.cp(source, dest)
-          say("Copied #{dest}.")
+          say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
         end
       end
 
@@ -673,7 +696,7 @@ module Kettle
               path: "Rakefile",
             )
             content = merged if merged.is_a?(String) && !merged.empty?
-            say("Merged Rakefile with kettle-jem Rakefile.example.")
+            say("Merged Rakefile with kettle-jem Rakefile.example.", verbose_only: true)
           rescue StandardError => e
             if Kettle::Jem::Tasks::TemplateTask.failure_mode == :rescue
               Kettle::Dev.debug_error(e, __method__)
@@ -683,7 +706,7 @@ module Kettle
             end
           end
         else
-          say("Creating Rakefile from kettle-jem Rakefile.example.")
+          say("Creating Rakefile from kettle-jem Rakefile.example.", verbose_only: true)
         end
         File.write("Rakefile", content)
       end
@@ -692,17 +715,17 @@ module Kettle
       def run_bin_setup!
         cmd = [File.join("bin", "setup")]
         cmd << "--quiet" if quiet?
-        sh!(Shellwords.join(cmd))
+        sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
       end
 
       # 7. Run bundle binstubs --all
       def run_bundle_binstubs!
-        sh!("bundle exec bundle binstubs --all")
+        sh!("bundle binstubs --all", suppress_output: quiet?, suppress_command_log: quiet?)
       end
 
       def handoff_to_bundled_phase!
         cmd = ["bundle", "exec", "kettle-jem"] + @original_argv
-        sh!(Shellwords.join(cmd))
+        sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
       end
 
       # 8. Commit template bootstrap changes if any
@@ -719,19 +742,19 @@ module Kettle
           !out.strip.empty?
         end
         unless dirty
-          say("No changes to commit from template bootstrap.")
+          say("No changes to commit from template bootstrap.", verbose_only: true)
           return
         end
-        sh!(Shellwords.join(["git", "add", "-A"]))
+        sh!(Shellwords.join(["git", "add", "-A"]), suppress_output: quiet?, suppress_command_log: quiet?)
         msg = "🎨 Template bootstrap by kettle-jem v#{Kettle::Jem::Version::VERSION}"
-        sh!(Shellwords.join(["git", "commit", "-m", msg]))
-        say("Committed template bootstrap changes.")
+        sh!(Shellwords.join(["git", "commit", "-m", msg]), suppress_output: quiet?, suppress_command_log: quiet?)
+        say("Committed template bootstrap changes.", verbose_only: true)
       end
 
       # 9. Invoke rake install task with passthrough
       def run_kettle_install!
         cmd = ["bin/rake", "kettle:jem:install"] + Array(@passthrough)
-        sh!(Shellwords.join(cmd))
+        sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
       end
 
       # Resolve a path to a templated asset shipped within the installed gem or repo checkout.
