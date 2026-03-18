@@ -423,15 +423,31 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "prints direnv notes when .envrc was modified by template" do
+    it "prints mise trust notes when .envrc was modified by template", :check_output do
       Dir.mktmpdir do |project_root|
         allow(helpers).to receive_messages(
           project_root: project_root,
           modified_by_template?: true,
           template_results: {},
         )
+        allow(described_class).to receive(:mise_installed?).and_return(true)
 
-        expect { described_class.run }.not_to raise_error
+        expect { described_class.run }
+          .to output(/If mise prompts you to trust this repo, run:\n   mise trust\n.*Your \.envrc was created\/updated by kettle:jem:template\./m).to_stdout
+      end
+    end
+
+    it "recommends installing mise when it is not on PATH", :check_output do
+      Dir.mktmpdir do |project_root|
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: true,
+          template_results: {},
+        )
+        allow(described_class).to receive(:mise_installed?).and_return(false)
+
+        expect { described_class.run }
+          .to output(/Install mise \(recommended\):\n   https:\/\/mise\.jdx\.dev\/getting-started\.html\n   Then, from the project root, run:\n     mise trust/m).to_stdout
       end
     end
 
@@ -502,7 +518,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         gi = File.join(project_root, ".gitignore")
         expect(File).to exist(gi)
         txt = File.read(gi)
-        expect(txt).to include("# direnv - brew install direnv")
+        expect(txt).to include("# Local environment overrides (KEY=value, loaded by mise via dotenvy)")
         expect(txt).to include(".env.local\n")
       end
     end
@@ -632,7 +648,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "aborts after updating .envrc unless allowed=true" do
+    it "aborts after updating .envrc unless allowed=true", :check_output do
       Dir.mktmpdir do |project_root|
         allow(helpers).to receive_messages(
           project_root: project_root,
@@ -650,7 +666,11 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         G
 
         # No allowed set, so after updating .envrc the task should abort
-        expect { described_class.run }.to raise_error { |e| expect([SystemExit, Kettle::Dev::Error]).to include(e.class) }
+        allow(described_class).to receive(:mise_installed?).and_return(true)
+
+        expect { described_class.run }
+          .to raise_error(Kettle::Dev::Error, /review \.envrc changes before continuing/)
+          .and output(/IMPORTANT: \.envrc was updated during kettle:jem:install\.\nPlease review it before continuing\.\nIf mise prompts you to trust this repo, run:\n  mise trust/m).to_stdout
       end
     end
 

@@ -3,6 +3,5 @@
 # Fail on error and unset variables
 set -eu
 
-# We are not using direnv exec here because mise and direnv can result in conflicting PATH settings:
-# See: https://mise.jdx.dev/direnv.html
+# Run the generated wrapper directly so hook execution does not depend on shell activation.
 exec "kettle-commit-msg" "$@"

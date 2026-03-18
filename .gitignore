@@ -37,7 +37,7 @@ Appraisal.*.gemfile.lock
 # Debugger detritus
 .byebug_history
 
-# Local environment overrides (loaded by mise and passed off to the direnvy crate)
+# Local environment overrides (KEY=value, loaded by mise via dotenvy)
 .env.local
 
 # OS Detritus
@@ -50,4 +50,3 @@ Appraisal.*.gemfile.lock
 .floss_funding.*.lock
 /tmp/*
 !/tmp/.gitignore
-# direnv - brew install direnv

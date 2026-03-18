@@ -1340,8 +1340,9 @@ module Kettle
                 puts "IMPORTANT: The following environment-related files were created/updated:"
                 changed_env_files.each { |p| puts "  - #{p}" }
                 puts
-                puts "Please review these files. If .envrc changed, run:"
-                puts "  direnv allow"
+                puts "Please review these files before continuing."
+                puts "If mise prompts you to trust this repo, run:"
+                puts "  mise trust"
                 puts
                 puts "After that, re-run to resume:"
                 puts "  bundle exec rake kettle:jem:template allowed=true"

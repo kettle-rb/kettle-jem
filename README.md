@@ -566,7 +566,7 @@ All options are passed through to the underlying `rake kettle:jem:install` task:
 
 | Option | Description |
 |--------|-------------|
-| `--allowed=VAL` | Acknowledge prior direnv allow, etc. Passed as `allowed=VAL` to the rake task. |
+| `--allowed=VAL` | Acknowledge prior review of environment-file changes (for example after `.envrc` updates). Passed as `allowed=VAL` to the rake task. |
 | `--force` | Accept all prompts non-interactively (sets `force=true`). Also refreshes tool-owned bootstrap files such as `bin/setup` and `gemfiles/modular/templating.gemfile`, while preserving project config and local override wiring such as `.kettle-jem.yml` and `templating_local.gemfile`. Useful for CI or scripted setups. |
 | `--quiet` | Passes `--quiet` into `bin/setup` so each setup-time `bundle install` stays quiet, suppresses extra setup progress banners and direct `bundle binstubs` chatter, and preserves `--quiet` for the final `rake kettle:jem:install` invocation. |
 | `--hook_templates=VAL` | Control git hook templating. Values: `local` (install to `.git/hooks`), `global` (install to `~/.git-templates`), `skip` (do not install hooks). |

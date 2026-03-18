@@ -6,11 +6,28 @@ module Kettle
       module InstallTask
         module_function
 
+        MISE_INSTALL_URL = "https://mise.jdx.dev/getting-started.html"
+        ENV_LOCAL_GITIGNORE_COMMENT = "# Local environment overrides (KEY=value, loaded by mise via dotenvy)"
+
         # Abort wrapper that avoids terminating the current rake task process.
         # Always raise Kettle::Dev::Error so callers can decide whether to handle
         # it without terminating the process (e.g., in tests or non-interactive runs).
         def task_abort(msg)
           raise Kettle::Dev::Error, msg
+        end
+
+        def mise_installed?
+          path = ENV.fetch("PATH", "").to_s
+          return false if path.empty?
+
+          path.split(File::PATH_SEPARATOR).any? do |dir|
+            next false if dir.to_s.empty?
+
+            candidate = File.join(dir, "mise")
+            File.file?(candidate) && File.executable?(candidate)
+          rescue StandardError
+            false
+          end
         end
 
         def trim_readme_compatibility_badges!(readme_path, min_ruby, engines: nil)
@@ -272,14 +289,20 @@ module Kettle
           puts "   bundle binstubs kettle-jem --path bin"
           puts "   # After running, you should have bin/kettle-commit-msg (wrapper)."
           puts
-          # Step 3: direnv and .envrc
+          # Step 3: mise and .envrc
           envrc_path = File.join(project_root, ".envrc")
-          puts "3) Install direnv (if not already):"
-          puts "   brew install direnv"
+          if mise_installed?
+            puts "3) If mise prompts you to trust this repo, run:"
+            puts "   mise trust"
+          else
+            puts "3) Install mise (recommended):"
+            puts "   #{MISE_INSTALL_URL}"
+            puts "   Then, from the project root, run:"
+            puts "     mise trust"
+          end
           if helpers.modified_by_template?(envrc_path)
             puts "   Your .envrc was created/updated by kettle:jem:template."
-            puts "   It includes PATH_add bin so that executables in ./bin are on PATH when direnv is active."
-            puts "   This allows running tools without the bin/ prefix inside the project directory."
+            puts "   It is a lightweight shim for this repo's mise-managed environment."
           else
             begin
               current = File.file?(envrc_path) ? File.read(envrc_path) : ""
@@ -354,20 +377,22 @@ module Kettle
             else
               puts
               puts "IMPORTANT: .envrc was updated during kettle:jem:install."
-              puts "Please review it and then run:"
-              puts "  direnv allow"
+              puts "Please review it before continuing."
+              puts "If mise prompts you to trust this repo, run:"
+              puts "  mise trust"
               puts
               puts "After that, re-run to resume:"
               puts "  bundle exec rake kettle:jem:install allowed=true"
-              task_abort("Aborting: direnv allow required after .envrc changes.")
+              task_abort("Aborting: review .envrc changes before continuing.")
             end
           end
 
           # Warn about .env.local and offer to add it to .gitignore
           puts
           puts "WARNING: Do not commit .env.local; it often contains machine-local secrets."
+          puts "It uses simple KEY=value env-file syntax and is loaded by mise via dotenvy."
           puts "Ensure your .gitignore includes:"
-          puts "  # direnv - brew install direnv"
+          puts "  #{ENV_LOCAL_GITIGNORE_COMMENT}"
           puts "  .env.local"
 
           gitignore_path = File.join(project_root, ".gitignore")
@@ -397,8 +422,8 @@ module Kettle
                 mode = File.exist?(gitignore_path) ? "a" : "w"
                 File.open(gitignore_path, mode) do |f|
                   f.write("\n") unless gitignore_current.empty? || gitignore_current.end_with?("\n")
-                  unless gitignore_current.lines.any? { |l| l.strip == "# direnv - brew install direnv" }
-                    f.write("# direnv - brew install direnv\n")
+                  unless gitignore_current.lines.any? { |l| l.strip == ENV_LOCAL_GITIGNORE_COMMENT }
+                    f.write("#{ENV_LOCAL_GITIGNORE_COMMENT}\n")
                   end
                   f.write(".env.local\n")
                 end

@@ -17,7 +17,7 @@ require "rubygems"
 script_basename = File.basename(__FILE__)
 
 # Early environment snapshot — captured before any gem requires that might
-# modify ENV. Helps diagnose cases where direnv/dotenv variables are lost.
+# modify ENV. Helps diagnose cases where mise/dotenvy-managed variables are lost.
 if ENV.fetch("DEBUG", "false").to_s.strip.casecmp("true").zero?
   $stderr.puts("[kettle-jem] Early env snapshot (before requires):")
   %w[KETTLE_RB_DEV BUNDLE_GEMFILE BUNDLE_PATH GEM_HOME GEM_PATH RUBYOPT RUBYLIB PWD].each do |key|
@@ -66,7 +66,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       - kettle:jem:install runs template, then post-template checks/prompts
 
     Options (passed through to rake kettle:jem:install once bootstrap continues):
-      --allowed=VAL           Acknowledge prior direnv allow, etc.
+      --allowed=VAL           Acknowledge prior review of environment-file changes.
       --force                 Accept prompts non-interactively
       --quiet                 Run quieter setup commands and downstream install steps
       --hook_templates=VAL    Control git hook templating (local, global, skip)

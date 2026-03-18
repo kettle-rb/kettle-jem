@@ -2230,7 +2230,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           end
         end
 
-        it "aborts with guidance when not allowed" do
+        it "aborts with mise trust guidance when not allowed" do
           Dir.mktmpdir do |gem_root|
             Dir.mktmpdir do |project_root|
               template_root = File.join(gem_root, "template")
@@ -2240,7 +2240,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
               allow(helpers).to receive(:modified_by_template?).and_return(true)
               stub_env("allowed" => "")
-              expect { described_class.run }.to raise_error(Kettle::Dev::Error, /review of environment files required/)
+              expect { described_class.run }
+                .to raise_error(Kettle::Dev::Error, /review of environment files required/)
+                .and output(/IMPORTANT: The following environment-related files were created\/updated:\n.*If mise prompts you to trust this repo, run:\n  mise trust/m).to_stdout
             end
           end
         end

@@ -33,7 +33,7 @@ RSpec.configure do |config|
   config.before do
     # Speed up polling loops
     allow(described_class).to receive(:sleep) unless described_class.nil?
-    # Clean environment so local direnv/.env.local values don't pollute tests.
+    # Clean environment so local mise/.env.local values don't pollute tests.
     # Individual specs can override with stub_env as needed.
     hide_env(
       "FUNDING_ORG",
