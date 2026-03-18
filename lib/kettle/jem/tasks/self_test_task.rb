@@ -66,6 +66,8 @@ module Kettle
           tmp/kettle-jem/templating-report-
         ].freeze
 
+        APPRAISAL_GENERATED_GEMFILE_PATTERN = %r{\Agemfiles/[^/]+\.gemfile\z}.freeze
+
         module_function
 
         # Entry point invoked by the rake task.
@@ -121,10 +123,9 @@ module Kettle
           # Classify "removed" files into expected skips vs truly unexpected.
           # Files under lib/, spec/, template/, exe/, sig/, etc. are part of
           # the gem source and are never produced by the template task.
-          skipped, truly_removed = comparison[:removed].partition { |rel|
-            SKIPPED_FILES.include?(rel) ||
-              SKIPPED_PREFIXES.any? { |prefix| rel.start_with?(prefix) }
-          }
+          skipped, truly_removed = comparison[:removed].partition do |rel|
+            expected_non_templated_path?(rel, project_root: project_root)
+          end
           comparison[:removed] = truly_removed
           comparison[:skipped] = skipped
 
@@ -336,6 +337,25 @@ module Kettle
 
         def generated_runtime_artifact?(relative_path)
           GENERATED_RUNTIME_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) }
+        end
+
+        def expected_non_templated_path?(relative_path, project_root:)
+          SKIPPED_FILES.include?(relative_path) ||
+            SKIPPED_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) } ||
+            appraisal_generated_gemfile?(relative_path) ||
+            project_gemspec?(relative_path, project_root: project_root)
+        end
+
+        def appraisal_generated_gemfile?(relative_path)
+          relative_path.match?(APPRAISAL_GENERATED_GEMFILE_PATTERN)
+        end
+
+        def project_gemspec?(relative_path, project_root:)
+          return false if relative_path.include?("/") || !relative_path.end_with?(".gemspec")
+
+          Dir.glob(File.join(project_root, "*.gemspec")).any? do |path|
+            File.basename(path) == relative_path
+          end
         end
       end
     end

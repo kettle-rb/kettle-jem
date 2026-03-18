@@ -160,6 +160,27 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
       expect(result).to include("</details>")
     end
 
+    it "keeps expected non-templated files out of the unexpected removals section" do
+      comparison = {
+        matched: %w[a.txt],
+        changed: [],
+        added: [],
+        removed: %w[unexpected.txt],
+        skipped: %w[gemfiles/audit.gemfile kettle-jem.gemspec],
+      }
+      result = reporter.summary(comparison, output_dir: output_dir)
+
+      expect(result).to include("## Not Templated — Unexpected (1)")
+      expect(result).to include("| unexpected.txt |")
+      expect(result).to include("| gemfiles/audit.gemfile |")
+      expect(result).to include("| kettle-jem.gemspec |")
+
+      unexpected_section = result.split("## Not Templated — Unexpected (1)", 2).last.split("## Detailed Diffs", 2).first
+      expect(unexpected_section).to include("| unexpected.txt |")
+      expect(unexpected_section).not_to include("| gemfiles/audit.gemfile |")
+      expect(unexpected_section).not_to include("| kettle-jem.gemspec |")
+    end
+
     it "omits skipped section when no skipped files" do
       comparison = {matched: %w[a.txt], changed: [], added: [], removed: [], skipped: []}
       result = reporter.summary(comparison, output_dir: output_dir)

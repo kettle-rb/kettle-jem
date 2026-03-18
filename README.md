@@ -487,6 +487,10 @@ Wrap any code you never want rewritten between `kettle-jem:freeze` / `kettle-jem
 Here is an example `.kettle-jem.yml` (hybrid format):
 
 ```yaml
+# Fail `rake kettle:jem:selftest` once divergence reaches or exceeds this percent.
+# Leave blank to report only.
+min_divergence_threshold:
+
 # Defaults applied to per-file merge options when strategy: merge
 defaults:
   preference: "template"
@@ -633,7 +637,30 @@ After initial setup, the following rake tasks are available for ongoing use:
 |------|-------------|
 | `rake kettle:jem:install` | Runs `kettle:jem:template`, then performs install-time follow-up work such as summarizing changed files, checking `.envrc`, and offering `.gitignore` updates |
 | `rake kettle:jem:template` | Smart-merges template files according to `.kettle-jem.yml`; if the config file is missing, it writes `.kettle-jem.yml` and exits before templating the rest of the project |
-| `rake kettle:jem:selftest` | Validate that templating kettle-jem against itself produces expected output |
+| `rake kettle:jem:selftest` | Run a divergence-from-template check: template the current gem into a sandbox, compare the result against the current tree, and report how much drift remains |
+
+#### Divergence-from-template self-test
+
+`rake kettle:jem:selftest` is not an exact byte-for-byte identity check. It is a **divergence-from-template** test that answers: _if I template this gem again right now, how much of the produced output would still change?_
+
+The task copies the current project into `tmp/template_test/destination/`, runs templating into `tmp/template_test/output/`, and compares the two file manifests. It classifies produced files as `matched`, `changed`, or `added`, writes diffs for changed files, and generates `tmp/template_test/report/summary.md`.
+
+- **Score** = percentage of produced files that were unchanged after templating
+- **Divergence** = `100 - score`, i.e. the percentage of produced files that would change or be added
+
+This means some divergence can be expected and is not automatically a bug. Common causes include token replacement, smart-merge normalization, and files that are source-only and intentionally not emitted by the template task.
+
+To make CI fail on too much drift, set `min_divergence_threshold` in `.kettle-jem.yml`.
+
+```yaml
+min_divergence_threshold: 15
+```
+
+That setting fails the task once divergence reaches or exceeds the configured percentage. For ad hoc runs, `KJ_SELFTEST_THRESHOLD` still takes precedence and is interpreted as a minimum unchanged-score threshold:
+
+```console
+KJ_SELFTEST_THRESHOLD=85 bundle exec rake kettle:jem:selftest
+```
 
 ### Using Presets
 

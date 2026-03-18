@@ -151,6 +151,26 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     end
   end
 
+  describe ".expected_non_templated_path?" do
+    let(:project_root) { Dir.mktmpdir("selftest_expected_paths") }
+
+    after { FileUtils.rm_rf(project_root) }
+
+    before do
+      File.write(File.join(project_root, "kettle-jem.gemspec"), "Gem::Specification.new do |spec|\nend\n")
+    end
+
+    it "treats Appraisal-generated gemfiles as expected non-templated files" do
+      expect(described_class.expected_non_templated_path?("gemfiles/audit.gemfile", project_root: project_root)).to be(true)
+      expect(described_class.expected_non_templated_path?("gemfiles/modular/templating.gemfile", project_root: project_root)).to be(false)
+    end
+
+    it "treats the project gemspec as expected even though the template uses a generic basename" do
+      expect(described_class.expected_non_templated_path?("kettle-jem.gemspec", project_root: project_root)).to be(true)
+      expect(described_class.expected_non_templated_path?("nested/kettle-jem.gemspec", project_root: project_root)).to be(false)
+    end
+  end
+
   describe ".run" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
     let(:manifest) { Kettle::Jem::SelfTest::Manifest }
@@ -166,6 +186,7 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       FileUtils.mkdir_p(File.join(gem_root, "spec"))
       FileUtils.mkdir_p(File.join(gem_root, "template"))
       File.write(File.join(gem_root, "Gemfile"), "source 'https://rubygems.org'\n")
+      File.write(File.join(gem_root, "kettle-jem.gemspec"), "Gem::Specification.new do |spec|\nend\n")
       File.write(File.join(gem_root, "lib/foo.rb"), "# foo\n")
       File.write(File.join(gem_root, "spec/foo_spec.rb"), "# spec\n")
 
@@ -280,18 +301,40 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       )
     end
 
-    it "partitions removed files into skipped and truly removed" do
+    it "partitions expected non-templated removals into skipped and leaves only true surprises as removed" do
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [],
         changed: [],
         added: [],
-        removed: %w[lib/foo.rb spec/bar_spec.rb exe/run Gemfile.lock template/x.rb unexpected.txt],
+        removed: %w[
+          lib/foo.rb
+          spec/bar_spec.rb
+          exe/run
+          Gemfile.lock
+          template/x.rb
+          gemfiles/audit.gemfile
+          kettle-jem.gemspec
+          unexpected.txt
+        ],
       })
-      allow(reporter).to receive(:summary).and_return("# Report\n")
+      captured_comparison = nil
+      allow(reporter).to receive(:summary) do |comparison, **|
+        captured_comparison = comparison
+        "# Report\n"
+      end
 
-      # We can't easily inspect the comparison object passed to reporter,
-      # but we can verify the report is written without error
       expect { described_class.run }.not_to raise_error
+
+      expect(captured_comparison[:skipped]).to include(
+        "lib/foo.rb",
+        "spec/bar_spec.rb",
+        "exe/run",
+        "Gemfile.lock",
+        "template/x.rb",
+        "gemfiles/audit.gemfile",
+        "kettle-jem.gemspec",
+      )
+      expect(captured_comparison[:removed]).to eq(["unexpected.txt"])
     end
 
     it "writes diff files for changed files" do
