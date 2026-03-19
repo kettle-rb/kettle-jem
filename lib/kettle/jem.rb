@@ -67,6 +67,7 @@ module Kettle
     autoload :TemplatingReport, "kettle/jem/templating_report"
 
     # Templating and setup (moved from kettle-dev)
+    autoload :ConfigSeeder, "kettle/jem/config_seeder"
     autoload :TemplateHelpers, "kettle/jem/template_helpers"
     autoload :ModularGemfiles, "kettle/jem/modular_gemfiles"
     autoload :SetupCLI, "kettle/jem/setup_cli"

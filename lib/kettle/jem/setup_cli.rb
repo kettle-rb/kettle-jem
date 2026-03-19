@@ -5,6 +5,8 @@ require "shellwords"
 require "open3"
 require "optparse"
 
+require_relative "config_seeder"
+
 module Kettle
   module Jem
     # SetupCLI bootstraps a host gem repository to use kettle-jem tooling.
@@ -407,7 +409,7 @@ module Kettle
       end
 
       def seed_bootstrap_template_config(content)
-        Kettle::Jem::TemplateHelpers.seed_kettle_config_content(content, bootstrap_template_config_values)
+        Kettle::Jem::ConfigSeeder.seed_kettle_config_content(content, bootstrap_template_config_values)
       end
 
       def bootstrap_template_config_values
