@@ -37,4 +37,3 @@ OPENCOLLECTIVE_HANDLE = "kettle-rb"
 FUNDING_ORG = "kettle-rb"
 _.path = ["exe", "bin"]
 _.file = { path = ".env.local", redact = true }
-_.source = ".config/mise/env.sh"
