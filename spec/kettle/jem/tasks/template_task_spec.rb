@@ -270,6 +270,83 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
     end
 
+    describe ".kettle-jem.yml bootstrap seeding" do
+      it "fills env-backed token values into blank config slots on first write" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+
+              tokens:
+                forge:
+                  gh_user: ""
+                author:
+                  name: "{KJ|AUTHOR:NAME}"
+                  email: "{KJ|AUTHOR:EMAIL}"
+                  orcid: ""
+                funding:
+                  kofi: ""
+                social:
+                  mastodon: ""
+              files: {}
+            YAML
+
+            stub_env(
+              "KJ_GH_USER" => "pboling",
+              "KJ_AUTHOR_NAME" => "Peter H. Boling",
+              "KJ_AUTHOR_EMAIL" => "floss@glatzo.com",
+              "KJ_AUTHOR_ORCID" => "0009-0008-8519-441X",
+              "KJ_FUNDING_KOFI" => "pboling",
+              "KJ_SOCIAL_MASTODON" => "galtzo",
+            )
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ask: true,
+            )
+
+            result = described_class.send(
+              :ensure_kettle_config_bootstrap!,
+              helpers: helpers,
+              project_root: project_root,
+              template_root: template_root,
+              token_options: {
+                org: "acme",
+                gem_name: "demo",
+                namespace: "Demo",
+                namespace_shield: "Demo",
+                gem_shield: "demo",
+                funding_org: "acme",
+                min_ruby: "3.1",
+              },
+            )
+
+            expect(result).to eq(:bootstrap_only)
+
+            parsed = YAML.safe_load(
+              File.read(File.join(project_root, ".kettle-jem.yml")),
+              permitted_classes: [],
+              aliases: false,
+            )
+
+            expect(parsed.dig("tokens", "forge", "gh_user")).to eq("pboling")
+            expect(parsed.dig("tokens", "author", "name")).to eq("Peter H. Boling")
+            expect(parsed.dig("tokens", "author", "email")).to eq("floss@glatzo.com")
+            expect(parsed.dig("tokens", "author", "orcid")).to eq("0009-0008-8519-441X")
+            expect(parsed.dig("tokens", "funding", "kofi")).to eq("pboling")
+            expect(parsed.dig("tokens", "social", "mastodon")).to eq("galtzo")
+          end
+        end
+      end
+    end
+
     describe ".kettle-jem.yml syncing" do
       it "restores template-only trailing instructional comments" do
         Dir.mktmpdir do |gem_root|

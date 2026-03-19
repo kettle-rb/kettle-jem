@@ -407,12 +407,7 @@ module Kettle
       end
 
       def seed_bootstrap_template_config(content)
-        values = bootstrap_template_config_values
-        values.reduce(content.to_s) do |memo, (token, value)|
-          next memo if value.to_s.strip.empty?
-
-          memo.gsub("{#{token}}", value)
-        end
+        Kettle::Jem::TemplateHelpers.seed_kettle_config_content(content, bootstrap_template_config_values)
       end
 
       def bootstrap_template_config_values
@@ -422,28 +417,36 @@ module Kettle
         given_names, family_names = split_author_name(author_name)
 
         {
-          "KJ|AUTHOR:NAME" => author_name,
-          "KJ|AUTHOR:GIVEN_NAMES" => preferred_bootstrap_env("KJ_AUTHOR_GIVEN_NAMES") || given_names,
-          "KJ|AUTHOR:FAMILY_NAMES" => preferred_bootstrap_env("KJ_AUTHOR_FAMILY_NAMES") || family_names,
-          "KJ|AUTHOR:EMAIL" => author_email,
-          "KJ|AUTHOR:DOMAIN" => author_domain,
-          "KJ|AUTHOR:ORCID" => preferred_bootstrap_env("KJ_AUTHOR_ORCID"),
-          "KJ|GH:USER" => preferred_bootstrap_env("KJ_GH_USER"),
-          "KJ|GL:USER" => preferred_bootstrap_env("KJ_GL_USER"),
-          "KJ|CB:USER" => preferred_bootstrap_env("KJ_CB_USER"),
-          "KJ|SH:USER" => preferred_bootstrap_env("KJ_SH_USER"),
-          "KJ|FUNDING:PATREON" => preferred_bootstrap_env("KJ_FUNDING_PATREON"),
-          "KJ|FUNDING:KOFI" => preferred_bootstrap_env("KJ_FUNDING_KOFI"),
-          "KJ|FUNDING:PAYPAL" => preferred_bootstrap_env("KJ_FUNDING_PAYPAL"),
-          "KJ|FUNDING:BUYMEACOFFEE" => preferred_bootstrap_env("KJ_FUNDING_BUYMEACOFFEE"),
-          "KJ|FUNDING:POLAR" => preferred_bootstrap_env("KJ_FUNDING_POLAR"),
-          "KJ|FUNDING:LIBERAPAY" => preferred_bootstrap_env("KJ_FUNDING_LIBERAPAY"),
-          "KJ|FUNDING:ISSUEHUNT" => preferred_bootstrap_env("KJ_FUNDING_ISSUEHUNT"),
-          "KJ|SOCIAL:MASTODON" => preferred_bootstrap_env("KJ_SOCIAL_MASTODON"),
-          "KJ|SOCIAL:BLUESKY" => preferred_bootstrap_env("KJ_SOCIAL_BLUESKY"),
-          "KJ|SOCIAL:LINKTREE" => preferred_bootstrap_env("KJ_SOCIAL_LINKTREE"),
-          "KJ|SOCIAL:DEVTO" => preferred_bootstrap_env("KJ_SOCIAL_DEVTO"),
-        }
+          "forge" => {
+            "gh_user" => preferred_bootstrap_env("KJ_GH_USER"),
+            "gl_user" => preferred_bootstrap_env("KJ_GL_USER"),
+            "cb_user" => preferred_bootstrap_env("KJ_CB_USER"),
+            "sh_user" => preferred_bootstrap_env("KJ_SH_USER"),
+          }.reject { |_, value| value.to_s.strip.empty? },
+          "author" => {
+            "name" => author_name,
+            "given_names" => preferred_bootstrap_env("KJ_AUTHOR_GIVEN_NAMES") || given_names,
+            "family_names" => preferred_bootstrap_env("KJ_AUTHOR_FAMILY_NAMES") || family_names,
+            "email" => author_email,
+            "domain" => author_domain,
+            "orcid" => preferred_bootstrap_env("KJ_AUTHOR_ORCID"),
+          }.reject { |_, value| value.to_s.strip.empty? },
+          "funding" => {
+            "patreon" => preferred_bootstrap_env("KJ_FUNDING_PATREON"),
+            "kofi" => preferred_bootstrap_env("KJ_FUNDING_KOFI"),
+            "paypal" => preferred_bootstrap_env("KJ_FUNDING_PAYPAL"),
+            "buymeacoffee" => preferred_bootstrap_env("KJ_FUNDING_BUYMEACOFFEE"),
+            "polar" => preferred_bootstrap_env("KJ_FUNDING_POLAR"),
+            "liberapay" => preferred_bootstrap_env("KJ_FUNDING_LIBERAPAY"),
+            "issuehunt" => preferred_bootstrap_env("KJ_FUNDING_ISSUEHUNT"),
+          }.reject { |_, value| value.to_s.strip.empty? },
+          "social" => {
+            "mastodon" => preferred_bootstrap_env("KJ_SOCIAL_MASTODON"),
+            "bluesky" => preferred_bootstrap_env("KJ_SOCIAL_BLUESKY"),
+            "linktree" => preferred_bootstrap_env("KJ_SOCIAL_LINKTREE"),
+            "devto" => preferred_bootstrap_env("KJ_SOCIAL_DEVTO"),
+          }.reject { |_, value| value.to_s.strip.empty? },
+        }.reject { |_, values| values.empty? }
       end
 
       def preferred_bootstrap_env(key)

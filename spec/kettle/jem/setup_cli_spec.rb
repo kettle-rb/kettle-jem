@@ -195,6 +195,38 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "template config bootstrap seeding" do
+    it "fills env-backed token values into blank .kettle-jem.yml slots" do
+      cli = described_class.allocate
+      example_path = File.expand_path("../../../template/.kettle-jem.yml.example", __dir__)
+
+      stub_env(
+        "KJ_GH_USER" => "pboling",
+        "KJ_AUTHOR_NAME" => "Peter H. Boling",
+        "KJ_AUTHOR_GIVEN_NAMES" => "Peter H.",
+        "KJ_AUTHOR_FAMILY_NAMES" => "Boling",
+        "KJ_AUTHOR_EMAIL" => "floss@glatzo.com",
+        "KJ_AUTHOR_DOMAIN" => "galtzo.com",
+        "KJ_AUTHOR_ORCID" => "0009-0008-8519-441X",
+        "KJ_FUNDING_KOFI" => "pboling",
+        "KJ_SOCIAL_MASTODON" => "galtzo",
+      )
+
+      seeded = cli.send(:seed_bootstrap_template_config, File.read(example_path))
+      parsed = YAML.safe_load(seeded, permitted_classes: [], aliases: false)
+
+      expect(parsed.dig("tokens", "forge", "gh_user")).to eq("pboling")
+      expect(parsed.dig("tokens", "author", "name")).to eq("Peter H. Boling")
+      expect(parsed.dig("tokens", "author", "given_names")).to eq("Peter H.")
+      expect(parsed.dig("tokens", "author", "family_names")).to eq("Boling")
+      expect(parsed.dig("tokens", "author", "email")).to eq("floss@glatzo.com")
+      expect(parsed.dig("tokens", "author", "domain")).to eq("galtzo.com")
+      expect(parsed.dig("tokens", "author", "orcid")).to eq("0009-0008-8519-441X")
+      expect(parsed.dig("tokens", "funding", "kofi")).to eq("pboling")
+      expect(parsed.dig("tokens", "social", "mastodon")).to eq("galtzo")
+    end
+  end
+
   describe "#ensure_modular_gemfiles!" do
     it "calls ModularGemfiles.sync! and rescues metadata errors (min_ruby=nil)" do
       cli = described_class.allocate
