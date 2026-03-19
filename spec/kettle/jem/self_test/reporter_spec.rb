@@ -124,7 +124,7 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
     it "includes unexpected removals section" do
       comparison = {matched: [], changed: [], added: [], removed: %w[old.txt], skipped: []}
-      result = reporter.summary(comparison, output_dir: output_dir)
+      result = reporter.summary(comparison, output_dir: output_dir, diff_count: 0)
 
       expect(result).to include("## Not Templated — Unexpected (1)")
       expect(result).to include("| old.txt |")
@@ -168,7 +168,7 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
         removed: %w[unexpected.txt],
         skipped: %w[gemfiles/audit.gemfile kettle-jem.gemspec],
       }
-      result = reporter.summary(comparison, output_dir: output_dir)
+      result = reporter.summary(comparison, output_dir: output_dir, diff_count: 0)
 
       expect(result).to include("## Not Templated — Unexpected (1)")
       expect(result).to include("| unexpected.txt |")
@@ -255,9 +255,18 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
     it "links to diffs directory when there are changes" do
       comparison = {matched: [], changed: %w[a.txt], added: [], removed: []}
-      result = reporter.summary(comparison, output_dir: output_dir)
+      result = reporter.summary(comparison, output_dir: output_dir, diff_count: 1)
 
       expect(result).to include("report/diffs/")
+      expect(result).to include("(1 file)")
+    end
+
+    it "notes when the diffs directory is empty" do
+      comparison = {matched: [], changed: [], added: [], removed: %w[old.txt], skipped: []}
+      result = reporter.summary(comparison, output_dir: output_dir, diff_count: 0)
+
+      expect(result).to include("## Detailed Diffs")
+      expect(result).to include("No per-file diffs were generated for this run; `report/diffs/` is empty.")
     end
   end
 end

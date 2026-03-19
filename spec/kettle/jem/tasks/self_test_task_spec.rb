@@ -281,6 +281,7 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
         anything,
         output_dir: File.join(base_dir, "output"),
         templating_environment: templating_environment,
+        diff_count: 0,
       )
     end
 
@@ -298,7 +299,40 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
         hash_including(added: []),
         output_dir: File.join(base_dir, "output"),
         templating_environment: anything,
+        diff_count: 0,
       )
+    end
+
+    it "filters identical force-copied template additions out of the added-file list" do
+      template_root = File.join(gem_root, "template")
+      FileUtils.mkdir_p(File.join(template_root, "bin"))
+      FileUtils.mkdir_p(File.join(template_root, "tmp"))
+      File.write(File.join(template_root, "bin", "setup.example"), "#!/usr/bin/env ruby\nputs 'setup'\n")
+      File.write(File.join(template_root, "tmp", ".gitignore.example"), "*\n!.gitignore\n")
+
+      allow(helpers).to receive(:template_root).and_return(template_root)
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: [],
+        changed: [],
+        added: %w[bin/setup tmp/.gitignore unexpected.txt],
+        removed: [],
+      })
+      allow(described_class).to receive(:run_template) do |_helpers, _dest_dir, output_dir|
+        FileUtils.mkdir_p(File.join(output_dir, "bin"))
+        FileUtils.mkdir_p(File.join(output_dir, "tmp"))
+        File.write(File.join(output_dir, "bin", "setup"), File.read(File.join(template_root, "bin", "setup.example")))
+        File.write(File.join(output_dir, "tmp", ".gitignore"), File.read(File.join(template_root, "tmp", ".gitignore.example")))
+        File.write(File.join(output_dir, "unexpected.txt"), "surprise\n")
+      end
+      captured_comparison = nil
+      allow(reporter).to receive(:summary) do |comparison, **|
+        captured_comparison = comparison
+        "# Report\n"
+      end
+
+      expect { described_class.run }.not_to raise_error
+
+      expect(captured_comparison[:added]).to eq(["unexpected.txt"])
     end
 
     it "partitions expected non-templated removals into skipped and leaves only true surprises as removed" do

@@ -46,13 +46,15 @@ module Kettle
         #   "Removed Files"; skipped files get an informational collapsed section.
         # @param output_dir [String] path to the output directory (for the report header)
         # @param templating_environment [Hash, nil] templating environment snapshot
+        # @param diff_count [Integer, nil] number of per-file diff artifacts written
         # @return [String] markdown report
-        def summary(comparison, output_dir:, templating_environment: nil)
+        def summary(comparison, output_dir:, templating_environment: nil, diff_count: nil)
           matched = comparison.fetch(:matched, [])
           changed = comparison.fetch(:changed, [])
           added = comparison.fetch(:added, [])
           removed = comparison.fetch(:removed, [])
           skipped = comparison.fetch(:skipped, [])
+          diff_count = changed.size if diff_count.nil?
 
           total = matched.size + changed.size + added.size
           score = total.zero? ? 0.0 : (matched.size.to_f / total * 100).round(1)
@@ -109,7 +111,11 @@ module Kettle
           else
             lines << "## Detailed Diffs"
             lines << ""
-            lines << "See `report/diffs/` directory."
+            if diff_count.to_i.positive?
+              lines << "See `report/diffs/` directory (#{diff_count} file#{diff_count == 1 ? "" : "s"})."
+            else
+              lines << "No per-file diffs were generated for this run; `report/diffs/` is empty."
+            end
           end
 
           if skipped.any?

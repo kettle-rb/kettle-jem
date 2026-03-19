@@ -118,7 +118,10 @@ module Kettle
 
           # ── Step 5: Compare ───────────────────────────────────────────
           comparison = manifest.compare(before, after)
-          comparison[:added] = comparison[:added].reject { |rel| generated_runtime_artifact?(rel) }
+          comparison[:added] = comparison[:added].reject do |rel|
+            generated_runtime_artifact?(rel) ||
+              force_copied_template_addition?(rel, output_dir: output_dir, helpers: helpers)
+          end
 
           # Classify "removed" files into expected skips vs truly unexpected.
           # Files under lib/, spec/, template/, exe/, sig/, etc. are part of
@@ -130,6 +133,7 @@ module Kettle
           comparison[:skipped] = skipped
 
           # ── Step 6: Diffs ─────────────────────────────────────────────────
+          diff_count = 0
           comparison[:changed].each do |rel|
             file_a = File.join(dest_dir, rel)
             file_b = File.join(output_dir, rel)
@@ -139,6 +143,7 @@ module Kettle
             diff_path = File.join(diffs_dir, "#{rel}.diff")
             FileUtils.mkdir_p(File.dirname(diff_path))
             File.write(diff_path, diff_output)
+            diff_count += 1
           end
 
           # ── Step 7: Report ────────────────────────────────────────────────
@@ -146,6 +151,7 @@ module Kettle
             comparison,
             output_dir: output_dir,
             templating_environment: templating_environment,
+            diff_count: diff_count,
           )
           report_path = File.join(report_dir, "summary.md")
           File.write(report_path, report)
@@ -337,6 +343,23 @@ module Kettle
 
         def generated_runtime_artifact?(relative_path)
           GENERATED_RUNTIME_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) }
+        end
+
+        # Files created during self-test force mode that are byte-for-byte copies
+        # of their template source should not be treated as divergent "new files".
+        def force_copied_template_addition?(relative_path, output_dir:, helpers:)
+          actual_path = File.join(output_dir, relative_path.to_s)
+          return false unless File.file?(actual_path)
+
+          template_source = helpers.prefer_example_with_osc_check(
+            File.join(helpers.template_root, relative_path.to_s),
+          )
+          return false unless File.file?(template_source)
+
+          File.binread(actual_path) == File.binread(template_source)
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          false
         end
 
         def expected_non_templated_path?(relative_path, project_root:)
