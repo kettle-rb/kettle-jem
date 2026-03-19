@@ -269,6 +269,51 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".collect_gem_declarations" do
   end
 end
 
+RSpec.describe Kettle::Jem::PrismGemfile, ".collect_commented_gem_tombstones" do
+  def collect(content)
+    described_class.collect_commented_gem_tombstones(content)
+  end
+
+  it "collects explained commented-out gems at top-level" do
+    content = <<~RUBY
+      # Ex-Standard Library gems
+      # irb is included in the main Gemfile.
+      # gem "irb", "~> 1.15", ">= 1.15.2"
+    RUBY
+
+    tombstones = collect(content)
+
+    expect(tombstones).to contain_exactly(
+      include(
+        name: "irb",
+        context: "top-level",
+        line: 3,
+      ),
+    )
+  end
+
+  it "assigns the enclosing block context to explained commented-out gems" do
+    content = <<~RUBY
+      platform :mri do
+        # Only loaded elsewhere.
+        # gem "debug", ">= 1.1"
+      end
+    RUBY
+
+    tombstones = collect(content)
+
+    expect(tombstones).to contain_exactly(include(name: "debug", context: "platform(:mri)"))
+  end
+
+  it "ignores lone commented gem lines without explanatory comments" do
+    content = <<~RUBY
+      # gem "rubocop", "~> 1.73", ">= 1.73.2" # constrained by standard
+    RUBY
+
+    expect(collect(content)).to eq([])
+  end
+end
+
 RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validation" do
   let(:template) do
     <<~RUBY

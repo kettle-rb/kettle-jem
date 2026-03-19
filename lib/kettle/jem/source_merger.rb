@@ -58,11 +58,20 @@ module Kettle
             # but return source unchanged as a safety net
             src_content
           when :merge
-            apply_merge(src_content, dest_content, file_type: detected_type)
+            merge_destination = if detected_type == :gemfile
+              PrismGemfile.remove_tombstoned_gem_declarations(dest_content, src_content)
+            else
+              dest_content
+            end
+            apply_merge(src_content, merge_destination, file_type: detected_type)
           else
             raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}' for #{path}."
           end
 
+        if detected_type == :gemfile
+          result = PrismGemfile.restore_tombstone_comment_blocks(result, src_content)
+          result = PrismGemfile.suppress_commented_gem_declarations(result)
+        end
         result = ensure_trailing_newline(result)
 
         # Validate gemfile merges don't produce duplicate gems in blocks

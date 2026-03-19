@@ -136,5 +136,128 @@ RSpec.describe "Gemfile parsing idempotency" do
       reminder_count = fourth_run.scan("# To retain during kettle-jem templating:").count
       expect(reminder_count).to eq(1), "Should maintain single reminder block after multiple runs"
     end
+
+    it "treats an explained commented-out gem dependency as intentional across repeated merges" do
+      template_source = <<~GEMFILE
+        # frozen_string_literal: true
+
+        # Ex-Standard Library gems
+        # irb is included in main Gemfile (and unlocked_deps Appraisal), so it can't be included here.
+        # gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+
+        platform :mri do
+          gem "debug", ">= 1.1"
+        end
+      GEMFILE
+
+      existing_destination = <<~GEMFILE
+        # frozen_string_literal: true
+
+        # Ex-Standard Library gems
+        gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+
+        platform :mri do
+          gem "debug", ">= 1.1"
+        end
+      GEMFILE
+
+      path = "gemfiles/modular/debug.gemfile"
+
+      first_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: existing_destination,
+        path: path,
+      )
+
+      second_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: first_run,
+        path: path,
+      )
+
+      expect(first_run).to eq(second_run)
+      expect(first_run).to include("# irb is included in main Gemfile")
+      expect(first_run).to include('# gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5')
+      expect(first_run).not_to match(/^gem "irb"/)
+      expect(first_run.scan(/^\s*# gem "irb"/).count).to eq(1)
+      expect(first_run.scan(/^\s*gem "debug"/).count).to eq(1)
+    end
+
+    it "preserves the full explained commented-out gem block in the real debug modular gemfile flow" do
+      template_source = <<~GEMFILE
+        # frozen_string_literal: true
+
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
+        #     # ... your code
+        #     kettle-jem:unfreeze
+        #
+
+        # Ex-Standard Library gems
+        # irb is included in main Gemfile (and unlocked_deps Appraisal), so it can't be included here.
+        # gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+
+        platform :mri do
+          # Debugging - Ensure ENV["DEBUG"] == "true" to use debuggers within spec suite
+          # Use binding.break, binding.b, or debugger in code
+          gem "debug", ">= 1.1"                     # ruby >= 2.7
+
+          # Dev Console - Binding.pry - Irb replacement
+          # gem "pry", "~> 0.14"                     # ruby >= 2.0
+        end
+
+        gem "gem_bench", "~> 2.0", ">= 2.0.5"
+      GEMFILE
+
+      existing_destination = <<~GEMFILE
+        # frozen_string_literal: true
+
+        # To retain during kettle-jem templating:
+        #     kettle-jem:freeze
+        #     # ... your code
+        #     kettle-jem:unfreeze
+        #
+
+        # Ex-Standard Library gems
+        gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+
+        platform :mri do
+          # Debugging - Ensure ENV["DEBUG"] == "true" to use debuggers within spec suite
+          # Use binding.break, binding.b, or debugger in code
+          gem "debug", ">= 1.1"                     # ruby >= 2.7
+
+          # Dev Console - Binding.pry - Irb replacement
+          # gem "pry", "~> 0.14"                     # ruby >= 2.0
+        end
+
+        gem "gem_bench", "~> 2.0", ">= 2.0.5"
+      GEMFILE
+
+      path = "gemfiles/modular/debug.gemfile"
+
+      first_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: existing_destination,
+        path: path,
+      )
+
+      second_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: first_run,
+        path: path,
+      )
+
+      expect(first_run).to eq(second_run)
+      expect(first_run).to include("# irb is included in main Gemfile")
+      expect(first_run).to include('# gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5')
+      expect(first_run).not_to match(/^gem "irb"/)
+      expect(first_run.scan(/^\s*# gem "irb"/).count).to eq(1)
+      expect(first_run.scan(/^# To retain during kettle-jem templating:/).count).to eq(1)
+      expect(first_run.scan(/^# Ex-Standard Library gems$/).count).to eq(1)
+    end
   end
 end

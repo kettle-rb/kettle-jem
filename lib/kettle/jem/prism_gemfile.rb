@@ -8,6 +8,8 @@ module Kettle
     module PrismGemfile
       module_function
 
+      COMMENTED_GEM_CALL = /^\s*#\s*gem(?:\s+|\()(?<quote>["'])(?<name>[^"']+)\k<quote>/
+
       # Merge gem calls from src_content into dest_content.
       # - Replaces dest `source` call with src's if present.
       # - Replaces or inserts non-comment `git_source` definitions.
@@ -16,11 +18,14 @@ module Kettle
       def merge_gem_calls(src_content, dest_content)
         require "prism/merge" unless defined?(Prism::Merge)
 
+        source_tombstones = collect_commented_gem_tombstones(src_content)
+
         # Pre-filter: Extract only top-level gem-related calls from src
         src_filtered = filter_to_top_level_gems(src_content)
 
         # Always remove :github git_source from dest as it's built-in to Bundler
-        dest_processed = remove_github_git_source(dest_content)
+        dest_processed = prune_declarations_for_tombstones(dest_content, source_tombstones)
+        dest_processed = remove_github_git_source(dest_processed)
 
         # Custom signature generator that normalizes string quotes
         signature_generator = ->(node) do
@@ -48,7 +53,9 @@ module Kettle
           add_template_only_nodes: true,
           signature_generator: signature_generator,
         )
-        merger.merge
+        merged = merger.merge
+        merged = restore_tombstone_comment_blocks(merged, src_content)
+        suppress_commented_gem_declarations(merged)
       rescue Prism::Merge::Error => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
           Kettle::Dev.debug_error(e, __method__)
@@ -67,6 +74,7 @@ module Kettle
         parse_result = PrismUtils.parse_with_comments(content)
         return content unless parse_result.success?
 
+        lines = content.to_s.lines
         top_level_stmts = PrismUtils.extract_statements(parse_result.value.statements)
 
         filtered_stmts = top_level_stmts.select do |stmt|
@@ -77,24 +85,19 @@ module Kettle
           [:gem, :source, :git_source, :eval_gemfile].include?(stmt.name)
         end
 
-        return "" if filtered_stmts.empty?
+        ranges = filtered_stmts.map do |stmt|
+          {
+            start_line: leading_comment_start_line(lines, stmt.location.start_line),
+            end_line: stmt.location.end_line,
+          }
+        end
+        ranges.concat(commented_gem_tombstone_line_ranges(lines))
 
-        # Join statements with single newline. The trailing blank line ensures
-        # SmartMerger's trailing blank detection emits a gap after the last
-        # filtered statement, preserving separation from dest-only nodes.
-        filtered_stmts.map do |stmt|
-          src = stmt.slice.rstrip
-          inline = begin
-            PrismUtils.inline_comments_for_node(parse_result, stmt)
-          rescue
-            []
-          end
-          if inline && inline.any?
-            src + " " + inline.map(&:slice).map(&:strip).join(" ")
-          else
-            src
-          end
-        end.join("\n") + "\n"
+        return "" if ranges.empty?
+
+        merge_line_ranges(ranges).map do |range|
+          lines[(range[:start_line] - 1)..(range[:end_line] - 1)].join.rstrip
+        end.join("\n\n") + "\n"
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
           Kettle::Dev.debug_error(e, __method__)
@@ -153,6 +156,189 @@ module Kettle
           Kernel.warn("[#{__method__}] #{e.class}: #{e.message}")
         end
         content
+      end
+
+      # Detect explained commented-out gem lines and treat them as intentional
+      # tombstones for active declarations in the same block context.
+      #
+      # Recognized shape:
+      #   # explanation line
+      #   # gem "foo", "~> 1.0"
+      #
+      # A lone commented-out gem line is ignored to avoid treating examples or
+      # alternate version notes as removals.
+      #
+      # @param content [String] Gemfile-like content
+      # @return [Array<Hash>] tombstones with name/context/line metadata
+      def collect_commented_gem_tombstones(content)
+        result = PrismUtils.parse_with_comments(content)
+        return [] unless result.success?
+
+        ranges = collect_context_ranges(result.value.statements)
+        lines = content.to_s.lines
+
+        lines.each_with_index.with_object([]) do |(line, index), tombstones|
+          match = COMMENTED_GEM_CALL.match(line)
+          next unless match
+          next unless explained_commented_gem?(lines, index)
+
+          line_number = index + 1
+          block_start_line = commented_gem_block_start_line(lines, index)
+          tombstones << {
+            name: match[:name],
+            context: context_for_line(line_number, ranges),
+            slice: line.rstrip,
+            line: line_number,
+            block_start_line: block_start_line,
+            block_text: lines[(block_start_line - 1)..index].join.rstrip,
+          }
+        end
+      rescue StandardError => e
+        if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
+          Kettle::Dev.debug_error(e, __method__)
+        end
+        []
+      end
+
+      # Remove active gem declarations when the same gem has been intentionally
+      # commented out with an explanatory comment block in the same context.
+      #
+      # @param content [String] Gemfile-like content
+      # @return [String] content with suppressed active declarations removed
+      def suppress_commented_gem_declarations(content)
+        tombstones = collect_commented_gem_tombstones(content)
+        prune_declarations_for_tombstones(content, tombstones)
+      rescue StandardError => e
+        if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
+          Kettle::Dev.debug_error(e, __method__)
+        end
+        content
+      end
+
+      # Remove active gem declarations from destination content when source
+      # comments them out intentionally with an explanatory comment block.
+      #
+      # @param destination_content [String] Gemfile-like destination content
+      # @param template_content [String] Gemfile-like template/source content
+      # @return [String] destination content with matching active gems removed
+      def remove_tombstoned_gem_declarations(destination_content, template_content)
+        tombstones = collect_commented_gem_tombstones(template_content)
+        prune_declarations_for_tombstones(destination_content, tombstones)
+      rescue StandardError => e
+        if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
+          Kettle::Dev.debug_error(e, __method__)
+        end
+        destination_content
+      end
+
+      def restore_tombstone_comment_blocks(content, template_content)
+        tombstones = collect_commented_gem_tombstones(template_content)
+        return content if tombstones.empty?
+
+        tombstones.reduce(content) do |updated, tombstone|
+          ensure_tombstone_comment_block(updated, tombstone)
+        end
+      rescue StandardError => e
+        if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
+          Kettle::Dev.debug_error(e, __method__)
+        end
+        content
+      end
+
+      def prune_declarations_for_tombstones(content, tombstones)
+        return content if tombstones.empty?
+
+        tombstone_contexts = tombstones.each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |tombstone, contexts|
+          contexts[tombstone[:name]] << tombstone[:context]
+        end
+
+        declarations = collect_gem_declarations(content)
+        removals = declarations.select do |declaration|
+          tombstone_contexts[declaration[:name]].include?(declaration[:context])
+        end
+        return content if removals.empty?
+
+        remove_declarations(content, removals)
+      end
+
+      def ensure_tombstone_comment_block(content, tombstone)
+        block_text = tombstone[:block_text].to_s
+        return content if block_text.empty? || content.include?(block_text)
+
+        lines = content.lines
+        ranges = context_ranges_for_content(content)
+        marker_line = block_text.lines.first.to_s.rstrip
+        start_index = comment_block_index_for_marker(lines, marker_line, tombstone[:context], ranges)
+        start_index ||= comment_block_index_for_marker(lines, tombstone[:slice].to_s, tombstone[:context], ranges)
+
+        updated_lines = lines.dup
+
+        if start_index
+          end_index = comment_block_end_index(lines, start_index)
+          replacement_lines = tombstone_block_lines(block_text, lines[end_index + 1])
+          updated_lines[start_index..end_index] = replacement_lines
+        else
+          insertion_index = insertion_index_for_tombstone(updated_lines, tombstone, ranges)
+          insertion_lines = tombstone_block_lines(block_text, updated_lines[insertion_index])
+          updated_lines.insert(insertion_index, *insertion_lines)
+        end
+
+        updated_lines.join
+      end
+
+      def tombstone_block_lines(block_text, following_line)
+        block_lines = block_text.lines
+        if !block_lines.last.to_s.strip.empty? && following_line && !following_line.strip.empty?
+          block_lines << "\n\n"
+        end
+        block_lines
+      end
+
+      def context_ranges_for_content(content)
+        result = PrismUtils.parse_with_comments(content)
+        return [] unless result.success?
+
+        collect_context_ranges(result.value.statements)
+      end
+
+      def comment_block_index_for_marker(lines, marker_line, context, ranges)
+        lines.each_index.find do |index|
+          next false unless lines[index].rstrip == marker_line
+
+          context_for_line(index + 1, ranges) == context
+        end
+      end
+
+      def comment_block_end_index(lines, start_index)
+        finish = start_index
+
+        while finish + 1 < lines.length && lines[finish + 1].match?(/^\s*#/) 
+          finish += 1
+        end
+
+        finish
+      end
+
+      def insertion_index_for_tombstone(lines, tombstone, ranges)
+        line_number = if tombstone[:context] == "top-level"
+          lines.find_index { |line| line.match?(/\S/) }&.+(1)
+        else
+          declaration_line_for_context(lines.join, tombstone[:context]) || block_body_start_line_for_context(ranges, tombstone[:context])
+        end
+
+        line_number ? line_number - 1 : lines.length
+      end
+
+      def declaration_line_for_context(content, context)
+        collect_gem_declarations(content)
+          .select { |declaration| declaration[:context] == context }
+          .map { |declaration| declaration[:line] }
+          .min
+      end
+
+      def block_body_start_line_for_context(ranges, context)
+        range = ranges.find { |candidate| candidate[:context] == context }
+        range ? range[:start_line] + 1 : nil
       end
 
       def merge_local_gem_overrides(content, destination_content, excluded_gems: [])
@@ -420,6 +606,9 @@ module Kettle
                   context: context,
                   slice: node.slice.strip,
                   line: node.location.start_line,
+                  start_offset: node.location.start_offset,
+                  end_offset: node.location.end_offset,
+                  end_line: node.location.end_line,
                 }
               end
             end
@@ -477,6 +666,125 @@ module Kettle
         text.length > 40 ? text[0..37] + "..." : text
       rescue StandardError
         "..."
+      end
+
+      def explained_commented_gem?(lines, index)
+        cursor = index - 1
+        saw_explanatory_comment = false
+
+        while cursor >= 0
+          line = lines[cursor]
+          break unless line.match?(/^\s*#/) 
+
+          saw_explanatory_comment ||= !COMMENTED_GEM_CALL.match?(line)
+          cursor -= 1
+        end
+
+        saw_explanatory_comment
+      end
+
+      def commented_gem_tombstone_line_ranges(lines)
+        lines.each_with_index.with_object([]) do |(line, index), ranges|
+          next unless COMMENTED_GEM_CALL.match?(line)
+          next unless explained_commented_gem?(lines, index)
+
+          ranges << {
+            start_line: commented_gem_block_start_line(lines, index),
+            end_line: index + 1,
+          }
+        end
+      end
+
+      def commented_gem_block_start_line(lines, index)
+        cursor = index
+
+        while cursor.positive?
+          previous = lines[cursor - 1]
+          break if previous.to_s.strip.empty?
+          break unless previous.match?(/^\s*#/)
+
+          cursor -= 1
+        end
+
+        cursor + 1
+      end
+
+      def leading_comment_start_line(lines, line_number)
+        commented_gem_block_start_line(lines, line_number - 1)
+      end
+
+      def merge_line_ranges(ranges)
+        ranges
+          .sort_by { |range| [range[:start_line], range[:end_line]] }
+          .each_with_object([]) do |range, merged|
+            previous = merged.last
+            if previous && range[:start_line] <= (previous[:end_line] + 1)
+              previous[:end_line] = [previous[:end_line], range[:end_line]].max
+            else
+              merged << range.dup
+            end
+          end
+      end
+
+      def collect_context_ranges(body_node, context_stack = [], ranges = [])
+        stmts = PrismUtils.extract_statements(body_node)
+
+        stmts.each do |node|
+          case node
+          when Prism::CallNode
+            next unless node.block
+
+            block_label = describe_call_context(node)
+            next_context = context_stack + [block_label]
+            ranges << build_context_range(node, next_context)
+            collect_context_ranges(node.block.body, next_context, ranges)
+          when Prism::IfNode
+            cond_label = "if #{describe_condition(node)}"
+            branch_context = context_stack + [cond_label]
+            ranges << build_context_range(node, branch_context)
+            collect_context_ranges(node.statements, branch_context, ranges) if node.statements
+            collect_context_ranges(node.subsequent, branch_context, ranges) if node.respond_to?(:subsequent) && node.subsequent
+          when Prism::UnlessNode
+            cond_label = "unless #{describe_condition(node)}"
+            branch_context = context_stack + [cond_label]
+            ranges << build_context_range(node, branch_context)
+            collect_context_ranges(node.statements, branch_context, ranges) if node.statements
+            collect_context_ranges(node.subsequent, branch_context, ranges) if node.respond_to?(:subsequent) && node.subsequent
+          when Prism::ElseNode
+            collect_context_ranges(node.statements, context_stack, ranges) if node.statements
+          end
+        end
+
+        ranges
+      end
+
+      def build_context_range(node, context_stack)
+        {
+          context: context_stack.join(" > "),
+          start_line: node.location.start_line,
+          end_line: node.location.end_line,
+          depth: context_stack.length,
+        }
+      end
+
+      def context_for_line(line_number, ranges)
+        range = ranges
+          .select { |candidate| line_number.between?(candidate[:start_line], candidate[:end_line]) }
+          .max_by { |candidate| [candidate[:depth], -(candidate[:end_line] - candidate[:start_line])] }
+
+        range ? range[:context] : "top-level"
+      end
+
+      def remove_declarations(content, declarations)
+        declarations
+          .sort_by { |declaration| -declaration[:start_offset] }
+          .reduce(content.dup) do |updated, declaration|
+            line_end = declaration[:end_offset]
+            line_end += 1 while line_end < updated.bytesize && updated.getbyte(line_end) != 10
+            line_end += 1 if line_end < updated.bytesize
+
+            updated.byteslice(0, declaration[:start_offset]).to_s + updated.byteslice(line_end..).to_s
+          end
       end
     end
   end

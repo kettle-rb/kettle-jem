@@ -126,6 +126,40 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       result = described_class.merge_gem_calls("gem \"new\"\n", dest)
       expect(result).to eq(dest)
     end
+
+    it "suppresses an active gem when source comments it out with explanation" do
+      src = <<~RUBY
+        # Ex-Standard Library gems
+        # irb is included in main Gemfile (and unlocked_deps Appraisal), so it can't be included here.
+        # gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+      RUBY
+
+      dest = <<~RUBY
+        gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5
+      RUBY
+
+      out = described_class.merge_gem_calls(src, dest)
+
+      expect(out).to include("# irb is included in main Gemfile")
+      expect(out).to include('# gem "irb", "~> 1.15", ">= 1.15.2" # removed from stdlib in 3.5')
+      expect(out).not_to match(/^gem "irb"/)
+    end
+
+    it "keeps an active gem when a commented example has no explanatory comment block" do
+      src = <<~RUBY
+        gem "rubocop", ">= 1.80"
+      RUBY
+
+      dest = <<~RUBY
+        gem "rubocop", ">= 1.73"
+        # gem "rubocop", "~> 1.73", ">= 1.73.2" # constrained by standard
+      RUBY
+
+      out = described_class.merge_gem_calls(src, dest)
+
+      expect(out).to match(/^gem "rubocop"/)
+      expect(out).to include('# gem "rubocop", "~> 1.73", ">= 1.73.2" # constrained by standard')
+    end
   end
 
   describe ".filter_to_top_level_gems" do
