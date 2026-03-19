@@ -184,13 +184,15 @@ module Kettle
 
           line_number = index + 1
           block_start_line = commented_gem_block_start_line(lines, index)
+          block_end_index = commented_gem_block_end_index(lines, index)
           tombstones << {
             name: match[:name],
             context: context_for_line(line_number, ranges),
             slice: line.rstrip,
             line: line_number,
             block_start_line: block_start_line,
-            block_text: lines[(block_start_line - 1)..index].join.rstrip,
+            trailing_blank_lines: block_end_index - index,
+            block_text: lines[(block_start_line - 1)..block_end_index].join,
           }
         end
       rescue StandardError => e
@@ -274,24 +276,14 @@ module Kettle
         updated_lines = lines.dup
 
         if start_index
-          end_index = comment_block_end_index(lines, start_index)
-          replacement_lines = tombstone_block_lines(block_text, lines[end_index + 1])
-          updated_lines[start_index..end_index] = replacement_lines
+          end_index = comment_block_end_index(lines, start_index, include_trailing_blank_lines: true)
+          updated_lines[start_index..end_index] = block_text.lines
         else
           insertion_index = insertion_index_for_tombstone(updated_lines, tombstone, ranges)
-          insertion_lines = tombstone_block_lines(block_text, updated_lines[insertion_index])
-          updated_lines.insert(insertion_index, *insertion_lines)
+          updated_lines.insert(insertion_index, *block_text.lines)
         end
 
         updated_lines.join
-      end
-
-      def tombstone_block_lines(block_text, following_line)
-        block_lines = block_text.lines
-        if !block_lines.last.to_s.strip.empty? && following_line && !following_line.strip.empty?
-          block_lines << "\n\n"
-        end
-        block_lines
       end
 
       def context_ranges_for_content(content)
@@ -309,10 +301,26 @@ module Kettle
         end
       end
 
-      def comment_block_end_index(lines, start_index)
+      def comment_block_end_index(lines, start_index, include_trailing_blank_lines: false)
         finish = start_index
 
         while finish + 1 < lines.length && lines[finish + 1].match?(/^\s*#/) 
+          finish += 1
+        end
+
+        if include_trailing_blank_lines
+          while finish + 1 < lines.length && lines[finish + 1].strip.empty?
+            finish += 1
+          end
+        end
+
+        finish
+      end
+
+      def commented_gem_block_end_index(lines, index)
+        finish = index
+
+        while finish + 1 < lines.length && lines[finish + 1].strip.empty?
           finish += 1
         end
 
