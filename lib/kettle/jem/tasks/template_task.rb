@@ -13,10 +13,54 @@ module Kettle
         MODULAR_GEMFILE_DIR = "gemfiles/modular"
         MARKDOWN_HEADING_EXTENSIONS = %w[.md .markdown].freeze
         OBSOLETE_WORKFLOWS = %w[ancient.yml legacy.yml supported.yml unsupported.yml main.yml hoary.yml].freeze
-        MARKDOWN_PARAGRAPH_MATCH_REFINER = Ast::Merge::ContentMatchRefiner.new(
+        MARKDOWN_PARAGRAPH_BASE_REFINER = Ast::Merge::ContentMatchRefiner.new(
           threshold: 0.3,
           node_types: [:paragraph],
         )
+        MARKDOWN_LABEL_STYLE_PARAGRAPH_RE = /\A.{1,120}:\z/m.freeze
+        MARKDOWN_MATCH_STOPWORDS = %w[
+          about after all and are before false for from hard into must not only or the this true use when with
+        ].to_set.freeze
+        MARKDOWN_PARAGRAPH_MATCH_REFINER = lambda do |template_nodes, dest_nodes, context|
+          template_paragraphs = template_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
+          dest_paragraphs = dest_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
+          next [] if template_paragraphs.empty? || dest_paragraphs.empty?
+
+          candidates = []
+          total_template = template_paragraphs.size
+          total_dest = dest_paragraphs.size
+
+          template_paragraphs.each_with_index do |template_node, template_idx|
+            dest_paragraphs.each_with_index do |dest_node, dest_idx|
+              score = TemplateTask.markdown_paragraph_match_score(
+                template_node,
+                dest_node,
+                template_idx: template_idx,
+                dest_idx: dest_idx,
+                total_template: total_template,
+                total_dest: total_dest,
+              )
+              next unless score >= MARKDOWN_PARAGRAPH_BASE_REFINER.threshold
+
+              candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
+                template_node: template_node,
+                dest_node: dest_node,
+                score: score,
+                metadata: {},
+              )
+            end
+          end
+
+          used_template = Set.new
+          used_dest = Set.new
+          candidates.sort_by { |match| -match.score }.each_with_object([]) do |match, matches|
+            next if used_template.include?(match.template_node) || used_dest.include?(match.dest_node)
+
+            matches << match
+            used_template << match.template_node
+            used_dest << match.dest_node
+          end
+        end
 
         module_function
 
@@ -98,6 +142,60 @@ module Kettle
         def markdown_heading_file?(relative_path)
           ext = File.extname(relative_path.to_s).downcase
           MARKDOWN_HEADING_EXTENSIONS.include?(ext)
+        end
+
+        def markdown_paragraph_match_acceptable?(template_node, dest_node)
+          template_text = normalize_markdown_match_text(template_node&.text)
+          dest_text = normalize_markdown_match_text(dest_node&.text)
+          return false if template_text.empty? || dest_text.empty?
+          return true unless label_style_markdown_paragraph?(template_text) || label_style_markdown_paragraph?(dest_text)
+
+          !(markdown_significant_tokens(template_text) & markdown_significant_tokens(dest_text)).empty?
+        end
+
+        def markdown_paragraph_match_score(template_node, dest_node, template_idx:, dest_idx:, total_template:, total_dest:)
+          score = MARKDOWN_PARAGRAPH_BASE_REFINER.send(
+            :compute_content_similarity,
+            template_node,
+            dest_node,
+            template_idx,
+            dest_idx,
+            total_template,
+            total_dest,
+          )
+
+          return 0.0 unless markdown_paragraph_match_acceptable?(template_node, dest_node)
+
+          template_text = normalize_markdown_match_text(template_node&.text)
+          dest_text = normalize_markdown_match_text(dest_node&.text)
+          if label_style_markdown_paragraph?(template_text) || label_style_markdown_paragraph?(dest_text)
+            overlap_count = (markdown_significant_tokens(template_text) & markdown_significant_tokens(dest_text)).size
+            score = [score + [overlap_count * 0.05, 0.25].min, 1.0].min
+          end
+
+          score
+        end
+
+        def markdown_paragraph_node?(node)
+          return false unless node.respond_to?(:type)
+
+          node.type.to_sym == :paragraph
+        rescue StandardError
+          false
+        end
+
+        def normalize_markdown_match_text(text)
+          text.to_s.strip.gsub(/\s+/, " ")
+        end
+
+        def label_style_markdown_paragraph?(text)
+          MARKDOWN_LABEL_STYLE_PARAGRAPH_RE.match?(text.to_s.strip)
+        end
+
+        def markdown_significant_tokens(text)
+          text.to_s.downcase.scan(/[[:alpha:]][[:alnum:]_-]{3,}/).reject do |token|
+            MARKDOWN_MATCH_STOPWORDS.include?(token)
+          end.to_set
         end
 
         def sync_readme_gemspec_grapheme!(helpers:, project_root:, gem_name:)

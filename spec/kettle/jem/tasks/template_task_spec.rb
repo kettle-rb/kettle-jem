@@ -3846,6 +3846,85 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           expect(result).to include("### Modular Gemfile Architecture")
         end
       end
+
+      it "keeps AGENTS development workflow updates in-place instead of mismatching and appending them" do
+        Dir.mktmpdir do |dir|
+          dest = File.join(dir, "AGENTS.md")
+          File.write(dest, <<~MARKDOWN)
+            # AGENTS.md - Development Guide
+
+            ## 🔧 Development Workflows
+
+            ### Running Tests
+
+            ```bash
+            mise exec -C /path/to/project -- bundle exec rspec
+            ```
+
+            Single file (disable coverage threshold):
+            ```bash
+            mise exec -C /path/to/project -- env K_SOUP_COV_MIN_HARD=false bundle exec rspec spec/path/to/spec.rb
+            ```
+
+            ### Coverage Reports
+
+            ```bash
+            mise exec -C /path/to/project -- bin/rake coverage
+            ```
+
+            ## 🚫 Common Pitfalls
+
+            1. Keep commands self-contained.
+          MARKDOWN
+
+          template = <<~MARKDOWN
+            # AGENTS.md - Development Guide
+
+            ## 🔧 Development Workflows
+
+            ### Running Commands
+
+            Always make commands self-contained. Use `mise exec -C /home/pboling/src/kettle-rb/prism-merge -- ...` so the command gets the project environment in the same invocation.
+
+            ### Running Tests
+
+            Full suite spec runs:
+
+            ```bash
+            mise exec -C /path/to/project -- bundle exec rspec
+            ```
+
+            For single file, targeted, or partial spec runs the coverage threshold **must** be disabled.
+            Use the `K_SOUP_COV_MIN_HARD=false` environment variable to disable hard failure:
+
+            ```bash
+            mise exec -C /path/to/project -- env K_SOUP_COV_MIN_HARD=false bundle exec rspec spec/path/to/spec.rb
+            ```
+
+            ### Coverage Reports
+
+            ```bash
+            mise exec -C /path/to/project -- bin/rake coverage
+            ```
+
+            ## 🚫 Common Pitfalls
+
+            1. Keep commands self-contained.
+          MARKDOWN
+
+          result = described_class.merge_by_file_type(template, dest, "AGENTS.md", Kettle::Jem::TemplateHelpers)
+
+          workflows = result[/## 🔧 Development Workflows.*?(?=## 🚫 Common Pitfalls)/m]
+          tail = result.lines.last(8).join
+
+          expect(workflows).to include("### Running Commands")
+          expect(workflows).to include("Full suite spec runs:")
+          expect(workflows).to include("For single file, targeted, or partial spec runs")
+          expect(workflows).not_to include("Single file (disable coverage threshold):")
+          expect(tail).not_to include("### Running Commands")
+          expect(tail).not_to include("For single file, targeted, or partial spec runs")
+        end
+      end
     end
 
     describe "AGENTS template content" do
