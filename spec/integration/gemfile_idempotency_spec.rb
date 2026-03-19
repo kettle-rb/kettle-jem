@@ -261,5 +261,28 @@ RSpec.describe "Gemfile parsing idempotency" do
       expect(first_run.scan(/^# To retain during kettle-jem templating:/).count).to eq(1)
       expect(first_run.scan(/^# Ex-Standard Library gems$/).count).to eq(1)
     end
+
+    it "keeps the real debug modular gemfile template unchanged when merging it with itself" do
+      template_source = File.read("template/gemfiles/modular/debug.gemfile.example")
+
+      first_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: template_source,
+        path: "gemfiles/modular/debug.gemfile",
+      )
+
+      second_run = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: first_run,
+        path: "gemfiles/modular/debug.gemfile",
+      )
+
+      expect(first_run).to eq(template_source)
+      expect(second_run).to eq(template_source)
+      expect(first_run).to include("# gem \"pry\", \"~> 0.14\"                     # ruby >= 2.0\nend\n")
+      expect(first_run).not_to include("# gem \"pry\", \"~> 0.14\"                     # ruby >= 2.0\n\nend\n")
+    end
   end
 end

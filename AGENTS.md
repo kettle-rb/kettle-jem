@@ -120,13 +120,21 @@ gemfiles/
 
 ## 🔧 Development Workflows
 
+### Running Commands
+
+Always make commands self-contained. Use `mise exec -C /home/pboling/src/kettle-rb/prism-merge -- ...` so the command gets the project environment in the same invocation.
+
 ### Running Tests
+
+Full suite spec runs:
 
 ```bash
 mise exec -C /path/to/project -- bundle exec rspec
 ```
 
-Single file (disable coverage threshold):
+For single file, targeted, or partial spec runs the coverage threshold **must** be disabled.
+Use the `K_SOUP_COV_MIN_HARD=false` environment variable to disable hard failure:
+
 ```bash
 mise exec -C /path/to/project -- env K_SOUP_COV_MIN_HARD=false bundle exec rspec spec/path/to/spec.rb
 ```
