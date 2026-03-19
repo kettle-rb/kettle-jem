@@ -24,6 +24,8 @@ module Kettle
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
       BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile].freeze
+      BOOTSTRAP_LOCAL_GEMS_ARRAY_RE = /^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m.freeze
+      BOOTSTRAP_VENDORED_GEMS_EXPORT_RE = /^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/.freeze
 
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
@@ -472,6 +474,16 @@ module Kettle
         nil
       end
 
+      def gemspec_string_value(name)
+        return nil unless @gemspec_path && File.exist?(@gemspec_path)
+
+        content = File.read(@gemspec_path)
+        content[/spec\.(?:#{Regexp.escape(name)})\s*=\s*["']([^"']+)["']/, 1]
+      rescue StandardError => e
+        debug("Could not read #{name} from #{@gemspec_path}: #{e.class}: #{e.message}")
+        nil
+      end
+
       def split_author_name(author_name)
         parts = author_name.to_s.strip.split(/\s+/)
         return [nil, nil] if parts.empty?
@@ -589,6 +601,11 @@ module Kettle
 
           dest = File.join("gemfiles", "modular", filename)
           existed_before = File.exist?(dest)
+          if filename == "templating_local.gemfile" && existed_before && local_workspace_dev_mode?
+            merge_bootstrap_templating_local_gemfile!(source: source, dest: dest)
+            next
+          end
+
           overwrite = existed_before && force? && BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES.include?(filename)
           next if existed_before && !overwrite
 
@@ -596,6 +613,107 @@ module Kettle
           FileUtils.cp(source, dest)
           say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
         end
+      end
+
+      def local_workspace_dev_mode?
+        ENV.fetch("KETTLE_RB_DEV", "false").to_s.strip.casecmp("false").nonzero?
+      end
+
+      def merge_bootstrap_templating_local_gemfile!(source:, dest:)
+        source_content = File.read(source)
+        destination_content = File.read(dest)
+        merged_content = merge_bootstrap_templating_local_content(
+          source_content,
+          destination_content,
+          excluded_gems: gemspec_string_value("name"),
+        )
+        return if merged_content == destination_content
+
+        File.write(dest, merged_content)
+        say("Updated #{dest} with required local templating gems.", verbose_only: true)
+      end
+
+      def merge_bootstrap_templating_local_content(source_content, destination_content, excluded_gems: [])
+        source_local_match = bootstrap_local_gems_array_match(source_content)
+        destination_local_match = bootstrap_local_gems_array_match(destination_content)
+        source_export_match = bootstrap_vendored_gems_export_match(source_content)
+        destination_export_match = bootstrap_vendored_gems_export_match(destination_content)
+
+        return destination_content unless source_local_match || source_export_match
+
+        excluded = Array(excluded_gems).map { |word| word.to_s.strip }.reject(&:empty?)
+        words = (
+          bootstrap_local_gems_words(destination_local_match) +
+          bootstrap_local_gems_words(source_local_match) +
+          bootstrap_vendored_gems_words(destination_export_match) +
+          bootstrap_vendored_gems_words(source_export_match)
+        ).uniq.reject { |word| excluded.include?(word) }
+
+        out = destination_content.dup
+        template_local_match = destination_local_match || source_local_match
+        return destination_content unless template_local_match
+
+        local_text = rebuild_bootstrap_local_gems_array(template_local_match, words)
+        if destination_local_match
+          out.sub!(destination_local_match[0], local_text)
+        else
+          out = "#{local_text}\n\n#{out}" unless words.empty?
+        end
+
+        export_template = destination_export_match || source_export_match
+        return out unless export_template
+
+        export_text = rebuild_bootstrap_vendored_gems_export_line(export_template, words)
+        if destination_export_match
+          out.sub!(destination_export_match[0], export_text)
+        elsif out.include?(local_text)
+          out.sub!(local_text, "#{local_text}\n\n#{export_text}")
+        else
+          out = "#{export_text}\n#{out}"
+        end
+
+        out
+      end
+
+      def bootstrap_local_gems_array_match(content)
+        content.to_s.match(BOOTSTRAP_LOCAL_GEMS_ARRAY_RE)
+      end
+
+      def bootstrap_local_gems_words(match)
+        return [] unless match
+
+        match[:body].to_s.split(/\s+/).reject(&:empty?)
+      end
+
+      def bootstrap_vendored_gems_export_match(content)
+        content.to_s.match(BOOTSTRAP_VENDORED_GEMS_EXPORT_RE)
+      end
+
+      def bootstrap_vendored_gems_words(match)
+        return [] unless match
+
+        match[:body].to_s.split(",").map(&:strip).reject(&:empty?)
+      end
+
+      def rebuild_bootstrap_local_gems_array(match, words)
+        indent = match[:indent].to_s
+        suffix = match[:suffix].to_s
+        multiline = match[:body].to_s.include?("\n") || words.length > 1
+
+        if multiline
+          rebuilt_body = if words.empty?
+            ""
+          else
+            "\n" + words.map { |word| "#{indent}  #{word}" }.join("\n") + "\n#{indent}"
+          end
+          "#{indent}local_gems = %w[#{rebuilt_body}]#{suffix}"
+        else
+          "#{indent}local_gems = %w[#{words.join(" ")}]#{suffix}"
+        end
+      end
+
+      def rebuild_bootstrap_vendored_gems_export_line(match, words)
+        "#{match[:prefix]}#{words.join(",")}"
       end
 
       # 3c. Ensure gemfiles/modular/* are present (copied like template task)

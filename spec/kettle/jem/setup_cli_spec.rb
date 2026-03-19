@@ -849,6 +849,64 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
     end
+
+    it "merges required local templating gems into an existing templating_local.gemfile in local-dev mode" do
+      stub_env("KETTLE_RB_DEV" => "true")
+      FileUtils.mkdir_p(File.join("gemfiles", "modular"))
+      File.write("ast-merge.gemspec", <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "ast-merge"
+        end
+      RUBY
+      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), <<~RUBY)
+        require "nomono/bundler"
+
+        local_gems = %w[
+          tree_haver
+          bash-merge
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=tree_haver,bash-merge,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
+      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
+      File.write(templating_source, "gem 'templating-new'\n")
+      File.write(templating_local_source, <<~RUBY)
+        require "nomono/bundler"
+
+        local_gems = %w[
+          ast-merge
+          tree_haver
+          bash-merge
+          kettle-jem
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=ast-merge,tree_haver,bash-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      cli = described_class.allocate
+      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
+      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+
+      cli.send(:ensure_bootstrap_modular_gemfiles!)
+
+      result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
+      expect(result).to include("tree_haver")
+      expect(result).to include("bash-merge")
+      expect(result).to include("prism-merge")
+      expect(result).to include("kettle-jem")
+      expect(result).not_to include("ast-merge\n")
+      expect(result).to include("# export VENDORED_GEMS=tree_haver,bash-merge,prism-merge,kettle-jem")
+    end
   end
 
   describe "#ensure_bin_setup! and #ensure_rakefile!" do
