@@ -17,6 +17,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   before do
     helpers.clear_tokens!
     helpers.clear_kettle_config!
+    helpers.clear_warnings
 
     stub_env(
       "FUNDING_ORG" => "false",
@@ -96,6 +97,77 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       content = "{KJ|UNKNOWN_TOKEN} stays"
       result = helpers.apply_common_replacements(content, **base_args)
       expect(result).to eq("{KJ|UNKNOWN_TOKEN} stays")
+    end
+
+    context "with README top logo tokens" do
+      let(:content) do
+        <<~MARKDOWN.chomp
+          {KJ|README:TOP_LOGO_ROW}
+
+          {KJ|README:TOP_LOGO_REFS}
+        MARKDOWN
+      end
+
+      it "defaults to org_and_project when readme.top_logo_mode is absent" do
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to include("[![my-org Logo by Aboling0, CC BY-SA 4.0][🖼️my-org-i]][🖼️my-org]")
+        expect(result).to include("[![my-gem Logo by Aboling0, CC BY-SA 4.0][🖼️my-gem-i]][🖼️my-gem]")
+        expect(result).to include("[🖼️my-org-i]: https://logos.galtzo.com/assets/images/my-org/avatar-192px.svg")
+        expect(result).to include("[🖼️my-org]: https://github.com/my-org")
+        expect(result).to include("[🖼️my-gem-i]: https://logos.galtzo.com/assets/images/my-org/my-gem/avatar-192px.svg")
+        expect(result).to include("[🖼️my-gem]: https://github.com/my-org/my-gem")
+      end
+
+      it "renders only the org logo when readme.top_logo_mode is org" do
+        allow(helpers).to receive(:kettle_config).and_return(
+          {
+            "defaults" => {"freeze_token" => "kettle-jem"},
+            "readme" => {"top_logo_mode" => "org"},
+            "tokens" => {},
+          },
+        )
+
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to include("[![my-org Logo by Aboling0, CC BY-SA 4.0][🖼️my-org-i]][🖼️my-org]")
+        expect(result).not_to include("[![my-gem Logo by Aboling0, CC BY-SA 4.0][🖼️my-gem-i]][🖼️my-gem]")
+        expect(result).to include("[🖼️my-org-i]: https://logos.galtzo.com/assets/images/my-org/avatar-192px.svg")
+        expect(result).not_to include("[🖼️my-gem-i]: https://logos.galtzo.com/assets/images/my-org/my-gem/avatar-192px.svg")
+      end
+
+      it "renders only the project logo when readme.top_logo_mode is project" do
+        allow(helpers).to receive(:kettle_config).and_return(
+          {
+            "defaults" => {"freeze_token" => "kettle-jem"},
+            "readme" => {"top_logo_mode" => "project"},
+            "tokens" => {},
+          },
+        )
+
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).not_to include("[![my-org Logo by Aboling0, CC BY-SA 4.0][🖼️my-org-i]][🖼️my-org]")
+        expect(result).to include("[![my-gem Logo by Aboling0, CC BY-SA 4.0][🖼️my-gem-i]][🖼️my-gem]")
+        expect(result).not_to include("[🖼️my-org-i]: https://logos.galtzo.com/assets/images/my-org/avatar-192px.svg")
+        expect(result).to include("[🖼️my-gem-i]: https://logos.galtzo.com/assets/images/my-org/my-gem/avatar-192px.svg")
+      end
+
+      it "falls back to org_and_project for invalid values and records a warning" do
+        allow(helpers).to receive(:kettle_config).and_return(
+          {
+            "defaults" => {"freeze_token" => "kettle-jem"},
+            "readme" => {"top_logo_mode" => "surprise-me"},
+            "tokens" => {},
+          },
+        )
+
+        result = helpers.apply_common_replacements(content, **base_args)
+
+        expect(result).to include("[![my-org Logo by Aboling0, CC BY-SA 4.0][🖼️my-org-i]][🖼️my-org]")
+        expect(result).to include("[![my-gem Logo by Aboling0, CC BY-SA 4.0][🖼️my-gem-i]][🖼️my-gem]")
+        expect(helpers.warnings.join("\n")).to include("Unknown readme.top_logo_mode 'surprise-me'")
+      end
     end
 
     context "with forge user tokens" do

@@ -772,6 +772,77 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "renders the README top logo block using the configured org-only mode" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              readme:
+                top_logo_mode: org_and_project
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(template_root, "README.md.example"), <<~MARKDOWN)
+              {KJ|README:TOP_LOGO_ROW}
+
+              {KJ|README:TOP_LOGO_REFS}
+
+              # {KJ|NAMESPACE}
+            MARKDOWN
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              readme:
+                top_logo_mode: org
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+              gemspec_metadata: {
+                gem_name: "nomono",
+                min_ruby: Gem::Version.create("3.2"),
+                forge_org: "kettle-rb",
+                funding_org: nil,
+                namespace: "Nomono",
+                namespace_shield: "Nomono",
+                gem_shield: "nomono",
+                authors: ["Test User"],
+                email: ["test@example.com"],
+                entrypoint_require: "nomono",
+              },
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            readme = File.read(File.join(project_root, "README.md"))
+            expect(readme).to include("[![kettle-rb Logo by Aboling0, CC BY-SA 4.0][🖼️kettle-rb-i]][🖼️kettle-rb]")
+            expect(readme).not_to include("[![nomono Logo by Aboling0, CC BY-SA 4.0][🖼️nomono-i]][🖼️nomono]")
+            expect(readme).to include("[🖼️kettle-rb-i]: https://logos.galtzo.com/assets/images/kettle-rb/avatar-192px.svg")
+            expect(readme).not_to include("[🖼️nomono-i]: https://logos.galtzo.com/assets/images/kettle-rb/nomono/avatar-192px.svg")
+          end
+        end
+      end
+
       it "re-templates README compatibility badges when min_ruby increases" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|

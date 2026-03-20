@@ -5,6 +5,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   before do
     described_class.class_variable_set(:@@kettle_config, nil)
     described_class.class_variable_set(:@@manifestation, nil)
+    described_class.clear_warnings
   end
 
   describe ".kettle_config" do
@@ -183,6 +184,39 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         path = File.join(project_root, ".tool-versions")
         expect(described_class.strategy_for(path)).to eq(:merge)
       end
+    end
+  end
+
+  describe ".readme_top_logo_mode" do
+    it "defaults to org_and_project when readme config is absent" do
+      allow(described_class).to receive(:kettle_config).and_return({})
+
+      expect(described_class.readme_top_logo_mode).to eq("org_and_project")
+    end
+
+    it "accepts org" do
+      allow(described_class).to receive(:kettle_config).and_return(
+        {"readme" => {"top_logo_mode" => "org"}},
+      )
+
+      expect(described_class.readme_top_logo_mode).to eq("org")
+    end
+
+    it "normalizes dashed values to underscored values" do
+      allow(described_class).to receive(:kettle_config).and_return(
+        {"readme" => {"top_logo_mode" => "org-and-project"}},
+      )
+
+      expect(described_class.readme_top_logo_mode).to eq("org_and_project")
+    end
+
+    it "falls back to org_and_project for invalid values and records a warning" do
+      allow(described_class).to receive(:kettle_config).and_return(
+        {"readme" => {"top_logo_mode" => "banana"}},
+      )
+
+      expect(described_class.readme_top_logo_mode).to eq("org_and_project")
+      expect(described_class.warnings.join("\n")).to include("Unknown readme.top_logo_mode 'banana'")
     end
   end
 

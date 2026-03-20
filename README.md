@@ -457,6 +457,14 @@ Frozen statements are matched by their **structural identity**, not their conten
 
 `kettle:jem:template` looks at `.kettle-jem.yml` to determine how each file should be updated. The config supports a hybrid format: a list of ordered glob `patterns` used as fallbacks and a `files` nested map for per-file configurations. Each entry ultimately exposes a `strategy` (and optional merge options for Ruby files).
 
+The config also includes a small README-specific section for the top logo strip. Set `readme.top_logo_mode` to one of:
+
+- `org` — include only the GitHub org logo
+- `project` — include only the project logo
+- `org_and_project` — include both org and project logos after the shared Galtzo and ruby-lang logos
+
+If the key is omitted, `org_and_project` is used.
+
 | Strategy  | Behavior                                                                                                          |
 |-----------|-------------------------------------------------------------------------------------------------------------------|
 | `skip`    | Legacy behavior: template content is copied with token replacements and any bespoke merge logic already in place. |
@@ -495,6 +503,10 @@ min_divergence_threshold:
 defaults:
   preference: "template"
   add_template_only_nodes: true
+
+# README header logo behavior
+readme:
+  top_logo_mode: org_and_project
 
 # Ordered glob patterns (first match wins)
 patterns:

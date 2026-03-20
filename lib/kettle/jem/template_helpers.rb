@@ -105,6 +105,15 @@ module Kettle
         "LINKTREE" => "KJ_SOCIAL_LINKTREE",
         "DEVTO" => "KJ_SOCIAL_DEVTO",
       }.freeze
+      README_TOP_LOGO_MODE_DEFAULT = "org_and_project".freeze
+      README_TOP_LOGO_MODES = %w[org project org_and_project].freeze
+      README_STATIC_TOP_LOGO_ROW = "[![Galtzo FLOSS Logo by Aboling0, CC BY-SA 4.0][🖼️galtzo-i]][🖼️galtzo-discord] [![ruby-lang Logo, Yukihiro Matsumoto, Ruby Visual Identity Team, CC BY-SA 2.5][🖼️ruby-lang-i]][🖼️ruby-lang]".freeze
+      README_STATIC_TOP_LOGO_REFS = [
+        "[🖼️galtzo-i]: https://logos.galtzo.com/assets/images/galtzo-floss/avatar-192px.svg",
+        "[🖼️galtzo-discord]: https://discord.gg/3qme4XHNKN",
+        "[🖼️ruby-lang-i]: https://logos.galtzo.com/assets/images/ruby-lang/avatar-192px.svg",
+        "[🖼️ruby-lang]: https://www.ruby-lang.org/",
+      ].join("\n").freeze
 
       # Default config path within the template tree
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
@@ -277,6 +286,8 @@ module Kettle
         replacements["KJ|AUTHOR:EMAIL"] = author_email if present_string?(author_email)
         replacements["KJ|AUTHOR:DOMAIN"] = author_domain if present_string?(author_domain)
         replacements["KJ|AUTHOR:ORCID"] = author_orcid if present_string?(author_orcid)
+        replacements["KJ|README:TOP_LOGO_ROW"] = readme_top_logo_row(org: org.to_s, gem_name: gem_name)
+        replacements["KJ|README:TOP_LOGO_REFS"] = readme_top_logo_refs(org: org.to_s, gem_name: gem_name)
 
         # RuboCop LTS tokens — derived from min_ruby, used in style.gemfile and potentially others
         min_ruby_version = begin
@@ -319,6 +330,70 @@ module Kettle
         config = kettle_config
         raw = config.is_a?(Hash) ? config["tokens"] : nil
         raw.is_a?(Hash) ? raw : {}
+      end
+
+      def readme_config
+        raw = kettle_config["readme"]
+        raw.is_a?(Hash) ? raw : {}
+      end
+
+      def readme_top_logo_mode
+        raw = readme_config["top_logo_mode"]
+        normalized = raw.to_s.strip.downcase.tr("-", "_")
+        return README_TOP_LOGO_MODE_DEFAULT if normalized.empty?
+
+        return normalized if README_TOP_LOGO_MODES.include?(normalized)
+
+        add_warning(
+          "Unknown readme.top_logo_mode '#{raw}'. Supported values: #{README_TOP_LOGO_MODES.join(', ')}. Falling back to #{README_TOP_LOGO_MODE_DEFAULT}.",
+        )
+        README_TOP_LOGO_MODE_DEFAULT
+      end
+
+      def readme_top_logo_entries(org:, gem_name:)
+        mode = readme_top_logo_mode
+        entries = []
+
+        if mode == "org" || mode == "org_and_project"
+          entries << {
+            label: org,
+            image_ref: "#{org}-i",
+            link_ref: org,
+            image_url: "https://logos.galtzo.com/assets/images/#{org}/avatar-192px.svg",
+            href: "https://github.com/#{org}",
+          }
+        end
+
+        if mode == "project" || mode == "org_and_project"
+          entries << {
+            label: gem_name,
+            image_ref: "#{gem_name}-i",
+            link_ref: gem_name,
+            image_url: "https://logos.galtzo.com/assets/images/#{org}/#{gem_name}/avatar-192px.svg",
+            href: "https://github.com/#{org}/#{gem_name}",
+          }
+        end
+
+        entries.uniq { |entry| [entry[:image_ref], entry[:link_ref], entry[:image_url], entry[:href]] }
+      end
+
+      def readme_top_logo_row(org:, gem_name:)
+        dynamic = readme_top_logo_entries(org: org, gem_name: gem_name).map do |entry|
+          "[![#{entry[:label]} Logo by Aboling0, CC BY-SA 4.0][🖼️#{entry[:image_ref]}]][🖼️#{entry[:link_ref]}]"
+        end.join(" ")
+
+        [README_STATIC_TOP_LOGO_ROW, dynamic].reject(&:empty?).join(" ")
+      end
+
+      def readme_top_logo_refs(org:, gem_name:)
+        dynamic = readme_top_logo_entries(org: org, gem_name: gem_name).flat_map do |entry|
+          [
+            "[🖼️#{entry[:image_ref]}]: #{entry[:image_url]}",
+            "[🖼️#{entry[:link_ref]}]: #{entry[:href]}",
+          ]
+        end.join("\n")
+
+        [README_STATIC_TOP_LOGO_REFS, dynamic].reject(&:empty?).join("\n")
       end
 
       # Return token config values that can be safely backfilled into

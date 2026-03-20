@@ -1,11 +1,6 @@
-[![Galtzo FLOSS Logo by Aboling0, CC BY-SA 4.0][🖼️galtzo-i]][🖼️galtzo-discord] [![ruby-lang Logo, Yukihiro Matsumoto, Ruby Visual Identity Team, CC BY-SA 2.5][🖼️ruby-lang-i]][🖼️ruby-lang] [![{KJ|GEM_NAME} Logo by Aboling0, CC BY-SA 4.0][🖼️{KJ|GEM_NAME}-i]][🖼️{KJ|GEM_NAME}]
+{KJ|README:TOP_LOGO_ROW}
 
-[🖼️galtzo-i]: https://logos.galtzo.com/assets/images/galtzo-floss/avatar-192px.svg
-[🖼️galtzo-discord]: https://discord.gg/3qme4XHNKN
-[🖼️ruby-lang-i]: https://logos.galtzo.com/assets/images/ruby-lang/avatar-192px.svg
-[🖼️ruby-lang]: https://www.ruby-lang.org/
-[🖼️{KJ|GEM_NAME}-i]: https://logos.galtzo.com/assets/images/{KJ|GH_ORG}/{KJ|GEM_NAME}/avatar-192px.svg
-[🖼️{KJ|GEM_NAME}]: https://github.com/{KJ|GH_ORG}/{KJ|GEM_NAME}
+{KJ|README:TOP_LOGO_REFS}
 
 # 🍲 {KJ|NAMESPACE}
 
