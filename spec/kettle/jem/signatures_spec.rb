@@ -129,6 +129,14 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with spec.rdoc_options += operator write" do
+      let(:node) { parse_call('spec.rdoc_options += ["--quiet"]') }
+
+      it "returns [:spec_attr, :rdoc_options=] signature" do
+        expect(generator.call(node)).to eq([:spec_attr, :rdoc_options=])
+      end
+    end
+
     context "with spec.add_dependency call" do
       let(:node) { parse_call('spec.add_dependency("test", "~> 1.0")') }
 

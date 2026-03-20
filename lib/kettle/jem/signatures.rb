@@ -112,6 +112,7 @@ module Kettle
         #
         # Handles:
         # - `spec.foo =` assignments: Match by method name
+        # - `spec.foo +=` operator writes: Match by the synthesized writer name
         # - `spec.add_dependency()`: Match by gem name
         # - `spec.add_development_dependency()`: Match by gem name
         # - `Gem::Specification.new`: Match as singleton
@@ -121,7 +122,15 @@ module Kettle
           ->(node) do
             # Unwrap NodeTyping::Wrapper so is_a? checks work correctly
             actual = Ast::Merge::NodeTyping.unwrap(node)
-            return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
+            return node unless defined?(Prism)
+
+            if actual.is_a?(Prism::CallOperatorWriteNode)
+              receiver_name = extract_receiver_name(actual)
+              return [:spec_attr, actual.write_name] if receiver_name == "spec"
+              return node
+            end
+
+            return node unless actual.is_a?(Prism::CallNode)
 
             method_name = actual.name.to_s
             receiver_name = extract_receiver_name(actual)

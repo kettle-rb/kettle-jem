@@ -416,6 +416,7 @@ module Kettle
         new_prefix + suffix
       end
 
+
       def build_replacement_edit(found_node, body_node, blk_param, field, field_sym, value, build_literal)
         existing_arg = found_node.arguments&.arguments&.first
         existing_literal = PrismUtils.extract_literal_value(existing_arg)

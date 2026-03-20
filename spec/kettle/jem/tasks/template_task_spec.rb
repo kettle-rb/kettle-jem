@@ -2489,6 +2489,106 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "preserves pre-existing duplicate spec.rdoc_options operator-write blocks without corrupting the destination gemspec" do
+        local_tmp_root = File.expand_path("../../../../tmp/spec/template_task", __dir__)
+        FileUtils.mkdir_p(local_tmp_root)
+
+        Dir.mktmpdir("gem-root-", local_tmp_root) do |gem_root|
+          Dir.mktmpdir("project-root-", local_tmp_root) do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+              # coding: utf-8
+              # frozen_string_literal: true
+
+              # {KJ|FREEZE_TOKEN}:freeze
+              # {KJ|FREEZE_TOKEN}:unfreeze
+
+              Gem::Specification.new do |spec|
+                spec.name = "{KJ|GEM_NAME}"
+                spec.version = "0.2.0"
+                spec.summary = "template"
+                spec.authors = ["{KJ|AUTHOR:NAME}"]
+                spec.required_ruby_version = ">= 3.2"
+                spec.homepage = "https://github.com/acme/{KJ|GEM_NAME}"
+                spec.require_paths = ["lib"]
+                spec.rdoc_options += [
+                  "--title",
+                  "\#{spec.name} - \#{spec.summary}",
+                  "--main",
+                  "README.md",
+                  "--quiet",
+                ]
+              end
+            GEMSPEC
+
+            File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
+              # coding: utf-8
+              # frozen_string_literal: true
+
+              # my-gem:freeze
+              # my-gem:unfreeze
+
+              Gem::Specification.new do |spec|
+                spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.2"
+                spec.homepage = "https://github.com/acme/my-gem"
+                spec.require_paths = ["lib"]
+                spec.rdoc_options += [
+                  "--title",
+                  "\#{spec.name} - \#{spec.summary}",
+                  "--main",
+                  "README.md",
+                  "--quiet",
+                ]
+                spec.rdoc_options += [
+                  "--title",
+                  "\#{spec.name} - \#{spec.summary}",
+                  "--main",
+                  "README.md",
+                  "--quiet",
+                ]
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            described_class.run
+
+            txt = File.read(File.join(project_root, "my-gem.gemspec"))
+            parse_result = Prism.parse(txt)
+
+            expect(parse_result.success?).to be(true), <<~MSG
+              Expected template task to preserve a valid gemspec even when the destination already contains duplicate spec.rdoc_options += blocks.
+
+              Errors: #{parse_result.errors.map(&:message).join(", ")}
+
+              #{txt}
+            MSG
+
+            expect(txt.scan(/^\s*spec\.rdoc_options \+= \[/).length).to eq(2), <<~MSG
+              Expected template task to leave pre-existing duplicate spec.rdoc_options += blocks intact rather than slicing through the gemspec.
+
+              #{txt}
+            MSG
+
+            expect(txt).to include('spec.require_paths = ["lib"]'), <<~MSG
+              Expected template task to preserve statements following duplicate spec.rdoc_options += blocks.
+
+              #{txt}
+            MSG
+          end
+        end
+      end
+
       it "removes self-dependencies in gemspec after templating (runtime and development, paren and no-paren)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|

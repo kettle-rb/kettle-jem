@@ -62,6 +62,20 @@ module Kettle
                 merge_type = categorize_spec_attribute(method_name)
                 merge_type ? Ast::Merge::NodeTyping.with_merge_type(node, merge_type) : node
               },
+              CallOperatorWriteNode: ->(node) {
+                receiver = node.receiver
+
+                is_spec_call = receiver.respond_to?(:name) && receiver.name == :spec
+                unless is_spec_call
+                  is_spec_call = receiver&.slice&.to_s&.start_with?("spec")
+                end
+
+                return node unless is_spec_call
+
+                method_name = node.write_name.to_s
+                merge_type = categorize_spec_attribute(method_name)
+                merge_type ? Ast::Merge::NodeTyping.with_merge_type(node, merge_type) : node
+              },
             }
           end
 

@@ -212,4 +212,44 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(result.scan(/spec\.description\s*=/).length).to eq(1)
     end
   end
+
+  describe "gemspec operator-write merging" do
+    let(:template_fixture_path) { File.expand_path("../fixtures/example-kettle-jem.template.gemspec", __dir__) }
+    let(:destination_fixture_path) { File.expand_path("../fixtures/example-kettle-jem.gemspec", __dir__) }
+    let(:template_fixture_content) { File.read(template_fixture_path) }
+    let(:destination_fixture_content) { File.read(destination_fixture_path) }
+
+    def merge_gemspec(src:, dest:)
+      Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: src,
+        dest: dest,
+        path: "kettle-jem.gemspec",
+        file_type: :gemspec,
+      )
+    end
+
+    it "does not duplicate spec.rdoc_options operator writes" do
+      merged = merge_gemspec(src: template_fixture_content, dest: destination_fixture_content)
+
+      expect(Prism.parse(merged).success?).to be(true)
+      expect(merged.scan(/^\s*spec\.rdoc_options \+= \[/).length).to eq(1), <<~MSG
+        Expected merged gemspec to contain exactly one spec.rdoc_options += block.
+
+        #{merged}
+      MSG
+    end
+
+    it "is idempotent across repeated gemspec merges" do
+      once = merge_gemspec(src: template_fixture_content, dest: destination_fixture_content)
+      twice = merge_gemspec(src: template_fixture_content, dest: once)
+
+      expect(Prism.parse(twice).success?).to be(true)
+      expect(twice.scan(/^\s*spec\.rdoc_options \+= \[/).length).to eq(1), <<~MSG
+        Expected repeated gemspec merges to keep a single spec.rdoc_options += block.
+
+        #{twice}
+      MSG
+    end
+  end
 end
