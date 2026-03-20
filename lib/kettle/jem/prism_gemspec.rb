@@ -565,7 +565,12 @@ module Kettle
           start_index -= 1
         end
 
-        start_index..line_index
+        end_index = line_index
+        if lines[end_index + 1]&.strip&.empty?
+          end_index += 1
+        end
+
+        start_index..end_index
       end
 
       def remove_line_ranges(lines, ranges)
