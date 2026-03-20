@@ -84,6 +84,60 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
   end
 
+  describe ".rewrite_version_loader" do
+    let(:template) do
+      <<~RUBY
+        # coding: utf-8
+        # frozen_string_literal: true
+
+        # kettle-jem:freeze
+        # kettle-jem:unfreeze
+
+        gem_version =
+          if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+            Module.new.tap { |mod| Kernel.load("\#{__dir__}/lib/kettle/dev/version.rb", mod) }::Kettle::Dev::Version::VERSION
+          else
+            lib = File.expand_path("lib", __dir__)
+            $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+            require "kettle/dev/version"
+            Kettle::Dev::Version::VERSION
+          end
+
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = gem_version
+        end
+      RUBY
+    end
+
+    it "inlines the version loader when min_ruby is >= 3.1" do
+      out = described_class.rewrite_version_loader(
+        template,
+        min_ruby: Gem::Version.new("3.2"),
+        entrypoint_require: "kettle/jem",
+        namespace: "Kettle::Jem",
+      )
+
+      expect(out).not_to include("gem_version =")
+      expect(out).to include('spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/jem/version.rb", mod) }::Kettle::Jem::Version::VERSION')
+      expect(out).not_to include('spec.version = gem_version')
+    end
+
+    it "keeps the legacy gem_version block when min_ruby is below 3.1" do
+      out = described_class.rewrite_version_loader(
+        template,
+        min_ruby: Gem::Version.new("3.0"),
+        entrypoint_require: "kettle/dev",
+        namespace: "Kettle::Dev",
+      )
+
+      expect(out).to include("gem_version =")
+      expect(out).to include('if RUBY_VERSION >= "3.1"')
+      expect(out).to include('require "kettle/dev/version"')
+      expect(out).to include('spec.version = gem_version')
+    end
+  end
+
   describe ".ensure_development_dependencies" do
     # BUG REPRO: When the destination gemspec has promoted a gem from
     # add_development_dependency to add_dependency (runtime), the template's

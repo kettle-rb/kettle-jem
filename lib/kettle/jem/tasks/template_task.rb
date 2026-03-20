@@ -1203,6 +1203,19 @@ module Kettle
                       rescue StandardError => e
                         Kettle::Dev.debug_error(e, __method__)
                       end
+
+                      begin
+                        if orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
+                          c = Kettle::Jem::PrismGemspec.rewrite_version_loader(
+                            c,
+                            min_ruby: orig_meta[:min_ruby],
+                            entrypoint_require: orig_meta[:entrypoint_require],
+                            namespace: orig_meta[:namespace],
+                          )
+                        end
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
                     end
 
                     begin
@@ -1224,6 +1237,19 @@ module Kettle
                       rescue StandardError => e
                         Kettle::Dev.debug_error(e, __method__)
                       end
+                    end
+
+                    begin
+                      if orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
+                        c = Kettle::Jem::PrismGemspec.rewrite_version_loader(
+                          c,
+                          min_ruby: orig_meta[:min_ruby],
+                          entrypoint_require: orig_meta[:entrypoint_require],
+                          namespace: orig_meta[:namespace],
+                        )
+                      end
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
                     end
 
                     c

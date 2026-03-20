@@ -2342,6 +2342,153 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      it "inlines spec.version when destination min_ruby is >= 3.1" do
+        local_tmp_root = File.expand_path("../../../../tmp/spec/template_task", __dir__)
+        FileUtils.mkdir_p(local_tmp_root)
+
+        Dir.mktmpdir("gem-root-", local_tmp_root) do |gem_root|
+          Dir.mktmpdir("project-root-", local_tmp_root) do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+              # coding: utf-8
+              # frozen_string_literal: true
+
+              # {KJ|FREEZE_TOKEN}:freeze
+              # {KJ|FREEZE_TOKEN}:unfreeze
+
+              gem_version =
+                if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+                  Module.new.tap { |mod| Kernel.load("\#{__dir__}/lib/{KJ|GEM_NAME_PATH}/version.rb", mod) }::{KJ|NAMESPACE}::Version::VERSION
+                else
+                  lib = File.expand_path("lib", __dir__)
+                  $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+                  require "{KJ|GEM_NAME_PATH}/version"
+                  {KJ|NAMESPACE}::Version::VERSION
+                end
+
+              Gem::Specification.new do |spec|
+                spec.name = "{KJ|GEM_NAME}"
+                spec.version = gem_version
+              end
+            GEMSPEC
+
+            File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
+              # coding: utf-8
+              # frozen_string_literal: true
+
+              # my-gem:freeze
+              # my-gem:unfreeze
+
+              gem_version =
+                if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+                  Module.new.tap { |mod| Kernel.load("\#{__dir__}/lib/my/gem/version.rb", mod) }::My::Gem::Version::VERSION
+                else
+                  lib = File.expand_path("lib", __dir__)
+                  $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+                  require "my/gem/version"
+                  My::Gem::Version::VERSION
+                end
+
+              Gem::Specification.new do |spec|
+                spec.name = "my-gem"
+                spec.version = gem_version
+                spec.summary = "test"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.2"
+                spec.homepage = "https://github.com/acme/my-gem"
+              end
+            GEMSPEC
+            version_file = File.join(project_root, "lib", "my", "gem")
+            FileUtils.mkdir_p(version_file)
+            File.write(File.join(version_file, "version.rb"), <<~RUBY)
+              module My
+                module Gem
+                  module Version
+                    VERSION = "0.1.0"
+                  end
+                end
+              end
+            RUBY
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            described_class.run
+
+            txt = File.read(File.join(project_root, "my-gem.gemspec"))
+            expect(txt).not_to include("gem_version =")
+            expect(txt).not_to include('if RUBY_VERSION >= "3.1"')
+            expect(txt).not_to include('$LOAD_PATH.unshift(lib)')
+            expect(txt).not_to include('require "my/gem/version"')
+            expect(txt).to include('spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/my/gem/version.rb", mod) }::My::Gem::Version::VERSION')
+          end
+        end
+      end
+
+      it "keeps gem_version when destination min_ruby is below 3.1" do
+        local_tmp_root = File.expand_path("../../../../tmp/spec/template_task", __dir__)
+        FileUtils.mkdir_p(local_tmp_root)
+
+        Dir.mktmpdir("gem-root-", local_tmp_root) do |gem_root|
+          Dir.mktmpdir("project-root-", local_tmp_root) do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+              # coding: utf-8
+              # frozen_string_literal: true
+
+              # {KJ|FREEZE_TOKEN}:freeze
+              # {KJ|FREEZE_TOKEN}:unfreeze
+
+              gem_version =
+                if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+                  Module.new.tap { |mod| Kernel.load("\#{__dir__}/lib/{KJ|GEM_NAME_PATH}/version.rb", mod) }::{KJ|NAMESPACE}::Version::VERSION
+                else
+                  lib = File.expand_path("lib", __dir__)
+                  $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+                  require "{KJ|GEM_NAME_PATH}/version"
+                  {KJ|NAMESPACE}::Version::VERSION
+                end
+
+              Gem::Specification.new do |spec|
+                spec.name = "{KJ|GEM_NAME}"
+                spec.version = gem_version
+              end
+            GEMSPEC
+
+            File.write(File.join(project_root, "my-gem.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "my-gem"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.0"
+                spec.homepage = "https://github.com/acme/my-gem"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            described_class.run
+
+            txt = File.read(File.join(project_root, "my-gem.gemspec"))
+            expect(txt).to include("gem_version =")
+            expect(txt).to include('require "my/gem/version"')
+            expect(txt).to include('spec.version = gem_version')
+          end
+        end
+      end
+
       it "removes self-dependencies in gemspec after templating (runtime and development, paren and no-paren)" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
