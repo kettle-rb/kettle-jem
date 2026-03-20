@@ -96,7 +96,7 @@ readme:
 # divergence reaches or exceeds that percent. Leave blank to report only.
 # Divergence is currently measured as the percent of produced files that would
 # change or be added during templating (100 - unchanged-file score).
-min_divergence_threshold:
+min_divergence_threshold: 5
 
 # Default merge options
 defaults:
