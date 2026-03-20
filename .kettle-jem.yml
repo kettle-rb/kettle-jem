@@ -89,7 +89,7 @@ engines:
 # Supported values: org, project, org_and_project
 # Default (when key is absent): org_and_project
 readme:
-  top_logo_mode: org_and_project
+  top_logo_mode: org
 
 # Self-test / templating CI threshold.
 # Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once
