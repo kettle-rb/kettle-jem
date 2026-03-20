@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "set"
+
 module Kettle
   module Jem
     # Prism helpers for gemspec manipulation.
@@ -7,6 +9,8 @@ module Kettle
       module_function
 
       MODERN_VERSION_LOADER_MIN_RUBY = Gem::Version.new("3.1").freeze
+      GEMSPEC_DEPENDENCY_LINE_RE = /^(?<indent>\s*)spec\.(?<method>add_(?:development_|runtime_)?dependency)\s*\(?\s*["'](?<gem>[^"']+)["'][^\n]*(?:\n|\z)/.freeze
+      GEMSPEC_NOTE_BLOCK_START_RE = /^\s*# NOTE: It is preferable to list development dependencies in the gemspec due to increased/.freeze
 
       # Emit a debug warning for rescued errors when debugging is enabled.
       # @param error [Exception]
@@ -250,13 +254,9 @@ module Kettle
       # `desired` is a hash mapping gem_name => desired_line (string, without leading indentation).
       def ensure_development_dependencies(content, desired)
         return content if desired.nil? || desired.empty?
-        result = PrismUtils.parse_with_comments(content)
-        stmts = PrismUtils.extract_statements(result.value.statements)
-        gemspec_call = stmts.find do |s|
-          s.is_a?(Prism::CallNode) && s.block && PrismUtils.extract_const_name(s.receiver) == "Gem::Specification" && s.name == :new
-        end
 
-        unless gemspec_call
+        lines = content.to_s.lines
+        if lines.empty?
           out = content.dup
           out << "\n" unless out.end_with?("\n") || out.empty?
           desired.each do |_gem, line|
@@ -265,61 +265,331 @@ module Kettle
           return out
         end
 
-        call_src = gemspec_call.slice
-        body_node = gemspec_call.block&.body
-        body_src = if (m = call_src.match(/do\b[^\n]*\|[^|]*\|\s*(.*)end\s*\z/m))
-          m[1]
-        else
-          body_node ? body_node.slice : ""
-        end
-
-        new_body = body_src.dup
-        stmt_nodes = PrismUtils.extract_statements(body_node)
-
-        version_node = stmt_nodes.find do |n|
-          n.is_a?(Prism::CallNode) && n.name.to_s.start_with?("version") && n.receiver && n.receiver.slice.strip.end_with?("spec")
-        end
-
         desired.each do |gem_name, desired_line|
-          found = stmt_nodes.find do |n|
-            next false unless n.is_a?(Prism::CallNode)
-            next false unless %i[add_development_dependency add_dependency add_runtime_dependency].include?(n.name)
-            first_arg = n.arguments&.arguments&.first
-            val = PrismUtils.extract_literal_value(first_arg)
-            val && val.to_s == gem_name
+          records = dependency_records(lines)
+          runtime_record = records.find do |record|
+            record[:gem] == gem_name && runtime_dependency_method?(record[:method])
+          end
+          next if runtime_record
+
+          dev_record = records.find do |record|
+            record[:gem] == gem_name && record[:method] == "add_development_dependency"
           end
 
-          if found
-            # If the destination has promoted this gem to a runtime dependency
-            # (add_dependency or add_runtime_dependency), respect that choice
-            # and do not downgrade it to add_development_dependency.
-            next if %i[add_dependency add_runtime_dependency].include?(found.name)
+          if dev_record
+            indent = lines[dev_record[:line_index]][/^(\s*)/, 1] || ""
+            lines[dev_record[:line_index]] = indent + desired_line.strip + "\n"
+            next
+          end
 
-            indent = found.slice.lines.first.match(/^(\s*)/)[1]
-            replacement = indent + desired_line.strip + "\n"
-            # Replace the full line including trailing comments to avoid orphaned comments.
-            # Prism's node.slice excludes trailing comments like `# ruby >= 2.3.0`,
-            # so we match the entire line containing the node text.
-            found_pattern = Regexp.escape(found.slice.strip)
-            new_body = new_body.sub(/^[ \t]*#{found_pattern}[^\n]*\n?/, replacement)
+          insert_line = "  " + desired_line.strip + "\n"
+          insert_at = development_dependency_insert_line_index(lines)
+          if insert_at
+            lines.insert(insert_at, insert_line)
           else
-            insert_line = "  " + desired_line.strip + "\n"
-            new_body = if version_node
-              new_body.sub(version_node.slice, version_node.slice + "\n" + insert_line)
-            else
-              new_body.rstrip + "\n" + insert_line
-            end
+            end_index = lines.rindex { |line| line.strip == "end" } || lines.length
+            lines.insert(end_index, insert_line)
           end
         end
+        normalize_dependency_sections(
+          lines.join,
+          template_content: desired.values.join("\n"),
+          destination_content: content,
+          prefer_template: true,
+        )
+      rescue StandardError => e
+        debug_error(e, __method__)
+        content
+      end
 
-        new_call_src = call_src.sub(body_src, new_body)
-        content.sub(call_src, new_call_src)
+      def harmonize_merged_content(content, template_content:, destination_content:)
+        return content if content.to_s.empty?
+
+        updated = union_literal_dir_assignment(
+          content,
+          field: "files",
+          template_content: template_content,
+          destination_content: destination_content,
+        )
+
+        normalize_dependency_sections(
+          updated,
+          template_content: template_content,
+          destination_content: destination_content,
+          prefer_template: false,
+        )
+      rescue StandardError => e
+        debug_error(e, __method__)
+        content
+      end
+
+      def normalize_dependency_sections(content, template_content:, destination_content:, prefer_template: false)
+        lines = content.to_s.lines
+        return content if lines.empty?
+
+        preferred_lines = if prefer_template
+          dependency_line_lookup(template_content)
+        else
+          dependency_line_lookup(destination_content)
+        end
+
+        fallback_lines = prefer_template ? dependency_line_lookup(destination_content) : dependency_line_lookup(template_content)
+        fallback_lines.each do |signature, line|
+          preferred_lines[signature] ||= line
+        end
+
+        lines.each_with_index do |line, idx|
+          match = dependency_line_match(line)
+          next unless match
+
+          preferred = preferred_lines[[match[:method], match[:gem]]]
+          lines[idx] = preferred.dup if preferred
+        end
+
+        runtime_gems = dependency_records(lines)
+          .select { |record| runtime_dependency_method?(record[:method]) }
+          .map { |record| record[:gem] }
+          .to_set
+
+        duplicate_dev_ranges = dependency_records(lines)
+          .select { |record| record[:method] == "add_development_dependency" && runtime_gems.include?(record[:gem]) }
+          .map { |record| dependency_block_range(lines, record[:line_index]) }
+
+        lines = remove_line_ranges(lines, duplicate_dev_ranges)
+
+        note_index = lines.index { |line| GEMSPEC_NOTE_BLOCK_START_RE.match?(line) }
+        return lines.join unless note_index
+
+        runtime_after_note = dependency_records(lines)
+          .select { |record| runtime_dependency_method?(record[:method]) && record[:line_index] > note_index }
+
+        return lines.join if runtime_after_note.empty?
+
+        moved_blocks = []
+        runtime_after_note.reverse_each do |record|
+          range = dependency_block_range(lines, record[:line_index])
+          moved_blocks.unshift(lines[range].map(&:dup))
+          lines = remove_line_ranges(lines, [range])
+        end
+
+        note_index = lines.index { |line| GEMSPEC_NOTE_BLOCK_START_RE.match?(line) }
+        return lines.join unless note_index
+
+        insertion = build_dependency_block_insertion(
+          moved_blocks,
+          before_line: note_index.positive? ? lines[note_index - 1] : nil,
+          after_line: lines[note_index],
+        )
+
+        (lines[0...note_index] + insertion + lines[note_index..]).join
       rescue StandardError => e
         debug_error(e, __method__)
         content
       end
 
       # --- Private helpers ---
+
+      def development_dependency_insert_line_index(lines)
+        line_index = 0
+        in_note_block = false
+        note_end_index = nil
+
+        Array(lines).each do |line|
+          if GEMSPEC_NOTE_BLOCK_START_RE.match?(line)
+            in_note_block = true
+            line_index += 1
+            next
+          end
+
+          if in_note_block
+            if line.strip.empty? || line.lstrip.start_with?("#")
+              line_index += 1
+              next
+            end
+
+            note_end_index = line_index
+            break
+          end
+
+          line_index += 1
+        end
+
+        note_end_index
+      end
+
+      def union_literal_dir_assignment(content, field:, template_content:, destination_content:)
+        merged_context = gemspec_context(content)
+        template_context = gemspec_context(template_content)
+        destination_context = gemspec_context(destination_content)
+        return content unless merged_context && template_context && destination_context
+
+        merged_node = find_field_node(merged_context[:stmt_nodes], merged_context[:blk_param], field)
+        template_node = find_field_node(template_context[:stmt_nodes], template_context[:blk_param], field)
+        destination_node = find_field_node(destination_context[:stmt_nodes], destination_context[:blk_param], field)
+        return content unless merged_node && template_node && destination_node
+
+        replacement = merge_dir_assignment_source(
+          merged_source: merged_node.slice,
+          template_source: template_node.slice,
+          destination_source: destination_node.slice,
+        )
+        return content unless replacement
+
+        loc = merged_node.location
+        relative_start = loc.start_offset - merged_context[:body_node].location.start_offset
+        relative_length = loc.end_offset - loc.start_offset
+        new_body = apply_edits(merged_context[:body_src], [[relative_start, relative_length, replacement]])
+        reassemble_gemspec(content, merged_context[:gemspec_call], merged_context[:body_node], new_body)
+      end
+
+      def gemspec_context(content)
+        result = PrismUtils.parse_with_comments(content)
+        return unless result.success?
+
+        stmts = PrismUtils.extract_statements(result.value.statements)
+        gemspec_call = stmts.find do |stmt|
+          stmt.is_a?(Prism::CallNode) && stmt.block && PrismUtils.extract_const_name(stmt.receiver) == "Gem::Specification" && stmt.name == :new
+        end
+        return unless gemspec_call
+
+        body_node = gemspec_call.block&.body
+        return unless body_node
+
+        {
+          gemspec_call: gemspec_call,
+          body_node: body_node,
+          body_src: body_node.slice,
+          blk_param: extract_block_param(gemspec_call) || "spec",
+          stmt_nodes: PrismUtils.extract_statements(body_node),
+        }
+      end
+
+      def merge_dir_assignment_source(merged_source:, template_source:, destination_source:)
+        merged_parts = multiline_collection_parts(merged_source)
+        template_parts = multiline_collection_parts(template_source)
+        destination_parts = multiline_collection_parts(destination_source)
+        return unless merged_parts && template_parts && destination_parts
+
+        combined_groups = []
+        seen = {}
+
+        [destination_parts[:groups], merged_parts[:groups], template_parts[:groups]].each do |groups|
+          groups.each do |group|
+            next if seen[group[:key]]
+
+            combined_groups << group
+            seen[group[:key]] = true
+          end
+        end
+
+        merged_parts[:opening] + combined_groups.flat_map { |group| group[:lines] }.join + merged_parts[:closing]
+      end
+
+      def multiline_collection_parts(source)
+        lines = source.to_s.lines
+        return if lines.length < 3
+
+        {
+          opening: lines.first,
+          closing: lines.last,
+          groups: literal_collection_groups(lines[1...-1]),
+        }
+      end
+
+      def literal_collection_groups(lines)
+        pending = []
+        groups = []
+
+        lines.each do |line|
+          if line.strip.empty? || line.lstrip.start_with?("#")
+            pending << line
+            next
+          end
+
+          groups << {
+            key: normalize_collection_entry_key(line),
+            lines: pending + [line],
+          }
+          pending = []
+        end
+
+        groups
+      end
+
+      def normalize_collection_entry_key(line)
+        line.to_s.sub(/\s+#.*$/, "").strip.sub(/,\z/, "")
+      end
+
+      def dependency_line_lookup(content)
+        content.to_s.each_line.each_with_object({}) do |line, memo|
+          match = dependency_line_match(line)
+          next unless match
+
+          memo[[match[:method], match[:gem]]] ||= line
+        end
+      end
+
+      def dependency_records(lines)
+        Array(lines).each_with_index.filter_map do |line, idx|
+          match = dependency_line_match(line)
+          next unless match
+
+          {
+            line_index: idx,
+            method: match[:method],
+            gem: match[:gem],
+          }
+        end
+      end
+
+      def dependency_line_match(line)
+        match = GEMSPEC_DEPENDENCY_LINE_RE.match(line.to_s)
+        return unless match
+
+        {
+          method: match[:method],
+          gem: match[:gem],
+        }
+      end
+
+      def runtime_dependency_method?(method_name)
+        %w[add_dependency add_runtime_dependency].include?(method_name.to_s)
+      end
+
+      def dependency_block_range(lines, line_index)
+        start_index = line_index
+        while start_index.positive?
+          previous_line = lines[start_index - 1]
+          break unless previous_line.lstrip.start_with?("#")
+
+          start_index -= 1
+        end
+
+        start_index..line_index
+      end
+
+      def remove_line_ranges(lines, ranges)
+        new_lines = Array(lines).dup
+        Array(ranges).sort_by(&:begin).reverse_each do |range|
+          new_lines.slice!(range)
+        end
+        new_lines
+      end
+
+      def build_dependency_block_insertion(blocks, before_line:, after_line:)
+        insertion = []
+        insertion << "\n" if before_line && !before_line.strip.empty?
+
+        Array(blocks).each_with_index do |block, idx|
+          insertion.concat(block)
+          next if idx == blocks.length - 1
+
+          insertion << "\n" unless block.last.to_s.strip.empty?
+        end
+
+        insertion << "\n" if after_line && !after_line.strip.empty? && insertion.last.to_s.strip != ""
+        insertion
+      end
 
       def extract_block_param(gemspec_call)
         return unless gemspec_call.block&.parameters

@@ -251,5 +251,64 @@ RSpec.describe "Gemspec Templating Integration" do
         #{twice}
       MSG
     end
+
+    it "preserves destination-only spec.files entries while still accepting template additions" do
+      merged = merge_gemspec(src: template_fixture_content, dest: destination_fixture_content)
+
+      expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include('".devcontainer/**/*"')
+      expect(merged).to include('"gemfiles/modular/*.gemfile"')
+      expect(merged).to include('"lib/**/*.rb"')
+      expect(merged).to include('"sig/**/*.rbs"')
+    end
+
+    it "keeps runtime dependencies above the development dependency note block without duplicate dev entries and preserves aligned trailing comments" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("kettle-dev", "~> 2.0")                  # ruby >= 2.3.0
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")             # ruby >= 2.0.0
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+          # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
+          spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")             # ruby >= 2.0.0
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include('spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0')
+      expect(merged).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
+      expect(merged).to include('spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0')
+
+      runtime_index = merged.index('spec.add_dependency("kettle-dev", "~> 2.0")')
+      note_index = merged.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
+      bundler_audit_index = merged.index('spec.add_development_dependency("bundler-audit", "~> 0.9.3")')
+
+      expect(runtime_index).to be < note_index
+      expect(note_index).to be < bundler_audit_index
+    end
   end
 end

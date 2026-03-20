@@ -232,6 +232,62 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('add_development_dependency("rake", "~> 13.0")')
     end
 
+    it "inserts new development dependencies below the development dependency note block when present" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+          spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")             # ruby >= 2.0.0
+        end
+      RUBY
+
+      desired = {
+        "rake" => '  spec.add_development_dependency("rake", "~> 13.0")                                # ruby >= 2.2.0',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      note_index = result.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
+      rake_index = result.index('spec.add_development_dependency("rake", "~> 13.0")                                # ruby >= 2.2.0')
+
+      expect(note_index).not_to be_nil
+      expect(rake_index).not_to be_nil
+      expect(note_index).to be < rake_index
+    end
+
+    it "removes a conflicting development dependency when the same gem already exists as a runtime dependency" do
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+          # Dev tooling (runtime dep — example extends kettle-dev's functionality)
+          spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("kettle-dev", "~> 1.0")                  # ruby >= 2.3.0
+        end
+      RUBY
+
+      desired = {
+        "kettle-dev" => '  spec.add_development_dependency("kettle-dev", "~> 2.0")                  # ruby >= 2.3.0',
+      }
+
+      result = described_class.ensure_development_dependencies(destination, desired)
+
+      expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0')
+      expect(result.scan(/^\s*spec\.add_(?:development_)?dependency\("kettle-dev"/).length).to eq(1)
+      expect(result).not_to include('spec.add_development_dependency("kettle-dev"')
+    end
+
     it "does not leave orphaned trailing comments when replacing dependency lines" do
       destination = <<~RUBY
         Gem::Specification.new do |spec|

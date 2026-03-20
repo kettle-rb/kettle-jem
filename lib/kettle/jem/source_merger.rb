@@ -68,6 +68,14 @@ module Kettle
             raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}' for #{path}."
           end
 
+        if detected_type == :gemspec
+          result = PrismGemspec.harmonize_merged_content(
+            result,
+            template_content: src_content,
+            destination_content: dest_content,
+          )
+        end
+
         if detected_type == :gemfile
           result = PrismGemfile.restore_tombstone_comment_blocks(result, src_content)
           result = PrismGemfile.suppress_commented_gem_declarations(result)
