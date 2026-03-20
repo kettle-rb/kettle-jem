@@ -1075,7 +1075,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Template synopsis.
             MARKDOWN
 
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-jem"
                 spec.version = "1.0.0"
@@ -2296,13 +2296,13 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "copies kettle-jem.gemspec.example to <gem_name>.gemspec with substitutions" do
+      it "copies gem.gemspec.example to <gem_name>.gemspec with substitutions" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
-            # Provide a kettle-jem.gemspec.example with tokens to be replaced
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            # Provide a gem.gemspec.example with tokens to be replaced
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "{KJ|GEM_NAME}"
                 # Namespace token example
@@ -2348,7 +2348,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
             # Template gemspec includes dependencies on the template gem name
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.add_dependency("kettle-dev", "~> 1.0")
@@ -2395,8 +2395,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "when gem_name is missing, falls back to first existing *.gemspec in project" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
+            FileUtils.mkdir_p(File.join(gem_root, "template"))
             # Provide template gemspec example with tokens
-            File.write(File.join(gem_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(gem_root, "template", "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "{KJ|GEM_NAME}"
                 {KJ|NAMESPACE}
@@ -2443,7 +2444,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
             # Provide template example only
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 Kettle::Dev
@@ -2460,11 +2461,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             described_class.run
 
-            # Should write kettle-jem.gemspec (no .example)
-            dest = File.join(project_root, "kettle-jem.gemspec")
+            # Should write gem.gemspec (no .example)
+            dest = File.join(project_root, "gem.gemspec")
             expect(File).to exist(dest)
             txt = File.read(dest)
-            expect(txt).not_to include("kettle-jem.gemspec.example")
+            expect(txt).not_to include("gem.gemspec.example")
             # Note: when gem_name is unknown, namespace/gem replacements depending on gem_name may not occur.
             # This test verifies the destination file name logic only.
           end
@@ -3267,7 +3268,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
             # Template gemspec example contains both normal tokens and the special token
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "{KJ|GEM_NAME}"
                 # This should become the actual destination gem name via token replacement
@@ -3534,7 +3535,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
-            File.write(File.join(template_root, "kettle-jem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
                 spec.version = "1.0.0"
