@@ -146,6 +146,25 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     end
   end
 
+  describe ".apply_appraisals_merge" do
+    it "passes gemspec min_ruby into the recipe-backed Appraisals merge" do
+      Dir.mktmpdir do |dir|
+        dest = File.join(dir, "Appraisals")
+        File.write(dest, "appraise \"ruby-2-7\" do\nend\n")
+
+        allow(described_class).to receive(:gemspec_metadata).and_return({min_ruby: Gem::Version.new("3.2")})
+        expect(Kettle::Jem::PrismAppraisals).to receive(:merge).with(
+          "appraise \"ruby-3-2\" do\nend\n",
+          "appraise \"ruby-2-7\" do\nend\n",
+          min_ruby: Gem::Version.new("3.2"),
+        ).and_return("appraise \"ruby-3-2\" do\nend\n")
+
+        merged = described_class.apply_appraisals_merge("appraise \"ruby-3-2\" do\nend\n", dest)
+        expect(merged).to eq("appraise \"ruby-3-2\" do\nend\n")
+      end
+    end
+  end
+
   describe ".ensure_clean_git!" do
     let(:fake_root) { "/tmp/fake_project" }
 

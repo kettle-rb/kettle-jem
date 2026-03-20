@@ -262,12 +262,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           },
         )
 
-        expect(result.scan(/# Glob patterns evaluated in order \(first match wins\)/).size).to eq(1)
-        expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
-        expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
-        expect(result.scan(/files:/).size).to eq(1)
+        expect(result.scan("# Glob patterns evaluated in order (first match wins)").size).to eq(1)
+        expect(result.scan("# Per-file configuration (nested directory structure)").size).to eq(1)
+        expect(result.scan("# Only files that need overrides belong here. Everything else defaults to merge.").size).to eq(1)
+        expect(result.scan("files:").size).to eq(1)
       end
-
     end
 
     describe ".kettle-jem.yml bootstrap seeding" do
@@ -330,8 +329,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             expect(result).to eq(:bootstrap_only)
 
-            parsed = YAML.safe_load(
-              File.read(File.join(project_root, ".kettle-jem.yml")),
+            parsed = YAML.safe_load_file(
+              File.join(project_root, ".kettle-jem.yml"),
               permitted_classes: [],
               aliases: false,
             )
@@ -510,9 +509,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             synced = File.read(File.join(project_root, ".kettle-jem.yml"))
 
-            expect(synced.scan(/path: "certs\/\*\*"/).size).to eq(1)
-            expect(synced.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
-            expect(synced.scan(/# Self-test \/ templating CI threshold\./).size).to eq(1)
+            expect(synced.scan('path: "certs/**"').size).to eq(1)
+            expect(synced.scan("# Per-file configuration (nested directory structure)").size).to eq(1)
+            expect(synced.scan("# Self-test / templating CI threshold.").size).to eq(1)
           end
         end
       end
@@ -1764,12 +1763,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect { described_class.run }.not_to raise_error
 
             result = File.read(dest_config)
-            expect(result.scan(/# Per-file configuration \(nested directory structure\)/).size).to eq(1)
-            expect(result.scan(/# Only files that need overrides belong here\. Everything else defaults to merge\./).size).to eq(1)
+            expect(result.scan("# Per-file configuration (nested directory structure)").size).to eq(1)
+            expect(result.scan("# Only files that need overrides belong here. Everything else defaults to merge.").size).to eq(1)
             expect(result.scan(/^files:/).size).to eq(1)
             expect(result).to include('gl_user: ""')
-            expect(result).to include('commit-msg:')
-            expect(result).to include('file_type: ruby')
+            expect(result).to include("commit-msg:")
+            expect(result).to include("file_type: ruby")
           end
         end
       end
@@ -1963,7 +1962,6 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               export FUNDING_ORG={KJ|OPENCOLLECTIVE_ORG}
               dotenv_if_exists .env.local
             ENVRC
-
 
             # Provide gemspec in project
             File.write(File.join(project_root, "my-awesome-gem.gemspec"), <<~GEMSPEC)
@@ -2423,7 +2421,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             txt = File.read(File.join(project_root, "my-gem.gemspec"))
             expect(txt).not_to include("gem_version =")
             expect(txt).not_to include('if RUBY_VERSION >= "3.1"')
-            expect(txt).not_to include('$LOAD_PATH.unshift(lib)')
+            expect(txt).not_to include("$LOAD_PATH.unshift(lib)")
             expect(txt).not_to include('require "my/gem/version"')
             expect(txt).to include('spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/my/gem/version.rb", mod) }::My::Gem::Version::VERSION')
           end
@@ -2484,7 +2482,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             txt = File.read(File.join(project_root, "my-gem.gemspec"))
             expect(txt).to include("gem_version =")
             expect(txt).to include('require "my/gem/version"')
-            expect(txt).to include('spec.version = gem_version')
+            expect(txt).to include("spec.version = gem_version")
           end
         end
       end
@@ -4200,7 +4198,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Layout/IndentationConsistency:
                 Exclude: ['*.md']
             YAML
-            expect(result.scan(/Exclude: \['\*\.md'\]/).size).to eq(1)
+            expect(result.scan("Exclude: ['*.md']").size).to eq(1)
           end
         end
       end
@@ -4296,7 +4294,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           result = described_class.merge_by_file_type(template, dest, "AGENTS.md", Kettle::Jem::TemplateHelpers)
           tail = result.lines.last(6).join
 
-          expect(result.scan(/This project is a \*\*RubyGem\*\* managed with the \[kettle-rb\]/).size).to eq(1)
+          expect(result.scan("This project is a **RubyGem** managed with the [kettle-rb]").size).to eq(1)
           expect(tail).not_to include("This project is a **RubyGem**")
           expect(tail).not_to include("**CRITICAL**: The canonical project environment lives")
           expect(tail).not_to include("**Recovery rule**:")
@@ -4404,104 +4402,104 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     end
 
     it "defaults to :error" do
-        stub_env("FAILURE_MODE" => nil)
-        expect(described_class.failure_mode).to eq(:error)
-      end
+      stub_env("FAILURE_MODE" => nil)
+      expect(described_class.failure_mode).to eq(:error)
+    end
 
-      it "returns :error when ENV is 'error'" do
-        stub_env("FAILURE_MODE" => "error")
-        expect(described_class.failure_mode).to eq(:error)
-      end
+    it "returns :error when ENV is 'error'" do
+      stub_env("FAILURE_MODE" => "error")
+      expect(described_class.failure_mode).to eq(:error)
+    end
 
-      it "returns :rescue when ENV is 'rescue'" do
-        stub_env("FAILURE_MODE" => "rescue")
-        expect(described_class.failure_mode).to eq(:rescue)
-      end
+    it "returns :rescue when ENV is 'rescue'" do
+      stub_env("FAILURE_MODE" => "rescue")
+      expect(described_class.failure_mode).to eq(:rescue)
+    end
 
-      it "returns :error for unrecognized values" do
-        stub_env("FAILURE_MODE" => "bogus")
-        expect(described_class.failure_mode).to eq(:error)
-      end
+    it "returns :error for unrecognized values" do
+      stub_env("FAILURE_MODE" => "bogus")
+      expect(described_class.failure_mode).to eq(:error)
+    end
 
-      context "when merge fails in error mode (default)" do
-        it "raises Kettle::Dev::Error from merge_by_file_type" do
-          Dir.mktmpdir do |dir|
+    context "when merge fails in error mode (default)" do
+      it "raises Kettle::Dev::Error from merge_by_file_type" do
+        Dir.mktmpdir do |dir|
+          stub_env("FAILURE_MODE" => "error")
+
+          dest = File.join(dir, "broken.rb")
+          File.write(dest, "valid ruby\n")
+
+          # Force a merge failure by stubbing apply_strategy to raise
+          h = Kettle::Jem::TemplateHelpers
+          allow(h).to receive(:ruby_template?).and_return(true)
+          allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
+
+          expect {
+            described_class.merge_by_file_type("template content", dest, "broken.rb", h)
+          }.to raise_error(Kettle::Dev::Error, /Merge failed for broken\.rb.*merge boom/)
+        end
+      end
+    end
+
+    context "when merge fails in rescue mode" do
+      it "returns original content from merge_by_file_type" do
+        Dir.mktmpdir do |dir|
+          stub_env("FAILURE_MODE" => "rescue")
+
+          dest = File.join(dir, "broken.rb")
+          File.write(dest, "valid ruby\n")
+
+          h = Kettle::Jem::TemplateHelpers
+          allow(h).to receive(:ruby_template?).and_return(true)
+          allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
+
+          result = described_class.merge_by_file_type("template content", dest, "broken.rb", h)
+          expect(result).to eq("template content")
+        end
+      end
+    end
+
+    context "when FAILURE_MODE=error during full run" do
+      it "raises when step 7 merge fails on a file" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
             stub_env("FAILURE_MODE" => "error")
 
-            dest = File.join(dir, "broken.rb")
-            File.write(dest, "valid ruby\n")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
 
-            # Force a merge failure by stubbing apply_strategy to raise
-            h = Kettle::Jem::TemplateHelpers
-            allow(h).to receive(:ruby_template?).and_return(true)
-            allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
+            # A YAML file that will trigger psych-merge
+            File.write(File.join(template_root, "config.yml.example"), "key: value\n")
+            # Destination has invalid YAML to trigger a merge failure
+            File.write(File.join(project_root, "config.yml"), ":\n  bad:\n- yaml: [\n")
 
-            expect {
-              described_class.merge_by_file_type("template content", dest, "broken.rb", h)
-            }.to raise_error(Kettle::Dev::Error, /Merge failed for broken\.rb.*merge boom/)
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            # The outer rescue in step 7 catches and reports the error,
+            # so the run itself prints a WARNING but doesn't abort the entire task.
+            # However, the merge_by_file_type will raise, and the step 7
+            # rescue will catch it and print the warning.
+            expect { described_class.run }.not_to raise_error
           end
         end
       end
-
-      context "when merge fails in rescue mode" do
-        it "returns original content from merge_by_file_type" do
-          Dir.mktmpdir do |dir|
-            stub_env("FAILURE_MODE" => "rescue")
-
-            dest = File.join(dir, "broken.rb")
-            File.write(dest, "valid ruby\n")
-
-            h = Kettle::Jem::TemplateHelpers
-            allow(h).to receive(:ruby_template?).and_return(true)
-            allow(h).to receive(:apply_strategy).and_raise(RuntimeError, "merge boom")
-
-            result = described_class.merge_by_file_type("template content", dest, "broken.rb", h)
-            expect(result).to eq("template content")
-          end
-        end
-      end
-
-      context "when FAILURE_MODE=error during full run" do
-        it "raises when step 7 merge fails on a file" do
-          Dir.mktmpdir do |gem_root|
-            Dir.mktmpdir do |project_root|
-              stub_env("FAILURE_MODE" => "error")
-
-              template_root = File.join(gem_root, "template")
-              FileUtils.mkdir_p(template_root)
-
-              # A YAML file that will trigger psych-merge
-              File.write(File.join(template_root, "config.yml.example"), "key: value\n")
-              # Destination has invalid YAML to trigger a merge failure
-              File.write(File.join(project_root, "config.yml"), ":\n  bad:\n- yaml: [\n")
-
-              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
-                Gem::Specification.new do |spec|
-                  spec.name = "demo"
-                  spec.version = "0.1.0"
-                  spec.summary = "test gem"
-                  spec.authors = ["Test"]
-                  spec.required_ruby_version = ">= 3.1"
-                  spec.homepage = "https://github.com/acme/demo"
-                end
-              GEMSPEC
-
-              allow(helpers).to receive_messages(
-                project_root: project_root,
-                template_root: template_root,
-                ensure_clean_git!: nil,
-                ask: true,
-              )
-
-              # The outer rescue in step 7 catches and reports the error,
-              # so the run itself prints a WARNING but doesn't abort the entire task.
-              # However, the merge_by_file_type will raise, and the step 7
-              # rescue will catch it and print the warning.
-              expect { described_class.run }.not_to raise_error
-            end
-          end
-        end
-      end
+    end
   end
 
   describe "Kettle::Jem::Tasks::TemplateTask::CONFIG_FILE merging", :config_file do
@@ -4696,8 +4694,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           expect(content).to include("# Token section comment")
           expect(content).to include("# Patterns section comment")
           expect(content).to include("# Files section comment")
-          expect(content.scan(/# Files section comment/).size).to eq(1)
-          expect(content.scan(/path: "certs\/\*\*"/).size).to eq(1)
+          expect(content.scan("# Files section comment").size).to eq(1)
+          expect(content.scan('path: "certs/**"').size).to eq(1)
           expect(content).to include('freeze_token: "destination-token"')
           expect(content).to include('name: "Custom Author"')
           expect(content).to include('given_names: "Jane Marie"')

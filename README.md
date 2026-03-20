@@ -576,6 +576,8 @@ When `.kettle-jem.yml` already exists, the `kettle-jem` command performs the fol
 9. **Commit bootstrap changes** — Commits any changes from the above steps
 10. **Run kettle:jem:install** — Invokes the full template merge via `rake kettle:jem:install`, which performs AST-based smart merging of all template files according to `.kettle-jem.yml`
 
+Step 2 is intentionally best-effort during bootstrap. In the normal case `kettle-jem` edits a well-formed `Gem::Specification` structurally, but if the target gemspec exists and is still temporarily incomplete (for example empty content, a missing final `end`, or another in-progress edit that Prism cannot parse yet), `kettle-jem` falls back to a conservative line-oriented dependency sync so bootstrap can continue instead of failing immediately. That resilience is for early setup/recovery flows; it is not a promise that arbitrary malformed gemspecs are a first-class public edit format.
+
 #### Options
 
 All options are passed through to the underlying `rake kettle:jem:install` task:

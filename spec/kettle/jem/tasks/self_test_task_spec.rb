@@ -178,7 +178,10 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
     let(:gem_root) { Dir.mktmpdir("selftest_run_src") }
     let(:base_dir) { File.join(gem_root, "tmp", "template_test") }
 
-    after { FileUtils.rm_rf(gem_root) }
+    after {
+      FileUtils.rm_rf(gem_root)
+      helpers.clear_kettle_config!
+    }
 
     before do
       # Set up a minimal gem tree for the run
@@ -197,10 +200,6 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       )
       allow(described_class).to receive(:copy_gem_tree)
       allow(described_class).to receive(:run_template)
-    end
-
-    after do
-      helpers.clear_kettle_config!
     end
 
     it "creates the directory structure" do

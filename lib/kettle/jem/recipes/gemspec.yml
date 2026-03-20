@@ -26,6 +26,17 @@ merge:
   # Custom signature generator for gemspec matching
   signature_generator: signature_generator.rb
 
+steps:
+  - kind: smart_merge
+    name: smart_merge
+
+  - kind: ruby_script
+    name: harmonize
+    script: harmonize.rb
+
+  - kind: ruby_script
+    name: rewrite_version_loader
+    script: rewrite_version_loader.rb
+
 # Freeze token for preserving sections
 freeze_token: kettle-jem
-

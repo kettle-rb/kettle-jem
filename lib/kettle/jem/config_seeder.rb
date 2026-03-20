@@ -9,8 +9,8 @@ module Kettle
     # This module intentionally depends only on stdlib so it can be used from
     # the standalone executable before the full bundled runtime is available.
     module ConfigSeeder
-      TOKEN_PLACEHOLDER_RE = /\{KJ\|[^}]+}/.freeze
-      INLINE_ENV_RE = /ENV:\s*(KJ_[A-Z0-9_]+)\b/.freeze
+      TOKEN_PLACEHOLDER_RE = /\{KJ\|[^}]+}/
+      INLINE_ENV_RE = /ENV:\s*(KJ_[A-Z0-9_]+)\b/
 
       module_function
 

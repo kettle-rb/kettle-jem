@@ -23,6 +23,25 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(out.scan('gem "a"').length).to eq(1)
     end
 
+    it "deduplicates singleton gemspec and eval_gemfile entries by path", :prism_merge_only do
+      src = <<~RUBY
+        gemspec
+        eval_gemfile "gemfiles/modular/style.gemfile"
+        eval_gemfile "gemfiles/modular/debug.gemfile"
+      RUBY
+
+      dest = <<~RUBY
+        gemspec
+        eval_gemfile "gemfiles/modular/style.gemfile"
+      RUBY
+
+      out = described_class.merge_gem_calls(src, dest)
+
+      expect(out.scan(/^gemspec$/).length).to eq(1)
+      expect(out.scan(/^eval_gemfile "gemfiles\/modular\/style\.gemfile"$/).length).to eq(1)
+      expect(out).to include('eval_gemfile "gemfiles/modular/debug.gemfile"')
+    end
+
     it "replaces matching git_source by name and inserts when missing", :prism_merge_only do
       src = <<~'RUBY'
         git_source(:github) { |repo| "https://github.com/#{repo}.git" }
@@ -160,12 +179,42 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(out).to match(/^gem "rubocop"/)
       expect(out).to include('# gem "rubocop", "~> 1.73", ">= 1.73.2" # constrained by standard')
     end
+
+    it "removes multiple active gems from different contexts when the source tombstones them with explanations" do
+      src = <<~RUBY
+        # Ex-Standard Library gems
+        # irb is included in main Gemfile.
+        # gem "irb", "~> 1.15", ">= 1.15.2"
+
+        platform :mri do
+          # debug ships elsewhere.
+          # gem "debug", ">= 1.1"
+        end
+      RUBY
+
+      dest = <<~RUBY
+        gem "irb", "~> 1.15", ">= 1.15.2"
+
+        platform :mri do
+          gem "debug", ">= 1.1"
+        end
+      RUBY
+
+      out = described_class.merge_gem_calls(src, dest)
+
+      expect(out).to include('# gem "irb", "~> 1.15", ">= 1.15.2"')
+      expect(out).to include('# gem "debug", ">= 1.1"')
+      expect(out).not_to match(/^gem "irb"/)
+      expect(out).not_to include("  gem \"debug\", \">= 1.1\"")
+      expect(out).to include("platform :mri do")
+    end
   end
 
   describe ".filter_to_top_level_gems" do
-    it "extracts only top-level gem/source/git_source calls" do
+    it "extracts only top-level Gemfile declarations" do
       content = <<~RUBY
         source "https://rubygems.org"
+        gemspec
         gem "foo"
         group :development do
           gem "dev-only"
@@ -174,6 +223,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
 
       result = described_class.filter_to_top_level_gems(content)
       expect(result).to include('source "https://rubygems.org"')
+      expect(result).to include("gemspec")
       expect(result).to include('gem "foo"')
       expect(result).not_to include("dev-only")
       expect(result).not_to include("group")
@@ -230,6 +280,24 @@ RSpec.describe Kettle::Jem::PrismGemfile do
 
       result = described_class.remove_github_git_source(content)
       expect(result).not_to include("git_source(:github)")
+      expect(result).to include('gem "foo"')
+    end
+
+    it "removes multiline git_source(:github) blocks without disturbing neighbors" do
+      content = <<~'RUBY'
+        git_source(:github) do |repo|
+          "https://github.com/#{repo}.git"
+        end
+
+        source "https://rubygems.org"
+        gem "foo"
+      RUBY
+
+      result = described_class.remove_github_git_source(content)
+
+      expect(result).not_to include("git_source(:github)")
+      expect(result).not_to include('"https://github.com/#{repo}.git"')
+      expect(result).to include('source "https://rubygems.org"')
       expect(result).to include('gem "foo"')
     end
 
@@ -296,6 +364,30 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "bar"
       RUBY
       expect(described_class.remove_gem_dependency(content, "baz")).to eq(content)
+    end
+  end
+
+  describe ".restore_tombstone_comment_blocks" do
+    it "re-inserts explanatory tombstone blocks inside the original nested context" do
+      template = <<~RUBY
+        platform :mri do
+          # debug ships elsewhere.
+          # gem "debug", ">= 1.1"
+          gem "ast-merge"
+        end
+      RUBY
+
+      content = <<~RUBY
+        platform :mri do
+          gem "ast-merge"
+        end
+      RUBY
+
+      result = described_class.restore_tombstone_comment_blocks(content, template)
+
+      expect(result).to include('  # debug ships elsewhere.')
+      expect(result).to include('  # gem "debug", ">= 1.1"')
+      expect(result.index('  # debug ships elsewhere.')).to be < result.index('  gem "ast-merge"')
     end
   end
 end

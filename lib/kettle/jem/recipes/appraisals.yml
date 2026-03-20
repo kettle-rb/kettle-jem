@@ -28,3 +28,10 @@ merge:
 # Freeze token for preserving sections
 freeze_token: kettle-jem
 
+steps:
+  - kind: smart_merge
+    name: merge_appraisals
+
+  - kind: ruby_script
+    name: prune_min_ruby
+    script: prune_min_ruby.rb

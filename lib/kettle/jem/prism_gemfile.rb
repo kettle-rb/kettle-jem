@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "set"
+require_relative "prism_utils"
 
 module Kettle
   module Jem
@@ -10,10 +11,10 @@ module Kettle
 
       COMMENTED_GEM_CALL = /^\s*#\s*gem(?:\s+|\()(?<quote>["'])(?<name>[^"']+)\k<quote>/
 
-      # Merge gem calls from src_content into dest_content.
-      # - Replaces dest `source` call with src's if present.
+      # Merge top-level Gemfile declarations from src_content into dest_content.
+      # - Replaces dest `source` / `gemspec` calls with src's when present.
       # - Replaces or inserts non-comment `git_source` definitions.
-      # - Appends missing `gem` calls (by name) from src to dest preserving dest content and newlines.
+      # - Appends missing `gem` / `eval_gemfile` calls (by signature) from src to dest preserving dest content and newlines.
       # Uses Prism::Merge with pre-filtering to only merge top-level statements.
       def merge_gem_calls(src_content, dest_content)
         require "prism/merge" unless defined?(Prism::Merge)
@@ -27,14 +28,17 @@ module Kettle
         dest_processed = prune_declarations_for_tombstones(dest_content, source_tombstones)
         dest_processed = remove_github_git_source(dest_processed)
 
-        # Custom signature generator that normalizes string quotes
+        # Custom signature generator that normalizes string quotes and
+        # matches singleton top-level directives consistently.
         signature_generator = ->(node) do
           return unless node.is_a?(Prism::CallNode)
-          return unless [:gem, :source, :git_source].include?(node.name)
+          return unless [:gem, :source, :gemspec, :git_source, :eval_gemfile].include?(node.name)
 
-          return [:source] if node.name == :source
+          return [node.name] if [:source, :gemspec].include?(node.name)
 
           first_arg = node.arguments&.arguments&.first
+
+          return [:eval_gemfile, first_arg.unescaped.to_s] if node.name == :eval_gemfile && first_arg.is_a?(Prism::StringNode)
 
           arg_value = case first_arg
           when Prism::StringNode
@@ -65,7 +69,7 @@ module Kettle
         dest_content
       end
 
-      # Filter source content to only include top-level gem-related calls.
+      # Filter source content to only include top-level Gemfile declarations.
       #
       # Magic comments (frozen_string_literal, encoding, etc.) are NOT preserved
       # in the filtered output — SmartMerger handles them by always preserving
@@ -82,7 +86,7 @@ module Kettle
           next false unless stmt.is_a?(Prism::CallNode)
           next false if stmt.block && stmt.name != :git_source
 
-          [:gem, :source, :git_source, :eval_gemfile].include?(stmt.name)
+          [:gem, :source, :gemspec, :git_source, :eval_gemfile].include?(stmt.name)
         end
 
         ranges = filtered_stmts.map do |stmt|
@@ -114,16 +118,35 @@ module Kettle
 
         stmts = PrismUtils.extract_statements(result.value.statements)
 
-        github_node = stmts.find do |n|
+        github_nodes = stmts.select do |n|
           next false unless n.is_a?(Prism::CallNode) && n.name == :git_source
 
           first_arg = n.arguments&.arguments&.first
           first_arg.is_a?(Prism::SymbolNode) && first_arg.unescaped == "github"
         end
 
-        return content unless github_node
+        return content if github_nodes.empty?
 
-        content.sub(github_node.slice, "")
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        plans = github_nodes.map do |node|
+          Ast::Merge::StructuralEdit::RemovePlan.new(
+            source: content,
+            remove_start_line: node.location.start_line,
+            remove_end_line: node.location.end_line,
+            metadata: {
+              source: :kettle_jem_prism_gemfile,
+              declaration_name: :github,
+              declaration_context: :remove_github_git_source,
+            },
+          )
+        end
+
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: plans,
+          metadata: {source: :kettle_jem_prism_gemfile},
+        ).merged_content
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
           Kettle::Dev.debug_error(e, __method__)
@@ -140,15 +163,20 @@ module Kettle
         return content if gem_name.to_s.strip.empty?
 
         result = PrismUtils.parse_with_comments(content)
+        return content unless result.success?
+
         gem_nodes = find_gem_nodes_recursive(result.value.statements, gem_name)
 
-        out = content.dup
-        gem_nodes.each do |gn|
-          # Remove the gem call, trailing comments, and the trailing newline to avoid orphaned comments
-          out = out.sub(/^[ \t]*#{Regexp.escape(gn.slice.strip)}[^\n]*\n?/, "")
+        declarations = gem_nodes.map do |node|
+          {
+            name: gem_name.to_s,
+            line: node.location.start_line,
+            end_line: node.location.end_line,
+            context: :remove_gem_dependency,
+          }
         end
 
-        out
+        remove_declarations(content, declarations)
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
           Kettle::Dev.debug_error(e, __method__)
@@ -273,17 +301,55 @@ module Kettle
         start_index = comment_block_index_for_marker(lines, marker_line, tombstone[:context], ranges)
         start_index ||= comment_block_index_for_marker(lines, tombstone[:slice].to_s, tombstone[:context], ranges)
 
-        updated_lines = lines.dup
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
 
-        if start_index
+        plan = if start_index
           end_index = comment_block_end_index(lines, start_index, include_trailing_blank_lines: true)
-          updated_lines[start_index..end_index] = block_text.lines
+          Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: block_text,
+            replace_start_line: start_index + 1,
+            replace_end_line: end_index + 1,
+            metadata: {
+              source: :kettle_jem_prism_gemfile,
+              edit: :ensure_tombstone_comment_block,
+              tombstone_name: tombstone[:name],
+              tombstone_context: tombstone[:context],
+            },
+          )
         else
-          insertion_index = insertion_index_for_tombstone(updated_lines, tombstone, ranges)
-          updated_lines.insert(insertion_index, *block_text.lines)
+          insertion_index = insertion_index_for_tombstone(lines, tombstone, ranges)
+          if lines.empty?
+            return block_text
+          end
+
+          if insertion_index >= lines.length
+            anchor_line = lines.length
+            replacement = lines[anchor_line - 1].to_s + block_text
+          else
+            anchor_line = insertion_index + 1
+            replacement = block_text + lines[anchor_line - 1].to_s
+          end
+
+          Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: replacement,
+            replace_start_line: anchor_line,
+            replace_end_line: anchor_line,
+            metadata: {
+              source: :kettle_jem_prism_gemfile,
+              edit: :ensure_tombstone_comment_block,
+              tombstone_name: tombstone[:name],
+              tombstone_context: tombstone[:context],
+            },
+          )
         end
 
-        updated_lines.join
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: [plan],
+          metadata: {source: :kettle_jem_prism_gemfile, edit: :ensure_tombstone_comment_block},
+        ).merged_content
       end
 
       def context_ranges_for_content(content)
@@ -304,7 +370,7 @@ module Kettle
       def comment_block_end_index(lines, start_index, include_trailing_blank_lines: false)
         finish = start_index
 
-        while finish + 1 < lines.length && lines[finish + 1].match?(/^\s*#/) 
+        while finish + 1 < lines.length && lines[finish + 1].match?(/^\s*#/)
           finish += 1
         end
 
@@ -671,7 +737,7 @@ module Kettle
         pred = node.predicate
         # Truncate long conditions
         text = pred.slice.to_s.strip
-        text.length > 40 ? text[0..37] + "..." : text
+        (text.length > 40) ? text[0..37] + "..." : text
       rescue StandardError
         "..."
       end
@@ -682,7 +748,7 @@ module Kettle
 
         while cursor >= 0
           line = lines[cursor]
-          break unless line.match?(/^\s*#/) 
+          break unless line.match?(/^\s*#/)
 
           saw_explanatory_comment ||= !COMMENTED_GEM_CALL.match?(line)
           cursor -= 1
@@ -784,15 +850,28 @@ module Kettle
       end
 
       def remove_declarations(content, declarations)
-        declarations
-          .sort_by { |declaration| -declaration[:start_offset] }
-          .reduce(content.dup) do |updated, declaration|
-            line_end = declaration[:end_offset]
-            line_end += 1 while line_end < updated.bytesize && updated.getbyte(line_end) != 10
-            line_end += 1 if line_end < updated.bytesize
+        return content if declarations.empty?
 
-            updated.byteslice(0, declaration[:start_offset]).to_s + updated.byteslice(line_end..).to_s
-          end
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        plans = declarations.map do |declaration|
+          Ast::Merge::StructuralEdit::RemovePlan.new(
+            source: content,
+            remove_start_line: declaration[:line],
+            remove_end_line: declaration[:end_line] || declaration[:line],
+            metadata: {
+              source: :kettle_jem_prism_gemfile,
+              declaration_name: declaration[:name],
+              declaration_context: declaration[:context],
+            },
+          )
+        end
+
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: plans,
+          metadata: {source: :kettle_jem_prism_gemfile},
+        ).merged_content
       end
     end
   end

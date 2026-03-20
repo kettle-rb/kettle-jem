@@ -59,12 +59,15 @@ RSpec.describe "Gemspec templating duplication bug" do
         licenses: ["Apache-2.0"],
         required_ruby_version: ">= 2.5.0",
         executables: ["my-command"],
-        _remove_self_dependency: "my-gem",
       }
 
       after_field_replacement = Kettle::Jem::PrismGemspec.replace_gemspec_fields(
         template_with_placeholders,
         replacements,
+      )
+      after_field_replacement = Kettle::Jem::PrismGemspec.remove_spec_dependency(
+        after_field_replacement,
+        "my-gem",
       )
 
       # Verify the output is valid Ruby

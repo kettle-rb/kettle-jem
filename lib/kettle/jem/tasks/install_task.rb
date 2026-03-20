@@ -50,7 +50,6 @@ module Kettle
           chosen_grapheme
         end
 
-
         def run
           helpers = Kettle::Jem::TemplateHelpers
           project_root = helpers.project_root
@@ -127,7 +126,6 @@ module Kettle
           rescue StandardError => e
             puts "WARNING: Skipped grapheme synchronization due to #{e.class}: #{e.message}"
           end
-
 
           # Validate gemspec homepage points to GitHub and is a non-interpolated string
           begin

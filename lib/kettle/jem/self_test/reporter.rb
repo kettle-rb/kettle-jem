@@ -111,10 +111,10 @@ module Kettle
           else
             lines << "## Detailed Diffs"
             lines << ""
-            if diff_count.to_i.positive?
-              lines << "See `report/diffs/` directory (#{diff_count} file#{diff_count == 1 ? "" : "s"})."
+            lines << if diff_count.to_i.positive?
+              "See `report/diffs/` directory (#{diff_count} file#{"s" unless diff_count == 1})."
             else
-              lines << "No per-file diffs were generated for this run; `report/diffs/` is empty."
+              "No per-file diffs were generated for this run; `report/diffs/` is empty."
             end
           end
 

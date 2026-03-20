@@ -85,6 +85,40 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
     end
 
     context "with AST-based merge" do
+      it "runs the appraisals recipe through the shared recipe runner" do
+        recipe = instance_double(Ast::Merge::Recipe::Config)
+        runner = instance_double(Ast::Merge::Recipe::Runner)
+        result = Struct.new(:content).new("appraise \"recipe\" do\nend\n")
+
+        expect(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
+        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+        expect(runner).to receive(:run_content).with(
+          template_content: template,
+          destination_content: dest,
+          relative_path: "Appraisals",
+        ).and_return(result)
+
+        expect(merged).to eq(result.content)
+      end
+
+      it "passes min_ruby to the recipe runtime context" do
+        recipe = instance_double(Ast::Merge::Recipe::Config)
+        runner = instance_double(Ast::Merge::Recipe::Runner)
+        result = Struct.new(:content).new("appraise \"ruby-3-2\" do\nend\n")
+
+        expect(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
+        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+        expect(runner).to receive(:run_content).with(
+          template_content: template,
+          destination_content: dest,
+          relative_path: "Appraisals",
+          context: {min_ruby: "3.2"},
+        ).and_return(result)
+
+        merged = described_class.merge(template, dest, min_ruby: "3.2")
+        expect(merged).to eq(result.content)
+      end
+
       it "merges matching appraise blocks and preserves destination-only ones", :prism_merge_only do
         # With template_wins preference, template content is merged with dest structure.
         # Comment ordering depends on signature matching - preamble comments may be
@@ -294,11 +328,46 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
       expect(described_class.merge("   \n  ", dest)).to eq(dest)
     end
 
-    it "returns template on Prism::Merge::Error", :prism_merge_only do
+    it "returns template when the recipe runner raises" do
       template = "appraise \"foo\" do\nend\n"
-      allow(Prism::Merge::SmartMerger).to receive(:new).and_raise(Prism::Merge::Error, "test")
+      recipe = instance_double(Ast::Merge::Recipe::Config)
+      runner = instance_double(Ast::Merge::Recipe::Runner)
+
+      allow(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
+      allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      allow(runner).to receive(:run_content).and_raise(StandardError, "test")
+
       result = described_class.merge(template, "appraise \"bar\" do\nend\n")
       expect(result).to eq(template)
+    end
+
+    it "prunes ruby appraisals below min_ruby as part of the recipe-backed merge", :prism_merge_only do
+      template = <<~RUBY
+        appraise "ruby-2-7" do
+          eval_gemfile "modular/x_std_libs/r2/libs.gemfile"
+        end
+
+        appraise "ruby-3-2" do
+          eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+        end
+
+        appraise "style" do
+          eval_gemfile "modular/style.gemfile"
+        end
+      RUBY
+
+      dest = <<~RUBY
+        appraise "ruby-2-7" do
+          eval_gemfile "modular/x_std_libs/r2/libs.gemfile"
+        end
+      RUBY
+
+      merged = described_class.merge(template, dest, min_ruby: "3.2")
+
+      expect(merged).not_to include('appraise "ruby-2-7" do')
+      expect(merged).to include('appraise "ruby-3-2" do')
+      expect(merged).to include('appraise "style" do')
+      expect(merged).not_to match(/\n{3,}/)
     end
   end
 

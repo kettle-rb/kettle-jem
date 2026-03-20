@@ -2,6 +2,8 @@
 
 RSpec.describe Kettle::Jem::MarkdownMerger do
   describe ".merge" do
+    let(:recipe) { Kettle::Jem.recipe(:readme) }
+
     it "returns template_content when destination_content is nil" do
       result = described_class.merge(
         template_content: "# Hello\n\nWorld\n",
@@ -77,6 +79,21 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       )
       # SmartMerger with preference: :template should pick template
       expect(result).to be_a(String)
+    end
+
+    it "accepts an explicit executable recipe" do
+      template = "# Title\n\n## Synopsis\n\nTemplate synopsis.\n"
+      destination = "# Custom Title\n\n## Synopsis\n\nDestination synopsis.\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preset: recipe,
+      )
+
+      expect(result).to include("# Custom Title")
+      expect(result).to include("Destination synopsis.")
+      expect(result).not_to include("Template synopsis.")
     end
   end
 

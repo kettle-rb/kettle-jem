@@ -109,7 +109,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:run_kettle_install!).and_return(nil)
       allow(cli).to receive(:commit_bootstrap_changes!).and_return(nil)
 
-      expect { cli.run! }.to output("").to_stdout
+      expect { cli.run! }.not_to output.to_stdout
     end
 
     it "returns early when bootstrap writes the template config file" do
@@ -225,6 +225,38 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(parsed.dig("tokens", "funding", "kofi")).to eq("pboling")
       expect(parsed.dig("tokens", "social", "mastodon")).to eq("galtzo")
     end
+
+    it "falls back to loadable gemspec metadata when author env vars are absent" do
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) do
+          File.write("demo.gemspec", <<~RUBY)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.authors = ["Example Person"]
+              spec.email = ["example@example.com"]
+            end
+          RUBY
+
+          cli = described_class.allocate
+          cli.instance_variable_set(:@gemspec_path, File.join(dir, "demo.gemspec"))
+          stub_env(
+            "KJ_AUTHOR_NAME" => nil,
+            "KJ_AUTHOR_GIVEN_NAMES" => nil,
+            "KJ_AUTHOR_FAMILY_NAMES" => nil,
+            "KJ_AUTHOR_EMAIL" => nil,
+            "KJ_AUTHOR_DOMAIN" => nil
+          )
+
+          values = cli.send(:bootstrap_template_config_values)
+
+          expect(values.dig("author", "name")).to eq("Example Person")
+          expect(values.dig("author", "given_names")).to eq("Example")
+          expect(values.dig("author", "family_names")).to eq("Person")
+          expect(values.dig("author", "email")).to eq("example@example.com")
+          expect(values.dig("author", "domain")).to eq("example.com")
+        end
+      end
+    end
   end
 
   describe "#ensure_modular_gemfiles!" do
@@ -303,6 +335,60 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       expect { cli.send(:ensure_dev_deps!) }.to output(/Development dependencies already up to date\./).to_stdout
       expect(File.read("target.gemspec")).to eq(text)
+    end
+
+    it "syncs multiline development dependencies from the example gemspec while ignoring commented-out ones" do
+      File.write("target.gemspec", <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "0.0.1"
+        end
+      RUBY
+
+      example_path = File.join(Dir.pwd, "multiline-example.gemspec")
+      File.write(example_path, <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "template-demo"
+          spec.version = "0.0.1"
+
+          # spec.add_development_dependency("ignored", "~> 9.9")
+          spec.add_development_dependency(
+            "rake",
+            "~> 13.0"
+          ) # ruby >= 2.2.0
+        end
+      RUBY
+
+      cli = setup_cli_for_deps(example_path)
+      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "target.gemspec"))
+
+      cli.send(:ensure_dev_deps!)
+
+      content = File.read("target.gemspec")
+      expect(content).to include("  spec.add_development_dependency(\n    \"rake\",\n    \"~> 13.0\"\n  ) # ruby >= 2.2.0")
+      expect(content).not_to include("ignored")
+    end
+
+    it "still seeds development dependencies when Prism context lookup is unavailable during bootstrap" do
+      File.write("Gemfile", "source 'https://gem.coop'\n")
+      File.write("target.gemspec", <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "0.0.1"
+        end
+      RUBY
+
+      example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
+      cli = setup_cli_for_deps(example_path)
+      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "target.gemspec"))
+
+      allow(Kettle::Jem::PrismGemspec).to receive(:gemspec_context).and_raise(LoadError, "cannot load such file -- prism")
+
+      cli.send(:ensure_dev_deps!)
+
+      content = File.read("target.gemspec")
+      expect(content).to match(/add_development_dependency\(\s*"rake"/)
+      expect(content).to match(/add_development_dependency\(\s*"kettle-test"/)
     end
   end
 
@@ -514,7 +600,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@quiet, true)
 
-      expect { cli.send(:say, "msg", verbose_only: true) }.to output("").to_stdout
+      expect { cli.send(:say, "msg", verbose_only: true) }.not_to output.to_stdout
     end
 
     it "abort! uses ExitAdapter and raises MockSystemExit with message" do
@@ -630,6 +716,38 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.send(:ensure_gemfile_from_example!)
       result2 = File.read("Gemfile")
       expect(result2).to eq(result)
+    end
+
+    it "limits bootstrap eval_gemfile additions to the requested paths" do
+      File.write("a.gemspec", "Gem::Specification.new do |s| end\n")
+      File.write("Gemfile", "")
+
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+
+      example_path = File.expand_path("../../../template/Gemfile.example", __dir__)
+      allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
+        if rel == "Gemfile.example"
+          example_path
+        else
+          orig.call(rel)
+        end
+      end
+
+      cli.send(:ensure_gemfile_from_example!, eval_paths: ["gemfiles/modular/templating.gemfile"])
+
+      result = File.read("Gemfile")
+
+      expect(result).to include('source "https://gem.coop"')
+      expect(result).to include("gemspec")
+      expect(result).to include('git_source(:codeberg)')
+      expect(result).to include('git_source(:gitlab)')
+      expect(result).to include('eval_gemfile "gemfiles/modular/templating.gemfile"')
+      expect(result).not_to include('eval_gemfile "gemfiles/modular/debug.gemfile"')
+      expect(result).not_to include('eval_gemfile "gemfiles/modular/coverage.gemfile"')
+      expect(result).not_to include('eval_gemfile "gemfiles/modular/style.gemfile"')
     end
   end
 
@@ -755,7 +873,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
 
       allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
-        rel == "gem.gemspec.example" ? example_path : orig.call(rel)
+        (rel == "gem.gemspec.example") ? example_path : orig.call(rel)
       end
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)

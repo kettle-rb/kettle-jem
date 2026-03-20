@@ -7,7 +7,7 @@ module Kettle
     # setup CLI to ensure gemfiles/modular/* are present before use.
     module ModularGemfiles
       MODULAR_GEMFILE_DIR = "gemfiles/modular"
-      RUBY_BUCKET_RE = /\Ar(\d+)(?:\.(\d+))?\z/.freeze
+      RUBY_BUCKET_RE = /\Ar(\d+)(?:\.(\d+))?\z/
 
       module_function
 
@@ -75,8 +75,8 @@ module Kettle
               if modular_gemfile.end_with?("_local.gemfile")
                 c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
                 c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
-              else
-                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+              elsif gem_name && !gem_name.to_s.empty?
+                c = PrismGemfile.remove_gem_dependency(c, gem_name)
               end
               c
             end
@@ -124,8 +124,8 @@ module Kettle
               if File.basename(dest).end_with?("_local.gemfile")
                 c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
                 c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
-              else
-                c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+              elsif gem_name && !gem_name.to_s.empty?
+                c = PrismGemfile.remove_gem_dependency(c, gem_name)
               end
               c
             end
@@ -164,13 +164,12 @@ module Kettle
           if modular_gemfile.end_with?("_local.gemfile")
             c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
             c = PrismGemfile.merge_local_gem_overrides(c, existing_content, excluded_gems: gem_name)
-          else
-            c = PrismGemfile.remove_gem_dependency(c, gem_name) if gem_name && !gem_name.to_s.empty?
+          elsif gem_name && !gem_name.to_s.empty?
+            c = PrismGemfile.remove_gem_dependency(c, gem_name)
           end
           c
         end
       end
-
 
       # Determine if a Ruby bucket (e.g., rMAJOR.MINOR) should be kept based on min_ruby.
       #

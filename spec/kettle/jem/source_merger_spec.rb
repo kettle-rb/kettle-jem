@@ -128,6 +128,47 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("task :default")
     end
 
+    it "routes Appraisals merges through PrismAppraisals" do
+      src = "appraise \"ruby-3-2\" do\nend\n"
+      dest = "appraise \"ruby-3-1\" do\nend\n"
+
+      expect(Kettle::Jem::PrismAppraisals).to receive(:merge).with(src, dest).and_return("appraise \"ruby-3-2\" do\nend")
+
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "Appraisals")
+      expect(merged).to eq("appraise \"ruby-3-2\" do\nend\n")
+    end
+
+    it "routes gemspec merges through PrismGemspec" do
+      src = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
+      dest = "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n"
+
+      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, dest).and_return("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend")
+
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "demo.gemspec")
+      expect(merged).to eq("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n")
+    end
+
+    it "routes gemspec accept_template through PrismGemspec when merge context is provided" do
+      src = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
+      merge_context = {
+        min_ruby: Gem::Version.new("3.2"),
+        entrypoint_require: "kettle/jem",
+        namespace: "Kettle::Jem",
+      }
+
+      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, "", **merge_context).and_return(src.chomp)
+
+      merged = described_class.apply(
+        strategy: :accept_template,
+        src: src,
+        dest: "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n",
+        path: "demo.gemspec",
+        merge_context: merge_context,
+      )
+
+      expect(merged).to eq(src)
+    end
+
     context "when preserving comments" do
       it "preserves inline comments on gem declarations", :prism_merge_only do
         src = <<~RUBY

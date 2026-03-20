@@ -26,8 +26,8 @@ module Kettle
           "33.0" => Gem::Version.new("3.3"),
         }.freeze,
       }.freeze
-      COMPATIBILITY_ROW_PREFIX_RE = /\A\| Works with (?:MRI Ruby|JRuby|Truffle Ruby)/.freeze
-      COMPATIBILITY_REFERENCE_LABEL_RE = /\A(?:💎(?:ruby|jruby|truby)-|🚎)/.freeze
+      COMPATIBILITY_ROW_PREFIX_RE = /\A\| Works with (?:MRI Ruby|JRuby|Truffle Ruby)/
+      COMPATIBILITY_REFERENCE_LABEL_RE = /\A(?:💎(?:ruby|jruby|truby)-|🚎)/
 
       # Maps engine names (as used in .kettle-jem.yml engines:) to the
       # compatibility row prefix and badge label prefixes used in README.md.

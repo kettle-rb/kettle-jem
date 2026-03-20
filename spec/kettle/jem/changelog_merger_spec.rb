@@ -2,6 +2,8 @@
 
 RSpec.describe Kettle::Jem::ChangelogMerger do
   describe ".merge" do
+    let(:recipe) { Kettle::Jem.recipe(:changelog) }
+
     it "returns template_content when destination_content is nil" do
       result = described_class.merge(
         template_content: "# Changelog\n\n## [Unreleased]\n### Added\n",
@@ -248,6 +250,33 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
         "Expected blank line after items before next heading, got:\n#{result}"
       expect(result).to include("- Bug fix\n\n### Security"),
         "Expected blank line after items before next heading, got:\n#{result}"
+    end
+
+    it "accepts an explicit executable recipe" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Fixed
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Fixed
+        - Bug fix X
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preset: recipe,
+      )
+
+      expect(result).to include("### Added")
+      expect(result).to include("### Fixed\n- Bug fix X")
     end
   end
 

@@ -105,9 +105,9 @@ module Kettle
         "LINKTREE" => "KJ_SOCIAL_LINKTREE",
         "DEVTO" => "KJ_SOCIAL_DEVTO",
       }.freeze
-      README_TOP_LOGO_MODE_DEFAULT = "org_and_project".freeze
+      README_TOP_LOGO_MODE_DEFAULT = "org_and_project"
       README_TOP_LOGO_MODES = %w[org project org_and_project].freeze
-      README_STATIC_TOP_LOGO_ROW = "[![Galtzo FLOSS Logo by Aboling0, CC BY-SA 4.0][🖼️galtzo-i]][🖼️galtzo-discord] [![ruby-lang Logo, Yukihiro Matsumoto, Ruby Visual Identity Team, CC BY-SA 2.5][🖼️ruby-lang-i]][🖼️ruby-lang]".freeze
+      README_STATIC_TOP_LOGO_ROW = "[![Galtzo FLOSS Logo by Aboling0, CC BY-SA 4.0][🖼️galtzo-i]][🖼️galtzo-discord] [![ruby-lang Logo, Yukihiro Matsumoto, Ruby Visual Identity Team, CC BY-SA 2.5][🖼️ruby-lang-i]][🖼️ruby-lang]"
       README_STATIC_TOP_LOGO_REFS = [
         "[🖼️galtzo-i]: https://logos.galtzo.com/assets/images/galtzo-floss/avatar-192px.svg",
         "[🖼️galtzo-discord]: https://discord.gg/3qme4XHNKN",
@@ -116,7 +116,7 @@ module Kettle
       ].join("\n").freeze
 
       # Default config path within the template tree
-      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
+      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       RUBY_BASENAMES = %w[Gemfile Rakefile Appraisals Appraisal.root.gemfile .simplecov].freeze
       RUBY_SUFFIXES = %w[.gemspec .gemfile].freeze
       RUBY_EXTENSIONS = %w[.rb .rake].freeze
@@ -345,7 +345,7 @@ module Kettle
         return normalized if README_TOP_LOGO_MODES.include?(normalized)
 
         add_warning(
-          "Unknown readme.top_logo_mode '#{raw}'. Supported values: #{README_TOP_LOGO_MODES.join(', ')}. Falling back to #{README_TOP_LOGO_MODE_DEFAULT}.",
+          "Unknown readme.top_logo_mode '#{raw}'. Supported values: #{README_TOP_LOGO_MODES.join(", ")}. Falling back to #{README_TOP_LOGO_MODE_DEFAULT}.",
         )
         README_TOP_LOGO_MODE_DEFAULT
       end
@@ -501,7 +501,7 @@ module Kettle
 
         config_clean = config_value.to_s.strip
         return config_clean if present_string?(config_clean) && !token_placeholder?(config_clean)
-        return nil unless present_string?(derived_value)
+        return unless present_string?(derived_value)
 
         derived_value.to_s.strip
       end
@@ -541,14 +541,14 @@ module Kettle
 
       def derive_given_names(author_name)
         parts = author_name.to_s.strip.split(/\s+/)
-        return nil if parts.size < 2
+        return if parts.size < 2
 
         parts[0...-1].join(" ")
       end
 
       def derive_family_names(author_name)
         parts = author_name.to_s.strip.split(/\s+/)
-        return nil if parts.size < 2
+        return if parts.size < 2
 
         parts[-1]
       end
@@ -981,15 +981,13 @@ module Kettle
         else
           ""
         end
-        merged = Kettle::Jem::PrismAppraisals.merge(content, existing)
         min_ruby = begin
           gemspec_metadata[:min_ruby]
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           nil
         end
-        pruned, _removed = Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(merged, min_ruby: min_ruby)
-        pruned
+        Kettle::Jem::PrismAppraisals.merge(content, existing, min_ruby: min_ruby)
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         content
@@ -1223,7 +1221,7 @@ module Kettle
         Kettle::Dev::GemSpecReader.load(root)
       end
 
-      def apply_strategy(content, dest_path)
+      def apply_strategy(content, dest_path, merge_context: nil, **options)
         return content unless ruby_template?(dest_path)
 
         strategy = strategy_for(dest_path)
@@ -1235,6 +1233,7 @@ module Kettle
           dest: dest_content,
           path: rel_path(dest_path),
           file_type: file_type,
+          merge_context: merge_context,
         )
       end
 

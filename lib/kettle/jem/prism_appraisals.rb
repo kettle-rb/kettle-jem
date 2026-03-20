@@ -11,24 +11,25 @@ module Kettle
       module_function
 
       # Merge template and destination Appraisals files preserving comments
-      def merge(template_content, dest_content)
+      def merge(template_content, dest_content, preset: nil, min_ruby: nil, **options)
         template_content ||= ""
         dest_content ||= ""
 
         return template_content if dest_content.strip.empty?
         return dest_content if template_content.strip.empty?
 
-        require "prism/merge" unless defined?(Prism::Merge)
+        runtime_context = build_runtime_context(options.delete(:context), min_ruby: min_ruby)
+        recipe = preset || Kettle::Jem.recipe(:appraisals)
+        run_options = {
+          template_content: template_content,
+          destination_content: dest_content,
+          relative_path: "Appraisals",
+        }
+        run_options[:context] = runtime_context unless runtime_context.empty?
 
-        merger = Prism::Merge::SmartMerger.new(
-          template_content,
-          dest_content,
-          preference: :template,
-          add_template_only_nodes: true,
-        )
-        merger.merge
-      rescue Prism::Merge::Error => e
-        Kernel.warn("[#{__method__}] Prism::Merge failed for Appraisals merge: #{e.message}")
+        Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
+      rescue StandardError => e
+        Kernel.warn("[#{__method__}] Appraisals recipe merge failed: #{e.message}")
         template_content
       end
 
@@ -43,7 +44,7 @@ module Kettle
         root = result.value
         return content unless root&.statements&.body
 
-        out = content.dup
+        nodes_to_remove = []
 
         root.statements.body.each do |node|
           next unless appraise_call?(node)
@@ -61,13 +62,16 @@ module Kettle
               nil
             end
 
-            if arg_val && arg_val.to_s == gem_name.to_s
-              out = out.sub(/^[ \t]*#{Regexp.escape(stmt.slice.strip)}[^\n]*\n?/, "")
-            end
+            nodes_to_remove << stmt if arg_val && arg_val.to_s == gem_name.to_s
           end
         end
 
-        out
+        remove_nodes(content, nodes_to_remove, source: :kettle_jem_prism_appraisals_remove_gem_dependency) do |stmt|
+          {
+            declaration_name: gem_name.to_s,
+            declaration_line: stmt.location.start_line,
+          }
+        end
       rescue StandardError => e
         if defined?(Kettle::Dev) && Kettle::Dev.respond_to?(:debug_error)
           Kettle::Dev.debug_error(e, __method__)
@@ -88,7 +92,7 @@ module Kettle
         return [content, []] unless result&.success?
 
         stmts = PrismUtils.extract_statements(result.value.statements)
-        edits = []
+        nodes_to_remove = []
         removed = []
 
         stmts.each do |node|
@@ -102,25 +106,16 @@ module Kettle
             version = Gem::Version.new("#{m[1]}.#{m[2]}")
             if version < min_version
               removed << name.to_s
-              loc = node.location
-              edits << [loc.start_offset, loc.end_offset - loc.start_offset] if loc
+              nodes_to_remove << node
             end
           end
         end
 
-        pruned = content.dup
-        edits.sort_by { |(start, _len)| -start }.each do |start, len|
-          end_pos = start + len
-          # Consume trailing whitespace and up to one newline after the removed block
-          while end_pos < pruned.length && pruned[end_pos] =~ /[ \t]/
-            end_pos += 1
-          end
-          end_pos += 1 if end_pos < pruned.length && pruned[end_pos] == "\n"
-          # Consume leading blank lines before the removed block (back up over preceding newlines)
-          while start > 0 && pruned[start - 1] == "\n" && (start < 2 || pruned[start - 2] == "\n")
-            start -= 1
-          end
-          pruned = pruned[0...start] + pruned[end_pos..-1].to_s
+        pruned = remove_nodes(content, nodes_to_remove, source: :kettle_jem_prism_appraisals_prune) do |node|
+          {
+            appraisal_name: PrismUtils.extract_literal_value(node.arguments.arguments.first).to_s,
+            appraisal_line: node.location.start_line,
+          }
         end
 
         # Collapse runs of 3+ consecutive newlines down to 2 (one blank line)
@@ -137,6 +132,38 @@ module Kettle
       # Helper: Check if node is an appraise block call
       def appraise_call?(node)
         PrismUtils.block_call_to?(node, :appraise)
+      end
+
+      def build_runtime_context(context, min_ruby:)
+        runtime_context = context.respond_to?(:to_h) ? context.to_h : {}
+        runtime_context = runtime_context.transform_keys { |key| key.respond_to?(:to_sym) ? key.to_sym : key }
+        runtime_context[:min_ruby] = min_ruby unless min_ruby.nil?
+        runtime_context
+      end
+
+      def remove_nodes(content, nodes, source:, &metadata_block)
+        return content if nodes.empty?
+
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        plans = nodes.filter_map do |node|
+          next unless node.respond_to?(:location) && node.location
+
+          Ast::Merge::StructuralEdit::RemovePlan.new(
+            source: content,
+            remove_start_line: node.location.start_line,
+            remove_end_line: node.location.end_line,
+            metadata: {source: source}.merge(metadata_block ? metadata_block.call(node) : {}),
+          )
+        end
+
+        return content if plans.empty?
+
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: plans,
+          metadata: {source: source},
+        ).merged_content
       end
     end
   end

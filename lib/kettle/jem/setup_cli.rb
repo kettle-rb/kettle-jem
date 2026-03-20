@@ -4,6 +4,7 @@ require "fileutils"
 require "shellwords"
 require "open3"
 require "optparse"
+require "rubygems"
 
 require_relative "config_seeder"
 
@@ -19,13 +20,13 @@ module Kettle
     # Options are parsed from argv and passed through to the rake task as
     # key=value pairs (e.g., --force => force=true).
     class SetupCLI
-      BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE".freeze
-      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml".freeze
+      BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE"
+      TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
       BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile].freeze
-      BOOTSTRAP_LOCAL_GEMS_ARRAY_RE = /^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m.freeze
-      BOOTSTRAP_VENDORED_GEMS_EXPORT_RE = /^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/.freeze
+      BOOTSTRAP_LOCAL_GEMS_ARRAY_RE = /^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m
+      BOOTSTRAP_VENDORED_GEMS_EXPORT_RE = /^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/
 
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
@@ -352,19 +353,14 @@ module Kettle
         resolver = Token::Resolver::Resolve.new(on_missing: :keep)
         example = resolver.resolve(doc, {"KJ|KETTLE_DEV_GEM" => "kettle-dev"})
 
-        wanted_lines = example.each_line.map(&:rstrip).select { |line|
-          line =~ /add_development_dependency\s*\(?/ && !line.strip.start_with?("#")
-        }
-        return if wanted_lines.empty?
+        wanted_entries = Kettle::Jem::PrismGemspec.development_dependency_entries(example)
+        return if wanted_entries.empty?
 
         target = File.read(@gemspec_path)
 
         # Build gem=>desired line map
-        wanted = {}
-        wanted_lines.each do |line|
-          if (m = line.match(/add_development_dependency\s*\(?\s*["']([^"']+)["']/))
-            wanted[m[1]] = line
-          end
+        wanted = wanted_entries.each_with_object({}) do |entry, memo|
+          memo[entry[:gem]] = entry[:line]
         end
 
         # Use Prism-based gemspec edit to ensure development dependencies match
@@ -373,19 +369,8 @@ module Kettle
           # Check if any actual changes were made to development dependency declarations.
           # Extract gem name + version args from dependency lines to compare semantically,
           # ignoring whitespace, comments, and formatting differences.
-          extract_deps = lambda do |content|
-            content.to_s.lines
-              .select { |ln| ln =~ /add_development_dependency\s*\(?/ }
-              .reject { |ln| ln.strip.start_with?("#") }
-              .filter_map { |ln|
-                if (m = ln.match(/add_development_dependency\s*\(?\s*(.+?)\s*\)?\s*(#.*)?$/))
-                  m[1].strip
-                end
-              }
-              .sort
-          end
-          target_deps = extract_deps.call(target)
-          modified_deps = extract_deps.call(modified)
+          target_deps = Kettle::Jem::PrismGemspec.development_dependency_signatures(target)
+          modified_deps = Kettle::Jem::PrismGemspec.development_dependency_signatures(modified)
           if modified_deps != target_deps
             File.write(@gemspec_path, modified)
             say("Updated development dependencies in #{@gemspec_path}.", verbose_only: true)
@@ -455,19 +440,13 @@ module Kettle
 
       def preferred_bootstrap_env(key)
         value = ENV[key].to_s
-        return nil if value.strip.empty?
+        return if value.strip.empty?
 
         value
       end
 
       def first_gemspec_array_value(name)
-        return nil unless @gemspec_path && File.exist?(@gemspec_path)
-
-        content = File.read(@gemspec_path)
-        match = content.match(/spec\.(?:#{Regexp.escape(name)})\s*=\s*\[(.*?)\]/m)
-        return nil unless match
-
-        values = match[1].scan(/["']([^"']+)["']/).flatten
+        values = Array(loaded_bootstrap_gemspec&.public_send(name)).map { |value| value.to_s.strip }.reject(&:empty?)
         values.first
       rescue StandardError => e
         debug("Could not seed #{name} from #{@gemspec_path}: #{e.class}: #{e.message}")
@@ -475,13 +454,21 @@ module Kettle
       end
 
       def gemspec_string_value(name)
-        return nil unless @gemspec_path && File.exist?(@gemspec_path)
+        value = loaded_bootstrap_gemspec&.public_send(name)
+        str = value.to_s.strip
+        return if str.empty?
 
-        content = File.read(@gemspec_path)
-        content[/spec\.(?:#{Regexp.escape(name)})\s*=\s*["']([^"']+)["']/, 1]
+        str
       rescue StandardError => e
         debug("Could not read #{name} from #{@gemspec_path}: #{e.class}: #{e.message}")
         nil
+      end
+
+      def loaded_bootstrap_gemspec
+        return unless @gemspec_path && File.exist?(@gemspec_path)
+        return @loaded_bootstrap_gemspec if defined?(@loaded_bootstrap_gemspec)
+
+        @loaded_bootstrap_gemspec = Gem::Specification.load(@gemspec_path)
       end
 
       def split_author_name(author_name)
@@ -516,81 +503,41 @@ module Kettle
       end
 
       # 3b. Ensure Gemfile contains required lines from example without duplicating directives
-      #    - Copies source, git_source, gemspec, and eval_gemfile lines that are missing
-      #    - Idempotent (running multiple times does not duplicate entries)
+      #    - Delegates top-level merge behavior to PrismGemfile so Gemfile bootstrap
+      #      stays on the same structural merge path as the rest of kettle-jem.
+      #    - Optionally limits which template eval_gemfile entries participate during
+      #      bootstrap.
       def ensure_gemfile_from_example!(eval_paths: nil)
         source_path = installed_path("Gemfile.example")
         abort!("Internal error: Gemfile.example not found within installed gem.") unless source_path && File.exist?(source_path)
 
-        example = File.read(source_path)
+        example = filter_bootstrap_example_eval_gemfiles(File.read(source_path), eval_paths: eval_paths)
         target_path = "Gemfile"
         target = File.exist?(target_path) ? File.read(target_path) : ""
 
-        # Extract interesting lines from example
-        ex_sources = []
-        ex_git_sources = [] # names (e.g., :github)
-        ex_git_source_lines = {}
-        ex_has_gemspec = false
-        ex_eval_paths = []
+        load_bootstrap_gemfile_merge_runtime!
+        merged = Kettle::Jem::PrismGemfile.merge_gem_calls(example, target)
+        return say("Gemfile already contains required entries from example.", verbose_only: true) if merged == target
 
-        example.each_line do |ln|
-          s = ln.strip
-          next if s.empty?
+        File.write(target_path, ensure_trailing_newline(merged))
+        say("Updated Gemfile with entries from Gemfile.example.", verbose_only: true)
+      end
 
-          if s.start_with?("source ")
-            ex_sources << ln.rstrip
-          elsif (m = s.match(/^git_source\(\s*:(\w+)\s*\)/))
-            name = m[1]
-            ex_git_sources << name
-            ex_git_source_lines[name] = ln.rstrip
-          elsif s.start_with?("gemspec")
-            ex_has_gemspec = true
-          elsif (m = s.match(%r{\Aeval_gemfile\s+["']([^"']+)["']}))
-            path = m[1]
-            ex_eval_paths << path if eval_paths.nil? || eval_paths.include?(path)
-          end
-        end
+      def load_bootstrap_gemfile_merge_runtime!
+        return if defined?(Kettle::Jem::PrismGemfile)
 
-        # Scan target for presence
-        tg_sources = target.each_line.map(&:rstrip).select { |l| l.strip.start_with?("source ") }
-        tg_git_sources = {}
-        target.each_line do |ln|
-          if (m = ln.strip.match(/^git_source\(\s*:(\w+)\s*\)/))
-            tg_git_sources[m[1]] = true
-          end
-        end
-        tg_has_gemspec = !!target.each_line.find { |l| l.strip.start_with?("gemspec") }
-        tg_eval_paths = target.each_line.map do |ln|
-          if (m = ln.strip.match(%r{\Aeval_gemfile\s+["']([^"']+)["']}))
-            m[1]
-          end
-        end.compact
+        require_relative "prism_gemfile"
+      end
 
-        additions = []
-        # Add missing sources (exact line match)
-        ex_sources.each do |src_line|
-          additions << src_line unless tg_sources.include?(src_line)
-        end
-        # Add missing git_source by name
-        ex_git_sources.each do |name|
-          additions << ex_git_source_lines[name] unless tg_git_sources[name]
-        end
-        # Add gemspec if example has it and target lacks it
-        additions << "gemspec" if ex_has_gemspec && !tg_has_gemspec
-        # Add missing eval_gemfile paths (recreate the exact example line when possible)
-        ex_eval_paths.each do |path|
-          next if tg_eval_paths.include?(path)
+      def filter_bootstrap_example_eval_gemfiles(content, eval_paths: nil)
+        return content if eval_paths.nil?
 
-          additions << "eval_gemfile \"#{path}\""
-        end
+        allowed_paths = Array(eval_paths).map(&:to_s)
 
-        return say("Gemfile already contains required entries from example.", verbose_only: true) if additions.empty?
-
-        # Ensure file ends with a newline
-        target << "\n" unless target.end_with?("\n") || target.empty?
-        new_content = target + additions.join("\n") + "\n"
-        File.write(target_path, new_content)
-        say("Updated Gemfile with entries from Gemfile.example (added #{additions.size}).", verbose_only: true)
+        content.each_line.reject { |line|
+          match = line.strip.match(%r{\Aeval_gemfile\s+["']([^"']+)["']})
+          match && !allowed_paths.include?(match[1])
+        }.join
       end
 
       def ensure_bootstrap_modular_gemfiles!

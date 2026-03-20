@@ -36,8 +36,8 @@ begin
   require "open3"
   require "optparse"
 
-  require_relative "../lib/kettle/jem/version"
-  require_relative "../lib/kettle/jem/setup_cli"
+  require "kettle/jem/version"
+  require "kettle/jem/setup_cli"
   puts "== #{script_basename} v#{Kettle::Jem::Version::VERSION} begin ==" unless ARGV.include?("--quiet")
 rescue LoadError, StandardError => e
   warn("[kettle-jem] ERROR: could not load bootstrap runtime (#{e.class}: #{e.message})")

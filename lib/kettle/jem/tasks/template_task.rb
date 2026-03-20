@@ -17,7 +17,7 @@ module Kettle
           threshold: 0.3,
           node_types: [:paragraph],
         )
-        MARKDOWN_LABEL_STYLE_PARAGRAPH_RE = /\A.{1,120}:\z/m.freeze
+        MARKDOWN_LABEL_STYLE_PARAGRAPH_RE = /\A.{1,120}:\z/m
         MARKDOWN_MATCH_STOPWORDS = %w[
           about after all and are before false for from hard into must not only or the this true use when with
         ].to_set.freeze
@@ -404,7 +404,7 @@ module Kettle
         #   - :rescue — merge failures are logged and the unmerged content is used instead
         def failure_mode
           val = ENV.fetch("FAILURE_MODE", "error").to_s.strip.downcase
-          val == "rescue" ? :rescue : :error
+          (val == "rescue") ? :rescue : :error
         end
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze
@@ -567,7 +567,7 @@ module Kettle
         end
 
         def preflight_destination_for(rel, project_root, gem_name)
-          return nil if rel == ".kettle-jem.yml"
+          return if rel == ".kettle-jem.yml"
           return File.join(project_root, ".env.local.example") if rel == ".env.local"
 
           return File.join(project_root, rel) unless rel.end_with?(".gemspec")
@@ -1204,18 +1204,6 @@ module Kettle
                         Kettle::Dev.debug_error(e, __method__)
                       end
 
-                      begin
-                        if orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
-                          c = Kettle::Jem::PrismGemspec.rewrite_version_loader(
-                            c,
-                            min_ruby: orig_meta[:min_ruby],
-                            entrypoint_require: orig_meta[:entrypoint_require],
-                            namespace: orig_meta[:namespace],
-                          )
-                        end
-                      rescue StandardError => e
-                        Kettle::Dev.debug_error(e, __method__)
-                      end
                     end
 
                     begin
@@ -1230,28 +1218,28 @@ module Kettle
                       Kettle::Dev.debug_error(e, __method__)
                     end
 
+                    gemspec_merge_context = if orig_meta && orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
+                      {
+                        min_ruby: orig_meta[:min_ruby],
+                        entrypoint_require: orig_meta[:entrypoint_require],
+                        namespace: orig_meta[:namespace],
+                      }
+                    end
+
                     if gemspec_strategy != :accept_template && dest_existed
                       begin
-                        merged = helpers.apply_strategy(c, dest_gemspec)
+                        merged = helpers.apply_strategy(c, dest_gemspec, merge_context: gemspec_merge_context)
                         c = merged if merged.is_a?(String) && !merged.empty?
                       rescue StandardError => e
                         Kettle::Dev.debug_error(e, __method__)
                       end
-                    end
-
-                    begin
-                      if orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
-                        c = Kettle::Jem::PrismGemspec.rewrite_version_loader(
-                          c,
-                          min_ruby: orig_meta[:min_ruby],
-                          entrypoint_require: orig_meta[:entrypoint_require],
-                          namespace: orig_meta[:namespace],
-                        )
+                    elsif gemspec_merge_context
+                      begin
+                        c = Kettle::Jem::PrismGemspec.merge(c, "", **gemspec_merge_context)
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
                       end
-                    rescue StandardError => e
-                      Kettle::Dev.debug_error(e, __method__)
                     end
-
 
                     c
                   end

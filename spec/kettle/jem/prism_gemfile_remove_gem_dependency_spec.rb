@@ -108,6 +108,22 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to include('gem "ast-merge"')
     end
 
+    it "removes multiline gem declarations without disturbing neighboring entries" do
+      src = <<~RUBY
+        gem "tree_haver",
+          "~> 5.0",
+          require: false
+
+        gem "ast-merge", path: "../ast-merge"
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "tree_haver")
+
+      expect(out).not_to include('gem "tree_haver"')
+      expect(out).not_to include('"~> 5.0"')
+      expect(out).to include('gem "ast-merge", path: "../ast-merge"')
+    end
+
     it "does not strip local_gems arrays or vendored comments when removing gem declarations" do
       src = <<~RUBY
         local_gems = %w[

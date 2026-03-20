@@ -306,7 +306,7 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).not_to include("#       visibility and discoverability.\n\n\n  # Security")
 
       runtime_index = merged.index('spec.add_dependency("kettle-dev", "~> 2.0")')
-      note_index = merged.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
+      note_index = merged.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")
       bundler_audit_index = merged.index('spec.add_development_dependency("bundler-audit", "~> 0.9.3")')
 
       expect(runtime_index).to be < note_index

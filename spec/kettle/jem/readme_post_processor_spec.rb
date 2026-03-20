@@ -24,7 +24,7 @@ RSpec.describe Kettle::Jem::ReadmePostProcessor do
       cell = "  <br/>   [![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf]   <br/>    [![Truffle Ruby 24.2 Compat][💎truby-24.2i]][🚎11-c-wf]   <br/>  "
 
       expect(described_class.normalize_compatibility_badge_cell(cell)).to eq(
-        "[![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] <br/> [![Truffle Ruby 24.2 Compat][💎truby-24.2i]][🚎11-c-wf]"
+        "[![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] <br/> [![Truffle Ruby 24.2 Compat][💎truby-24.2i]][🚎11-c-wf]",
       )
     end
   end

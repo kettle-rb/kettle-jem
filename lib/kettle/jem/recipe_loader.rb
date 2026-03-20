@@ -2,31 +2,40 @@
 
 module Kettle
   module Jem
-    # Recipe loader for kettle-jem preset configurations.
+    # Recipe loader for kettle-jem recipe configurations.
     #
-    # Provides a simple interface for loading YAML-based presets that define
+    # Provides a simple interface for loading YAML-based recipes that define
     # merge behavior for various file types (Gemfile, gemspec, Rakefile, etc.).
     #
-    # These presets use `Ast::Merge::Recipe::Preset` (not `Config`) because
-    # they define merge configuration without specifying template/target files.
+    # kettle-jem loads these files as `Ast::Merge::Recipe::Config` instances,
+    # even when they omit template/target bindings. That allows a single YAML
+    # contract to serve both as SmartMerger options (`#to_h`) and as an
+    # executable content recipe (`Runner#run_content`).
     #
-    # @example Loading a preset
-    #   preset = Kettle::Jem.recipe(:gemfile)
+    # @example Loading a recipe
+    #   recipe = Kettle::Jem.recipe(:gemfile)
     #   merger = Prism::Merge::SmartMerger.new(
     #     template, destination,
-    #     **preset.to_h
+    #     **recipe.to_h
     #   )
     #
-    # @example Using preset with SmartMerger directly
-    #   preset = Kettle::Jem.recipe(:gemspec)
+    # @example Using a recipe with SmartMerger directly
+    #   recipe = Kettle::Jem.recipe(:gemspec)
     #   merger = Prism::Merge::SmartMerger.new(
     #     template, destination,
-    #     signature_generator: preset.signature_generator,
-    #     node_typing: preset.node_typing,
-    #     preference: preset.preference
+    #     signature_generator: recipe.signature_generator,
+    #     node_typing: recipe.node_typing,
+    #     preference: recipe.preference
     #   )
     #
-    # @see Ast::Merge::Recipe::Preset
+    # @example Executing a content recipe in memory
+    #   recipe = Kettle::Jem.recipe(:readme)
+    #   merged = Ast::Merge::Recipe::Runner.new(recipe).run_content(
+    #     template_content: template,
+    #     destination_content: destination,
+    #   ).content
+    #
+    # @see Ast::Merge::Recipe::Config
     module RecipeLoader
       # Directory containing recipe YAML files
       RECIPES_DIR = File.expand_path("recipes", __dir__)
@@ -35,33 +44,33 @@ module Kettle
       AVAILABLE_RECIPES = %i[gemfile gemspec rakefile appraisals markdown readme changelog dotenv].freeze
 
       class << self
-        # Load a preset by name.
+        # Load a recipe by name.
         #
-        # @param name [Symbol, String] Preset name (e.g., :gemfile, :gemspec)
-        # @return [Ast::Merge::Recipe::Preset] Loaded preset configuration
-        # @raise [ArgumentError] If preset not found
+        # @param name [Symbol, String] Recipe name (e.g., :gemfile, :gemspec)
+        # @return [Ast::Merge::Recipe::Config] Loaded recipe configuration
+        # @raise [ArgumentError] If recipe not found
         def load(name)
           name = name.to_sym
           path = recipe_path(name)
 
           unless File.exist?(path)
             available = AVAILABLE_RECIPES.join(", ")
-            raise ArgumentError, "Unknown preset: #{name}. Available: #{available}"
+            raise ArgumentError, "Unknown recipe: #{name}. Available: #{available}"
           end
 
-          require "ast-merge" unless defined?(Ast::Merge::Recipe::Preset)
-          Ast::Merge::Recipe::Preset.load(path)
+          require "ast-merge" unless defined?(Ast::Merge::Recipe::Config)
+          Ast::Merge::Recipe::Config.load(path)
         end
 
-        # Check if a preset exists.
+        # Check if a recipe exists.
         #
-        # @param name [Symbol, String] Preset name
+        # @param name [Symbol, String] Recipe name
         # @return [Boolean]
         def exists?(name)
           File.exist?(recipe_path(name.to_sym))
         end
 
-        # List all available presets.
+        # List all available recipes.
         #
         # @return [Array<Symbol>]
         def available
@@ -70,10 +79,10 @@ module Kettle
           end
         end
 
-        # Get the path to a preset file.
+        # Get the path to a recipe file.
         #
-        # @param name [Symbol] Preset name
-        # @return [String] Absolute path to preset YAML file
+        # @param name [Symbol] Recipe name
+        # @return [String] Absolute path to recipe YAML file
         def recipe_path(name)
           File.join(RECIPES_DIR, "#{name}.yml")
         end

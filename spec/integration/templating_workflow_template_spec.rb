@@ -6,6 +6,6 @@ RSpec.describe "templating workflow template" do # rubocop:disable RSpec/Describ
     content = File.read(template_path)
 
     expect(content).to include('exec_cmd: "rake kettle:jem:selftest"')
-    expect(content).to include('Templating self-test for ${{ matrix.ruby }} via ${{ matrix.exec_cmd }}')
+    expect(content).to include("Templating self-test for ${{ matrix.ruby }} via ${{ matrix.exec_cmd }}")
   end
 end

@@ -8,7 +8,7 @@ module Kettle
     # Captures and renders the merge-gem environment used during templating.
     module TemplatingReport
       REPORT_DIR = File.join("tmp", "kettle-jem").freeze
-      REPORT_PREFIX = "templating-report".freeze
+      REPORT_PREFIX = "templating-report"
       MERGE_GEM_NAMES = %w[
         ast-merge
         bash-merge
@@ -47,14 +47,14 @@ module Kettle
 
       def default_workspace_root
         env_root = ENV["KETTLE_RB_DEV"].to_s.strip
-        return nil if env_root.casecmp("false").zero?
+        return if env_root.casecmp("false").zero?
 
         repo_root = File.expand_path("../../..", __dir__)
         sibling_root = File.expand_path("..", repo_root)
         if env_root.empty? || env_root.casecmp("true").zero?
           return canonical_path(sibling_root) if File.directory?(File.join(sibling_root, "nomono"))
 
-          return nil
+          return
         end
 
         canonical_path(env_root)

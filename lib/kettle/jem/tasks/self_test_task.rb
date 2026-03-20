@@ -66,7 +66,7 @@ module Kettle
           tmp/kettle-jem/templating-report-
         ].freeze
 
-        APPRAISAL_GENERATED_GEMFILE_PATTERN = %r{\Agemfiles/[^/]+\.gemfile\z}.freeze
+        APPRAISAL_GENERATED_GEMFILE_PATTERN = %r{\Agemfiles/[^/]+\.gemfile\z}
 
         module_function
 

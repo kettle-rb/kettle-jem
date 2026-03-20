@@ -33,7 +33,7 @@ module Kettle
       # @param file_type [Symbol, nil] File type hint (:gemfile, :appraisals, :gemspec, :rakefile, nil)
       # @return [String] Merged content with comments preserved
       # @raise [Kettle::Jem::Error] If strategy is unknown or merge fails
-      def apply(strategy:, src:, dest:, path:, file_type: nil)
+      def apply(strategy:, src:, dest:, path:, file_type: nil, merge_context: nil, **options)
         strategy = normalize_strategy(strategy)
         dest ||= ""
         src_content = src.to_s
@@ -51,8 +51,12 @@ module Kettle
         result =
           case strategy
           when :accept_template
-            # Token-resolved template content wins; no AST merge with destination
-            src_content
+            if detected_type == :gemspec && merge_context
+              PrismGemspec.merge(src_content, "", **runtime_merge_options(merge_context))
+            else
+              # Token-resolved template content wins; no AST merge with destination
+              src_content
+            end
           when :raw_copy
             # Verbatim template content; should not reach here (handled earlier),
             # but return source unchanged as a safety net
@@ -63,18 +67,10 @@ module Kettle
             else
               dest_content
             end
-            apply_merge(src_content, merge_destination, file_type: detected_type)
+            apply_merge(src_content, merge_destination, file_type: detected_type, merge_context: merge_context)
           else
             raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}' for #{path}."
           end
-
-        if detected_type == :gemspec
-          result = PrismGemspec.harmonize_merged_content(
-            result,
-            template_content: src_content,
-            destination_content: dest_content,
-          )
-        end
 
         if detected_type == :gemfile
           result = PrismGemfile.restore_tombstone_comment_blocks(result, src_content)
@@ -124,7 +120,7 @@ module Kettle
       end
 
       def normalize_file_type(file_type)
-        return nil if file_type.nil?
+        return if file_type.nil?
 
         file_type.to_s.downcase.strip.tr("-", "_").to_sym
       end
@@ -147,7 +143,6 @@ module Kettle
           preset_class.destination_wins(freeze_token: FREEZE_TOKEN)
         end
       end
-
 
       # @param strategy [Symbol, String, nil] Strategy to normalize
       # @return [Symbol] Normalized strategy (:merge if nil)
@@ -172,7 +167,11 @@ module Kettle
       # @param dest_content [String] Destination content
       # @param file_type [Symbol] File type for preset selection
       # @return [String] Merged content
-      def apply_merge(src_content, dest_content, file_type: :ruby)
+      def apply_merge(src_content, dest_content, file_type: :ruby, merge_context: nil)
+        runtime_options = runtime_merge_options(merge_context)
+        return PrismAppraisals.merge(src_content, dest_content, **runtime_options) if file_type == :appraisals
+        return PrismGemspec.merge(src_content, dest_content, **runtime_options) if file_type == :gemspec
+
         config = config_for_file_type(file_type, preference: :template)
 
         merger = Prism::Merge::SmartMerger.new(
@@ -181,6 +180,13 @@ module Kettle
           **config.to_h,
         )
         merger.merge
+      end
+
+      def runtime_merge_options(merge_context)
+        return {} if merge_context.nil?
+        return merge_context.transform_keys(&:to_sym) if merge_context.is_a?(Hash)
+
+        merge_context.to_h.transform_keys { |key| key.respond_to?(:to_sym) ? key.to_sym : key }
       end
 
       # @param file_type [Symbol]

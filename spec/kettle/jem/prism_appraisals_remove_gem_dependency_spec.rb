@@ -36,6 +36,20 @@ RSpec.describe Kettle::Jem::PrismAppraisals, ".remove_gem_dependency" do
       expect(out).not_to include('gem "my-gem"')
     end
 
+    it "removes multiple matching gem calls from the same appraisal block" do
+      src = <<~RUBY
+        appraise("rails-7") {
+          gem "my-gem", "~> 1.0"
+          gem "rails", "~> 7.0"
+          gem "my-gem", path: "../my-gem"
+        }
+      RUBY
+
+      out = described_class.remove_gem_dependency(src, "my-gem")
+      expect(out).to include('gem "rails", "~> 7.0"')
+      expect(out).not_to include('gem "my-gem"')
+    end
+
     it "returns content unchanged when gem_name is empty" do
       src = <<~RUBY
         appraise("test") {

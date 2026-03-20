@@ -9,8 +9,218 @@ module Kettle
       module_function
 
       MODERN_VERSION_LOADER_MIN_RUBY = Gem::Version.new("3.1").freeze
-      GEMSPEC_DEPENDENCY_LINE_RE = /^(?<indent>\s*)spec\.(?<method>add_(?:development_|runtime_)?dependency)\s*\(?\s*["'](?<gem>[^"']+)["'][^\n]*(?:\n|\z)/.freeze
-      GEMSPEC_NOTE_BLOCK_START_RE = /^\s*# NOTE: It is preferable to list development dependencies in the gemspec due to increased/.freeze
+      GEMSPEC_DEPENDENCY_LINE_RE = /^(?<indent>\s*)spec\.(?<method>add_(?:development_|runtime_)?dependency)\s*\(?\s*(?<args>(?<quote>["'])(?<gem>[^"']+)\k<quote>.*?)(?:\s*\))?\s*(?<comment>#.*)?(?:\n|\z)/
+      GEMSPEC_NOTE_BLOCK_START_RE = /^\s*# NOTE: It is preferable to list development dependencies in the gemspec due to increased/
+
+      # Explicit contract for gemspec dependency-section normalization.
+      #
+      # Given merged gemspec content plus template/destination source content, this
+      # helper normalizes dependency sections by restoring preferred formatting for
+      # matched dependency signatures, suppressing development dependencies that are
+      # now runtime dependencies, and keeping runtime dependency blocks above the
+      # development-dependency note block while carrying attached comments/spacing.
+      module DependencySectionPolicy
+        module_function
+
+        def normalize(content:, template_content:, destination_content:, prefer_template: false)
+          lines = content.to_s.lines
+          return content if lines.empty?
+
+          preferred_lines = if prefer_template
+            dependency_line_lookup(template_content)
+          else
+            dependency_line_lookup(destination_content)
+          end
+
+          fallback_lines = prefer_template ? dependency_line_lookup(destination_content) : dependency_line_lookup(template_content)
+          fallback_lines.each do |signature, line|
+            preferred_lines[signature] ||= line
+          end
+
+          lines.each_with_index do |line, idx|
+            match = dependency_line_match(line)
+            next unless match
+
+            preferred = preferred_lines[dependency_lookup_key(match)]
+            lines[idx] = preferred.dup if preferred
+          end
+
+          runtime_gems = dependency_records(lines)
+            .select { |record| runtime_dependency_method?(record[:method]) }
+            .map { |record| record[:gem] }
+            .to_set
+
+          duplicate_dev_ranges = dependency_records(lines)
+            .select { |record| record[:method] == "add_development_dependency" && runtime_gems.include?(record[:gem]) }
+            .map { |record| dependency_block_range(lines, record[:line_index]) }
+
+          lines = remove_line_ranges(lines, duplicate_dev_ranges)
+
+          note_index = note_block_start_index(lines)
+          return lines.join unless note_index
+
+          note_end_index = note_block_end_index(lines, note_index)
+
+          runtime_after_note = runtime_records_after_note(lines, note_end_index)
+
+          return lines.join if runtime_after_note.empty?
+
+          moved_blocks = []
+          runtime_after_note.reverse_each do |record|
+            range = dependency_block_range(lines, record[:line_index], stop_above_index: note_end_index)
+            moved_blocks.unshift(lines[range].map(&:dup))
+            lines = remove_line_ranges(lines, [range])
+          end
+
+          insert_blocks_before_note(lines, moved_blocks)
+        end
+
+        def note_block_start_index(lines)
+          Array(lines).index { |line| PrismGemspec::GEMSPEC_NOTE_BLOCK_START_RE.match?(line) }
+        end
+
+        def note_block_end_index(lines, note_index)
+          end_index = note_index
+
+          while lines[end_index + 1]&.lstrip&.match?(/^#\s{2,}/)
+            end_index += 1
+          end
+
+          end_index += 1 if lines[end_index + 1]&.strip&.empty?
+
+          end_index
+        end
+
+        def runtime_records_after_note(lines, note_index)
+          dependency_records(lines)
+            .select { |record| runtime_dependency_method?(record[:method]) && record[:line_index] > note_index }
+        end
+
+        def insert_blocks_before_note(lines, blocks)
+          note_index = note_block_start_index(lines)
+          return lines.join unless note_index
+
+          insertion = build_dependency_block_insertion(
+            blocks,
+            before_line: note_index.positive? ? lines[note_index - 1] : nil,
+            after_line: lines[note_index],
+          )
+
+          (lines[0...note_index] + insertion + lines[note_index..]).join
+        end
+
+        def insertion_line_index(lines)
+          note_index = note_block_start_index(lines)
+          return note_block_end_index(lines, note_index) + 1 if note_index
+
+          Array(lines).rindex { |line| line.strip == "end" } || Array(lines).length
+        end
+
+        def dependency_line_lookup(content)
+          content.to_s.each_line.each_with_object({}) do |line, memo|
+            match = dependency_line_match(line)
+            next unless match
+
+            normalized_line = line.end_with?("\n") ? line : "#{line}\n"
+            memo[dependency_lookup_key(match)] ||= normalized_line
+          end
+        end
+
+        def dependency_records(lines)
+          Array(lines).each_with_index.filter_map do |line, idx|
+            match = dependency_line_match(line)
+            next unless match
+
+            {
+              line_index: idx,
+              method: match[:method],
+              gem: match[:gem],
+            }
+          end
+        end
+
+        def dependency_line_match(line)
+          match = PrismGemspec::GEMSPEC_DEPENDENCY_LINE_RE.match(line.to_s)
+          return unless match
+
+          {
+            method: match[:method],
+            gem: match[:gem],
+            signature: normalize_dependency_signature(match[:args]),
+          }
+        end
+
+        def dependency_lookup_key(match)
+          [match[:method], match[:signature]]
+        end
+
+
+        def normalize_dependency_signature(args_source)
+          args_source.to_s.strip.gsub(/\s+/, " ")
+        end
+
+        def runtime_dependency_method?(method_name)
+          %w[add_dependency add_runtime_dependency].include?(method_name.to_s)
+        end
+
+        def dependency_block_range(lines, line_index, stop_above_index: nil)
+          attached_comment_start_index(lines, line_index, stop_above_index: stop_above_index)..trailing_blank_line_end_index(lines, line_index)
+        end
+
+        def remove_line_ranges(lines, ranges)
+          new_lines = Array(lines).dup
+          Array(ranges).sort_by(&:begin).reverse_each do |range|
+            new_lines.slice!(range)
+          end
+          new_lines
+        end
+
+        def build_dependency_block_insertion(blocks, before_line:, after_line:)
+          insertion = []
+          insertion << "\n" if needs_separator_before_blocks?(before_line)
+
+          Array(blocks).each_with_index do |block, idx|
+            insertion.concat(block)
+            next if idx == blocks.length - 1
+
+            insertion << "\n" unless block_ends_with_separator?(block)
+          end
+
+          insertion << "\n" if needs_separator_after_blocks?(after_line, insertion)
+          insertion
+        end
+
+        def attached_comment_start_index(lines, line_index, stop_above_index: nil)
+          start_index = line_index
+          while start_index.positive?
+            break if !stop_above_index.nil? && (start_index - 1) <= stop_above_index
+
+            previous_line = lines[start_index - 1]
+            break unless previous_line.lstrip.start_with?("#")
+
+            start_index -= 1
+          end
+          start_index
+        end
+
+        def trailing_blank_line_end_index(lines, line_index)
+          end_index = line_index
+          end_index += 1 if lines[end_index + 1]&.strip&.empty?
+          end_index
+        end
+
+        def block_ends_with_separator?(block)
+          Array(block).last.to_s.strip.empty?
+        end
+
+        def needs_separator_before_blocks?(before_line)
+          before_line && !before_line.strip.empty?
+        end
+
+        def needs_separator_after_blocks?(after_line, insertion)
+          after_line && !after_line.strip.empty? && insertion.last.to_s.strip != ""
+        end
+      end
 
       # Emit a debug warning for rescued errors when debugging is enabled.
       # @param error [Exception]
@@ -18,6 +228,46 @@ module Kettle
       # @return [void]
       def debug_error(error, context = nil)
         Kettle::Dev.debug_error(error, context)
+      end
+
+      # Merge template and destination gemspec content through the shared recipe
+      # runner so smart-merge orchestration and post-merge harmonization live in
+      # the recipe surface instead of SourceMerger hooks.
+      def merge(template_content, dest_content, preset: nil, min_ruby: nil, entrypoint_require: nil, namespace: nil, **options)
+        template_content ||= ""
+        dest_content ||= ""
+
+        return dest_content if template_content.strip.empty?
+
+        runtime_context = build_runtime_context(
+          options.delete(:context),
+          min_ruby: min_ruby,
+          entrypoint_require: entrypoint_require,
+          namespace: namespace,
+        )
+        return template_content if dest_content.strip.empty? && runtime_context.empty?
+
+        recipe = preset || Kettle::Jem.recipe(:gemspec)
+        run_options = {
+          template_content: template_content,
+          destination_content: dest_content,
+          relative_path: "project.gemspec",
+        }
+        run_options[:context] = runtime_context unless runtime_context.empty?
+
+        Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
+      rescue StandardError => e
+        Kernel.warn("[#{__method__}] Gemspec recipe merge failed: #{e.message}")
+        template_content
+      end
+
+      def build_runtime_context(context, min_ruby:, entrypoint_require:, namespace:)
+        runtime_context = context.respond_to?(:to_h) ? context.to_h : {}
+        runtime_context = runtime_context.transform_keys { |key| key.respond_to?(:to_sym) ? key.to_sym : key }
+        runtime_context[:min_ruby] = min_ruby unless min_ruby.nil?
+        runtime_context[:entrypoint_require] = entrypoint_require unless entrypoint_require.to_s.strip.empty?
+        runtime_context[:namespace] = namespace unless namespace.to_s.strip.empty?
+        runtime_context
       end
 
       # Extract leading emoji from text using Unicode grapheme clusters
@@ -130,57 +380,44 @@ module Kettle
       def replace_gemspec_fields(content, replacements = {})
         return content if replacements.nil? || replacements.empty?
 
-        result = PrismUtils.parse_with_comments(content)
-        stmts = PrismUtils.extract_statements(result.value.statements)
+        context = gemspec_context(content)
+        return content unless context
 
-        gemspec_call = stmts.find do |s|
-          s.is_a?(Prism::CallNode) && s.block && PrismUtils.extract_const_name(s.receiver) == "Gem::Specification" && s.name == :new
-        end
-        return content unless gemspec_call
-
-        # Extract block parameter name from Prism AST (e.g., |spec|)
-        blk_param = extract_block_param(gemspec_call) || "spec"
-
-        Kettle::Dev.debug_log("PrismGemspec final blk_param: #{blk_param.inspect}")
-
-        body_node = gemspec_call.block&.body
-        return content unless body_node
-
-        body_src = body_node.slice
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
 
         build_literal = method(:build_literal_value)
-        stmt_nodes = PrismUtils.extract_statements(body_node)
-
-        edits = []
+        plans = []
+        insertions = []
+        lines = content.lines
 
         replacements.each do |field_sym, value|
-          next if field_sym == :_remove_self_dependency
           next if value.nil?
 
           field = field_sym.to_s
 
-          found_node = find_field_node(stmt_nodes, blk_param, field)
+          found_node = find_field_node(context[:stmt_nodes], context[:blk_param], field)
 
-          edit = if found_node
-            build_replacement_edit(found_node, body_node, blk_param, field, field_sym, value, build_literal)
+          plan = if found_node
+            build_replacement_plan(content, found_node, context[:blk_param], field, field_sym, value, build_literal)
           else
-            build_insertion_edit(stmt_nodes, body_node, body_src, blk_param, field, field_sym, value, build_literal)
+            build_insertion_plan(context[:stmt_nodes], context[:gemspec_call], context[:blk_param], field, field_sym, value, build_literal)
           end
-          edits << edit if edit
+
+          if plan.is_a?(Hash)
+            insertions << plan
+          elsif plan
+            plans << plan
+          end
         end
 
-        # Handle removal of self-dependency
-        if replacements[:_remove_self_dependency]
-          edits.concat(build_self_dependency_removal_edits(stmt_nodes, body_node, body_src, blk_param, replacements[:_remove_self_dependency].to_s))
-        end
+        plans = add_field_insertion_plans(plans, content: content, lines: lines, insertions: insertions)
+        return content if plans.empty?
 
-        # Apply edits in reverse order by offset to avoid offset shifts
-        edits.sort_by! { |offset, _len, _repl| -offset }
-
-        new_body = apply_edits(body_src, edits)
-
-        # Reassemble the gemspec call by replacing just the body
-        reassemble_gemspec(content, gemspec_call, body_node, new_body)
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: plans,
+          metadata: {source: :kettle_jem_prism_gemspec},
+        ).merged_content
       rescue StandardError => e
         debug_error(e, __method__)
         content
@@ -247,11 +484,65 @@ module Kettle
       # Remove spec.add_dependency / add_development_dependency calls that name the given gem
       def remove_spec_dependency(content, gem_name)
         return content if gem_name.to_s.strip.empty?
-        replace_gemspec_fields(content, _remove_self_dependency: gem_name)
+
+        result = PrismUtils.parse_with_comments(content)
+        return content unless result.success?
+
+        stmts = PrismUtils.extract_statements(result.value.statements)
+        gemspec_call = stmts.find do |stmt|
+          stmt.is_a?(Prism::CallNode) && stmt.block && PrismUtils.extract_const_name(stmt.receiver) == "Gem::Specification" && stmt.name == :new
+        end
+        return content unless gemspec_call
+
+        blk_param = extract_block_param(gemspec_call) || "spec"
+        body_node = gemspec_call.block&.body
+        return content unless body_node
+
+        dependency_nodes = self_dependency_nodes(
+          PrismUtils.extract_statements(body_node),
+          blk_param,
+          gem_name,
+        )
+        return content if dependency_nodes.empty?
+
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        plans = dependency_nodes.map do |node|
+          Ast::Merge::StructuralEdit::RemovePlan.new(
+            source: content,
+            remove_start_line: node.location.start_line,
+            remove_end_line: node.location.end_line,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              gem_name: gem_name.to_s,
+              dependency_method: node.name,
+            },
+          )
+        end
+
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: plans,
+          metadata: {
+            source: :kettle_jem_prism_gemspec,
+            gem_name: gem_name.to_s,
+          },
+        ).merged_content
+      rescue StandardError => e
+        debug_error(e, __method__)
+        content
       end
 
       # Ensure development dependency lines in a gemspec match the desired lines.
       # `desired` is a hash mapping gem_name => desired_line (string, without leading indentation).
+      #
+      # Normal operation prefers a Prism-backed edit because that lets setup/bootstrap
+      # update real Gem::Specification bodies structurally. We still keep a narrow,
+      # line-oriented fallback for the bootstrap case where the target file exists but
+      # Prism cannot provide a usable gemspec context yet (for example: empty content,
+      # a fragment missing the final `end`, or a file that is temporarily mid-edit).
+      # That fallback is intentionally best-effort resilience for early setup flows,
+      # not a claim that arbitrary malformed gemspecs are a first-class supported API.
       def ensure_development_dependencies(content, desired)
         return content if desired.nil? || desired.empty?
 
@@ -264,6 +555,80 @@ module Kettle
           end
           return out
         end
+
+        context = development_dependency_gemspec_context(content)
+        return ensure_development_dependencies_fallback(content, desired) unless context
+
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        dependency_records = dependency_node_records(context[:stmt_nodes], context[:blk_param])
+        plans = []
+        missing_lines = []
+
+        desired.each do |gem_name, desired_line|
+          runtime_record = dependency_records.find do |record|
+            record[:gem] == gem_name && runtime_dependency_method?(record[:method])
+          end
+          next if runtime_record
+
+          dev_record = dependency_records.find do |record|
+            record[:gem] == gem_name && record[:method] == "add_development_dependency"
+          end
+
+          if dev_record
+            plans << Ast::Merge::StructuralEdit::SplicePlan.new(
+              source: content,
+              replacement: formatted_dependency_line(desired_line, indent: dependency_indent(dev_record[:node])),
+              replace_start_line: dev_record[:start_line],
+              replace_end_line: dev_record[:end_line],
+              metadata: {
+                source: :kettle_jem_prism_gemspec,
+                edit: :ensure_development_dependency_replace,
+                gem_name: gem_name,
+              },
+            )
+            next
+          end
+
+          missing_lines << formatted_dependency_line(desired_line, indent: "  ")
+        end
+
+        plans = add_missing_development_dependency_plans(
+          plans,
+          content: content,
+          lines: lines,
+          context: context,
+          missing_lines: missing_lines,
+        )
+
+        updated = if plans.empty?
+          content
+        else
+          Ast::Merge::StructuralEdit::PlanSet.new(
+            source: content,
+            plans: plans,
+            metadata: {source: :kettle_jem_prism_gemspec, edit: :ensure_development_dependencies},
+          ).merged_content
+        end
+
+        normalize_dependency_sections(
+          updated,
+          template_content: desired.values.join("\n"),
+          destination_content: content,
+          prefer_template: true,
+        )
+      rescue StandardError => e
+        debug_error(e, __method__)
+        content
+      end
+
+      # Best-effort bootstrap fallback when Prism parsing/context extraction is
+      # unavailable. This only syncs dependency lines conservatively so SetupCLI can
+      # seed or repair development dependencies without hard-failing on an incomplete
+      # gemspec that may be normalized later in the same workflow.
+      def ensure_development_dependencies_fallback(content, desired)
+        lines = content.to_s.lines
+        missing_lines = []
 
         desired.each do |gem_name, desired_line|
           records = dependency_records(lines)
@@ -282,24 +647,52 @@ module Kettle
             next
           end
 
-          insert_line = "  " + desired_line.strip + "\n"
-          insert_at = development_dependency_insert_line_index(lines)
-          if insert_at
-            lines.insert(insert_at, insert_line)
-          else
-            end_index = lines.rindex { |line| line.strip == "end" } || lines.length
-            lines.insert(end_index, insert_line)
-          end
+          missing_lines << "  " + desired_line.strip + "\n"
         end
+
+        unless missing_lines.empty?
+          lines.insert(DependencySectionPolicy.insertion_line_index(lines), missing_lines.join)
+        end
+
         normalize_dependency_sections(
           lines.join,
           template_content: desired.values.join("\n"),
           destination_content: content,
           prefer_template: true,
         )
-      rescue StandardError => e
-        debug_error(e, __method__)
-        content
+      end
+
+      # Return ordered development dependency entries from a gemspec, preferring
+      # Prism-backed extraction when a usable Gem::Specification context exists.
+      #
+      # Each entry includes:
+      # - :gem => dependency gem name
+      # - :line => original dependency source line(s), preserving inline comments
+      # - :signature => normalized/comparable dependency arguments
+      #
+      # When Prism is unavailable or the content is not parseable as a gemspec yet,
+      # this falls back to the same conservative line-oriented scan used by
+      # bootstrap flows so callers can still seed dependencies best-effort.
+      def development_dependency_entries(content)
+        context = development_dependency_gemspec_context(content)
+        return development_dependency_entries_fallback(content) unless context
+
+        dependency_node_records(context[:stmt_nodes], context[:blk_param]).filter_map do |record|
+          next unless record[:method] == "add_development_dependency"
+
+          {
+            gem: record[:gem],
+            line: PrismUtils.node_slice_with_trailing_comment(record[:node], content).rstrip,
+            signature: dependency_signature(record[:node]),
+          }
+        end
+      end
+
+      def development_dependency_signatures(content)
+        development_dependency_entries(content)
+          .map { |entry| entry[:signature] }
+          .compact
+          .sort
       end
 
       def harmonize_merged_content(content, template_content:, destination_content:)
@@ -324,64 +717,12 @@ module Kettle
       end
 
       def normalize_dependency_sections(content, template_content:, destination_content:, prefer_template: false)
-        lines = content.to_s.lines
-        return content if lines.empty?
-
-        preferred_lines = if prefer_template
-          dependency_line_lookup(template_content)
-        else
-          dependency_line_lookup(destination_content)
-        end
-
-        fallback_lines = prefer_template ? dependency_line_lookup(destination_content) : dependency_line_lookup(template_content)
-        fallback_lines.each do |signature, line|
-          preferred_lines[signature] ||= line
-        end
-
-        lines.each_with_index do |line, idx|
-          match = dependency_line_match(line)
-          next unless match
-
-          preferred = preferred_lines[[match[:method], match[:gem]]]
-          lines[idx] = preferred.dup if preferred
-        end
-
-        runtime_gems = dependency_records(lines)
-          .select { |record| runtime_dependency_method?(record[:method]) }
-          .map { |record| record[:gem] }
-          .to_set
-
-        duplicate_dev_ranges = dependency_records(lines)
-          .select { |record| record[:method] == "add_development_dependency" && runtime_gems.include?(record[:gem]) }
-          .map { |record| dependency_block_range(lines, record[:line_index]) }
-
-        lines = remove_line_ranges(lines, duplicate_dev_ranges)
-
-        note_index = lines.index { |line| GEMSPEC_NOTE_BLOCK_START_RE.match?(line) }
-        return lines.join unless note_index
-
-        runtime_after_note = dependency_records(lines)
-          .select { |record| runtime_dependency_method?(record[:method]) && record[:line_index] > note_index }
-
-        return lines.join if runtime_after_note.empty?
-
-        moved_blocks = []
-        runtime_after_note.reverse_each do |record|
-          range = dependency_block_range(lines, record[:line_index])
-          moved_blocks.unshift(lines[range].map(&:dup))
-          lines = remove_line_ranges(lines, [range])
-        end
-
-        note_index = lines.index { |line| GEMSPEC_NOTE_BLOCK_START_RE.match?(line) }
-        return lines.join unless note_index
-
-        insertion = build_dependency_block_insertion(
-          moved_blocks,
-          before_line: note_index.positive? ? lines[note_index - 1] : nil,
-          after_line: lines[note_index],
+        DependencySectionPolicy.normalize(
+          content: content,
+          template_content: template_content,
+          destination_content: destination_content,
+          prefer_template: prefer_template,
         )
-
-        (lines[0...note_index] + insertion + lines[note_index..]).join
       rescue StandardError => e
         debug_error(e, __method__)
         content
@@ -389,32 +730,26 @@ module Kettle
 
       # --- Private helpers ---
 
-      def development_dependency_insert_line_index(lines)
-        line_index = 0
-        in_note_block = false
-        note_end_index = nil
+      def development_dependency_gemspec_context(content)
+        gemspec_context(content)
+      rescue StandardError, LoadError => e
+        debug_error(e, __method__)
+        nil
+      end
 
-        Array(lines).each do |line|
-          if GEMSPEC_NOTE_BLOCK_START_RE.match?(line)
-            in_note_block = true
-            line_index += 1
-            next
-          end
+      def development_dependency_entries_fallback(content)
+        content.to_s.lines.filter_map do |line|
+          next if line.strip.start_with?("#")
 
-          if in_note_block
-            if line.strip.empty? || line.lstrip.start_with?("#")
-              line_index += 1
-              next
-            end
+          match = dependency_line_match(line)
+          next unless match && match[:method] == "add_development_dependency"
 
-            note_end_index = line_index
-            break
-          end
-
-          line_index += 1
+          {
+            gem: match[:gem],
+            line: line.rstrip,
+            signature: match[:signature],
+          }
         end
-
-        note_end_index
       end
 
       def union_literal_dir_assignment(content, field:, template_content:, destination_content:)
@@ -435,11 +770,25 @@ module Kettle
         )
         return content unless replacement
 
-        loc = merged_node.location
-        relative_start = loc.start_offset - merged_context[:body_node].location.start_offset
-        relative_length = loc.end_offset - loc.start_offset
-        new_body = apply_edits(merged_context[:body_src], [[relative_start, relative_length, replacement]])
-        reassemble_gemspec(content, merged_context[:gemspec_call], merged_context[:body_node], new_body)
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: [
+            Ast::Merge::StructuralEdit::SplicePlan.new(
+              source: content,
+              replacement: replacement,
+              replace_start_line: merged_node.location.start_line,
+              replace_end_line: merged_node.location.end_line,
+              metadata: {
+                source: :kettle_jem_prism_gemspec,
+                edit: :union_literal_dir_assignment,
+                field: field,
+              },
+            ),
+          ],
+          metadata: {source: :kettle_jem_prism_gemspec, edit: :union_literal_dir_assignment, field: field},
+        ).merged_content
       end
 
       def gemspec_context(content)
@@ -521,79 +870,95 @@ module Kettle
       end
 
       def dependency_line_lookup(content)
-        content.to_s.each_line.each_with_object({}) do |line, memo|
-          match = dependency_line_match(line)
-          next unless match
-
-          memo[[match[:method], match[:gem]]] ||= line
-        end
+        DependencySectionPolicy.dependency_line_lookup(content)
       end
 
       def dependency_records(lines)
-        Array(lines).each_with_index.filter_map do |line, idx|
-          match = dependency_line_match(line)
-          next unless match
+        DependencySectionPolicy.dependency_records(lines)
+      end
+
+      def dependency_line_match(line)
+        DependencySectionPolicy.dependency_line_match(line)
+      end
+
+      def runtime_dependency_method?(method_name)
+        DependencySectionPolicy.runtime_dependency_method?(method_name)
+      end
+
+      def dependency_node_records(stmt_nodes, blk_param)
+        Array(stmt_nodes).filter_map do |node|
+          next unless gemspec_dependency_call?(node, blk_param)
+
+          first_arg = node.arguments&.arguments&.first
+          gem_name = PrismUtils.extract_literal_value(first_arg)
+          next if gem_name.to_s.empty?
 
           {
-            line_index: idx,
-            method: match[:method],
-            gem: match[:gem],
+            node: node,
+            method: node.name.to_s,
+            gem: gem_name.to_s,
+            start_line: node.location.start_line,
+            end_line: node.location.end_line,
           }
         end
       end
 
-      def dependency_line_match(line)
-        match = GEMSPEC_DEPENDENCY_LINE_RE.match(line.to_s)
-        return unless match
-
-        {
-          method: match[:method],
-          gem: match[:gem],
-        }
+      def dependency_indent(node)
+        node.slice.lines.first[/^(\s*)/, 1] || ""
       end
 
-      def runtime_dependency_method?(method_name)
-        %w[add_dependency add_runtime_dependency].include?(method_name.to_s)
+      def formatted_dependency_line(desired_line, indent: "  ")
+        "#{indent}#{desired_line.to_s.strip}\n"
+      end
+
+      def dependency_signature(node)
+        arguments = node.arguments&.arguments || []
+        arguments.map { |argument| PrismUtils.normalize_argument(argument) }.join(", ")
+      end
+
+      def add_missing_development_dependency_plans(plans, content:, lines:, context:, missing_lines:)
+        return plans if missing_lines.empty?
+
+        anchor_line = DependencySectionPolicy.insertion_line_index(lines) + 1
+        insertion_text = missing_lines.join
+
+        overlapping_index = plans.index { |plan| plan.line_range.include?(anchor_line) }
+        if overlapping_index
+          plan = plans[overlapping_index]
+          plans[overlapping_index] = Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: insertion_text + plan.replacement,
+            replace_start_line: plan.replace_start_line,
+            replace_end_line: plan.replace_end_line,
+            metadata: plan.metadata.merge(inserted_missing_dependencies: missing_lines.size),
+          )
+          return plans
+        end
+
+        original_line = lines[anchor_line - 1].to_s
+        plans << Ast::Merge::StructuralEdit::SplicePlan.new(
+          source: content,
+          replacement: insertion_text + original_line,
+          replace_start_line: anchor_line,
+          replace_end_line: anchor_line,
+          metadata: {
+            source: :kettle_jem_prism_gemspec,
+            edit: :ensure_development_dependency_insert,
+            inserted_missing_dependencies: missing_lines.size,
+          },
+        )
       end
 
       def dependency_block_range(lines, line_index)
-        start_index = line_index
-        while start_index.positive?
-          previous_line = lines[start_index - 1]
-          break unless previous_line.lstrip.start_with?("#")
-
-          start_index -= 1
-        end
-
-        end_index = line_index
-        if lines[end_index + 1]&.strip&.empty?
-          end_index += 1
-        end
-
-        start_index..end_index
+        DependencySectionPolicy.dependency_block_range(lines, line_index)
       end
 
       def remove_line_ranges(lines, ranges)
-        new_lines = Array(lines).dup
-        Array(ranges).sort_by(&:begin).reverse_each do |range|
-          new_lines.slice!(range)
-        end
-        new_lines
+        DependencySectionPolicy.remove_line_ranges(lines, ranges)
       end
 
       def build_dependency_block_insertion(blocks, before_line:, after_line:)
-        insertion = []
-        insertion << "\n" if before_line && !before_line.strip.empty?
-
-        Array(blocks).each_with_index do |block, idx|
-          insertion.concat(block)
-          next if idx == blocks.length - 1
-
-          insertion << "\n" unless block.last.to_s.strip.empty?
-        end
-
-        insertion << "\n" if after_line && !after_line.strip.empty? && insertion.last.to_s.strip != ""
-        insertion
+        DependencySectionPolicy.build_dependency_block_insertion(blocks, before_line: before_line, after_line: after_line)
       end
 
       def extract_block_param(gemspec_call)
@@ -624,28 +989,51 @@ module Kettle
       def replace_or_insert_raw_field_assignment(content:, gemspec_call:, body_node:, stmt_nodes:, blk_param:, field:, rhs:)
         field_node = find_field_node(stmt_nodes, blk_param, field)
 
-        edit = if field_node
+        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
+        lines = content.lines
+
+        plan = if field_node
           loc = field_node.location
-          indent = field_node.slice.lines.first.match(/^(\s*)/)[1]
-          replacement = "#{indent}#{blk_param}.#{field} = #{rhs}"
-          relative_start = loc.start_offset - body_node.location.start_offset
-          relative_length = loc.end_offset - loc.start_offset
-          [relative_start, relative_length, replacement]
+          indent = content.lines[loc.start_line - 1].to_s[/^(\s*)/, 1] || ""
+          Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: "#{indent}#{blk_param}.#{field} = #{rhs}\n",
+            replace_start_line: loc.start_line,
+            replace_end_line: loc.end_line,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :replace_or_insert_raw_field_assignment,
+              field: field,
+            },
+          )
         else
           anchor_node = find_field_node(stmt_nodes, blk_param, "name") || stmt_nodes.first
-          insert_line = "  #{blk_param}.#{field} = #{rhs}\n"
-
-          insert_offset = if anchor_node
-            anchor_node.location.end_offset - body_node.location.start_offset
+          anchor_line = if anchor_node
+            anchor_node.location.end_line
           else
-            0
+            gemspec_call.location.end_line
           end
 
-          [insert_offset, 0, "\n" + insert_line]
+          original_line = lines[anchor_line - 1].to_s
+          Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: original_line + "  #{blk_param}.#{field} = #{rhs}\n",
+            replace_start_line: anchor_line,
+            replace_end_line: anchor_line,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :replace_or_insert_raw_field_assignment,
+              field: field,
+              inserted_after_anchor: anchor_node ? anchor_node.name : :gemspec_end,
+            },
+          )
         end
 
-        new_body = apply_edits(body_node.slice, [edit])
-        reassemble_gemspec(content, gemspec_call, body_node, new_body)
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: content,
+          plans: [plan],
+          metadata: {source: :kettle_jem_prism_gemspec, edit: :replace_or_insert_raw_field_assignment, field: field},
+        ).merged_content
       end
 
       def modern_version_loader_expression(entrypoint_require:, namespace:)
@@ -691,8 +1079,7 @@ module Kettle
         new_prefix + suffix
       end
 
-
-      def build_replacement_edit(found_node, body_node, blk_param, field, field_sym, value, build_literal)
+      def build_replacement_plan(content, found_node, blk_param, field, field_sym, value, build_literal)
         existing_arg = found_node.arguments&.arguments&.first
         existing_literal = PrismUtils.extract_literal_value(existing_arg)
 
@@ -708,64 +1095,95 @@ module Kettle
         end
 
         loc = found_node.location
-        indent = found_node.slice.lines.first.match(/^(\s*)/)[1]
+        indent = content.lines[loc.start_line - 1].to_s[/^(\s*)/, 1] || ""
         rhs = build_literal.call(value)
-        replacement = "#{indent}#{blk_param}.#{field} = #{rhs}"
+        replacement = "#{indent}#{blk_param}.#{field} = #{rhs}\n"
 
-        relative_start = loc.start_offset - body_node.location.start_offset
-        relative_length = loc.end_offset - loc.start_offset
-
-        [relative_start, relative_length, replacement]
+        Ast::Merge::StructuralEdit::SplicePlan.new(
+          source: content,
+          replacement: replacement,
+          replace_start_line: loc.start_line,
+          replace_end_line: loc.end_line,
+          metadata: {
+            source: :kettle_jem_prism_gemspec,
+            edit: :replace_gemspec_field,
+            field: field,
+          },
+        )
       end
 
-      def build_insertion_edit(stmt_nodes, body_node, body_src, blk_param, field, field_sym, value, build_literal)
+      def build_insertion_plan(stmt_nodes, gemspec_call, blk_param, field, field_sym, value, build_literal)
         return if [:summary, :description].include?(field_sym) && placeholder?(value)
 
         version_node = stmt_nodes.find do |n|
           n.is_a?(Prism::CallNode) && n.name.to_s.start_with?("version", "version=") && n.receiver && n.receiver.slice.strip.end_with?(blk_param)
         end
 
-        insert_line = "  #{blk_param}.#{field} = #{build_literal.call(value)}\n"
-
-        insert_offset = if version_node
-          version_node.location.end_offset - body_node.location.start_offset
-        else
-          body_src.rstrip.bytesize
-        end
-
-        [insert_offset, 0, "\n" + insert_line]
+        {
+          anchor_line: version_node ? version_node.location.end_line : gemspec_call.location.end_line,
+          field: field,
+          position: version_node ? :after : :before,
+          text: "  #{blk_param}.#{field} = #{build_literal.call(value)}\n",
+        }
       end
 
-      def build_self_dependency_removal_edits(stmt_nodes, body_node, body_src, blk_param, name_to_remove)
-        edits = []
-        dep_nodes = stmt_nodes.select do |n|
-          next false unless n.is_a?(Prism::CallNode)
+      def add_field_insertion_plans(plans, content:, lines:, insertions:)
+        return plans if insertions.empty?
 
-          recv = n.receiver
-          next false unless recv && recv.slice.strip.end_with?(blk_param)
-          [:add_dependency, :add_development_dependency].include?(n.name)
+        insertions.group_by { |insertion| [insertion[:anchor_line], insertion[:position]] }.each_value do |group|
+          anchor_line = group.first[:anchor_line]
+          position = group.first[:position]
+          insertion_text = group.map { |insertion| insertion[:text] }.join
+          fields = group.map { |insertion| insertion[:field] }
+
+          overlapping_index = plans.index { |plan| plan.line_range.include?(anchor_line) }
+          if overlapping_index
+            plan = plans[overlapping_index]
+            replacement = position == :after ? plan.replacement + insertion_text : insertion_text + plan.replacement
+            plans[overlapping_index] = Ast::Merge::StructuralEdit::SplicePlan.new(
+              source: content,
+              replacement: replacement,
+              replace_start_line: plan.replace_start_line,
+              replace_end_line: plan.replace_end_line,
+              metadata: plan.metadata.merge(inserted_fields: Array(plan.metadata[:inserted_fields]) + fields),
+            )
+            next
+          end
+
+          original_line = lines[anchor_line - 1].to_s
+          replacement = position == :after ? original_line + insertion_text : insertion_text + original_line
+          plans << Ast::Merge::StructuralEdit::SplicePlan.new(
+            source: content,
+            replacement: replacement,
+            replace_start_line: anchor_line,
+            replace_end_line: anchor_line,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :insert_gemspec_fields,
+              inserted_fields: fields,
+            },
+          )
         end
 
-        dep_nodes.each do |dn|
-          first_arg = dn.arguments&.arguments&.first
-          arg_val = PrismUtils.extract_literal_value(first_arg)
+        plans
+      end
 
-          next unless arg_val && arg_val.to_s == name_to_remove
+      def self_dependency_nodes(stmt_nodes, blk_param, gem_name)
+        stmt_nodes.select do |node|
+          next false unless gemspec_dependency_call?(node, blk_param)
 
-          loc = dn.location
-          relative_start = loc.start_offset - body_node.location.start_offset
-          relative_end = loc.end_offset - body_node.location.start_offset
-
-          line_start = body_src.rindex("\n", relative_start)
-          line_start = line_start ? line_start + 1 : 0
-
-          line_end = body_src.index("\n", relative_end)
-          line_end = line_end ? line_end + 1 : body_src.length
-
-          edits << [line_start, line_end - line_start, ""]
+          first_arg = node.arguments&.arguments&.first
+          PrismUtils.extract_literal_value(first_arg).to_s == gem_name.to_s
         end
+      end
 
-        edits
+      def gemspec_dependency_call?(node, blk_param)
+        return false unless node.is_a?(Prism::CallNode)
+
+        recv = node.receiver
+        return false unless recv && recv.slice.strip.end_with?(blk_param)
+
+        %i[add_dependency add_development_dependency add_runtime_dependency].include?(node.name)
       end
 
       def apply_edits(body_src, edits)
