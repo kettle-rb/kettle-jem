@@ -57,6 +57,7 @@ module Kettle
 
     # Autoload recipe loader for YAML-based recipes
     autoload :RecipeLoader, "kettle/jem/recipe_loader"
+    autoload :RecipeRuntimeContext, "kettle/jem/recipe_runtime_context"
 
     # Prism AST utilities (moved from kettle-dev)
     autoload :PrismUtils, "kettle/jem/prism_utils"

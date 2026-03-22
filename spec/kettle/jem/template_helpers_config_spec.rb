@@ -307,6 +307,26 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   describe ".build_config_entry" do
+    it "normalizes merge-specific option values from config" do
+      allow(described_class).to receive(:kettle_config).and_return(
+        {
+          "defaults" => {
+            "preference" => "destination",
+            "add_template_only_nodes" => "false",
+            "freeze_token" => " custom-freeze ",
+            "max_recursion_depth" => "7",
+          },
+        },
+      )
+
+      result = described_class.build_config_entry(nil, {"strategy" => "merge"})
+
+      expect(result[:preference]).to eq(:destination)
+      expect(result[:add_template_only_nodes]).to eq(false)
+      expect(result[:freeze_token]).to eq("custom-freeze")
+      expect(result[:max_recursion_depth]).to eq(7)
+    end
+
     it "accepts a supported file_type hint" do
       result = described_class.build_config_entry(nil, {"strategy" => "merge", "file_type" => "ruby"})
 
@@ -318,6 +338,12 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect {
         described_class.build_config_entry(nil, {"strategy" => "merge", "file_type" => "banana"})
       }.to raise_error(Kettle::Jem::Error, /Unknown templating file_type/i)
+    end
+
+    it "rejects unknown merge preferences" do
+      expect {
+        described_class.build_config_entry(nil, {"strategy" => "merge", "preference" => "banana"})
+      }.to raise_error(Kettle::Jem::Error, /Unknown merge preference/i)
     end
 
     it "rejects legacy replace strategy" do
@@ -336,6 +362,42 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect {
         described_class.build_config_entry(nil, {"strategy" => "skip"})
       }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/i)
+    end
+  end
+
+  describe ".apply_strategy" do
+    it "forwards configured merge options for Ruby merges" do
+      project_root = "/tmp/kettle-jem-project"
+      dest_path = File.join(project_root, "Gemfile")
+      config_entry = {
+        strategy: :merge,
+        file_type: :gemfile,
+        preference: :destination,
+        add_template_only_nodes: false,
+        freeze_token: "custom-freeze",
+        max_recursion_depth: 7,
+      }
+
+      allow(described_class).to receive_messages(project_root: project_root, force_mode?: true)
+      allow(described_class).to receive(:config_for).with("Gemfile").and_return(config_entry)
+      allow(File).to receive(:exist?).with(dest_path).and_return(true)
+      allow(File).to receive(:read).with(dest_path).and_return("destination")
+
+      expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+        strategy: :merge,
+        src: "template",
+        dest: "destination",
+        path: "Gemfile",
+        file_type: :gemfile,
+        context: nil,
+        preference: :destination,
+        add_template_only_nodes: false,
+        freeze_token: "custom-freeze",
+        max_recursion_depth: 7,
+        force: true,
+      ).and_return("merged")
+
+      expect(described_class.apply_strategy("template", dest_path)).to eq("merged")
     end
   end
 end

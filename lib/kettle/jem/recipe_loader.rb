@@ -58,7 +58,6 @@ module Kettle
             raise ArgumentError, "Unknown recipe: #{name}. Available: #{available}"
           end
 
-          require "ast-merge" unless defined?(Ast::Merge::Recipe::Config)
           Ast::Merge::Recipe::Config.load(path)
         end
 

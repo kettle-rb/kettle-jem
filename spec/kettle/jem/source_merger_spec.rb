@@ -75,6 +75,56 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("gem \"bar\"")
     end
 
+    it "routes Gemfile merges through PrismGemfile's public merge boundary" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+
+      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+        src,
+        dest,
+        merger_options: satisfy { |options| options.is_a?(Hash) && !options.key?(:signature_generator) },
+        filter_template: false,
+        path: path,
+        force: false,
+      ).and_return("gem \"foo\"\n")
+
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
+      expect(merged).to eq("gem \"foo\"\n")
+    end
+
+    it "passes caller merge options through the Gemfile facade" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+
+      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+        src,
+        dest,
+        merger_options: hash_including(
+          preference: :destination,
+          add_template_only_nodes: false,
+          freeze_token: "custom-freeze",
+          max_recursion_depth: 7,
+        ),
+        filter_template: false,
+        path: path,
+        force: true,
+      ).and_return(dest)
+
+      merged = described_class.apply(
+        strategy: :merge,
+        src: src,
+        dest: dest,
+        path: path,
+        preference: :destination,
+        add_template_only_nodes: false,
+        freeze_token: "custom-freeze",
+        max_recursion_depth: 7,
+        force: true,
+      )
+
+      expect(merged).to eq(dest)
+    end
+
     it "replaces matching nodes during merge" do
       src = <<~RUBY
         gem "foo", "~> 2.0"
@@ -128,6 +178,36 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("task :default")
     end
 
+    it "applies caller merge options to generic Ruby merges" do
+      src = "value = :template\n"
+      dest = "value = :destination\n"
+      merger = instance_double(Prism::Merge::SmartMerger, merge: dest.chomp)
+
+      expect(Prism::Merge::SmartMerger).to receive(:new) do |template_content, destination_content, **kwargs|
+        expect(template_content).to eq(src)
+        expect(destination_content).to eq(dest)
+        expect(kwargs[:preference]).to eq(:destination)
+        expect(kwargs[:add_template_only_nodes]).to eq(false)
+        expect(kwargs[:freeze_token]).to eq("custom-freeze")
+        expect(kwargs[:max_recursion_depth]).to eq(3)
+        expect(kwargs[:signature_generator]).to be_a(Proc)
+        merger
+      end
+
+      merged = described_class.apply(
+        strategy: :merge,
+        src: src,
+        dest: dest,
+        path: "lib/example.rb",
+        preference: :destination,
+        add_template_only_nodes: false,
+        freeze_token: "custom-freeze",
+        max_recursion_depth: 3,
+      )
+
+      expect(merged).to eq(dest)
+    end
+
     it "routes Appraisals merges through PrismAppraisals" do
       src = "appraise \"ruby-3-2\" do\nend\n"
       dest = "appraise \"ruby-3-1\" do\nend\n"
@@ -148,22 +228,22 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to eq("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n")
     end
 
-    it "routes gemspec accept_template through PrismGemspec when merge context is provided" do
+    it "routes gemspec accept_template through PrismGemspec when generic context is provided" do
       src = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
-      merge_context = {
+      context = {
         min_ruby: Gem::Version.new("3.2"),
         entrypoint_require: "kettle/jem",
         namespace: "Kettle::Jem",
       }
 
-      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, "", **merge_context).and_return(src.chomp)
+      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, "", context: context).and_return(src.chomp)
 
       merged = described_class.apply(
         strategy: :accept_template,
         src: src,
         dest: "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n",
         path: "demo.gemspec",
-        merge_context: merge_context,
+        context: context,
       )
 
       expect(merged).to eq(src)

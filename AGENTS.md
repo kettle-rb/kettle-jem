@@ -124,6 +124,14 @@ gemfiles/
 
 Always make commands self-contained. Use `mise exec -C /home/pboling/src/kettle-rb/prism-merge -- ...` so the command gets the project environment in the same invocation.
 
+### Temporary Files and Scratch Paths
+
+**CRITICAL**: NEVER write to root `/tmp` or any other root-level folder when acting as an agent.
+
+- ALWAYS write temporary files, scratch files, reports, or other agent-created artifacts under the repo-local `tmp/` directory.
+- If the needed subdirectory does not exist under `tmp/`, create it inside the repository instead of falling back to `/tmp`.
+- Treat this as a hard rule for manual agent actions even if existing project output or fixtures still reference `/tmp`.
+
 ### Running Tests
 
 Full suite spec runs:

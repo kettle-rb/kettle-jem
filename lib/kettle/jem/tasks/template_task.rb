@@ -1218,7 +1218,7 @@ module Kettle
                       Kettle::Dev.debug_error(e, __method__)
                     end
 
-                    gemspec_merge_context = if orig_meta && orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
+                    gemspec_context = if orig_meta && orig_meta[:min_ruby] && orig_meta[:entrypoint_require] && orig_meta[:namespace]
                       {
                         min_ruby: orig_meta[:min_ruby],
                         entrypoint_require: orig_meta[:entrypoint_require],
@@ -1226,16 +1226,10 @@ module Kettle
                       }
                     end
 
-                    if gemspec_strategy != :accept_template && dest_existed
+                    if dest_existed || gemspec_context
                       begin
-                        merged = helpers.apply_strategy(c, dest_gemspec, merge_context: gemspec_merge_context)
+                        merged = helpers.apply_strategy(c, dest_gemspec, context: gemspec_context)
                         c = merged if merged.is_a?(String) && !merged.empty?
-                      rescue StandardError => e
-                        Kettle::Dev.debug_error(e, __method__)
-                      end
-                    elsif gemspec_merge_context
-                      begin
-                        c = Kettle::Jem::PrismGemspec.merge(c, "", **gemspec_merge_context)
                       rescue StandardError => e
                         Kettle::Dev.debug_error(e, __method__)
                       end

@@ -184,7 +184,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".validate_no_cross_nesting_duplicates
   end
 end
 
-RSpec.describe Kettle::Jem::PrismGemfile, ".collect_gem_declarations" do
+RSpec.describe Kettle::Jem::PrismGemfile::DeclarationContextPolicy, ".collect_gem_declarations" do
   def collect(content)
     described_class.collect_gem_declarations(content)
   end
@@ -269,7 +269,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".collect_gem_declarations" do
   end
 end
 
-RSpec.describe Kettle::Jem::PrismGemfile, ".collect_commented_gem_tombstones" do
+RSpec.describe Kettle::Jem::PrismGemfile::MergeRuntimePolicy, ".collect_commented_gem_tombstones" do
   def collect(content)
     described_class.collect_commented_gem_tombstones(content)
   end
@@ -336,11 +336,16 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
     RUBY
   end
 
-  context "without --force" do
-    before { stub_env("force" => nil) }
-
-    it "raises when merge produces duplicate gems in blocks with different signatures" do
-      allow(described_class).to receive(:apply_merge).and_return(merged_with_conflict)
+  context "without explicit force" do
+    it "propagates duplicate-validation errors raised by PrismGemfile" do
+      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+        template,
+        destination,
+        merger_options: kind_of(Hash),
+        filter_template: false,
+        path: "test.gemfile",
+        force: false,
+      ).and_raise(Kettle::Jem::Error, "duplicate gem declarations in blocks with different signatures")
 
       expect {
         described_class.apply(strategy: :merge, src: template, dest: destination, path: "test.gemfile")
@@ -348,21 +353,27 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
     end
   end
 
-  context "with --force" do
-    before { stub_env("force" => "true") }
+  context "with explicit force" do
+    it "passes force through to PrismGemfile and returns its fallback content" do
+      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+        template,
+        destination,
+        merger_options: kind_of(Hash),
+        filter_template: false,
+        path: "test.gemfile",
+        force: true,
+      ).and_return(template)
 
-    it "falls back to template content and warns on stderr" do
-      allow(described_class).to receive(:apply_merge).and_return(merged_with_conflict)
+      result = described_class.apply(
+        strategy: :merge,
+        src: template,
+        dest: destination,
+        path: "test.gemfile",
+        force: true,
+      )
 
-      result = nil
-      expect {
-        result = described_class.apply(strategy: :merge, src: template, dest: destination, path: "test.gemfile")
-      }.to output(/Falling back to template content/).to_stderr
-
-      # Result should be the template content, not the conflicting merge
       expect(result).to include('gem "foo", path: "../foo"')
       expect(result).to include("platform :mri do")
-      # Should NOT have the top-level duplicate from the destination
       expect(result.scan('gem "foo"').size).to eq(1)
     end
   end

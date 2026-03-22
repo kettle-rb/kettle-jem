@@ -180,5 +180,100 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).not_to include("kettle-jem\n")
       expect(out).to include("# export VENDORED_GEMS=ast-merge,tree_haver,prism-merge,bash-merge")
     end
+
+    it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
+      merged = <<~RUBY
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[
+          ast-merge
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=ast-merge,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
+
+      expect(out).to start_with("local_gems = %w[")
+      expect(out).to include("  ast-merge")
+      expect(out).to include("  prism-merge")
+      expect(out).to include("# export VENDORED_GEMS=ast-merge,prism-merge")
+      expect(out.scan("eval_nomono_gems(gems: local_gems)").length).to eq(1)
+    end
+  end
+
+  describe ".merge_bootstrap_local_gem_overrides" do
+    it "keeps destination ordering while adding source-only bootstrap gems and excluding the current gem" do
+      source = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[
+          ast-merge
+          tree_haver
+          bash-merge
+          kettle-jem
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=ast-merge,tree_haver,bash-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[
+          tree_haver
+          bash-merge
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=tree_haver,bash-merge,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_bootstrap_local_gem_overrides(source, destination, excluded_gems: "ast-merge")
+
+      expect(out).to include("tree_haver")
+      expect(out).to include("bash-merge")
+      expect(out).to include("prism-merge")
+      expect(out).to include("kettle-jem")
+      expect(out).not_to include("ast-merge\n")
+      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,prism-merge,kettle-jem")
+    end
+
+    it "leaves the destination unchanged when the source has no bootstrap override metadata" do
+      source = <<~RUBY
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[
+          tree_haver
+        ]
+
+        # export VENDORED_GEMS=tree_haver
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_bootstrap_local_gem_overrides(source, destination, excluded_gems: "ast-merge")
+      expect(out).to eq(destination)
+    end
   end
 end

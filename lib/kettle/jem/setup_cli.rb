@@ -6,10 +6,13 @@ require "open3"
 require "optparse"
 require "rubygems"
 
-require_relative "config_seeder"
-
 module Kettle
   module Jem
+    autoload :ConfigSeeder, File.expand_path("config_seeder", __dir__)
+    autoload :PrismGemfile, File.expand_path("prism_gemfile", __dir__)
+    autoload :PrismUtils, File.expand_path("prism_utils", __dir__)
+    autoload :Signatures, File.expand_path("signatures", __dir__)
+
     # SetupCLI bootstraps a host gem repository to use kettle-jem tooling.
     # It performs prechecks, syncs development dependencies, ensures bin/setup and
     # Rakefile templates, runs setup tasks, and invokes kettle:jem:install.
@@ -25,8 +28,6 @@ module Kettle
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
       BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile].freeze
-      BOOTSTRAP_LOCAL_GEMS_ARRAY_RE = /^(?<indent>[ \t]*)local_gems\s*=\s*%w\[(?<body>.*?)\](?<suffix>[ \t]*(?:#.*)?)$/m
-      BOOTSTRAP_VENDORED_GEMS_EXPORT_RE = /^(?<prefix>[ \t]*#\s*export\s+VENDORED_GEMS=)(?<body>[^\n]*)$/
 
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
@@ -524,9 +525,7 @@ module Kettle
       end
 
       def load_bootstrap_gemfile_merge_runtime!
-        return if defined?(Kettle::Jem::PrismGemfile)
-
-        require_relative "prism_gemfile"
+        Kettle::Jem::PrismGemfile
       end
 
       def filter_bootstrap_example_eval_gemfiles(content, eval_paths: nil)
@@ -581,86 +580,11 @@ module Kettle
       end
 
       def merge_bootstrap_templating_local_content(source_content, destination_content, excluded_gems: [])
-        source_local_match = bootstrap_local_gems_array_match(source_content)
-        destination_local_match = bootstrap_local_gems_array_match(destination_content)
-        source_export_match = bootstrap_vendored_gems_export_match(source_content)
-        destination_export_match = bootstrap_vendored_gems_export_match(destination_content)
-
-        return destination_content unless source_local_match || source_export_match
-
-        excluded = Array(excluded_gems).map { |word| word.to_s.strip }.reject(&:empty?)
-        words = (
-          bootstrap_local_gems_words(destination_local_match) +
-          bootstrap_local_gems_words(source_local_match) +
-          bootstrap_vendored_gems_words(destination_export_match) +
-          bootstrap_vendored_gems_words(source_export_match)
-        ).uniq.reject { |word| excluded.include?(word) }
-
-        out = destination_content.dup
-        template_local_match = destination_local_match || source_local_match
-        return destination_content unless template_local_match
-
-        local_text = rebuild_bootstrap_local_gems_array(template_local_match, words)
-        if destination_local_match
-          out.sub!(destination_local_match[0], local_text)
-        else
-          out = "#{local_text}\n\n#{out}" unless words.empty?
-        end
-
-        export_template = destination_export_match || source_export_match
-        return out unless export_template
-
-        export_text = rebuild_bootstrap_vendored_gems_export_line(export_template, words)
-        if destination_export_match
-          out.sub!(destination_export_match[0], export_text)
-        elsif out.include?(local_text)
-          out.sub!(local_text, "#{local_text}\n\n#{export_text}")
-        else
-          out = "#{export_text}\n#{out}"
-        end
-
-        out
-      end
-
-      def bootstrap_local_gems_array_match(content)
-        content.to_s.match(BOOTSTRAP_LOCAL_GEMS_ARRAY_RE)
-      end
-
-      def bootstrap_local_gems_words(match)
-        return [] unless match
-
-        match[:body].to_s.split(/\s+/).reject(&:empty?)
-      end
-
-      def bootstrap_vendored_gems_export_match(content)
-        content.to_s.match(BOOTSTRAP_VENDORED_GEMS_EXPORT_RE)
-      end
-
-      def bootstrap_vendored_gems_words(match)
-        return [] unless match
-
-        match[:body].to_s.split(",").map(&:strip).reject(&:empty?)
-      end
-
-      def rebuild_bootstrap_local_gems_array(match, words)
-        indent = match[:indent].to_s
-        suffix = match[:suffix].to_s
-        multiline = match[:body].to_s.include?("\n") || words.length > 1
-
-        if multiline
-          rebuilt_body = if words.empty?
-            ""
-          else
-            "\n" + words.map { |word| "#{indent}  #{word}" }.join("\n") + "\n#{indent}"
-          end
-          "#{indent}local_gems = %w[#{rebuilt_body}]#{suffix}"
-        else
-          "#{indent}local_gems = %w[#{words.join(" ")}]#{suffix}"
-        end
-      end
-
-      def rebuild_bootstrap_vendored_gems_export_line(match, words)
-        "#{match[:prefix]}#{words.join(",")}"
+        Kettle::Jem::PrismGemfile.merge_bootstrap_local_gem_overrides(
+          source_content,
+          destination_content,
+          excluded_gems: excluded_gems,
+        )
       end
 
       # 3c. Ensure gemfiles/modular/* are present (copied like template task)
@@ -766,6 +690,7 @@ module Kettle
               src: content,
               dest: existing,
               path: "Rakefile",
+              force: force?,
             )
             content = merged if merged.is_a?(String) && !merged.empty?
             say("Merged Rakefile with kettle-jem Rakefile.example.", verbose_only: true)

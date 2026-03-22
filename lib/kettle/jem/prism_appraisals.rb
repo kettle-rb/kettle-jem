@@ -135,16 +135,12 @@ module Kettle
       end
 
       def build_runtime_context(context, min_ruby:)
-        runtime_context = context.respond_to?(:to_h) ? context.to_h : {}
-        runtime_context = runtime_context.transform_keys { |key| key.respond_to?(:to_sym) ? key.to_sym : key }
-        runtime_context[:min_ruby] = min_ruby unless min_ruby.nil?
-        runtime_context
+        RecipeRuntimeContext.build(context, min_ruby: min_ruby)
       end
 
       def remove_nodes(content, nodes, source:, &metadata_block)
         return content if nodes.empty?
 
-        require "ast-merge" unless defined?(Ast::Merge::StructuralEdit::PlanSet)
 
         plans = nodes.filter_map do |node|
           next unless node.respond_to?(:location) && node.location

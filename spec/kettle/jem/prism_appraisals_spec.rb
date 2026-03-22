@@ -1,8 +1,17 @@
 # frozen_string_literal: true
 
-require "kettle/jem/prism_appraisals"
 
 RSpec.describe Kettle::Jem::PrismAppraisals do
+  describe ".build_runtime_context" do
+    it "symbolizes hash-like input and overwrites stale min_ruby values" do
+      expect(
+        described_class.build_runtime_context({"existing" => 1, "min_ruby" => "old"}, min_ruby: "3.2"),
+      ).to eq(existing: 1, min_ruby: "3.2")
+
+      expect(described_class.build_runtime_context(Object.new, min_ruby: nil)).to eq({})
+    end
+  end
+
   describe ".merge" do
     subject(:merged) { described_class.merge(template, dest) }
 

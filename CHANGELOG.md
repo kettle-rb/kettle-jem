@@ -26,6 +26,17 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Changed
 
+- Ruby templating now normalizes and applies `.kettle-jem.yml` merge settings
+  for Ruby/Gemfile/Rakefile merges instead of silently dropping configured
+  `preference`, `add_template_only_nodes`, `freeze_token`, and
+  `max_recursion_depth` values on the Ruby merge path.
+- Gemfile duplicate-conflict validation and `--force` fallback now live inside
+  `PrismGemfile.merge`, keeping `SourceMerger` as a dispatcher instead of a
+  second Gemfile-policy boundary.
+- Recipe-backed Gemspec and Appraisals merges now share one internal runtime
+  context normalizer so caller-supplied context keys are symbolized and merged
+  consistently before recipe execution.
+
 ### Deprecated
 
 ### Removed

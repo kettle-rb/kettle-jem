@@ -121,8 +121,6 @@ module Kettle
           # @return [String] Merged content
           def merge_with_code_blocks(template, dest, config, code_block_handlers: default_code_block_handlers)
             # Phase 1: Merge Markdown structure
-            require "markly/merge" unless defined?(Markly::Merge)
-
             merger = Markly::Merge::SmartMerger.new(
               template,
               dest,
@@ -191,8 +189,6 @@ module Kettle
 
           # Merge Ruby code blocks using prism-merge.
           def merge_ruby_code(template_code, dest_code, preference)
-            require "prism/merge" unless defined?(Prism::Merge)
-
             gemfile_config = Gemfile.send(:"#{preference}_wins")
             merger = Prism::Merge::SmartMerger.new(
               template_code,
@@ -207,8 +203,6 @@ module Kettle
 
           # Merge YAML code blocks using psych-merge.
           def merge_yaml_code(template_code, dest_code, preference)
-            require "psych/merge" unless defined?(Psych::Merge)
-
             merger = Psych::Merge::SmartMerger.new(
               template_code,
               dest_code,
@@ -221,7 +215,6 @@ module Kettle
 
           # Merge JSON code blocks using json-merge.
           def merge_json_code(template_code, dest_code, preference)
-            require "json/merge" unless defined?(JSON::Merge)
 
             merger = JSON::Merge::SmartMerger.new(
               template_code,

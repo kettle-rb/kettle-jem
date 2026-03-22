@@ -1,8 +1,260 @@
 # frozen_string_literal: true
 
-require "kettle/jem/prism_gemfile"
 
 RSpec.describe Kettle::Jem::PrismGemfile do
+  describe "::MergeEntryPolicy.signature_for" do
+    it "uses singleton and path-keyed signatures for top-level merge entries" do
+      content = <<~RUBY
+        source "https://gem.coop"
+        gemspec
+        gem "ast-merge"
+        eval_gemfile "gemfiles/modular/style.gemfile"
+      RUBY
+
+      result = Prism.parse(content)
+      statements = result.value.statements.body
+
+      signatures = statements.map { |stmt| described_class::MergeEntryPolicy.signature_for(stmt) }
+
+      expect(signatures).to eq([
+        [:source],
+        [:gemspec],
+        [:gem, "ast-merge"],
+        [:eval_gemfile, "gemfiles/modular/style.gemfile"],
+      ])
+    end
+  end
+
+  describe "::MergeEntryPolicy.filter_content" do
+    it "retains attached leading comments and coalesces contiguous merge-entry ranges" do
+      content = <<~RUBY
+        # canonical source
+        source "https://gem.coop"
+        gem "ast-merge"
+        gem "prism-merge"
+
+        group :development do
+          gem "rspec"
+        end
+      RUBY
+
+      result = described_class::MergeEntryPolicy.filter_content(
+        content,
+        tombstone_line_ranges: ->(_lines) { [] },
+      )
+
+      expect(result).to eq(<<~RUBY)
+        # canonical source
+        source "https://gem.coop"
+        gem "ast-merge"
+        gem "prism-merge"
+      RUBY
+    end
+
+    it "retains explained tombstone blocks supplied by Gemfile-local policy" do
+      content = <<~RUBY
+        source "https://gem.coop"
+
+        # no longer needed
+        # gem "debug"
+
+        if ENV["CI"]
+          gem "ci-only"
+        end
+      RUBY
+
+      result = described_class::MergeEntryPolicy.filter_content(
+        content,
+        tombstone_line_ranges: ->(_lines) { [{start_line: 3, end_line: 4}] },
+      )
+
+      expect(result).to include("# no longer needed\n# gem \"debug\"")
+      expect(result).not_to include('gem "ci-only"')
+    end
+  end
+
+  describe "::TombstonePolicy.commented_gem_tombstone_line_ranges" do
+    it "captures the full explained comment block start while ending at the commented gem line" do
+      lines = <<~RUBY.lines
+        # Ex-Standard Library gems
+        # irb is included in the main Gemfile.
+        # gem "irb", "~> 1.15", ">= 1.15.2"
+
+        gem "ast-merge"
+      RUBY
+
+      expect(described_class::TombstonePolicy.commented_gem_tombstone_line_ranges(lines)).to eq([
+        {start_line: 1, end_line: 3},
+      ])
+    end
+  end
+
+  describe "::DeclarationContextPolicy.context_for_line" do
+    it "prefers the deepest enclosing context range for a line" do
+      ranges = [
+        {context: "platform(:mri)", start_line: 1, end_line: 7, depth: 1},
+        {context: "platform(:mri) > group(:development)", start_line: 3, end_line: 5, depth: 2},
+      ]
+
+      expect(described_class::DeclarationContextPolicy.context_for_line(4, ranges)).to eq("platform(:mri) > group(:development)")
+      expect(described_class::DeclarationContextPolicy.context_for_line(2, ranges)).to eq("platform(:mri)")
+      expect(described_class::DeclarationContextPolicy.context_for_line(9, ranges)).to eq("top-level")
+    end
+  end
+
+  describe "::MergePipelinePolicy" do
+    describe ".prepare_destination" do
+      it "prunes tombstoned declarations before removing Bundler's builtin github source" do
+        calls = []
+        runtime = Module.new do
+          define_singleton_method(:prepare_destination) do |content, template_content|
+            calls << [:prepare, content, template_content]
+            "clean"
+          end
+        end
+
+        result = described_class::MergePipelinePolicy.prepare_destination(
+          "dest",
+          template_content: "template",
+          runtime: runtime,
+        )
+
+        expect(result).to eq("clean")
+        expect(calls).to eq([
+          [:prepare, "dest", "template"],
+        ])
+      end
+    end
+
+    describe ".finalize_merged_content" do
+      it "restores tombstone comment blocks before suppressing active declarations" do
+        calls = []
+        runtime = Module.new do
+          define_singleton_method(:finalize_merged_content) do |content, template_content|
+            calls << [:finalize, content, template_content]
+            "suppressed"
+          end
+        end
+
+        result = described_class::MergePipelinePolicy.finalize_merged_content(
+          "merged",
+          template_content: "template",
+          runtime: runtime,
+        )
+
+        expect(result).to eq("suppressed")
+        expect(calls).to eq([
+          [:finalize, "merged", "template"],
+        ])
+      end
+    end
+  end
+
+  describe "::RemovalEditPolicy.remove_declarations" do
+    it "removes multiple declaration ranges without disturbing neighboring entries" do
+      content = <<~RUBY
+        gem "keep-one"
+        gem "drop-one"
+        gem "drop-two",
+          require: false
+        gem "keep-two"
+      RUBY
+
+      result = described_class::RemovalEditPolicy.remove_declarations(content, [
+        {name: "drop-one", line: 2, end_line: 2, context: :spec},
+        {name: "drop-two", line: 3, end_line: 4, context: :spec},
+      ])
+
+      expect(result).to include('gem "keep-one"')
+      expect(result).to include('gem "keep-two"')
+      expect(result).not_to include('gem "drop-one"')
+      expect(result).not_to include('gem "drop-two"')
+      expect(result).not_to include('require: false')
+    end
+  end
+
+  describe ".merge" do
+    it "routes full-file Gemfile merges through the shared runtime-backed pipeline" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+      signature = described_class::MergeEntryPolicy.method(:signature_for)
+
+      expect(described_class::MergePipelinePolicy).to receive(:merge).with(
+        src,
+        dest,
+        runtime: described_class::MergeRuntimePolicy,
+        filter_template: false,
+        signature_for: signature,
+        merge_body: kind_of(Proc),
+      ).and_return("merged")
+
+      result = described_class.merge(
+        src,
+        dest,
+        merger_options: {signature_generator: signature},
+      )
+
+      expect(result).to eq("merged")
+    end
+
+    it "owns the default Gemfile signature selection when no signature generator is provided" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+      signature = ->(_node) { [:gem, "foo"] }
+
+      expect(Kettle::Jem::Signatures).to receive(:gemfile).and_return(signature)
+      expect(described_class::MergePipelinePolicy).to receive(:merge).with(
+        src,
+        dest,
+        runtime: described_class::MergeRuntimePolicy,
+        filter_template: false,
+        signature_for: signature,
+        merge_body: kind_of(Proc),
+      ).and_return("merged")
+
+      result = described_class.merge(src, dest)
+      expect(result).to eq("merged")
+    end
+
+    it "validates merged Gemfile content from within the public merge boundary" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+
+      expect(described_class::MergePipelinePolicy).to receive(:merge).and_return("merged")
+      expect(described_class).to receive(:validate_no_cross_nesting_duplicates).with("merged", src, path: "Gemfile")
+
+      expect(described_class.merge(src, dest)).to eq("merged")
+    end
+
+    it "falls back to template content when duplicate validation fails in force mode" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+
+      allow(described_class::MergePipelinePolicy).to receive(:merge).and_return("broken")
+      allow(described_class).to receive(:validate_no_cross_nesting_duplicates)
+        .and_raise(Kettle::Jem::Error, "duplicate gem declarations in blocks with different signatures")
+
+      expect {
+        @result = described_class.merge(src, dest, path: "Gemfile", force: true)
+      }.to output(/Falling back to template content for Gemfile \(--force\)/).to_stderr
+
+      expect(@result).to eq(src)
+    end
+
+    it "re-raises duplicate validation errors when force mode is disabled" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+
+      allow(described_class::MergePipelinePolicy).to receive(:merge).and_return("broken")
+      allow(described_class).to receive(:validate_no_cross_nesting_duplicates)
+        .and_raise(Kettle::Jem::Error, "duplicate gem declarations in blocks with different signatures")
+
+      expect {
+        described_class.merge(src, dest, path: "Gemfile")
+      }.to raise_error(Kettle::Jem::Error, /duplicate gem declarations/)
+    end
+  end
+
   describe ".merge_gem_calls" do
     it "replaces source and appends missing gem calls", :prism_merge_only do
       src = <<~RUBY
@@ -210,7 +462,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
     end
   end
 
-  describe ".filter_to_top_level_gems" do
+  describe "::MergeRuntimePolicy.filter_to_top_level_gems" do
     it "extracts only top-level Gemfile declarations" do
       content = <<~RUBY
         source "https://rubygems.org"
@@ -221,7 +473,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         end
       RUBY
 
-      result = described_class.filter_to_top_level_gems(content)
+      result = described_class::MergeRuntimePolicy.filter_to_top_level_gems(content)
       expect(result).to include('source "https://rubygems.org"')
       expect(result).to include("gemspec")
       expect(result).to include('gem "foo"')
@@ -237,7 +489,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "a"
       RUBY
 
-      result = described_class.filter_to_top_level_gems(content)
+      result = described_class::MergeRuntimePolicy.filter_to_top_level_gems(content)
       expect(result).to include("eval_gemfile")
       expect(result).to include("git_source(:github)")
       expect(result).to include('gem "a"')
@@ -250,7 +502,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         end
       RUBY
 
-      result = described_class.filter_to_top_level_gems(content)
+      result = described_class::MergeRuntimePolicy.filter_to_top_level_gems(content)
       expect(result).to eq("")
     end
 
@@ -259,26 +511,26 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "foo" # important
       RUBY
 
-      result = described_class.filter_to_top_level_gems(content)
+      result = described_class::MergeRuntimePolicy.filter_to_top_level_gems(content)
       expect(result).to include('gem "foo" # important')
     end
 
     it "returns content unchanged on parse error" do
       content = "this is not valid ruby {{{"
-      result = described_class.filter_to_top_level_gems(content)
+      result = described_class::MergeRuntimePolicy.filter_to_top_level_gems(content)
       # On parse error, returns original content
       expect(result).to be_a(String)
     end
   end
 
-  describe ".remove_github_git_source" do
+  describe "::RemovalEditPolicy.remove_github_git_source" do
     it "removes git_source(:github) from content" do
       content = <<~'RUBY'
         git_source(:github) { |repo| "https://github.com/#{repo}.git" }
         gem "foo"
       RUBY
 
-      result = described_class.remove_github_git_source(content)
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
       expect(result).not_to include("git_source(:github)")
       expect(result).to include('gem "foo"')
     end
@@ -293,7 +545,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "foo"
       RUBY
 
-      result = described_class.remove_github_git_source(content)
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
 
       expect(result).not_to include("git_source(:github)")
       expect(result).not_to include('"https://github.com/#{repo}.git"')
@@ -307,20 +559,20 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "foo"
       RUBY
 
-      result = described_class.remove_github_git_source(content)
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
       expect(result).to include("git_source(:gitlab)")
       expect(result).to include('gem "foo"')
     end
 
     it "leaves content unchanged when no git_source at all" do
       content = "gem \"foo\"\n"
-      result = described_class.remove_github_git_source(content)
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
       expect(result).to eq(content)
     end
 
     it "returns content on parse error" do
       content = "not valid ruby {{{"
-      result = described_class.remove_github_git_source(content)
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
       expect(result).to eq(content)
     end
   end
@@ -367,7 +619,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
     end
   end
 
-  describe ".restore_tombstone_comment_blocks" do
+  describe "::MergeRuntimePolicy.restore_tombstone_comment_blocks" do
     it "re-inserts explanatory tombstone blocks inside the original nested context" do
       template = <<~RUBY
         platform :mri do
@@ -383,11 +635,53 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         end
       RUBY
 
-      result = described_class.restore_tombstone_comment_blocks(content, template)
+      result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
 
       expect(result).to include('  # debug ships elsewhere.')
       expect(result).to include('  # gem "debug", ">= 1.1"')
       expect(result.index('  # debug ships elsewhere.')).to be < result.index('  gem "ast-merge"')
+    end
+
+    it "anchors top-level tombstone blocks before the first top-level statement" do
+      template = <<~RUBY
+        # standard ships with Ruby now.
+        # gem "irb", "~> 1.15"
+
+        source "https://gem.coop"
+        gem "ast-merge"
+      RUBY
+
+      content = <<~RUBY
+        source "https://gem.coop"
+        gem "ast-merge"
+      RUBY
+
+      result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
+
+      expect(result.index('# standard ships with Ruby now.')).to be < result.index('source "https://gem.coop"')
+      expect(result).to include('# gem "irb", "~> 1.15"')
+    end
+
+    it "replaces an existing matching tombstone block in the same context with the template version" do
+      template = <<~RUBY
+        # debug ships elsewhere.
+        # gem "debug", ">= 1.1"
+
+        gem "ast-merge"
+      RUBY
+
+      content = <<~RUBY
+        # old note
+        # gem "debug", ">= 1.1"
+
+        gem "ast-merge"
+      RUBY
+
+      result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
+
+      expect(result).to include('# debug ships elsewhere.')
+      expect(result).not_to include('# old note')
+      expect(result.scan(/^# gem "debug", ">= 1.1"$/).size).to eq(1)
     end
   end
 end

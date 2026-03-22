@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "kettle/jem/prism_utils"
 
 RSpec.describe Kettle::Jem::PrismUtils do
   describe ".parse_with_comments" do

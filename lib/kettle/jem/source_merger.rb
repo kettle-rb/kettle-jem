@@ -21,6 +21,7 @@ module Kettle
       BUG_URL = "https://github.com/kettle-rb/kettle-jem/issues"
       FREEZE_TOKEN = "kettle-jem"
       RUBY_FILE_TYPES = %i[ruby gemfile appraisals gemspec rakefile].freeze
+      SUPPORTED_PREFERENCES = %i[template destination].freeze
 
       module_function
 
@@ -33,11 +34,12 @@ module Kettle
       # @param file_type [Symbol, nil] File type hint (:gemfile, :appraisals, :gemspec, :rakefile, nil)
       # @return [String] Merged content with comments preserved
       # @raise [Kettle::Jem::Error] If strategy is unknown or merge fails
-      def apply(strategy:, src:, dest:, path:, file_type: nil, merge_context: nil, **options)
+      def apply(strategy:, src:, dest:, path:, file_type: nil, context: nil, **options)
         strategy = normalize_strategy(strategy)
         dest ||= ""
         src_content = src.to_s
         dest_content = dest
+        merge_options = normalize_merge_options(options)
 
         return dest_content if strategy == :keep_destination
 
@@ -51,8 +53,8 @@ module Kettle
         result =
           case strategy
           when :accept_template
-            if detected_type == :gemspec && merge_context
-              PrismGemspec.merge(src_content, "", **runtime_merge_options(merge_context))
+            if detected_type == :gemspec && context
+              PrismGemspec.merge(src_content, "", context: context)
             else
               # Token-resolved template content wins; no AST merge with destination
               src_content
@@ -62,39 +64,19 @@ module Kettle
             # but return source unchanged as a safety net
             src_content
           when :merge
-            merge_destination = if detected_type == :gemfile
-              PrismGemfile.remove_tombstoned_gem_declarations(dest_content, src_content)
-            else
-              dest_content
-            end
-            apply_merge(src_content, merge_destination, file_type: detected_type, merge_context: merge_context)
+            apply_merge(
+              src_content,
+              dest_content,
+              file_type: detected_type,
+              context: context,
+              path: path,
+              **merge_options,
+            )
           else
             raise Kettle::Jem::Error, "Unknown templating strategy '#{strategy}' for #{path}."
           end
 
-        if detected_type == :gemfile
-          result = PrismGemfile.restore_tombstone_comment_blocks(result, src_content)
-          result = PrismGemfile.suppress_commented_gem_declarations(result)
-        end
         result = ensure_trailing_newline(result)
-
-        # Validate gemfile merges don't produce duplicate gems in blocks
-        # with different signatures. When --force is set, fall back to
-        # raw template content instead of raising.
-        if detected_type == :gemfile
-          begin
-            PrismGemfile.validate_no_cross_nesting_duplicates(result, src_content, path: path)
-          rescue Kettle::Jem::Error => e
-            force_val = ENV.fetch("force", "false").to_s.strip
-            if force_val.casecmp("true").zero?
-              $stderr.puts("[kettle-jem] WARNING: #{e.message}")
-              $stderr.puts("[kettle-jem] Falling back to template content for #{path} (--force)")
-              result = ensure_trailing_newline(src_content)
-            else
-              raise
-            end
-          end
-        end
 
         result
       end
@@ -134,14 +116,17 @@ module Kettle
       # @param file_type [Symbol] File type
       # @param preference [Symbol] :template or :destination
       # @return [Ast::Merge::MergerConfig] The config preset
-      def config_for_file_type(file_type, preference:)
+      def config_for_file_type(file_type, preference:, add_template_only_nodes: nil, freeze_token: FREEZE_TOKEN)
         preset_class = preset_for(file_type)
 
-        if preference == :template
-          preset_class.template_wins(freeze_token: FREEZE_TOKEN)
-        else
-          preset_class.destination_wins(freeze_token: FREEZE_TOKEN)
-        end
+        return preset_class.template_wins(freeze_token: freeze_token) if preference == :template && add_template_only_nodes.nil?
+        return preset_class.destination_wins(freeze_token: freeze_token) if preference == :destination && add_template_only_nodes.nil?
+
+        preset_class.custom(
+          preference: preference,
+          add_template_only: add_template_only_nodes.nil? ? (preference == :template) : add_template_only_nodes,
+          freeze_token: freeze_token,
+        )
       end
 
       # @param strategy [Symbol, String, nil] Strategy to normalize
@@ -167,12 +152,34 @@ module Kettle
       # @param dest_content [String] Destination content
       # @param file_type [Symbol] File type for preset selection
       # @return [String] Merged content
-      def apply_merge(src_content, dest_content, file_type: :ruby, merge_context: nil)
-        runtime_options = runtime_merge_options(merge_context)
-        return PrismAppraisals.merge(src_content, dest_content, **runtime_options) if file_type == :appraisals
-        return PrismGemspec.merge(src_content, dest_content, **runtime_options) if file_type == :gemspec
+      def apply_merge(src_content, dest_content, file_type: :ruby, context: nil, path: nil, **options)
+        if file_type == :appraisals
+          appraisals_options = options.dup
+          appraisals_options[:context] = context if context
+          return PrismAppraisals.merge(src_content, dest_content, **appraisals_options)
+        end
 
-        config = config_for_file_type(file_type, preference: :template)
+        if file_type == :gemspec
+          gemspec_options = options.dup
+          gemspec_options[:context] = context if context
+          return PrismGemspec.merge(src_content, dest_content, **gemspec_options)
+        end
+
+        config = merger_options_for(file_type, **options)
+
+        if file_type == :gemfile
+          gemfile_options = config.to_h.dup
+          gemfile_options.delete(:signature_generator)
+
+          return PrismGemfile.merge(
+            src_content,
+            dest_content,
+            merger_options: gemfile_options,
+            filter_template: false,
+            path: path || "Gemfile",
+            force: options.fetch(:force, false),
+          )
+        end
 
         merger = Prism::Merge::SmartMerger.new(
           src_content,
@@ -182,12 +189,70 @@ module Kettle
         merger.merge
       end
 
-      def runtime_merge_options(merge_context)
-        return {} if merge_context.nil?
-        return merge_context.transform_keys(&:to_sym) if merge_context.is_a?(Hash)
+      def merger_options_for(file_type, **options)
+        config = config_for_file_type(
+          file_type,
+          preference: normalize_preference_option(options[:preference]) || :template,
+          add_template_only_nodes: normalize_boolean_option(options[:add_template_only_nodes]),
+          freeze_token: normalize_string_option(options[:freeze_token]) || FREEZE_TOKEN,
+        )
 
-        merge_context.to_h.transform_keys { |key| key.respond_to?(:to_sym) ? key.to_sym : key }
+        merger_options = config.to_h
+        max_recursion_depth = normalize_integer_option(options[:max_recursion_depth])
+        merger_options[:max_recursion_depth] = max_recursion_depth unless max_recursion_depth.nil?
+        merger_options
       end
+
+      def normalize_merge_options(options)
+        {
+          preference: normalize_preference_option(options[:preference]),
+          add_template_only_nodes: normalize_boolean_option(options[:add_template_only_nodes]),
+          freeze_token: normalize_string_option(options[:freeze_token]),
+          max_recursion_depth: normalize_integer_option(options[:max_recursion_depth]),
+          force: normalize_boolean_option(options[:force]),
+        }.reject { |_, value| value.nil? }
+      end
+
+      def normalize_preference_option(preference)
+        return if preference.nil?
+        return preference if preference.is_a?(Hash)
+
+        normalized = preference.to_s.downcase.strip.tr("-", "_").to_sym
+        return normalized if SUPPORTED_PREFERENCES.include?(normalized)
+
+        raise Kettle::Jem::Error, "Unknown merge preference '#{preference}'"
+      end
+
+      def normalize_boolean_option(value)
+        return if value.nil?
+        return value if value == true || value == false
+
+        normalized = value.to_s.strip.downcase
+        return true if %w[1 true yes y].include?(normalized)
+        return false if %w[0 false no n].include?(normalized)
+
+        value
+      end
+
+      def normalize_string_option(value)
+        return if value.nil?
+
+        normalized = value.to_s.strip
+        normalized.empty? ? nil : normalized
+      end
+
+      def normalize_integer_option(value)
+        return if value.nil?
+        return value if value.is_a?(Integer)
+
+        normalized = value.to_s.strip
+        return if normalized.empty?
+
+        Integer(normalized, 10)
+      rescue ArgumentError, TypeError
+        value
+      end
+
 
       # @param file_type [Symbol]
       # @return [Class] Preset class

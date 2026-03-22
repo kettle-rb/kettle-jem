@@ -262,6 +262,47 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).to include('"sig/**/*.rbs"')
     end
 
+    it "does not corrupt destination-controlled executable spec.files assignments when the template uses a literal Dir list" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+
+          # Specify which files should be added to the gem when it is released.
+          # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
+          gemspec = File.basename(__FILE__)
+          spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
+            ls.readlines("\\x0", chomp: true).reject do |f|
+              (f == gemspec) ||
+                f.start_with?(*%w[bin/ Gemfile .gitignore .rspec spec/ .github/ .rubocop.yml])
+            end
+          end
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true), <<~MSG
+        Expected executable destination spec.files assignment to survive gemspec templating.
+
+        #{merged}
+      MSG
+      expect(merged).to include('spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|')
+      expect(merged).to include('ls.readlines("\\x0", chomp: true).reject do |f|')
+      expect(merged).not_to include("spec.files = Dir[")
+    end
+
     it "keeps runtime dependencies above the development dependency note block without duplicate dev entries and preserves aligned trailing comments" do
       template = <<~RUBY
         Gem::Specification.new do |spec|

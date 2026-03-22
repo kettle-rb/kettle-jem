@@ -5,7 +5,6 @@ require "find"
 require "set"
 require "yaml"
 
-require_relative "config_seeder"
 
 module Kettle
   module Jem
@@ -126,6 +125,7 @@ module Kettle
         keep_destination
         raw_copy
       ].freeze
+      SUPPORTED_MERGE_PREFERENCES = %i[template destination].freeze
       SUPPORTED_FILE_TYPES = %i[
         ruby
         gemfile
@@ -634,7 +634,7 @@ module Kettle
       # @return [Boolean]
       def ask(prompt, default)
         # Force mode: any prompt resolves to Yes when ENV["force"] is set truthy
-        if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("force", "").to_s)
+        if force_mode?
           puts "#{prompt} #{default ? "[Y/n]" : "[y/N]"}: Y (forced)"
           return true
         end
@@ -787,8 +787,7 @@ module Kettle
         # When force mode is active (e.g., from SetupCLI --force), skip the
         # dirty-tree check. The CLI workflow intentionally dirties the tree
         # before running the template task, and commits everything at the end.
-        force_val = ENV.fetch("force", "false").to_s.strip
-        return if force_val.casecmp("true").zero?
+        return if force_mode?
 
         inside_repo = begin
           system("git", "-C", root.to_s, "rev-parse", "--is-inside-work-tree", out: File::NULL, err: File::NULL)
@@ -987,7 +986,18 @@ module Kettle
           Kettle::Dev.debug_error(e, __method__)
           nil
         end
-        Kettle::Jem::PrismAppraisals.merge(content, existing, min_ruby: min_ruby)
+
+        context = {}
+        context[:min_ruby] = min_ruby unless min_ruby.nil?
+
+        Kettle::Jem::SourceMerger.apply(
+          strategy: :merge,
+          src: content,
+          dest: existing,
+          path: rel_path(dest),
+          file_type: :appraisals,
+          context: context,
+        )
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         content
@@ -1221,19 +1231,24 @@ module Kettle
         Kettle::Dev::GemSpecReader.load(root)
       end
 
-      def apply_strategy(content, dest_path, merge_context: nil, **options)
+      def apply_strategy(content, dest_path, context: nil, **options)
         return content unless ruby_template?(dest_path)
 
-        strategy = strategy_for(dest_path)
+        relative_path = rel_path(dest_path)
+        config_entry = config_for(relative_path) || {}
+        strategy = config_entry.fetch(:strategy, :merge)
         dest_content = File.exist?(dest_path) ? File.read(dest_path) : ""
-        file_type = configured_file_type_for(dest_path)
+        file_type = config_entry[:file_type]
         Kettle::Jem::SourceMerger.apply(
           strategy: strategy,
           src: content,
           dest: dest_content,
-          path: rel_path(dest_path),
+          path: relative_path,
           file_type: file_type,
-          merge_context: merge_context,
+          context: context,
+          force: force_mode?,
+          **merge_options_for_config(config_entry),
+          **options,
         )
       end
 
@@ -1319,11 +1334,80 @@ module Kettle
         if result[:strategy] == :merge
           %w[preference add_template_only_nodes freeze_token max_recursion_depth].each do |opt|
             value = entry.key?(opt) ? entry[opt] : defaults[opt]
-            result[opt.to_sym] = value unless value.nil?
+            normalized = normalize_merge_config_value(opt, value)
+            result[opt.to_sym] = normalized unless normalized.nil?
           end
         end
 
         result
+      end
+
+      def merge_options_for_config(config_entry)
+        return {} unless config_entry.is_a?(Hash)
+
+        config_entry.each_with_object({}) do |(key, value), memo|
+          next if %i[strategy path file_type].include?(key)
+
+          memo[key] = value
+        end
+      end
+
+      def normalize_merge_config_value(key, value)
+        return if value.nil?
+
+        case key.to_s
+        when "preference"
+          normalize_merge_preference(value)
+        when "freeze_token"
+          normalize_merge_string(value)
+        when "max_recursion_depth"
+          normalize_merge_integer(value)
+        when "add_template_only_nodes"
+          normalize_merge_boolean(value)
+        else
+          value
+        end
+      end
+
+      def normalize_merge_preference(value)
+        normalized = value.to_s.strip.downcase.tr("-", "_")
+        return if normalized.empty?
+
+        preference = normalized.to_sym
+        return preference if SUPPORTED_MERGE_PREFERENCES.include?(preference)
+
+        raise Kettle::Jem::Error, "Unknown merge preference '#{value}'"
+      end
+
+      def normalize_merge_string(value)
+        normalized = value.to_s.strip
+        normalized.empty? ? nil : normalized
+      end
+
+      def normalize_merge_integer(value)
+        return value if value.is_a?(Integer)
+
+        normalized = value.to_s.strip
+        return if normalized.empty?
+
+        Integer(normalized, 10)
+      rescue ArgumentError, TypeError
+        value
+      end
+
+      def normalize_merge_boolean(value)
+        return value if value == true || value == false
+
+        normalized = value.to_s.strip.downcase
+        return if normalized.empty?
+        return true if %w[1 true yes y].include?(normalized)
+        return false if %w[0 false no n].include?(normalized)
+
+        value
+      end
+
+      def force_mode?(value = ENV.fetch("force", ""))
+        %w[1 true y yes].include?(value.to_s.strip.downcase)
       end
 
       def rel_path(path)

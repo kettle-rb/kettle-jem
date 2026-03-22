@@ -147,16 +147,19 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   end
 
   describe ".apply_appraisals_merge" do
-    it "passes gemspec min_ruby into the recipe-backed Appraisals merge" do
+    it "routes Appraisals merging through SourceMerger with min_ruby in generic context" do
       Dir.mktmpdir do |dir|
         dest = File.join(dir, "Appraisals")
         File.write(dest, "appraise \"ruby-2-7\" do\nend\n")
 
         allow(described_class).to receive(:gemspec_metadata).and_return({min_ruby: Gem::Version.new("3.2")})
-        expect(Kettle::Jem::PrismAppraisals).to receive(:merge).with(
-          "appraise \"ruby-3-2\" do\nend\n",
-          "appraise \"ruby-2-7\" do\nend\n",
-          min_ruby: Gem::Version.new("3.2"),
+        expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+          strategy: :merge,
+          src: "appraise \"ruby-3-2\" do\nend\n",
+          dest: "appraise \"ruby-2-7\" do\nend\n",
+          path: described_class.rel_path(dest),
+          file_type: :appraisals,
+          context: {min_ruby: Gem::Version.new("3.2")},
         ).and_return("appraise \"ruby-3-2\" do\nend\n")
 
         merged = described_class.apply_appraisals_merge("appraise \"ruby-3-2\" do\nend\n", dest)
