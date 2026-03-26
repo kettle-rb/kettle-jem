@@ -345,6 +345,8 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
         filter_template: false,
         path: "test.gemfile",
         force: false,
+        preset: nil,
+        context: nil,
       ).and_raise(Kettle::Jem::Error, "duplicate gem declarations in blocks with different signatures")
 
       expect {
@@ -362,6 +364,8 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
         filter_template: false,
         path: "test.gemfile",
         force: true,
+        preset: nil,
+        context: nil,
       ).and_return(template)
 
       result = described_class.apply(

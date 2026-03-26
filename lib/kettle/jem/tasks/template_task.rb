@@ -713,35 +713,6 @@ module Kettle
           task_abort(msg_lines.first)
         end
 
-        def ensure_template_prerequisites!(helpers:, project_root:, template_root:, meta:)
-          options = token_options(meta, helpers)
-          return :unavailable unless prerequisite_validation_available?(options)
-
-          bootstrap_result = ensure_kettle_config_bootstrap!(
-            helpers: helpers,
-            project_root: project_root,
-            template_root: template_root,
-            token_options: options,
-          )
-          return bootstrap_result if bootstrap_result == :bootstrap_only
-
-          backfill_project_kettle_config_tokens!(
-            helpers: helpers,
-            project_root: project_root,
-          )
-
-          helpers.clear_kettle_config!
-          helpers.configure_tokens!(**options)
-          validate_required_token_values!(
-            helpers: helpers,
-            project_root: project_root,
-            template_root: template_root,
-            gem_name: options[:gem_name],
-          )
-
-          :ready
-        end
-
         # Execute the template operation into the current project.
         # All options/IO are controlled via TemplateHelpers and ENV.
         def run
@@ -776,7 +747,7 @@ module Kettle
           namespace_shield = meta[:namespace_shield]
           gem_shield = meta[:gem_shield]
 
-          prerequisites = ensure_template_prerequisites!(
+          prerequisites = Kettle::Jem::Tasks::PrepareTask.run(
             helpers: helpers,
             project_root: project_root,
             template_root: template_root,

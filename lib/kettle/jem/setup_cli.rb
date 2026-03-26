@@ -647,7 +647,7 @@ module Kettle
           {}
         end
 
-        Kettle::Jem::Tasks::TemplateTask.ensure_template_prerequisites!(
+        Kettle::Jem::Tasks::PrepareTask.run(
           helpers: helpers,
           project_root: helpers.project_root,
           template_root: helpers.template_root,
