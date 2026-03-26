@@ -226,6 +226,42 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(described_class.merge(src, dest)).to eq("merged")
     end
 
+    it "runs preset-backed merges through the shared pipeline and validates the recipe output" do
+      src = "gem \"foo\"\n"
+      dest = "gem \"bar\"\n"
+      preset = instance_double(Ast::Merge::Recipe::Config)
+      runner = instance_double(Ast::Merge::Recipe::Runner)
+      result = instance_double(Ast::Merge::Recipe::Runner::Result, content: "merged")
+
+      expect(described_class::MergePipelinePolicy).to receive(:merge) do |template_content, destination_content, runtime:, filter_template:, signature_for:, merge_body:|
+        expect(template_content).to eq(src)
+        expect(destination_content).to eq(dest)
+        expect(runtime).to eq(described_class::MergeRuntimePolicy)
+        expect(filter_template).to be(false)
+        expect(signature_for).to be_a(Proc)
+        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(preset, verbose: true).and_return(runner)
+        expect(runner).to receive(:run_content).with(
+          template_content: src,
+          destination_content: dest,
+          relative_path: "Gemfile",
+          context: {min_ruby: Gem::Version.new("3.2")},
+        ).and_return(result)
+        merge_body.call(template_content, destination_content)
+      end
+      expect(described_class).to receive(:validate_no_cross_nesting_duplicates).with("merged", src, path: "Gemfile")
+
+      expect(
+        described_class.merge(
+          src,
+          dest,
+          path: "Gemfile",
+          preset: preset,
+          context: {min_ruby: Gem::Version.new("3.2")},
+          verbose: true,
+        ),
+      ).to eq("merged")
+    end
+
     it "falls back to template content when duplicate validation fails in force mode" do
       src = "gem \"foo\"\n"
       dest = "gem \"bar\"\n"

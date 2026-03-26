@@ -86,6 +86,8 @@ RSpec.describe Kettle::Jem::SourceMerger do
         filter_template: false,
         path: path,
         force: false,
+        preset: nil,
+        context: nil,
       ).and_return("gem \"foo\"\n")
 
       merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: path)
@@ -108,6 +110,8 @@ RSpec.describe Kettle::Jem::SourceMerger do
         filter_template: false,
         path: path,
         force: true,
+        preset: nil,
+        context: nil,
       ).and_return(dest)
 
       merged = described_class.apply(
@@ -123,6 +127,82 @@ RSpec.describe Kettle::Jem::SourceMerger do
       )
 
       expect(merged).to eq(dest)
+    end
+
+    it "loads a project recipe path for generic Ruby merges" do
+      Dir.mktmpdir do |dir|
+        recipe_path = File.join(dir, "custom.yml")
+        script_dir = File.join(dir, "custom")
+        FileUtils.mkdir_p(script_dir)
+        File.write(recipe_path, <<~YAML)
+          name: custom
+          parser: prism
+          steps:
+            - kind: ruby_script
+              name: return_template_plus_destination
+              script: merge.rb
+        YAML
+        File.write(File.join(script_dir, "merge.rb"), <<~RUBY)
+          lambda do |template_content:, destination_content:, **|
+            {
+              content: [destination_content.strip, "# recipe merged", template_content.strip].reject(&:empty?).join("\n") + "\n",
+            }
+          end
+        RUBY
+
+        merged = described_class.apply(
+          strategy: :merge,
+          src: "value = :template\n",
+          dest: "value = :destination\n",
+          path: "lib/example.rb",
+          file_type: :ruby,
+          recipe: recipe_path,
+        )
+
+        expect(merged).to eq("value = :destination\n# recipe merged\nvalue = :template\n")
+      end
+    end
+
+    it "loads a recipe override before routing Gemfile merges through PrismGemfile" do
+      Dir.mktmpdir do |dir|
+        recipe_path = File.join(dir, "custom.yml")
+        script_dir = File.join(dir, "custom")
+        FileUtils.mkdir_p(script_dir)
+        File.write(recipe_path, <<~YAML)
+          name: custom
+          parser: prism
+          steps:
+            - kind: ruby_script
+              name: no_op
+              script: merge.rb
+        YAML
+        File.write(File.join(script_dir, "merge.rb"), <<~RUBY)
+          lambda do |content:, **|
+            {content: content}
+          end
+        RUBY
+
+        expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+          "gem \"foo\"\n",
+          "gem \"bar\"\n",
+          merger_options: satisfy { |options| options.is_a?(Hash) },
+          filter_template: false,
+          path: path,
+          force: false,
+          preset: be_a(Ast::Merge::Recipe::Config),
+          context: nil,
+        ).and_return("gem \"foo\"\n")
+
+        merged = described_class.apply(
+          strategy: :merge,
+          src: "gem \"foo\"\n",
+          dest: "gem \"bar\"\n",
+          path: path,
+          recipe: recipe_path,
+        )
+
+        expect(merged).to eq("gem \"foo\"\n")
+      end
     end
 
     it "replaces matching nodes during merge" do

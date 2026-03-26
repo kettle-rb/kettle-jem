@@ -327,6 +327,12 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(result[:max_recursion_depth]).to eq(7)
     end
 
+    it "retains a merge recipe override" do
+      result = described_class.build_config_entry(nil, {"strategy" => "merge", "recipe" => " .kettle-jem/recipes/custom.yml "})
+
+      expect(result[:recipe]).to eq(".kettle-jem/recipes/custom.yml")
+    end
+
     it "accepts a supported file_type hint" do
       result = described_class.build_config_entry(nil, {"strategy" => "merge", "file_type" => "ruby"})
 
@@ -363,6 +369,12 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         described_class.build_config_entry(nil, {"strategy" => "skip"})
       }.to raise_error(Kettle::Jem::Error, /Unknown templating strategy/i)
     end
+
+    it "rejects recipe overrides on non-merge strategies" do
+      expect {
+        described_class.build_config_entry(nil, {"strategy" => "accept_template", "recipe" => ".kettle-jem/recipes/custom.yml"})
+      }.to raise_error(Kettle::Jem::Error, /recipe overrides require strategy 'merge'/i)
+    end
   end
 
   describe ".apply_strategy" do
@@ -395,6 +407,34 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         freeze_token: "custom-freeze",
         max_recursion_depth: 7,
         force: true,
+      ).and_return("merged")
+
+      expect(described_class.apply_strategy("template", dest_path)).to eq("merged")
+    end
+
+    it "resolves project-relative recipe paths before invoking SourceMerger" do
+      project_root = "/tmp/kettle-jem-project"
+      dest_path = File.join(project_root, "gemfiles/modular/templating_local.gemfile")
+      config_entry = {
+        strategy: :merge,
+        file_type: :gemfile,
+        recipe: ".kettle-jem/recipes/nomono_local_gemfile.yml",
+      }
+
+      allow(described_class).to receive_messages(project_root: project_root, force_mode?: false)
+      allow(described_class).to receive(:config_for).with("gemfiles/modular/templating_local.gemfile").and_return(config_entry)
+      allow(File).to receive(:exist?).with(dest_path).and_return(true)
+      allow(File).to receive(:read).with(dest_path).and_return("destination")
+
+      expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+        strategy: :merge,
+        src: "template",
+        dest: "destination",
+        path: "gemfiles/modular/templating_local.gemfile",
+        file_type: :gemfile,
+        context: nil,
+        recipe: File.join(project_root, ".kettle-jem/recipes/nomono_local_gemfile.yml"),
+        force: false,
       ).and_return("merged")
 
       expect(described_class.apply_strategy("template", dest_path)).to eq("merged")

@@ -3,6 +3,7 @@
 RSpec.describe Kettle::Jem::ModularGemfiles do
   after do
     Kettle::Jem::TemplateHelpers.clear_tokens!
+    Kettle::Jem::TemplateHelpers.clear_kettle_config!
   end
 
   it "exposes sync! and performs copy calls via helpers" do
@@ -401,6 +402,166 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           described_class.sync!(helpers: helpers, project_root: proj)
 
           expect(File).not_to exist(File.join(proj, described_class::MODULAR_GEMFILE_DIR, "optional.gemfile"))
+        end
+      end
+    end
+
+    it "uses a project-local recipe to preserve nomono's local bootstrap require" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          src_dir = File.join(gemroot, "template", described_class::MODULAR_GEMFILE_DIR)
+          dest_dir = File.join(proj, described_class::MODULAR_GEMFILE_DIR)
+          recipe_dir = File.join(proj, ".kettle-jem", "recipes", "nomono_local_gemfile")
+          FileUtils.mkdir_p(src_dir)
+          FileUtils.mkdir_p(dest_dir)
+          FileUtils.mkdir_p(recipe_dir)
+
+          File.write(File.join(proj, ".kettle-jem.yml"), <<~YAML)
+            defaults:
+              preference: template
+              add_template_only_nodes: true
+              freeze_token: kettle-jem
+            patterns: []
+            files:
+              gemfiles:
+                modular:
+                  templating_local.gemfile:
+                    strategy: merge
+                    recipe: .kettle-jem/recipes/nomono_local_gemfile.yml
+          YAML
+
+          File.write(File.join(proj, ".kettle-jem", "recipes", "nomono_local_gemfile.yml"), <<~YAML)
+            name: nomono_local_gemfile
+            parser: prism
+            merge:
+              preference: template
+              add_missing: true
+              signature_generator: signature_generator.rb
+            steps:
+              - kind: smart_merge
+                name: smart_merge
+
+              - kind: ruby_script
+                name: normalize_nomono_bootstrap
+                script: normalize_nomono_bootstrap.rb
+          YAML
+          File.write(File.join(recipe_dir, "signature_generator.rb"), <<~RUBY)
+            Kettle::Jem::Signatures.gemfile
+          RUBY
+          File.write(File.join(recipe_dir, "normalize_nomono_bootstrap.rb"), <<~RUBY)
+            comment_paragraph = lambda do |paragraph|
+              lines = paragraph.lines
+              !lines.empty? && lines.all? { |line| line.lstrip.start_with?("#") }
+            end
+
+            dedupe_bootstrap_preamble = lambda do |text, local_bootstrap|
+              before_bootstrap, after_bootstrap = text.split(local_bootstrap, 2)
+              next text unless after_bootstrap
+
+              prefix = before_bootstrap.sub(/\n+\z/, "")
+              paragraphs = prefix.split(/\n{2,}/).reject(&:empty?)
+              next text if paragraphs.length < 2
+
+              deduped_paragraphs = paragraphs.dup
+              ((paragraphs.length / 2)).downto(1) do |sequence_length|
+                leading_count = paragraphs.length - (sequence_length * 2)
+                next if leading_count.negative?
+
+                first_sequence = paragraphs[leading_count, sequence_length]
+                second_sequence = paragraphs[leading_count + sequence_length, sequence_length]
+                next unless first_sequence == second_sequence
+
+                deduped_paragraphs = paragraphs[0, leading_count + sequence_length]
+                break
+              end
+
+              next text if deduped_paragraphs == paragraphs
+
+              rebuilt = +""
+              rebuilt << deduped_paragraphs.join("\n\n")
+              rebuilt << "\n\n" unless rebuilt.empty?
+              rebuilt << local_bootstrap
+              rebuilt << after_bootstrap
+              rebuilt
+            end
+
+            lambda do |content:, **|
+              local_bootstrap = 'require_relative "../../lib/nomono/bundler"'
+              plain_bootstrap = 'require "nomono/bundler"'
+              next content unless content.include?(local_bootstrap)
+
+              stripped_lines = []
+              content.each_line do |line|
+                stripped_lines << line unless line.strip == plain_bootstrap
+              end
+
+              normalized = stripped_lines.join.gsub(/\n{3,}/, "\n\n")
+              normalized = dedupe_bootstrap_preamble.call(normalized, local_bootstrap)
+              paragraphs = normalized.split(/\n{2,}/)
+              deduped = paragraphs.each_with_object([]) do |paragraph, memo|
+                next if paragraph.empty?
+                next if comment_paragraph.call(paragraph) && paragraph == memo.last
+
+                memo << paragraph
+              end
+
+              result = deduped.join("\n\n")
+              result << "\n" unless result.empty? || result.end_with?("\n")
+              result
+            end
+          RUBY
+
+          File.write(File.join(src_dir, "templating_local.gemfile"), <<~RUBY)
+            # frozen_string_literal: true
+
+            # Local path overrides for development.
+            # Loaded by the associated non-local gemfile when KETTLE_RB_DEV != "false".
+
+            require "nomono/bundler"
+
+            local_gems = %w[
+              tree_haver
+              ast-merge
+              bash-merge
+            ]
+
+            platform :mri do
+              eval_nomono_gems(gems: local_gems)
+            end
+          RUBY
+
+          File.write(File.join(dest_dir, "templating_local.gemfile"), <<~RUBY)
+            # frozen_string_literal: true
+
+            # Local path overrides for development.
+            # Loaded by the associated non-local gemfile when KETTLE_RB_DEV != "false".
+
+            require_relative "../../lib/nomono/bundler" # rubocop:disable Packaging/RequireRelativeHardcodingLib
+
+            local_gems = %w[
+              tree_haver
+            ]
+
+            platform :mri do
+              eval_nomono_gems(gems: local_gems)
+            end
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+            ask: true,
+          )
+          helpers.clear_kettle_config!
+
+          described_class.sync!(helpers: helpers, project_root: proj)
+
+          result = File.read(File.join(dest_dir, "templating_local.gemfile"))
+          expect(result).to include('require_relative "../../lib/nomono/bundler"')
+          expect(result).not_to include('require "nomono/bundler"')
+          expect(result.scan(/# Local path overrides for development\./).size).to eq(1)
+          expect(result).to include("ast-merge")
+          expect(result).to include("bash-merge")
         end
       end
     end

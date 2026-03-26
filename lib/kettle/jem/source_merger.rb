@@ -41,6 +41,7 @@ module Kettle
         dest ||= ""
         src_content = src.to_s
         dest_content = dest
+        recipe = resolve_recipe_option(options[:recipe], path: path)
         merge_options = normalize_merge_options(options)
 
         return dest_content if strategy == :keep_destination
@@ -72,6 +73,7 @@ module Kettle
               file_type: detected_type,
               context: context,
               path: path,
+              recipe: recipe,
               **merge_options,
             )
           else
@@ -154,22 +156,23 @@ module Kettle
       # @param dest_content [String] Destination content
       # @param file_type [Symbol] File type for preset selection
       # @return [String] Merged content
-      def apply_merge(src_content, dest_content, file_type: :ruby, context: nil, path: nil, **options)
+      def apply_merge(src_content, dest_content, file_type: :ruby, context: nil, path: nil, recipe: nil, **options)
         if file_type == :appraisals
           appraisals_options = options.dup
           appraisals_options[:context] = context if context
+          appraisals_options[:preset] = recipe if recipe
           return PrismAppraisals.merge(src_content, dest_content, **appraisals_options)
         end
 
         if file_type == :gemspec
           gemspec_options = options.dup
           gemspec_options[:context] = context if context
+          gemspec_options[:preset] = recipe if recipe
           return PrismGemspec.merge(src_content, dest_content, **gemspec_options)
         end
 
-        config = merger_options_for(file_type, **options)
-
         if file_type == :gemfile
+          config = merger_options_for(file_type, **options)
           gemfile_options = config.to_h.dup
           gemfile_options.delete(:signature_generator)
 
@@ -180,8 +183,25 @@ module Kettle
             filter_template: false,
             path: path || "Gemfile",
             force: options.fetch(:force, false),
+            preset: recipe,
+            context: context,
           )
         end
+
+        if recipe
+          merged_content = apply_recipe_merge(
+            src_content,
+            dest_content,
+            recipe: recipe,
+            context: context,
+            path: path,
+          )
+          return normalize_rakefile_default_task_scaffold(merged_content, src_content) if file_type == :rakefile
+
+          return merged_content
+        end
+
+        config = merger_options_for(file_type, **options)
 
         merger = Prism::Merge::SmartMerger.new(
           src_content,
@@ -192,6 +212,17 @@ module Kettle
         return normalize_rakefile_default_task_scaffold(merged_content, src_content) if file_type == :rakefile
 
         merged_content
+      end
+
+      def apply_recipe_merge(src_content, dest_content, recipe:, context: nil, path: nil)
+        runner_options = {}
+        runner_options[:context] = context if context
+
+        Ast::Merge::Recipe::Runner.new(recipe, **runner_options).run_content(
+          template_content: src_content,
+          destination_content: dest_content,
+          relative_path: path || "(memory)",
+        ).content
       end
 
       def merger_options_for(file_type, **options)
@@ -216,6 +247,28 @@ module Kettle
           max_recursion_depth: normalize_integer_option(options[:max_recursion_depth]),
           force: normalize_boolean_option(options[:force]),
         }.reject { |_, value| value.nil? }
+      end
+
+      def resolve_recipe_option(recipe, path: nil)
+        return if recipe.nil?
+        return recipe if recipe.respond_to?(:execution_steps)
+
+        reference = recipe.to_s.strip
+        return if reference.empty?
+
+        if recipe_path_reference?(reference)
+          return Ast::Merge::Recipe::Config.load(File.expand_path(reference))
+        end
+
+        return Kettle::Jem.recipe(reference) if Kettle::Jem::RecipeLoader.exists?(reference)
+
+        raise Kettle::Jem::Error, "Unknown merge recipe '#{recipe}' for #{path}."
+      rescue ArgumentError => e
+        raise Kettle::Jem::Error, e.message
+      end
+
+      def recipe_path_reference?(reference)
+        File.absolute_path?(reference) || reference.include?(File::SEPARATOR) || reference.end_with?(".yml", ".yaml")
       end
 
       def normalize_preference_option(preference)

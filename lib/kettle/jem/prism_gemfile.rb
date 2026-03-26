@@ -16,9 +16,9 @@ module Kettle
 
       module_function
 
-      def merge(src_content, dest_content, merger_options: {}, filter_template: false, path: "Gemfile", force: false)
-        options = merger_options.dup
-        signature_for = options.delete(:signature_generator) || Kettle::Jem::Signatures.gemfile
+      def merge(src_content, dest_content, merger_options: {}, filter_template: false, path: "Gemfile", force: false, preset: nil, context: nil, **options)
+        smart_merge_options = merger_options.dup
+        signature_for = smart_merge_options.delete(:signature_generator) || Kettle::Jem::Signatures.gemfile
 
         merged = MergePipelinePolicy.merge(
           src_content,
@@ -27,12 +27,23 @@ module Kettle
           filter_template: filter_template,
           signature_for: signature_for,
           merge_body: lambda { |template_content, destination_content|
-            Prism::Merge::SmartMerger.new(
-              template_content,
-              destination_content,
-              **options,
-              signature_generator: signature_for,
-            ).merge
+            if preset
+              run_options = {
+                template_content: template_content,
+                destination_content: destination_content,
+                relative_path: path,
+              }
+              run_options[:context] = context if context
+
+              Ast::Merge::Recipe::Runner.new(preset, **options).run_content(**run_options).content
+            else
+              Prism::Merge::SmartMerger.new(
+                template_content,
+                destination_content,
+                **smart_merge_options,
+                signature_generator: signature_for,
+              ).merge
+            end
           },
         )
 

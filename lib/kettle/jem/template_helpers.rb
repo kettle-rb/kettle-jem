@@ -1239,7 +1239,7 @@ module Kettle
         strategy = config_entry.fetch(:strategy, :merge)
         dest_content = File.exist?(dest_path) ? File.read(dest_path) : ""
         file_type = config_entry[:file_type]
-        Kettle::Jem::SourceMerger.apply(
+        merger_arguments = {
           strategy: strategy,
           src: content,
           dest: dest_content,
@@ -1247,6 +1247,12 @@ module Kettle
           file_type: file_type,
           context: context,
           force: force_mode?,
+        }
+        resolved_recipe = resolve_recipe_for_config(config_entry[:recipe])
+        merger_arguments[:recipe] = resolved_recipe unless resolved_recipe.nil?
+
+        Kettle::Jem::SourceMerger.apply(
+          **merger_arguments,
           **merge_options_for_config(config_entry),
           **options,
         )
@@ -1337,6 +1343,11 @@ module Kettle
             normalized = normalize_merge_config_value(opt, value)
             result[opt.to_sym] = normalized unless normalized.nil?
           end
+
+          recipe = normalize_merge_recipe(entry["recipe"])
+          result[:recipe] = recipe unless recipe.nil?
+        elsif entry.key?("recipe")
+          raise Kettle::Jem::Error, "Merge recipe overrides require strategy 'merge'"
         end
 
         result
@@ -1346,10 +1357,21 @@ module Kettle
         return {} unless config_entry.is_a?(Hash)
 
         config_entry.each_with_object({}) do |(key, value), memo|
-          next if %i[strategy path file_type].include?(key)
+          next if %i[strategy path file_type recipe].include?(key)
 
           memo[key] = value
         end
+      end
+
+      def resolve_recipe_for_config(recipe)
+        return if recipe.nil?
+        return recipe unless recipe.is_a?(String)
+
+        normalized = normalize_merge_recipe(recipe)
+        return if normalized.nil?
+        return normalized unless recipe_path_reference?(normalized)
+
+        File.expand_path(normalized, project_root)
       end
 
       def normalize_merge_config_value(key, value)
@@ -1367,6 +1389,18 @@ module Kettle
         else
           value
         end
+      end
+
+      def normalize_merge_recipe(value)
+        normalized = value.to_s.strip
+        normalized.empty? ? nil : normalized
+      end
+
+      def recipe_path_reference?(value)
+        normalized = value.to_s.strip
+        return false if normalized.empty?
+
+        File.absolute_path?(normalized) || normalized.include?(File::SEPARATOR) || normalized.end_with?(".yml", ".yaml")
       end
 
       def normalize_merge_preference(value)
