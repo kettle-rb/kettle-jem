@@ -30,12 +30,19 @@ Please file a bug if you notice a violation of semantic versioning.
   for Ruby/Gemfile/Rakefile merges instead of silently dropping configured
   `preference`, `add_template_only_nodes`, `freeze_token`, and
   `max_recursion_depth` values on the Ruby merge path.
+- README and CHANGELOG templating now run through recipe-backed partial-template
+  merges instead of manual section splitting and heading scanning, leaving only
+  narrow H1/header normalization and Keep-a-Changelog ordering policy local to
+  `kettle-jem`
 - Gemfile duplicate-conflict validation and `--force` fallback now live inside
   `PrismGemfile.merge`, keeping `SourceMerger` as a dispatcher instead of a
   second Gemfile-policy boundary.
 - Recipe-backed Gemspec and Appraisals merges now share one internal runtime
   context normalizer so caller-supplied context keys are symbolized and merged
   consistently before recipe execution.
+- Gemfile, Gemspec, and Appraisals merge flows now lean on shared recipe and
+  structural-edit primitives behind their existing policy seams instead of
+  bespoke post-merge text surgery and offset deletion paths
 
 ### Deprecated
 
