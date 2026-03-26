@@ -56,6 +56,12 @@ Please file a bug if you notice a violation of semantic versioning.
   override wiring (`local_gems` / `VENDORED_GEMS`) instead of stripping entries
   merely because those gems also appear in the destination gemspec, while still
   excluding the current gem from self-referential local override lists
+- Gemfile-like Ruby merges now normalize equivalent `nomono/bundler` loader
+  requires to one logical signature, reducing duplicate loader churn and
+  preserving idempotent output when local workspace bootstrap paths differ
+- Prism Gemfile local-override merges now leave logically equivalent
+  `local_gems` / `VENDORED_GEMS` metadata blocks unchanged, preserving existing
+  comments and blank-line layout instead of rewriting already-correct output
 - Markdown templating now uses low-threshold paragraph refinement for
   non-README/CHANGELOG merges, preventing near-matching `AGENTS.md`
   paragraphs from being misclassified as separate destination-only and
