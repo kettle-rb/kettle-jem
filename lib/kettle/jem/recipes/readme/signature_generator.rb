@@ -32,7 +32,11 @@ end
 # @param text [String] Heading text
 # @return [String] Normalized text (lowercase, trimmed)
 def normalize_heading(text)
-  text.to_s.downcase.gsub(/[^a-z0-9\s]/, "").strip
+  strip_leading_heading_adornment(text).downcase.gsub(/[^\p{Alnum}\s]/u, "").strip
+end
+
+def strip_leading_heading_adornment(text)
+  text.to_s.sub(/\A(?:\d\uFE0F?\u20E3|[^[:alnum:][:space:]])+[ \t]*/u, "")
 end
 
 # Extract a signature from a table's header row.

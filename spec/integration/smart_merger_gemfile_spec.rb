@@ -111,7 +111,7 @@ RSpec.describe "SmartMerger gemfile integration" do
 
       GEMFILE
 
-      template_source_content = <<~GEMFILE
+      template_source_content = <<~'GEMFILE'
         # frozen_string_literal: true
 
         # We run code coverage on the latest version of Ruby only.
@@ -155,7 +155,7 @@ RSpec.describe "SmartMerger gemfile integration" do
         # Coverage
       GEMFILE
 
-      template_source_content = <<~GEMFILE
+      template_source_content = <<~'GEMFILE'
         # frozen_string_literal: true
 
         # We run code coverage on the latest version of Ruby only.
@@ -181,6 +181,116 @@ RSpec.describe "SmartMerger gemfile integration" do
       second_result = merger2.merge
 
       expect(second_result).to eq(first_result), "Second run should produce identical output"
+    end
+
+    it "keeps a single blank line between the magic comment and the first leading comment" do
+      template_source_content = <<~'GEMFILE'
+        # frozen_string_literal: true
+
+        # kettle-jem:freeze
+        # To retain chunks of comments & code during nomono templating:
+        # Wrap custom sections with freeze markers (e.g., as above and below this comment chunk).
+        # nomono will then preserve content between those markers across template runs.
+        # kettle-jem:unfreeze
+
+        source "https://gem.coop"
+
+        git_source(:codeberg) { |repo_name| "https://codeberg.org/#{repo_name}" }
+        git_source(:gitlab) { |repo_name| "https://gitlab.com/#{repo_name}" }
+
+        #### IMPORTANT #######################################################
+        # Gemfile is for local development ONLY; Gemfile is NOT loaded in CI #
+        ####################################################### IMPORTANT ####
+
+        # Include dependencies from nomono.gemspec
+        gemspec
+
+        # Templating (env-switched: KETTLE_RB_DEV=true for local paths)
+        eval_gemfile "gemfiles/modular/templating.gemfile"
+
+        # Debugging
+        eval_gemfile "gemfiles/modular/debug.gemfile"
+
+        # Code Coverage (env-switched: KETTLE_RB_DEV=true for local paths)
+        eval_gemfile "gemfiles/modular/coverage.gemfile"
+
+        # Linting
+        eval_gemfile "gemfiles/modular/style.gemfile"
+
+        # Documentation
+        eval_gemfile "gemfiles/modular/documentation.gemfile"
+
+        # Optional
+        eval_gemfile "gemfiles/modular/optional.gemfile"
+
+        ### Std Lib Extracted Gems
+        eval_gemfile "gemfiles/modular/x_std_libs.gemfile"
+
+        # See unlocked_deps appraisal for more details on irb inclusion
+        gem "irb", "~> 1.17" # ruby >= 2.7
+      GEMFILE
+
+      destination_content = <<~'GEMFILE'
+        # frozen_string_literal: true
+
+        # See unlocked_deps appraisal for more details on irb inclusion
+        gem "irb", "~> 1.17" # ruby >= 2.7
+        # kettle-jem:freeze
+        # To retain chunks of comments & code during nomono templating:
+        # Wrap custom sections with freeze markers (e.g., as above and below this comment chunk).
+        # nomono will then preserve content between those markers across template runs.
+        # kettle-jem:unfreeze
+
+        source "https://gem.coop"
+
+        git_source(:codeberg) { |repo_name| "https://codeberg.org/#{repo_name}" }
+        git_source(:gitlab) { |repo_name| "https://gitlab.com/#{repo_name}" }
+
+        #### IMPORTANT #######################################################
+        # Gemfile is for local development ONLY; Gemfile is NOT loaded in CI #
+        ####################################################### IMPORTANT ####
+
+        # Include dependencies from nomono.gemspec
+        gemspec
+
+        # Templating (env-switched: KETTLE_RB_DEV=true for local paths)
+        eval_gemfile "gemfiles/modular/templating.gemfile"
+
+        # Debugging
+        eval_gemfile "gemfiles/modular/debug.gemfile"
+
+        # Code Coverage (env-switched: KETTLE_RB_DEV=true for local paths)
+        eval_gemfile "gemfiles/modular/coverage.gemfile"
+
+        # Linting
+        eval_gemfile "gemfiles/modular/style.gemfile"
+
+        # Documentation
+        eval_gemfile "gemfiles/modular/documentation.gemfile"
+
+        # Optional
+        eval_gemfile "gemfiles/modular/optional.gemfile"
+
+        ### Std Lib Extracted Gems
+        eval_gemfile "gemfiles/modular/x_std_libs.gemfile"
+      GEMFILE
+
+      result = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source_content,
+        dest: destination_content,
+        path: "/home/pboling/src/kettle-rb/nomono/Gemfile",
+        file_type: :gemfile,
+      )
+
+      expect(result).to start_with(
+        <<~GEMFILE
+          # frozen_string_literal: true
+
+          # See unlocked_deps appraisal for more details on irb inclusion
+        GEMFILE
+      )
+      expect(result).not_to include("# frozen_string_literal: true\n\n\n")
     end
   end
 

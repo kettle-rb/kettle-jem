@@ -20,7 +20,7 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       expect(result).to eq("# Hello\n\nWorld\n")
     end
 
-    it "preserves H1 line from destination" do
+    it "preserves H1 line from destination when the title text meaning differs" do
       template = "# Template Title\n\nSome content\n"
       destination = "# 🔧 My Gem Title\n\nOld content\n"
 
@@ -30,6 +30,19 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       )
       expect(result).to include("# 🔧 My Gem Title")
       expect(result).not_to include("# Template Title")
+    end
+
+    it "keeps the template H1 when destination differs only by decorative leading adornment" do
+      template = "# 🍲 Nomono\n\nSome content\n"
+      destination = "# 1️⃣ Nomono\n\nOld content\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      expect(result).to include("# 🍲 Nomono")
+      expect(result).not_to include("# 1️⃣ Nomono")
     end
 
     it "preserves Synopsis section from destination" do
@@ -67,6 +80,61 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       )
       expect(result).to include("My usage notes.")
       expect(result).not_to include("Default usage.")
+    end
+
+    it "preserves critical destination section bodies while refreshing headings from the template" do
+      template = <<~MARKDOWN
+        # 🍲 Nomono
+
+        ## 🌻 Synopsis
+
+
+        ## ⚙️ Configuration
+
+
+        ## 🔧 Basic Usage
+
+
+        ## ✨ Installation
+
+        Template install.
+      MARKDOWN
+
+      destination = <<~MARKDOWN
+        # 1️⃣ Nomono
+
+        ## Synopsis
+
+        Destination synopsis.
+
+        ## Configuration
+
+        Destination configuration.
+
+        ## Basic Usage
+
+        Destination usage.
+
+        ## ✨ Installation
+
+        Old install.
+      MARKDOWN
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      aggregate_failures do
+        expect(result).to include("# 🍲 Nomono")
+        expect(result).to include("## 🌻 Synopsis\n\nDestination synopsis.")
+        expect(result).to include("## ⚙️ Configuration\n\nDestination configuration.")
+        expect(result).to include("## 🔧 Basic Usage\n\nDestination usage.")
+        expect(result).to include("## ✨ Installation\n\nTemplate install.")
+        expect(result).not_to include("## Synopsis\n\nDestination synopsis.")
+        expect(result).not_to include("## Configuration\n\nDestination configuration.")
+        expect(result).not_to include("## Basic Usage\n\nDestination usage.")
+      end
     end
 
     it "uses template content for non-preserved sections" do
@@ -148,12 +216,21 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
   end
 
   describe ".preserve_h1" do
-    it "replaces H1 from merged with destination H1" do
+    it "replaces H1 from merged with destination H1 when the title meaning differs" do
       merged = "# New Title\n\nContent\n"
       destination = "# 🎉 Old Title\n\nOld content\n"
       result = described_class.preserve_h1(merged, destination)
       expect(result).to include("# 🎉 Old Title")
       expect(result).not_to include("# New Title")
+    end
+
+    it "keeps the merged/template H1 when destination differs only by decorative leading adornment" do
+      merged = "# 🍲 Nomono\n\nContent\n"
+      destination = "# 1️⃣ Nomono\n\nOld content\n"
+
+      result = described_class.preserve_h1(merged, destination)
+
+      expect(result).to eq(merged)
     end
 
     it "returns merged unchanged when destination has no H1" do

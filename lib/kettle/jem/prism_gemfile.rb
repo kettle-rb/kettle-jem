@@ -36,7 +36,8 @@ module Kettle
           },
         )
 
-        validate_merged_result(merged, template_content: src_content, path: path, force: force)
+        validated = validate_merged_result(merged, template_content: src_content, path: path, force: force)
+        normalize_leading_spacing_after_magic_comments(validated)
       end
 
       # Merge top-level Gemfile declarations from src_content into dest_content.
@@ -119,6 +120,23 @@ module Kettle
         return value if value == true || value == false
 
         %w[1 true y yes].include?(value.to_s.strip.downcase)
+      end
+
+      def normalize_leading_spacing_after_magic_comments(content)
+        lines = content.to_s.lines
+        return content if lines.empty?
+
+        header_magic_types = Prism::Merge::MagicCommentSupport.header_magic_comment_types_for_lines(lines)
+        return content if header_magic_types.empty?
+
+        header_end_index = header_magic_types.keys.max
+        tail = lines[header_end_index..] || []
+        first_nonempty_index = tail.index { |line| !line.strip.empty? }
+        return content unless first_nonempty_index
+
+        normalized_tail = tail[first_nonempty_index..]
+        normalized = lines.first(header_end_index) + ["\n"] + normalized_tail
+        normalized.join
       end
 
 

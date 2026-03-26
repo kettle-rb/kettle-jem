@@ -5,13 +5,17 @@ module Kettle
     # Merges README.md files using markly-merge with section-level
     # destination preservation.
     #
-    # The template provides structure and boilerplate. Certain sections
-    # are preserved from the destination:
-    #   - The H1 line (title with emoji prefix)
+    # The template provides structure and heading text. Certain section
+    # bodies are preserved from the destination:
     #   - "Synopsis"
     #   - "Configuration"
     #   - "Basic Usage"
     #   - Any "Note:*" section at any heading level
+    #
+    # H1 handling is conditional: preserve the destination heading only when
+    # its semantic text differs from the template. When the only difference is
+    # a decorative leading adornment (emoji, keycap, etc.), the template H1
+    # wins so heading emojis can be refreshed.
     #
     # === Migration note (Phase 6 — AST over regex)
     #
@@ -108,7 +112,7 @@ module Kettle
           result = Markly::Merge::PartialTemplateMerger.new(
             template: replacement_content,
             destination: running,
-            anchor: {type: :heading, text: build_anchor_pattern(sec[:base])},
+            anchor: {type: :heading, text: build_anchor_pattern(sec[:heading_text])},
             replace_mode: true,
             when_missing: :skip,
             backend: :markly,
@@ -120,7 +124,8 @@ module Kettle
         running
       end
 
-      # Preserve the entire H1 line from destination.
+      # Preserve the destination H1 only when its semantic text differs from
+      # the merged/template H1.
       #
       # This remains line-based because an H1 heading section encompasses the
       # entire Markdown document (no same-or-higher-level heading follows), so
@@ -136,6 +141,7 @@ module Kettle
 
         replacement = destination_h1[:source].to_s
         return merged if replacement.empty? || replacement == merged_h1[:source]
+        return merged if semantic_heading_text(destination_h1[:heading_text]) == semantic_heading_text(merged_h1[:heading_text])
 
         Ast::Merge::StructuralEdit::PlanSet.new(
           source: merged,
@@ -158,16 +164,15 @@ module Kettle
         ).merged_content
       end
 
-      # Build an anchor pattern for matching a heading by its normalized base text.
+      # Build an anchor pattern for matching a heading by its exact rendered text.
       #
-      # The base text is lowercase with leading non-alphanumeric characters stripped.
       # Markly heading nodes expose text with a trailing newline, so the pattern
       # uses +\s*\z+ to absorb any trailing whitespace.
       #
-      # @param base [String] Normalized heading text (lowercase, leading non-alnum stripped)
+      # @param text [String] Heading text content without the leading markdown hashes
       # @return [Regexp] Pattern that matches the heading content
-      def build_anchor_pattern(base)
-        /\A\s*#{Regexp.escape(base)}\s*\z/i
+      def build_anchor_pattern(text)
+        /\A\s*#{Regexp.escape(text.to_s.strip)}\s*\z/i
       end
 
       # ----------------------------------------------------------------
@@ -274,6 +279,7 @@ module Kettle
           end_line: position[:end_line],
           level: node.header_level,
           heading: heading_source,
+          heading_text: heading_text,
           source: heading_source,
           base: normalize_heading_base(heading_text),
         }
@@ -292,11 +298,19 @@ module Kettle
       end
 
       def normalize_heading_base(text)
-        text.to_s.sub(/\A[^\p{Alnum}]+/u, "").strip.downcase
+        strip_leading_heading_adornment(text).strip.downcase
+      end
+
+      def semantic_heading_text(text)
+        strip_leading_heading_adornment(text).downcase.gsub(/[^\p{Alnum}\s]/u, "").squeeze(" ").strip
       end
 
       def note_heading?(base)
         base.to_s.start_with?(NOTE_PREFIX)
+      end
+
+      def strip_leading_heading_adornment(text)
+        text.to_s.sub(/\A(?:\d\uFE0F?\u20E3|[^[:alnum:][:space:]])+[ \t]*/u, "")
       end
 
       def section_body_branch(parsed, section, body_end_index)
