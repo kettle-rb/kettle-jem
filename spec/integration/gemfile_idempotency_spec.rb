@@ -284,5 +284,34 @@ RSpec.describe "Gemfile parsing idempotency" do
       expect(first_run).to include("# gem \"pry\", \"~> 0.14\"                     # ruby >= 2.0\nend\n")
       expect(first_run).not_to include("# gem \"pry\", \"~> 0.14\"                     # ruby >= 2.0\n\nend\n")
     end
+
+    it "normalizes equivalent nomono bundler requires instead of duplicating them" do
+      template_source = <<~GEMFILE
+        # frozen_string_literal: true
+
+        require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)
+
+        local_gems = %w[kettle-dev kettle-test kettle-soup-cover]
+      GEMFILE
+
+      existing_destination = <<~GEMFILE
+        # frozen_string_literal: true
+
+        require File.expand_path("../../lib/nomono/bundler", __dir__)
+
+        local_gems = %w[kettle-dev kettle-test kettle-soup-cover]
+      GEMFILE
+
+      result = Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: template_source,
+        dest: existing_destination,
+        path: "gemfiles/modular/coverage_local.gemfile",
+      )
+
+      expect(result.scan(/require File\.expand_path\(/).count).to eq(1)
+      expect(result).to include('require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)')
+      expect(result).not_to include('require File.expand_path("../../lib/nomono/bundler", __dir__)')
+    end
   end
 end

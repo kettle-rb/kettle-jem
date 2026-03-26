@@ -35,6 +35,9 @@ module Kettle
             return node unless defined?(Prism) && actual.is_a?(Prism::CallNode)
 
             case actual.name
+            when :require
+              normalized_require = normalized_gemfile_require_signature(actual)
+              normalized_require || node
             when :source
               # source() should be singleton
               [:source]
@@ -245,6 +248,31 @@ module Kettle
           when Prism::SymbolNode
             first_arg.unescaped.to_sym
           end
+        end
+
+        def normalized_gemfile_require_signature(node)
+          first_arg = node.arguments&.arguments&.first
+
+          case first_arg
+          when Prism::StringNode
+            return [:require, :nomono_bundler] if first_arg.unescaped.to_s == "nomono/bundler"
+          when Prism::CallNode
+            return unless first_arg.name == :expand_path
+            return unless extract_receiver_name(first_arg) == "File"
+
+            path_arg, base_arg = Array(first_arg.arguments&.arguments)
+            return unless path_arg.is_a?(Prism::StringNode)
+            return unless base_arg.nil? || base_arg.slice == "__dir__"
+
+            normalized_path = path_arg.unescaped.to_s
+            if normalized_path == "../../lib/nomono/bundler" ||
+                normalized_path.end_with?("/nomono/lib/nomono/bundler") ||
+                normalized_path.end_with?("/lib/nomono/bundler")
+              return [:require, :nomono_bundler]
+            end
+          end
+
+          nil
         end
       end
     end

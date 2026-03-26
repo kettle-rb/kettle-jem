@@ -68,6 +68,22 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with require \"nomono/bundler\" call" do
+      let(:node) { parse_call('require "nomono/bundler"') }
+
+      it "returns a normalized nomono bundler signature" do
+        expect(generator.call(node)).to eq([:require, :nomono_bundler])
+      end
+    end
+
+    context "with File.expand_path nomono bundler call" do
+      let(:node) { parse_call('require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)') }
+
+      it "returns the same normalized nomono bundler signature" do
+        expect(generator.call(node)).to eq([:require, :nomono_bundler])
+      end
+    end
+
     context "with non-CallNode" do
       let(:node) { parse_statement("x = 1") }
 

@@ -235,6 +235,55 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to include("  bash-merge")
     end
 
+    it "keeps the vendored export comment on its own line after a single-line local_gems assignment" do
+      merged = <<~RUBY
+        local_gems = %w[bash-merge kettle-jem prism-merge]
+
+        # export VENDORED_GEMS=bash-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[ast-merge prism-merge]
+
+        # export VENDORED_GEMS=ast-merge,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
+
+      expect(out).to include("local_gems = %w[ast-merge prism-merge bash-merge]\n\n# export VENDORED_GEMS=ast-merge,prism-merge,bash-merge\nplatform :mri do")
+      expect(out).not_to include("]# export VENDORED_GEMS")
+    end
+
+    it "leaves logically equivalent local override blocks unchanged" do
+      merged = <<~RUBY
+        local_gems = %w[ast-merge prism-merge bash-merge]
+
+        # export VENDORED_GEMS=ast-merge,prism-merge,bash-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[prism-merge bash-merge ast-merge]
+
+        # export VENDORED_GEMS=prism-merge,bash-merge,ast-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
+
+      expect(out).to eq(merged)
+    end
+
     it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
       merged = <<~RUBY
         platform :mri do
@@ -327,6 +376,61 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       RUBY
 
       out = described_class.merge_bootstrap_local_gem_overrides(source, destination, excluded_gems: "ast-merge")
+      expect(out).to eq(destination)
+    end
+
+    it "keeps the vendored export comment separated when bootstrap merging inserts it next to local_gems" do
+      source = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[ast-merge tree_haver prism-merge]
+
+        # export VENDORED_GEMS=ast-merge,tree_haver,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[tree_haver]
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_bootstrap_local_gem_overrides(source, destination, excluded_gems: "ast-merge")
+
+      expect(out).to include("local_gems = %w[tree_haver prism-merge]\n\n# export VENDORED_GEMS=tree_haver,prism-merge\nplatform :mri do")
+      expect(out).not_to include("]# export VENDORED_GEMS")
+    end
+
+    it "leaves logically equivalent bootstrap local override blocks unchanged" do
+      source = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[ast-merge tree_haver prism-merge]
+
+        # export VENDORED_GEMS=ast-merge,tree_haver,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[tree_haver prism-merge]
+
+        # export VENDORED_GEMS=tree_haver,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_bootstrap_local_gem_overrides(source, destination, excluded_gems: "ast-merge")
+
       expect(out).to eq(destination)
     end
   end
