@@ -20,6 +20,8 @@ module Kettle
     module SourceMerger
       BUG_URL = "https://github.com/kettle-rb/kettle-jem/issues"
       FREEZE_TOKEN = "kettle-jem"
+      RAKEFILE_DEFAULT_TASK_COMMENT = "# Define a base default task early so other files can enhance it.".freeze
+      RAKEFILE_DEFAULT_TASK_DESC = 'desc "Default tasks aggregator"'.freeze
       RUBY_FILE_TYPES = %i[ruby gemfile appraisals gemspec rakefile].freeze
       SUPPORTED_PREFERENCES = %i[template destination].freeze
 
@@ -186,7 +188,10 @@ module Kettle
           dest_content,
           **config.to_h,
         )
-        merger.merge
+        merged_content = merger.merge
+        return normalize_rakefile_default_task_scaffold(merged_content, src_content) if file_type == :rakefile
+
+        merged_content
       end
 
       def merger_options_for(file_type, **options)
@@ -251,6 +256,41 @@ module Kettle
         Integer(normalized, 10)
       rescue ArgumentError, TypeError
         value
+      end
+
+      def normalize_rakefile_default_task_scaffold(merged_content, template_content)
+        anchor = "#{RAKEFILE_DEFAULT_TASK_COMMENT}\n#{RAKEFILE_DEFAULT_TASK_DESC}\n"
+        return merged_content unless merged_content.include?(anchor)
+
+        template_task_block = extract_rakefile_default_task_block(template_content)
+        return merged_content unless template_task_block
+
+        insertion_block = template_task_block.end_with?("\n\n") ? template_task_block : "#{template_task_block}\n"
+        anchored_scaffold = "#{anchor}#{insertion_block}"
+        return merged_content if merged_content.include?(anchored_scaffold)
+
+        if merged_content.include?(template_task_block)
+          relocated = merged_content.sub("\n#{template_task_block}", "\n")
+          relocated = relocated.sub(template_task_block, "") if relocated == merged_content
+          return relocated.sub(scaffold_anchor_target(relocated, anchor), anchored_scaffold)
+        end
+
+        return merged_content if merged_content.match?(/^\s*task\s+:default\b/)
+
+        merged_content.sub(scaffold_anchor_target(merged_content, anchor), anchored_scaffold)
+      end
+
+      def extract_rakefile_default_task_block(template_content)
+        anchor = "#{RAKEFILE_DEFAULT_TASK_COMMENT}\n#{RAKEFILE_DEFAULT_TASK_DESC}\n"
+        after_anchor = template_content.to_s.split(anchor, 2).last
+        return unless after_anchor
+
+        after_anchor[/\Atask\s+:default\s+do\n(?:[ \t].*\n)*end\n?/]
+      end
+
+      def scaffold_anchor_target(content, anchor)
+        with_blank_line = "#{anchor}\n"
+        content.include?(with_blank_line) ? with_blank_line : anchor
       end
 
 

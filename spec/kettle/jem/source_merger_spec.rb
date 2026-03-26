@@ -178,6 +178,93 @@ RSpec.describe Kettle::Jem::SourceMerger do
       expect(merged).to include("task :default")
     end
 
+    it "relocates the bootstrap default task next to its desc when an identical task already exists later in the Rakefile", :prism_merge_only do
+      src = <<~RUBY
+        # frozen_string_literal: true
+
+        require "bundler/gem_tasks" if !Dir[File.join(__dir__, "*.gemspec")].empty?
+
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        task :default do
+          puts "Default task complete."
+        end
+
+        # External gems that define tasks - add here!
+        require "kettle/dev"
+      RUBY
+      dest = <<~RUBY
+        # frozen_string_literal: true
+
+        require "bundler/gem_tasks" if !Dir[File.join(__dir__, "*.gemspec")].empty?
+
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        # External gems that define tasks - add here!
+        require "kettle/dev"
+
+        task :default do
+          puts "Default task complete."
+        end
+      RUBY
+
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "Rakefile")
+
+      expect(merged.scan(/^task\s+:default\b/).size).to eq(1)
+      expect(merged).to include(<<~RUBY)
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        task :default do
+          puts "Default task complete."
+        end
+
+        # External gems that define tasks - add here!
+      RUBY
+      expect(merged.index('desc "Default tasks aggregator"')).to be < merged.index('task :default do')
+      expect(merged.index('task :default do')).to be < merged.index('# External gems that define tasks - add here!')
+    end
+
+    it "inserts the bootstrap default task when the desc is present but the template task is missing entirely", :prism_merge_only do
+      src = <<~RUBY
+        # frozen_string_literal: true
+
+        require "bundler/gem_tasks" if !Dir[File.join(__dir__, "*.gemspec")].empty?
+
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        task :default do
+          puts "Default task complete."
+        end
+
+        # External gems that define tasks - add here!
+        require "kettle/dev"
+      RUBY
+      dest = <<~RUBY
+        # frozen_string_literal: true
+
+        require "bundler/gem_tasks" if !Dir[File.join(__dir__, "*.gemspec")].empty?
+
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        # External gems that define tasks - add here!
+        require "kettle/dev"
+      RUBY
+
+      merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "Rakefile")
+
+      expect(merged.scan(/^task\s+:default\b/).size).to eq(1)
+      expect(merged).to include(<<~RUBY)
+        # Define a base default task early so other files can enhance it.
+        desc "Default tasks aggregator"
+        task :default do
+          puts "Default task complete."
+        end
+
+        # External gems that define tasks - add here!
+      RUBY
+      expect(merged.index('task :default do')).to be < merged.index('# External gems that define tasks - add here!')
+    end
+
     it "applies caller merge options to generic Ruby merges" do
       src = "value = :template\n"
       dest = "value = :destination\n"
