@@ -40,6 +40,13 @@ module Kettle
 
           merged_content = Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
           validate_merged_gemspec_content!(merged_content)
+
+          harmonized_content = harmonize_merged_content(
+            merged_content,
+            template_content: template_content,
+            destination_content: dest_content,
+          )
+          validate_merged_gemspec_content!(harmonized_content)
         rescue Kettle::Jem::Error
           raise
         rescue StandardError => e

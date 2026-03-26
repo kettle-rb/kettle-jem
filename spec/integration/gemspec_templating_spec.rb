@@ -267,6 +267,8 @@ RSpec.describe "Gemspec Templating Integration" do
         Gem::Specification.new do |spec|
           spec.name = "demo"
           spec.version = "1.0.0"
+
+          # Specify which files are part of the released package.
           spec.files = Dir[
             "lib/**/*.rb",
             "sig/**/*.rbs",
@@ -294,10 +296,14 @@ RSpec.describe "Gemspec Templating Integration" do
       merged = merge_gemspec(src: template, dest: destination)
 
       expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include("# Specify which files are part of the released package.")
       expect(merged).to include('spec.files = Dir[')
       expect(merged).to include('"lib/**/*.rb"')
       expect(merged).to include('"sig/**/*.rbs"')
       expect(merged).not_to include('IO.popen(%w[git ls-files -z]')
+      expect(merged).not_to include("# Specify which files should be added to the gem when it is released.")
+      expect(merged).not_to include("# The `git ls-files -z` loads the files in the RubyGem that have been added into git.")
+      expect(merged).not_to include("gemspec = File.basename(__FILE__)")
     end
 
     it "keeps runtime dependencies above the development dependency note block without duplicate dev entries and preserves aligned trailing comments" do

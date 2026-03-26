@@ -14,6 +14,12 @@ module Kettle
             template_content: template_content,
             destination_content: destination_content,
           )
+          updated = cleanup_destination_nonliteral_dir_assignment(
+            updated,
+            field: "files",
+            template_content: template_content,
+            destination_content: destination_content,
+          )
 
           normalize_dependency_sections(
             updated,

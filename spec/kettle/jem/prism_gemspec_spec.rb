@@ -528,8 +528,14 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         template_content: "template",
         destination_content: "dest",
       ).and_return("unioned")
-      expect(described_class).to receive(:normalize_dependency_sections).with(
+      expect(described_class).to receive(:cleanup_destination_nonliteral_dir_assignment).with(
         "unioned",
+        field: "files",
+        template_content: "template",
+        destination_content: "dest",
+      ).and_return("cleaned")
+      expect(described_class).to receive(:normalize_dependency_sections).with(
+        "cleaned",
         template_content: "template",
         destination_content: "dest",
         prefer_template: false,
@@ -2110,12 +2116,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: destination_content,
         ),
       ).to eq(
-        "spec.files = Dir[\n" \
+        "  spec.files = Dir[\n" \
         "    \"sig/**/*.rbs\",\n" \
         "    \"test/**/*.rb\",\n" \
         "    \"lib/**/*.rb\",\n" \
         "    \"README.md\",\n" \
-        "  ]",
+        "  ]\n",
       )
     end
 
@@ -2159,9 +2165,13 @@ RSpec.describe Kettle::Jem::PrismGemspec do
   end
 
   describe ".replace_destination_nonliteral_assignment_source" do
-    it "replaces a nonliteral destination assignment with the template literal Dir assignment" do
+    it "replaces a nonliteral destination assignment with the template literal Dir assignment and attached comment while dropping Bundler boilerplate" do
       merged_content = <<~RUBY
         Gem::Specification.new do |spec|
+          # Specify which files are part of the released package.
+          # Specify which files should be added to the gem when it is released.
+          # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
+          gemspec = File.basename(__FILE__)
           spec.files = Dir[
             generated_files,
             "lib/**/*.rb",
@@ -2171,6 +2181,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       template_content = <<~RUBY
         Gem::Specification.new do |spec|
+          # Specify which files are part of the released package.
           spec.files = Dir[
             "lib/**/*.rb",
             "sig/**/*.rbs",
@@ -2196,7 +2207,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_node: gemspec_field_node_for(destination_content),
           destination_content: destination_content,
         ),
-      ).to eq("spec.files = Dir[\n    \"lib/**/*.rb\",\n    \"sig/**/*.rbs\",\n  ]")
+      ).to eq(
+        replacement: "  # Specify which files are part of the released package.\n" \
+          "  spec.files = Dir[\n" \
+          "    \"lib/**/*.rb\",\n" \
+          "    \"sig/**/*.rbs\",\n" \
+          "  ]\n",
+        start_line: 3,
+        end_line: 9,
+      )
     end
   end
 
@@ -2226,8 +2245,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       RUBY
 
       expect(described_class.send(:literal_dir_assignment_parts, gemspec_field_node_for(content), content: content)).to eq(
-        opening: "spec.files = Dir[\n",
-        closing: "  ] # keep closing",
+        opening: "  spec.files = Dir[\n",
+        closing: "  ] # keep closing\n",
         groups: [
           {
             key: '"lib/**/*.rb"',

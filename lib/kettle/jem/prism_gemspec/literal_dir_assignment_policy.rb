@@ -29,7 +29,48 @@ module Kettle
             destination_node: destination_node,
             destination_content: destination_content,
           )
+          replacement_start_line = merged_node.location.start_line
+          replacement_end_line = merged_node.location.end_line
           replacement ||= replace_destination_nonliteral_assignment_source(
+            merged_node: merged_node,
+            merged_content: content,
+            template_node: template_node,
+            template_content: template_content,
+            destination_node: destination_node,
+            destination_content: destination_content,
+          )
+          if replacement.is_a?(Hash)
+            replacement_start_line = replacement.fetch(:start_line, replacement_start_line)
+            replacement_end_line = replacement.fetch(:end_line, replacement_end_line)
+            replacement = replacement[:replacement]
+          end
+          return content unless replacement
+
+          apply_dir_assignment_replacement(
+            content: content,
+            replacement: replacement,
+            start_line: replacement_start_line,
+            end_line: replacement_end_line,
+            field: field,
+          )
+        end
+
+        def cleanup_destination_nonliteral_dir_assignment(content, field:, template_content:, destination_content:)
+          return content if template_content.to_s.strip.empty? || destination_content.to_s.strip.empty?
+
+          merged_context = gemspec_context(content)
+          template_context = gemspec_context(template_content)
+          destination_context = gemspec_context(destination_content)
+          raise_malformed_dir_assignment_content!(:merged, field) unless merged_context
+          raise_malformed_dir_assignment_content!(:template, field) unless template_context
+          raise_malformed_dir_assignment_content!(:destination, field) unless destination_context
+
+          template_node = find_field_node(template_context[:stmt_nodes], template_context[:blk_param], field)
+          destination_node = find_field_node(destination_context[:stmt_nodes], destination_context[:blk_param], field)
+          merged_node = find_field_node(merged_context[:stmt_nodes], merged_context[:blk_param], field)
+          return content unless template_node && destination_node && merged_node
+
+          replacement = replace_destination_nonliteral_assignment_source(
             merged_node: merged_node,
             merged_content: content,
             template_node: template_node,
@@ -41,9 +82,9 @@ module Kettle
 
           apply_dir_assignment_replacement(
             content: content,
-            replacement: replacement,
-            start_line: merged_node.location.start_line,
-            end_line: merged_node.location.end_line,
+            replacement: replacement[:replacement],
+            start_line: replacement.fetch(:start_line, merged_node.location.start_line),
+            end_line: replacement.fetch(:end_line, merged_node.location.end_line),
             field: field,
           )
         end
@@ -99,7 +140,7 @@ module Kettle
           rhs_node = literal_dir_assignment_rhs_node(field_node)
           return unless literal_dir_call_node?(rhs_node)
 
-          lines = exact_field_assignment_source(field_node, content).lines
+          lines = full_field_assignment_source(field_node, content).lines
           return if lines.length < 3
 
           groups = literal_collection_groups(field_node: field_node, rhs_node: rhs_node, lines: lines)
@@ -169,6 +210,67 @@ module Kettle
           Kettle::Jem::PrismUtils.node_slice_with_trailing_comment(field_node, content)
         end
 
+        def full_field_assignment_source(field_node, content)
+          content.lines[(field_node.location.start_line - 1)...field_node.location.end_line].join
+        end
+
+        def field_source_with_attached_comments(field_node, content)
+          lines = content.lines
+          start_index = field_node.location.start_line - 1
+
+          while start_index.positive? && lines[start_index - 1].lstrip.start_with?("#")
+            start_index -= 1
+          end
+
+          lines[start_index...field_node.location.end_line].join
+        end
+
+        def attached_comment_lines(field_node, content)
+          lines = content.lines
+          start_index = field_node.location.start_line - 1
+
+          while start_index.positive? && lines[start_index - 1].lstrip.start_with?("#")
+            start_index -= 1
+          end
+
+          lines[start_index...(field_node.location.start_line - 1)]
+        end
+
+        def generic_bundler_files_boilerplate_start_line(field_node, content, preserved_comment_lines: [])
+          lines = content.lines
+          current_index = field_node.location.start_line - 2
+          start_index = field_node.location.start_line - 1
+
+          Array(preserved_comment_lines).reverse_each do |line|
+            next unless current_index >= 0 && lines[current_index] == line
+
+            current_index -= 1
+          end
+
+          if current_index >= 0 && generic_bundler_files_gemspec_assignment_line?(lines[current_index])
+            start_index = current_index
+            current_index -= 1
+          end
+
+          [
+            "# The `git ls-files -z` loads the files in the RubyGem that have been added into git.",
+            "# Specify which files should be added to the gem when it is released.",
+          ].each do |expected_line|
+            next unless current_index >= 0 && lines[current_index].strip == expected_line
+
+            start_index = current_index
+            current_index -= 1
+          end
+
+          return if start_index == field_node.location.start_line - 1
+
+          start_index + 1
+        end
+
+        def generic_bundler_files_gemspec_assignment_line?(line)
+          line.to_s.match?(/^\s*gemspec\s*=\s*File\.basename\(__FILE__\)\s*$/)
+        end
+
         def replace_destination_nonliteral_assignment_source(
           merged_node:,
           merged_content:,
@@ -180,11 +282,19 @@ module Kettle
           return if literal_dir_assignment_parts(destination_node, content: destination_content)
           return unless literal_dir_assignment_parts(template_node, content: template_content)
 
-          merged_source = exact_field_assignment_source(merged_node, merged_content)
-          template_source = exact_field_assignment_source(template_node, template_content)
-          return if merged_source == template_source
+          replacement = field_source_with_attached_comments(template_node, template_content)
+          cleanup_start_line = generic_bundler_files_boilerplate_start_line(
+            merged_node,
+            merged_content,
+            preserved_comment_lines: attached_comment_lines(template_node, template_content),
+          )
+          return if cleanup_start_line.nil? && field_source_with_attached_comments(merged_node, merged_content) == replacement
 
-          template_source
+          {
+            replacement: replacement,
+            start_line: cleanup_start_line || merged_node.location.start_line,
+            end_line: merged_node.location.end_line,
+          }
         end
       end
     end
