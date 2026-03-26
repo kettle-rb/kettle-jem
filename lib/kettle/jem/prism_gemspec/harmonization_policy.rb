@@ -21,6 +21,8 @@ module Kettle
             destination_content: destination_content,
             prefer_template: false,
           )
+        rescue Kettle::Jem::Error
+          raise
         rescue StandardError => e
           debug_error(e, __method__)
           content
@@ -35,6 +37,8 @@ module Kettle
             destination_content: destination_content,
             prefer_template: prefer_template,
           )
+        rescue Kettle::Jem::Error
+          raise
         rescue StandardError => e
           debug_error(e, __method__)
           content

@@ -38,10 +38,19 @@ module Kettle
           }
           run_options[:context] = runtime_context unless runtime_context.empty?
 
-          Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
+          merged_content = Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
+          validate_merged_gemspec_content!(merged_content)
+        rescue Kettle::Jem::Error
+          raise
         rescue StandardError => e
           Kernel.warn("[#{__method__}] Gemspec recipe merge failed: #{e.message}")
           template_content
+        end
+
+        def validate_merged_gemspec_content!(content)
+          return content if content.to_s.strip.empty? || gemspec_context(content)
+
+          raise Kettle::Jem::Error, "Malformed merged gemspec content after recipe execution."
         end
 
         def build_runtime_context(context, min_ruby:, entrypoint_require:, namespace:)

@@ -2,6 +2,24 @@
 
 
 RSpec.describe Kettle::Jem::PrismGemspec do
+  def gemspec_field_node_for(content, field = "files")
+    context = described_class.send(:gemspec_context, content)
+    described_class.send(:find_field_node, context[:stmt_nodes], context[:blk_param], field)
+  end
+
+  def gemspec_field_node_and_source_for(content, field = "files")
+    field_node = gemspec_field_node_for(content, field)
+    [field_node, described_class.send(:exact_field_assignment_source, field_node, content)]
+  end
+
+  def wrap_gemspec_assignment(source)
+    [
+      "Gem::Specification.new do |spec|\n",
+      source.to_s.lines.map { |line| "  #{line}" }.join,
+      "end\n",
+    ].join
+  end
+
   describe ".merge" do
     it "runs the gemspec recipe through the shared recipe runner" do
       template = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
@@ -76,6 +94,45 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(merged).to include('"lib/**/*.rb"')
       expect(merged).to include('"sig/**/*.rbs"')
+    end
+
+    it "re-raises gemspec merge errors from the recipe runner instead of silently falling back" do
+      template = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
+      dest = "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n"
+      recipe = instance_double(Ast::Merge::Recipe::Config)
+      runner = instance_double(Ast::Merge::Recipe::Runner)
+
+      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      expect(runner).to receive(:run_content).with(
+        template_content: template,
+        destination_content: dest,
+        relative_path: "project.gemspec",
+      ).and_raise(Kettle::Jem::Error, "Malformed merged gemspec content while harmonizing \"files\".")
+
+      expect {
+        described_class.merge(template, dest)
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
+    end
+
+    it "raises when the recipe runner returns malformed merged gemspec content" do
+      template = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
+      dest = "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n"
+      recipe = instance_double(Ast::Merge::Recipe::Config)
+      runner = instance_double(Ast::Merge::Recipe::Runner)
+      result = Struct.new(:content).new("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nendend\n")
+
+      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      expect(runner).to receive(:run_content).with(
+        template_content: template,
+        destination_content: dest,
+        relative_path: "project.gemspec",
+      ).and_return(result)
+
+      expect {
+        described_class.merge(template, dest)
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content after recipe execution/)
     end
 
     it "rewrites the version loader via recipe execution when runtime metadata is provided", :prism_merge_only do
@@ -485,6 +542,23 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: "dest",
         ),
       ).to eq("normalized")
+    end
+
+    it "re-raises malformed-content gemspec errors instead of returning the unharmonized merge" do
+      expect(described_class).to receive(:union_literal_dir_assignment).with(
+        "merged",
+        field: "files",
+        template_content: "template",
+        destination_content: "dest",
+      ).and_raise(Kettle::Jem::Error, "Malformed merged gemspec content while harmonizing \"files\".")
+
+      expect {
+        described_class.harmonize_merged_content(
+          "merged",
+          template_content: "template",
+          destination_content: "dest",
+        )
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
     end
   end
 
@@ -1755,20 +1829,20 @@ RSpec.describe Kettle::Jem::PrismGemspec do
   end
 
   describe ".union_literal_dir_assignment" do
-    it "returns the original content when any gemspec context is unavailable" do
+    it "raises a descriptive error when any gemspec context is unavailable" do
       allow(described_class).to receive(:gemspec_context).with("merged").and_return(nil)
       allow(described_class).to receive(:gemspec_context).with("template").and_return({stmt_nodes: [:template], blk_param: "spec"})
       allow(described_class).to receive(:gemspec_context).with("destination").and_return({stmt_nodes: [:destination], blk_param: "spec"})
 
-      expect(
+      expect {
         described_class.send(
           :union_literal_dir_assignment,
           "merged",
           field: "files",
           template_content: "template",
           destination_content: "destination",
-        ),
-      ).to eq("merged")
+        )
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
     end
 
     it "merges the requested field through a shared splice-plan application when all contexts resolve" do
@@ -1787,9 +1861,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(described_class).to receive(:find_field_node).with(template_context[:stmt_nodes], template_context[:blk_param], "files").and_return(template_node)
       expect(described_class).to receive(:find_field_node).with(destination_context[:stmt_nodes], destination_context[:blk_param], "files").and_return(destination_node)
       expect(described_class).to receive(:merge_dir_assignment_source).with(
-        merged_source: "merged files",
-        template_source: "template files",
-        destination_source: "destination files",
+        merged_node: merged_node,
+        merged_content: "merged",
+        template_node: template_node,
+        template_content: "template",
+        destination_node: destination_node,
+        destination_content: "destination",
       ).and_return("replacement")
       expect(described_class).to receive(:build_splice_plan).with(
         content: "merged",
@@ -1823,7 +1900,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       ).to eq("updated")
     end
 
-    it "restores a nonliteral destination files assignment even when the merged gemspec is no longer parseable" do
+    it "raises when the merged gemspec content is malformed instead of attempting textual recovery" do
       content = <<~RUBY
         Gem::Specification.new do |spec|
           spec.name = "demo"
@@ -1864,17 +1941,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         end
       RUBY
 
-      result = described_class.send(
-        :union_literal_dir_assignment,
-        content,
-        field: "files",
-        template_content: template_content,
-        destination_content: destination_content,
-      )
-
-      expect(Prism.parse(result).success?).to be(true)
-      expect(result).to include('spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|')
-      expect(result).not_to include("spec.files = Dir[")
+      expect {
+        described_class.send(
+          :union_literal_dir_assignment,
+          content,
+          field: "files",
+          template_content: template_content,
+          destination_content: destination_content,
+        )
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
     end
   end
 
@@ -1927,69 +2002,51 @@ RSpec.describe Kettle::Jem::PrismGemspec do
   end
 
   describe ".merge_dir_assignment_source" do
-    it "returns nil unless multiline collection parts are available for all three sources" do
-      expect(described_class).to receive(:multiline_collection_parts).with("merged").and_return(nil)
-      expect(described_class).to receive(:multiline_collection_parts).with("template").and_return(
-        {opening: "Dir[\n", closing: "]\n", groups: []},
-      )
-      expect(described_class).to receive(:multiline_collection_parts).with("destination").and_return(
-        {opening: "Dir[\n", closing: "]\n", groups: []},
-      )
-
-      expect(
-        described_class.send(
-          :merge_dir_assignment_source,
-          merged_source: "merged",
-          template_source: "template",
-          destination_source: "destination",
-        ),
-      ).to be_nil
-    end
-
     it "keeps merged framing while combining unique groups in destination, merged, then template order" do
-      merged_parts = {
-        opening: "spec.files = Dir[\n",
-        closing: "]\n",
-        groups: [
-          {key: '"lib/**/*.rb"', lines: ["  \"lib/**/*.rb\",\n"]},
-          {key: '"sig/**/*.rbs"', lines: ["  \"sig/**/*.rbs\",\n"]},
-        ],
-      }
-      template_parts = {
-        opening: "ignored template opening\n",
-        closing: "ignored template closing\n",
-        groups: [
-          {key: '"lib/**/*.rb"', lines: ["  \"lib/**/*.rb\",\n"]},
-          {key: '"README.md"', lines: ["  \"README.md\",\n"]},
-        ],
-      }
-      destination_parts = {
-        opening: "ignored destination opening\n",
-        closing: "ignored destination closing\n",
-        groups: [
-          {key: '"sig/**/*.rbs"', lines: ["  \"sig/**/*.rbs\",\n"]},
-          {key: '"test/**/*.rb"', lines: ["  \"test/**/*.rb\",\n"]},
-        ],
-      }
+      merged_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
 
-      expect(described_class).to receive(:multiline_collection_parts).with("merged").and_return(merged_parts)
-      expect(described_class).to receive(:multiline_collection_parts).with("template").and_return(template_parts)
-      expect(described_class).to receive(:multiline_collection_parts).with("destination").and_return(destination_parts)
+      template_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "README.md",
+          ]
+        end
+      RUBY
+
+      destination_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            "sig/**/*.rbs",
+            "test/**/*.rb",
+          ]
+        end
+      RUBY
 
       expect(
         described_class.send(
           :merge_dir_assignment_source,
-          merged_source: "merged",
-          template_source: "template",
-          destination_source: "destination",
+          merged_node: gemspec_field_node_for(merged_content),
+          merged_content: merged_content,
+          template_node: gemspec_field_node_for(template_content),
+          template_content: template_content,
+          destination_node: gemspec_field_node_for(destination_content),
+          destination_content: destination_content,
         ),
       ).to eq(
         "spec.files = Dir[\n" \
-        "  \"sig/**/*.rbs\",\n" \
-        "  \"test/**/*.rb\",\n" \
-        "  \"lib/**/*.rb\",\n" \
-        "  \"README.md\",\n" \
-        "]\n",
+        "    \"sig/**/*.rbs\",\n" \
+        "    \"test/**/*.rb\",\n" \
+        "    \"lib/**/*.rb\",\n" \
+        "    \"README.md\",\n" \
+        "  ]",
       )
     end
 
@@ -2014,13 +2071,19 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           end
         end
       RUBY
+      merged_content = wrap_gemspec_assignment(merged_source)
+      template_content = wrap_gemspec_assignment(template_source)
+      destination_content = wrap_gemspec_assignment(destination_source)
 
       expect(
         described_class.send(
           :merge_dir_assignment_source,
-          merged_source: merged_source,
-          template_source: template_source,
-          destination_source: destination_source,
+          merged_node: gemspec_field_node_for(merged_content),
+          merged_content: merged_content,
+          template_node: gemspec_field_node_for(template_content),
+          template_content: template_content,
+          destination_node: gemspec_field_node_for(destination_content),
+          destination_content: destination_content,
         ),
       ).to be_nil
     end
@@ -2028,137 +2091,143 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
   describe ".preserve_destination_nonliteral_assignment_source" do
     it "restores the destination assignment when the destination is nonliteral and the merged assignment was corrupted" do
-      merged_source = <<~RUBY
-        spec.files = Dir[
-          generated_files,
-          "lib/**/*.rb",
-        ]
+      merged_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            generated_files,
+            "lib/**/*.rb",
+          ]
+        end
       RUBY
 
-      destination_source = <<~RUBY
-        spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
-          ls.readlines("\\x0", chomp: true)
+      destination_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
+            ls.readlines("\\x0", chomp: true)
+          end
         end
       RUBY
 
       expect(
         described_class.send(
           :preserve_destination_nonliteral_assignment_source,
-          merged_source: merged_source,
-          destination_source: destination_source,
+          merged_node: gemspec_field_node_for(merged_content),
+          merged_content: merged_content,
+          destination_node: gemspec_field_node_for(destination_content),
+          destination_content: destination_content,
         ),
-      ).to eq(destination_source)
+      ).to eq("spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|\n    ls.readlines(\"\\x0\", chomp: true)\n  end")
     end
   end
 
-  describe ".multiline_collection_parts" do
-    it "returns nil when the source does not contain at least opening, body, and closing lines" do
-      expect(described_class.send(:multiline_collection_parts, nil)).to be_nil
-      expect(described_class.send(:multiline_collection_parts, "Dir[\n]\n")).to be_nil
-    end
-
-    it "returns nil when the body contains executable lines instead of literal entries" do
-      source = <<~RUBY
-        spec.files = Dir[
-          generated_files,
-          "lib/**/*.rb",
-        ]
+  describe ".literal_dir_assignment_parts" do
+    it "returns nil when the assignment is not a multiline literal Dir list" do
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            generated_files,
+            "lib/**/*.rb",
+          ]
+        end
       RUBY
 
-      expect(described_class.send(:multiline_collection_parts, source)).to be_nil
+      expect(described_class.send(:literal_dir_assignment_parts, gemspec_field_node_for(content), content: content)).to be_nil
     end
 
-    it "keeps the outer framing and delegates only middle lines to literal_collection_groups" do
-      source = <<~RUBY
-        spec.files = Dir[
-          "lib/**/*.rb",
-          "sig/**/*.rbs",
-        ]
+    it "keeps the outer framing and grouped literal-entry lines" do
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            # keep lib
+            "lib/**/*.rb",
+            "sig/**/*.rbs", # keep inline
+          ] # keep closing
+        end
       RUBY
-      middle_lines = [
-        "  \"lib/**/*.rb\",\n",
-        "  \"sig/**/*.rbs\",\n",
-      ]
-      groups = [{key: '"lib/**/*.rb"', lines: [middle_lines.first]}]
 
-      expect(described_class).to receive(:literal_collection_groups).with(middle_lines).and_return(groups)
-
-      expect(described_class.send(:multiline_collection_parts, source)).to eq(
+      expect(described_class.send(:literal_dir_assignment_parts, gemspec_field_node_for(content), content: content)).to eq(
         opening: "spec.files = Dir[\n",
-        closing: "]\n",
-        groups: groups,
+        closing: "  ] # keep closing",
+        groups: [
+          {
+            key: '"lib/**/*.rb"',
+            lines: [
+              "    # keep lib\n",
+              "    \"lib/**/*.rb\",\n",
+            ],
+          },
+          {
+            key: '"sig/**/*.rbs"',
+            lines: [
+              "    \"sig/**/*.rbs\", # keep inline\n",
+            ],
+          },
+        ],
       )
     end
   end
 
   describe ".literal_collection_groups" do
     it "groups each literal entry with any leading blank or comment lines" do
-      lines = [
-        "\n",
-        "  # keep me with lib\n",
-        "  \"lib/**/*.rb\",\n",
-        "  # keep me with sig\n",
-        "  \"sig/**/*.rbs\",\n",
-      ]
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
 
-      expect(described_class).to receive(:normalize_collection_entry_key).with("  \"lib/**/*.rb\",\n").and_return('"lib/**/*.rb"')
-      expect(described_class).to receive(:normalize_collection_entry_key).with("  \"sig/**/*.rbs\",\n").and_return('"sig/**/*.rbs"')
+            # keep me with lib
+            "lib/**/*.rb",
+            # keep me with sig
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
+      field_node, source = gemspec_field_node_and_source_for(content)
+      rhs_node = described_class.send(:literal_dir_assignment_rhs_node, field_node)
 
-      expect(described_class.send(:literal_collection_groups, lines)).to eq([
+      expect(described_class.send(:literal_collection_groups, field_node: field_node, rhs_node: rhs_node, lines: source.lines)).to eq([
         {
           key: '"lib/**/*.rb"',
           lines: [
             "\n",
-            "  # keep me with lib\n",
-            "  \"lib/**/*.rb\",\n",
+            "    # keep me with lib\n",
+            "    \"lib/**/*.rb\",\n",
           ],
         },
         {
           key: '"sig/**/*.rbs"',
           lines: [
-            "  # keep me with sig\n",
-            "  \"sig/**/*.rbs\",\n",
+            "    # keep me with sig\n",
+            "    \"sig/**/*.rbs\",\n",
           ],
         },
       ])
     end
 
     it "drops trailing blank or comment lines that are not followed by a literal entry" do
-      lines = [
-        "  # keep me with lib\n",
-        "  \"lib/**/*.rb\",\n",
-        "\n",
-        "  # trailing comment\n",
-      ]
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            # keep me with lib
+            "lib/**/*.rb",
 
-      expect(described_class).to receive(:normalize_collection_entry_key).with("  \"lib/**/*.rb\",\n").and_return('"lib/**/*.rb"')
+            # trailing comment
+          ]
+        end
+      RUBY
+      field_node, source = gemspec_field_node_and_source_for(content)
+      rhs_node = described_class.send(:literal_dir_assignment_rhs_node, field_node)
 
-      expect(described_class.send(:literal_collection_groups, lines)).to eq([
+      expect(described_class.send(:literal_collection_groups, field_node: field_node, rhs_node: rhs_node, lines: source.lines)).to eq([
         {
           key: '"lib/**/*.rb"',
           lines: [
-            "  # keep me with lib\n",
-            "  \"lib/**/*.rb\",\n",
+            "    # keep me with lib\n",
+            "    \"lib/**/*.rb\",\n",
           ],
         },
       ])
     end
   end
 
-  describe ".normalize_collection_entry_key" do
-    it "strips trailing inline comments, outer whitespace, and one trailing comma" do
-      expect(
-        described_class.send(:normalize_collection_entry_key, %(  "lib/**/*.rb",   # keep this comment\n)),
-      ).to eq('"lib/**/*.rb"')
-      expect(
-        described_class.send(:normalize_collection_entry_key, %(  "README with spaces.md",\n)),
-      ).to eq('"README with spaces.md"')
-    end
-
-    it "coerces nil to an empty normalized key" do
-      expect(described_class.send(:normalize_collection_entry_key, nil)).to eq("")
-    end
-  end
 
 
   describe ".dependency_node_records" do
