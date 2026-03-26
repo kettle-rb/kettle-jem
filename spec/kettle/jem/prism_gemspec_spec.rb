@@ -2158,13 +2158,22 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
   end
 
-  describe ".preserve_destination_nonliteral_assignment_source" do
-    it "restores the destination assignment when the destination is nonliteral and the merged assignment was corrupted" do
+  describe ".replace_destination_nonliteral_assignment_source" do
+    it "replaces a nonliteral destination assignment with the template literal Dir assignment" do
       merged_content = <<~RUBY
         Gem::Specification.new do |spec|
           spec.files = Dir[
             generated_files,
             "lib/**/*.rb",
+          ]
+        end
+      RUBY
+
+      template_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
           ]
         end
       RUBY
@@ -2179,13 +2188,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(
         described_class.send(
-          :preserve_destination_nonliteral_assignment_source,
+          :replace_destination_nonliteral_assignment_source,
           merged_node: gemspec_field_node_for(merged_content),
           merged_content: merged_content,
+          template_node: gemspec_field_node_for(template_content),
+          template_content: template_content,
           destination_node: gemspec_field_node_for(destination_content),
           destination_content: destination_content,
         ),
-      ).to eq("spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|\n    ls.readlines(\"\\x0\", chomp: true)\n  end")
+      ).to eq("spec.files = Dir[\n    \"lib/**/*.rb\",\n    \"sig/**/*.rbs\",\n  ]")
     end
   end
 

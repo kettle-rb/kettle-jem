@@ -262,7 +262,7 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).to include('"sig/**/*.rbs"')
     end
 
-    it "raises when executable destination spec.files merging yields malformed merged gemspec output" do
+    it "replaces executable destination spec.files with the template Dir assignment" do
       template = <<~RUBY
         Gem::Specification.new do |spec|
           spec.name = "demo"
@@ -291,9 +291,13 @@ RSpec.describe "Gemspec Templating Integration" do
         end
       RUBY
 
-      expect {
-        merge_gemspec(src: template, dest: destination)
-      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content/)
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include('spec.files = Dir[')
+      expect(merged).to include('"lib/**/*.rb"')
+      expect(merged).to include('"sig/**/*.rbs"')
+      expect(merged).not_to include('IO.popen(%w[git ls-files -z]')
     end
 
     it "keeps runtime dependencies above the development dependency note block without duplicate dev entries and preserves aligned trailing comments" do

@@ -29,9 +29,11 @@ module Kettle
             destination_node: destination_node,
             destination_content: destination_content,
           )
-          replacement ||= preserve_destination_nonliteral_assignment_source(
+          replacement ||= replace_destination_nonliteral_assignment_source(
             merged_node: merged_node,
             merged_content: content,
+            template_node: template_node,
+            template_content: template_content,
             destination_node: destination_node,
             destination_content: destination_content,
           )
@@ -167,14 +169,22 @@ module Kettle
           Kettle::Jem::PrismUtils.node_slice_with_trailing_comment(field_node, content)
         end
 
-        def preserve_destination_nonliteral_assignment_source(merged_node:, merged_content:, destination_node:, destination_content:)
+        def replace_destination_nonliteral_assignment_source(
+          merged_node:,
+          merged_content:,
+          template_node:,
+          template_content:,
+          destination_node:,
+          destination_content:
+        )
           return if literal_dir_assignment_parts(destination_node, content: destination_content)
+          return unless literal_dir_assignment_parts(template_node, content: template_content)
 
           merged_source = exact_field_assignment_source(merged_node, merged_content)
-          destination_source = exact_field_assignment_source(destination_node, destination_content)
-          return if merged_source == destination_source
+          template_source = exact_field_assignment_source(template_node, template_content)
+          return if merged_source == template_source
 
-          destination_source
+          template_source
         end
       end
     end
