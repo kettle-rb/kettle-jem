@@ -81,6 +81,11 @@ module Kettle
           return range unless range.begin.positive?
           return range unless lines[range.begin - 1].to_s.strip.empty?
 
+          note_index = note_block_start_index(lines)
+          if note_index && note_block_end_index(lines, note_index) == range.begin - 1
+            return range
+          end
+
           (range.begin - 1)..range.end
         end
 
@@ -108,7 +113,10 @@ module Kettle
             relocation_snapshot[:note_end_index],
           )
 
-          insert_blocks_before_note(remaining_lines, moved_blocks)
+          ensure_note_block_trailing_separator(
+            insert_blocks_before_note(remaining_lines, moved_blocks),
+            preserve_separator: relocation_snapshot[:note_trailing_blank],
+          )
         end
 
         def runtime_dependency_relocation_snapshot(lines)
@@ -121,8 +129,25 @@ module Kettle
 
           {
             note_end_index: note_end_index,
+            note_trailing_blank: lines[note_end_index]&.strip&.empty?,
             runtime_after_note: runtime_after_note,
           }
+        end
+
+        def ensure_note_block_trailing_separator(content, preserve_separator:)
+          return content unless preserve_separator
+
+          lines = content.to_s.lines
+          note_index = note_block_start_index(lines)
+          return content unless note_index
+
+          note_end_index = note_block_end_index(lines, note_index)
+          return content if lines[note_end_index]&.strip&.empty?
+
+          following_line = lines[note_end_index + 1]
+          return content unless following_line&.lstrip&.start_with?("#")
+
+          (lines[0..note_end_index] + ["\n"] + lines[(note_end_index + 1)..]).join
         end
 
         def extract_runtime_dependency_blocks_after_note(lines, runtime_after_note, note_end_index)

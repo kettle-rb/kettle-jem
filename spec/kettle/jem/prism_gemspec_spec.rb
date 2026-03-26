@@ -1232,6 +1232,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(snapshot).to eq(
         note_end_index: note_end_index,
+        note_trailing_blank: nil,
         runtime_after_note: runtime_after_note,
       )
     end
@@ -1544,6 +1545,31 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(out).not_to include("# Legacy duplicate")
     end
 
+    it "keeps the note separator when removing a duplicate development block directly below the note" do
+      content = <<~RUBY
+          spec.add_dependency("kettle-dev", "~> 2.0")
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("kettle-dev", "~> 2.0")
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+      RUBY
+
+      out = normalize_dependency_sections(
+        content,
+        template_content: content,
+        destination_content: content,
+      )
+
+      expect(out).to include("#       visibility and discoverability.\n\n# Security")
+      expect(out).not_to include("#       visibility and discoverability.\n# Dev, Test, & Release Tasks")
+      expect(out).not_to include("#       visibility and discoverability.\n\n\n# Security")
+    end
+
     it "moves runtime dependency blocks above the development dependency note block with attached comments" do
       content = <<~RUBY
           spec.name = "demo"
@@ -1638,6 +1664,31 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(out).to include("#       visibility and discoverability.\n# Security")
       expect(out).not_to include("#       visibility and discoverability.\n\n# Security")
+    end
+
+    it "preserves a single blank line after a blank-terminated note block when a remaining development section still follows it" do
+      content = <<~RUBY
+          spec.name = "demo"
+          spec.add_dependency("version_gem", "~> 1.1")
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Runtime
+          spec.add_dependency("kettle-dev", "~> 2.0")
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+      RUBY
+
+      out = normalize_dependency_sections(
+        content,
+        template_content: content,
+        destination_content: content,
+      )
+
+      expect(out).to include("#       visibility and discoverability.\n\n# Security")
+      expect(out).not_to include("#       visibility and discoverability.\n\n\n# Security")
     end
 
     it "does not move detached comments separated from a runtime dependency block by a blank line" do

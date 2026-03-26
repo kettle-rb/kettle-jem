@@ -404,5 +404,85 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(runtime_index).to be < note_index
       expect(note_index).to be < bundler_audit_index
     end
+
+    it "does not accumulate duplicate blank section separators across a nomono-shaped gemspec merge" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.required_ruby_version = ">= 3.2.0"
+          spec.metadata["rubygems_mfa_required"] = "true"
+
+          # Specify which files are part of the released package.
+          spec.files = Dir[
+            "lib/**/*.rb",
+          ]
+          spec.require_paths = ["lib"]
+
+          # Utilities
+          spec.add_dependency("version_gem", "~> 1.1")
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("kettle-dev", "~> 2.0")
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+
+          # Tasks
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.required_ruby_version = ">= 3.2.0"
+          spec.metadata["allowed_push_host"] = "https://rubygems.org"
+          spec.metadata["rubygems_mfa_required"] = "true"
+
+          # Specify which files should be added to the gem when it is released.
+          gemspec = File.basename(__FILE__)
+          spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
+            ls.readlines("\\x0", chomp: true)
+          end
+          spec.require_paths = ["lib"]
+
+          # Utilities
+          spec.add_dependency("version_gem", "~> 1.1")
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("kettle-dev", "~> 2.0")
+
+          # Security
+          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+
+          # Tasks
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      once = merge_gemspec(src: template, dest: destination)
+      twice = merge_gemspec(src: template, dest: once)
+
+      expect(Prism.parse(once).success?).to be(true), once
+      expect(once).to include("spec.metadata[\"rubygems_mfa_required\"] = \"true\"\n\n  # Specify which files")
+      expect(once).not_to include("spec.metadata[\"rubygems_mfa_required\"] = \"true\"\n\n\n  # Specify which files")
+      expect(once).to include("spec.require_paths = [\"lib\"]\n\n  # Utilities")
+      expect(once).not_to include("spec.require_paths = [\"lib\"]\n\n\n  # Utilities")
+      expect(once).to include("spec.add_development_dependency(\"kettle-dev\", \"~> 2.0\")\n\n  # Security")
+      expect(once).not_to include("spec.add_development_dependency(\"kettle-dev\", \"~> 2.0\")\n\n\n  # Security")
+      expect(once).to include("spec.add_development_dependency(\"bundler-audit\", \"~> 0.9.3\")\n\n  # Tasks")
+      expect(once).not_to include("spec.add_development_dependency(\"bundler-audit\", \"~> 0.9.3\")\n\n\n  # Tasks")
+
+      expect(Prism.parse(twice).success?).to be(true), twice
+      expect(twice).to eq(once)
+    end
   end
 end
