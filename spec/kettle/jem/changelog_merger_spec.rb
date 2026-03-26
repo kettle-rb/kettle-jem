@@ -278,6 +278,57 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
       expect(result).to include("### Added")
       expect(result).to include("### Fixed\n- Bug fix X")
     end
+
+    it "preserves nested bullets and fenced code blocks before trailing link references" do
+      template = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+        ### Changed
+        ### Deprecated
+        ### Removed
+        ### Fixed
+        ### Security
+      MD
+
+      destination = <<~MD
+        # Changelog
+
+        ## [Unreleased]
+        ### Added
+
+        - Add helper with example usage
+
+          ```ruby
+          puts "hello"
+          ```
+        - Nested bullets too
+          - first nested item
+          - second nested item
+
+        ### Fixed
+        - Keep this fix
+
+        [Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD
+        [1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0
+      MD
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+      )
+
+      expect(result).to include("### Added\n- Add helper with example usage")
+      expect(result).to include("```ruby")
+      expect(result).to include("puts \"hello\"")
+      expect(result).to include("- Nested bullets too")
+      expect(result).to include("  - first nested item")
+      expect(result).to include("  - second nested item")
+      expect(result).to include("### Fixed\n- Keep this fix")
+      expect(result).to include("[Unreleased]: https://github.com/org/repo/compare/v1.0.0...HEAD")
+      expect(result).to include("[1.0.0]: https://github.com/org/repo/compare/abc...v1.0.0")
+    end
   end
 
   describe ".parse_items" do
@@ -320,6 +371,35 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
 
       expect(result["### Added"].length).to eq(5)
       expect(result["### Added"]).to include("  ```ruby")
+    end
+
+    it "uses markdown analysis to group H3 sections when source is provided" do
+      source = <<~MD
+        ### Added
+
+        - Item one
+          - nested item
+
+          ```ruby
+          puts "hello"
+          ```
+
+        ### Fixed
+
+        - Fix one
+      MD
+
+      result = described_class.parse_items([], source: source)
+
+      expect(result["### Added"]).to eq([
+        "- Item one",
+        "  - nested item",
+        "",
+        "  ```ruby",
+        "  puts \"hello\"",
+        "  ```",
+      ])
+      expect(result["### Fixed"]).to eq(["- Fix one"])
     end
   end
 

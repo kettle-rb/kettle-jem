@@ -87,11 +87,18 @@ module Kettle
         tpl_unrel_heading = src_lines[tpl_unrel_idx]
 
         # 2) Extract destination Unreleased body and parse list items
-        dest_lines = destination_content.split("\n", -1)
-        dest_unrel_idx = dest_lines.index { |ln| ln.match?(UNRELEASED_PATTERN) }
-        dest_end_idx = find_section_end(dest_lines, dest_unrel_idx)
-        dest_unrel_body = dest_unrel_idx ? (dest_lines[(dest_unrel_idx + 1)..dest_end_idx] || []) : []
-        dest_items = parse_items(dest_unrel_body)
+        dest_context = unreleased_body_context(destination_content)
+        dest_unrel_idx = dest_context&.fetch(:unrel_idx, nil)
+
+        dest_items = if dest_context
+          parse_items(dest_context[:body_lines], source: dest_context[:body_source])
+        else
+          dest_lines = destination_content.split("\n", -1)
+          dest_unrel_idx = dest_lines.index { |ln| ln.match?(UNRELEASED_PATTERN) }
+          dest_end_idx = find_section_end(dest_lines, dest_unrel_idx)
+          dest_unrel_body = dest_unrel_idx ? (dest_lines[(dest_unrel_idx + 1)..dest_end_idx] || []) : []
+          parse_items(dest_unrel_body)
+        end
 
         # 3) Build canonical Unreleased section with destination items
         canonical_section = build_canonical_unreleased(tpl_unrel_heading, dest_items)
@@ -252,7 +259,14 @@ module Kettle
       #
       # @param body_lines [Array<String>] Lines of the Unreleased section body
       # @return [Hash{String => Array<String>}] Subheading => lines (including bullets)
-      def parse_items(body_lines)
+      def parse_items(body_lines, source: nil, **_options)
+        ast_result = parse_items_from_source(source)
+        return ast_result if ast_result
+
+        parse_items_from_lines(body_lines)
+      end
+
+      def parse_items_from_lines(body_lines)
         result = {}
         cur = nil
         i = 0
@@ -266,44 +280,191 @@ module Kettle
             next
           end
 
-          if (m = ln.match(/^(\s*)[-*]\s/))
+          if bullet_line?(ln)
             result[cur] ||= []
-            base_indent = m[1].length
-            result[cur] << ln.rstrip
-            i += 1
-
-            # Collect continuation lines
-            in_fence = false
-            while i < body_lines.length
-              l2 = body_lines[i]
-
-              # New bullet at same or lesser indent → stop
-              if !in_fence && l2.match?(/^(\s*)[-*]\s/)
-                break if l2[/^\s*/].length <= base_indent
-              end
-              break if !in_fence && l2.start_with?("### ")
-
-              if l2&.match?(/^\s*```/)
-                in_fence = !in_fence
-                result[cur] << l2.rstrip
-                i += 1
-                next
-              end
-
-              if in_fence || l2.strip.empty? || l2[/^\s*/].length > base_indent
-                result[cur] << l2.rstrip
-                i += 1
-                next
-              end
-
-              break
-            end
+            item_lines, i = collect_list_item_lines(body_lines, i)
+            result[cur].concat(item_lines)
             next
           end
 
           i += 1
         end
         result
+      end
+
+      def parse_items_from_source(source)
+        analysis = changelog_analysis(source)
+        return unless analysis
+
+        entries = changelog_statement_entries(analysis)
+        subheading_indexes = entries.each_index.select { |idx| unreleased_subheading_entry?(entries[idx]) }
+        return if subheading_indexes.empty?
+
+        result = {}
+        total_lines = markdown_line_count(source)
+
+        subheading_indexes.each_with_index do |entry_index, idx|
+          entry = entries[entry_index]
+          next_entry_index = subheading_indexes[idx + 1]
+          body_end_line = if next_entry_index
+            entries[next_entry_index][:start_line] - 1
+          else
+            total_lines
+          end
+
+          items = extract_list_item_lines(
+            source_to_lines(analysis.source_range(entry[:end_line] + 1, body_end_line)),
+          )
+          items.pop while items.any? && items.last.to_s.strip.empty?
+
+          result[entry[:source].strip] = items
+        end
+
+        result
+      end
+
+      def extract_list_item_lines(body_lines)
+        result = []
+        i = 0
+
+        while i < body_lines.length
+          if bullet_line?(body_lines[i])
+            item_lines, i = collect_list_item_lines(body_lines, i)
+            result.concat(item_lines)
+            next
+          end
+
+          i += 1
+        end
+
+        result
+      end
+
+      def collect_list_item_lines(body_lines, start_index)
+        line = body_lines[start_index].to_s
+        match = line.match(/^(\s*)[-*]\s/)
+        return [[], start_index + 1] unless match
+
+        base_indent = match[1].length
+        item_lines = [line.rstrip]
+        i = start_index + 1
+        in_fence = false
+
+        while i < body_lines.length
+          line = body_lines[i].to_s
+
+          if !in_fence && bullet_line?(line)
+            break if line[/^\s*/].length <= base_indent
+          end
+          break if !in_fence && line.start_with?("### ")
+
+          if line.match?(/^\s*```/)
+            in_fence = !in_fence
+            item_lines << line.rstrip
+            i += 1
+            next
+          end
+
+          if in_fence || line.strip.empty? || line[/^\s*/].length > base_indent
+            item_lines << line.rstrip
+            i += 1
+            next
+          end
+
+          break
+        end
+
+        [item_lines, i]
+      end
+
+      def bullet_line?(line)
+        line.to_s.match?(/^(\s*)[-*]\s/)
+      end
+
+      def unreleased_body_context(content)
+        analysis = changelog_analysis(content)
+        return unless analysis
+
+        entries = changelog_statement_entries(analysis)
+        unreleased_index = entries.index { |entry| unreleased_heading_entry?(entry) }
+        return unless unreleased_index
+
+        unreleased_entry = entries[unreleased_index]
+        section_end_line = unreleased_section_end_line(entries, unreleased_index, content)
+
+        {
+          unrel_idx: unreleased_entry[:start_line] - 1,
+          body_source: analysis.source_range(unreleased_entry[:end_line] + 1, section_end_line),
+          body_lines: source_to_lines(analysis.source_range(unreleased_entry[:end_line] + 1, section_end_line)),
+        }
+      end
+
+      def changelog_analysis(content)
+        analysis = Markly::Merge::FileAnalysis.new(content.to_s)
+        analysis if analysis.valid?
+      rescue StandardError
+        nil
+      end
+
+      def changelog_statement_entries(analysis)
+        Array(analysis.statements).filter_map do |statement|
+          node = unwrap_markdown_statement(statement)
+          position = node&.source_position
+          next unless node && position
+
+          {
+            merge_type: statement.respond_to?(:merge_type) ? statement.merge_type.to_s : node.type.to_s,
+            level: node.respond_to?(:header_level) ? node.header_level : nil,
+            text: node.respond_to?(:to_plaintext) ? node.to_plaintext.to_s.sub(/\n+\z/, "") : nil,
+            source: analysis.source_range(position[:start_line], position[:end_line]).sub(/\n\z/, ""),
+            start_line: position[:start_line],
+            end_line: position[:end_line],
+          }
+        end
+      end
+
+      def unreleased_heading_entry?(entry)
+        heading_entry?(entry) && entry[:level] == 2 && normalize_heading_text(entry[:text]) == "unreleased"
+      end
+
+      def unreleased_subheading_entry?(entry)
+        heading_entry?(entry) && entry[:level] == 3 && entry[:source].to_s.lstrip.start_with?("### ")
+      end
+
+      def heading_entry?(entry)
+        %w[heading header].include?(entry[:merge_type])
+      end
+
+      def unreleased_section_end_line(entries, unreleased_index, content)
+        boundary = entries[(unreleased_index + 1)..]&.find do |entry|
+          entry[:merge_type] == "link_definition" || (heading_entry?(entry) && entry[:level].to_i <= 2)
+        end
+
+        boundary ? (boundary[:start_line] - 1) : markdown_line_count(content)
+      end
+
+      def normalize_heading_text(text)
+        text.to_s.delete_prefix("[").delete_suffix("]").strip.downcase
+      end
+
+      def source_to_lines(source)
+        lines = source.to_s.split("\n", -1)
+        lines.pop if lines.last == "" && source.to_s.end_with?("\n")
+        lines
+      end
+
+      def markdown_line_count(source)
+        source_to_lines(source).length
+      end
+
+      def unwrap_markdown_statement(statement)
+        if defined?(Ast::Merge::NodeTyping)
+          Ast::Merge::NodeTyping.unwrap(statement)
+        else
+          statement
+        end
+      rescue StandardError
+        statement
       end
 
       # Collapse repeated whitespace in version-release header lines.

@@ -162,5 +162,15 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       result = described_class.preserve_h1(merged, destination)
       expect(result).to eq(merged)
     end
+
+    it "preserves a setext-style H1 using AST-backed heading ranges" do
+      merged = "New Title\n=========\n\nContent\n"
+      destination = "🎉 Old Title\n===========\n\nOld content\n"
+
+      result = described_class.preserve_h1(merged, destination)
+
+      expect(result).to include("🎉 Old Title\n===========")
+      expect(result).not_to include("New Title\n=========")
+    end
   end
 end

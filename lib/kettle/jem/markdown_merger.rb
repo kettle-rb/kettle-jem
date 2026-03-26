@@ -40,8 +40,8 @@ module Kettle
       # Matched by normalized heading text (lowercase, alphanumeric + spaces).
       PRESERVE_SECTIONS = %w[synopsis configuration basic\ usage].freeze
 
-      # Pattern for "Note:" headings (any level) that are also preserved.
-      NOTE_PATTERN = /\Anote:/i
+      # Prefix for "Note:" headings (any level) that are also preserved.
+      NOTE_PREFIX = "note:"
 
       module_function
 
@@ -83,7 +83,7 @@ module Kettle
 
         # Also preserve any "Note:*" sections found in the template
         src_sections[:sections].each do |sec|
-          preserve_targets << sec[:base] if sec[:base].match?(NOTE_PATTERN)
+          preserve_targets << sec[:base] if note_heading?(sec[:base])
         end
 
         return template if src_sections[:sections].empty?
@@ -100,7 +100,7 @@ module Kettle
           next unless dest_entry
 
           # Build the replacement content: heading (from template) + body (from destination)
-          replacement_content = "#{sec[:heading]}\n#{dest_entry[:body_branch]}"
+          replacement_content = [sec[:heading], dest_entry[:body_branch]].join("\n")
 
           # Use PTM with replace_mode to swap the template's section with destination's.
           # Roles are inverted: PTM "template:" holds the destination content to inject,
@@ -130,15 +130,32 @@ module Kettle
       # @param destination [String] Original destination content
       # @return [String] Content with H1 restored from destination
       def preserve_h1(merged, destination)
-        dest_h1 = destination.lines.find { |ln| ln.match?(/^#\s+/) }
-        return merged unless dest_h1
+        destination_h1 = parse_sections(destination)[:sections].find { |section| section[:level] == 1 }
+        merged_h1 = parse_sections(merged)[:sections].find { |section| section[:level] == 1 }
+        return merged unless destination_h1 && merged_h1
 
-        lines = merged.split("\n", -1)
-        h1_idx = lines.index { |ln| ln.match?(/^#\s+/) }
-        return merged unless h1_idx
+        replacement = destination_h1[:source].to_s
+        return merged if replacement.empty? || replacement == merged_h1[:source]
 
-        lines[h1_idx] = dest_h1.chomp
-        lines.join("\n")
+        Ast::Merge::StructuralEdit::PlanSet.new(
+          source: merged,
+          plans: [
+            Ast::Merge::StructuralEdit::SplicePlan.new(
+              source: merged,
+              replacement: replacement,
+              replace_start_line: merged_h1[:start_line],
+              replace_end_line: merged_h1[:end_line],
+              metadata: {
+                source: :kettle_jem_markdown_merger,
+                edit: :preserve_h1,
+              },
+            ),
+          ],
+          metadata: {
+            source: :kettle_jem_markdown_merger,
+            edit: :preserve_h1,
+          },
+        ).merged_content
       end
 
       # Build an anchor pattern for matching a heading by its normalized base text.
@@ -163,7 +180,8 @@ module Kettle
       # ----------------------------------------------------------------
 
       # Parse Markdown into a sections structure.
-      # Ignores headings inside fenced code blocks.
+      # Uses markly-merge analysis so only real top-level heading statements are
+      # considered; headings inside fenced code blocks are naturally excluded.
       #
       # @param md [String] Markdown content
       # @return [Hash] { lines:, sections:, line_count: }
@@ -172,25 +190,10 @@ module Kettle
 
         lines = md.split("\n", -1)
         line_count = lines.length
-        sections = []
-        in_code = false
-        fence_re = /^\s*```/
+        analysis = markdown_analysis(md)
+        sections = analysis ? heading_sections_from_analysis(analysis) : []
 
-        lines.each_with_index do |ln, i|
-          if ln&.match?(fence_re)
-            in_code = !in_code
-            next
-          end
-          next if in_code
-
-          if (m = ln.match(/^(#+)\s+.+/))
-            level = m[1].length
-            base = ln.sub(/^#+\s+/, "").sub(/\A[^\p{Alnum}]+/u, "").strip.downcase
-            sections << {start: i, level: level, heading: ln, base: base}
-          end
-        end
-
-        {lines: lines, sections: sections, line_count: line_count}
+        {lines: lines, sections: sections, line_count: line_count, analysis: analysis}
       end
 
       # Build a lookup table from destination sections.
@@ -206,8 +209,10 @@ module Kettle
           next if lookup.key?(s[:base])
 
           be = branch_end(parsed[:sections], idx, parsed[:line_count])
-          body_lines = parsed[:lines][(s[:start] + 1)..be] || []
-          lookup[s[:base]] = {body_branch: body_lines.join("\n"), level: s[:level]}
+          lookup[s[:base]] = {
+            body_branch: section_body_branch(parsed, s, be),
+            level: s[:level],
+          }
         end
 
         lookup
@@ -228,6 +233,82 @@ module Kettle
           j += 1
         end
         total_lines - 1
+      end
+
+      def markdown_analysis(md)
+        analysis = Markly::Merge::FileAnalysis.new(md.to_s)
+        analysis if analysis.valid?
+      rescue StandardError
+        nil
+      end
+
+      def heading_sections_from_analysis(analysis)
+        Array(analysis.statements).filter_map do |statement|
+          next unless heading_statement?(statement)
+
+          build_heading_section(statement, analysis)
+        end
+      end
+
+      def heading_statement?(statement)
+        merge_type = if statement.respond_to?(:merge_type)
+          statement.merge_type
+        else
+          unwrap_markdown_statement(statement)&.type
+        end
+
+        merge_type.to_s == "heading" || merge_type.to_s == "header"
+      end
+
+      def build_heading_section(statement, analysis)
+        node = unwrap_markdown_statement(statement)
+        position = node&.source_position
+        return unless node && position
+
+        heading_source = analysis.source_range(position[:start_line], position[:end_line]).sub(/\n\z/, "")
+        heading_text = node.to_plaintext.to_s.sub(/\n+\z/, "")
+
+        {
+          start: position[:start_line] - 1,
+          start_line: position[:start_line],
+          end_line: position[:end_line],
+          level: node.header_level,
+          heading: heading_source,
+          source: heading_source,
+          base: normalize_heading_base(heading_text),
+        }
+      rescue StandardError
+        nil
+      end
+
+      def unwrap_markdown_statement(statement)
+        if defined?(Ast::Merge::NodeTyping)
+          Ast::Merge::NodeTyping.unwrap(statement)
+        else
+          statement
+        end
+      rescue StandardError
+        statement
+      end
+
+      def normalize_heading_base(text)
+        text.to_s.sub(/\A[^\p{Alnum}]+/u, "").strip.downcase
+      end
+
+      def note_heading?(base)
+        base.to_s.start_with?(NOTE_PREFIX)
+      end
+
+      def section_body_branch(parsed, section, body_end_index)
+        start_line = section[:start] + 2
+        end_line = body_end_index + 1
+        return "" if end_line < start_line
+
+        if parsed[:analysis]
+          parsed[:analysis].source_range(start_line, end_line)
+        else
+          (parsed[:lines][(section[:start] + 1)..body_end_index] || []).join("\n")
+        end
       end
     end
   end

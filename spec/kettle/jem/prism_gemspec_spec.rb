@@ -1999,6 +1999,75 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(context[:blk_param]).to eq("spec")
       expect(context[:stmt_nodes].map(&:name)).to eq([:configure!])
     end
+
+    it "returns a usable context for gemspec blocks with an explicit param but no body statements" do
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+        end
+      RUBY
+
+      context = described_class.send(:gemspec_context, content)
+
+      expect(context).to include(
+        blk_param: "spec",
+        gemspec_call: be_a(Prism::CallNode),
+        stmt_nodes: [],
+      )
+    end
+
+    it "returns a usable context for empty gemspec blocks without an explicit block parameter" do
+      content = <<~RUBY
+        Gem::Specification.new do
+        end
+      RUBY
+
+      context = described_class.send(:gemspec_context, content)
+
+      expect(context).to include(
+        blk_param: "spec",
+        gemspec_call: be_a(Prism::CallNode),
+        stmt_nodes: [],
+      )
+    end
+
+    it "returns an empty statement list for comment-only gemspec blocks" do
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          # Important context comment
+          # kettle-jem:freeze
+          # Frozen content
+          # kettle-jem:unfreeze
+        end
+      RUBY
+
+      context = described_class.send(:gemspec_context, content)
+
+      expect(context).to include(
+        blk_param: "spec",
+        gemspec_call: be_a(Prism::CallNode),
+      )
+      expect(context[:blk_param]).to eq("spec")
+      expect(context[:stmt_nodes]).to eq([])
+    end
+
+    it "falls back to spec for comment-only gemspec blocks without an explicit block parameter" do
+      content = <<~RUBY
+        Gem::Specification.new do
+          # Important context comment
+          # kettle-jem:freeze
+          # Frozen content
+          # kettle-jem:unfreeze
+        end
+      RUBY
+
+      context = described_class.send(:gemspec_context, content)
+
+      expect(context).to include(
+        blk_param: "spec",
+        gemspec_call: be_a(Prism::CallNode),
+        stmt_nodes: [],
+      )
+    end
   end
 
   describe ".merge_dir_assignment_source" do
@@ -3275,8 +3344,32 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(context[:stmt_nodes].map(&:name)).to eq(%i[name= version=])
     end
 
+    it "returns a usable context for comment-only Gem::Specification bodies" do
+      content = <<~RUBY
+        Gem::Specification.new do
+          # kettle-jem:freeze
+          # preserved custom content
+          # kettle-jem:unfreeze
+        end
+      RUBY
+
+      context = described_class.send(:safe_gemspec_context, content)
+
+      expect(context).to include(
+        blk_param: "spec",
+        gemspec_call: be_a(Prism::CallNode),
+        stmt_nodes: [],
+      )
+    end
+
     it "returns nil when gemspec context lookup raises a LoadError" do
       allow(described_class).to receive(:gemspec_context).and_raise(LoadError, "cannot load such file -- prism")
+
+      expect(described_class.send(:safe_gemspec_context, "Gem::Specification.new do |spec|\nend\n")).to be_nil
+    end
+
+    it "returns nil when gemspec context lookup raises a StandardError" do
+      allow(described_class).to receive(:gemspec_context).and_raise(StandardError, "boom")
 
       expect(described_class.send(:safe_gemspec_context, "Gem::Specification.new do |spec|\nend\n")).to be_nil
     end

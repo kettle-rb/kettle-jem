@@ -21,13 +21,10 @@ module Kettle
           end
           return unless gemspec_call
 
-          body_node = gemspec_call.block&.body
-          return unless body_node
-
           {
             gemspec_call: gemspec_call,
             blk_param: extract_block_param(gemspec_call) || "spec",
-            stmt_nodes: PrismUtils.extract_statements(body_node),
+            stmt_nodes: PrismUtils.extract_statements(gemspec_call.block&.body),
           }
         end
 
