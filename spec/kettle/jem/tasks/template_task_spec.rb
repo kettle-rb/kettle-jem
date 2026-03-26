@@ -1074,7 +1074,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Template synopsis.
             MARKDOWN
 
-            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~'GEMSPEC')
               Gem::Specification.new do |spec|
                 spec.name = "kettle-jem"
                 spec.version = "1.0.0"
@@ -2483,6 +2483,120 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(txt).to include("gem_version =")
             expect(txt).to include('require "my/gem/version"')
             expect(txt).to include("spec.version = gem_version")
+          end
+        end
+      end
+
+      it "bootstraps version_gem touchpoints before templating a turbo_tests2-style gemspec" do
+        local_tmp_root = File.expand_path("../../../../tmp/spec/template_task", __dir__)
+        FileUtils.mkdir_p(local_tmp_root)
+
+        Dir.mktmpdir("gem-root-", local_tmp_root) do |gem_root|
+          Dir.mktmpdir("project-root-", local_tmp_root) do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+              # frozen_string_literal: true
+
+              gem_version =
+                if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+                  Module.new.tap { |mod| Kernel.load("\#{__dir__}/lib/{KJ|GEM_NAME_PATH}/version.rb", mod) }::{KJ|NAMESPACE}::Version::VERSION
+                else
+                  lib = File.expand_path("lib", __dir__)
+                  $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+                  require "{KJ|GEM_NAME_PATH}/version"
+                  {KJ|NAMESPACE}::Version::VERSION
+                end
+
+              Gem::Specification.new do |spec|
+                spec.name = "{KJ|GEM_NAME}"
+                spec.version = gem_version
+                spec.summary = "Template summary"
+                spec.authors = ["Template Author"]
+                spec.email = ["template@example.com"]
+                spec.required_ruby_version = ">= 2.7"
+                spec.homepage = "https://github.com/acme/{KJ|GEM_NAME}"
+              end
+            GEMSPEC
+
+            FileUtils.mkdir_p(File.join(project_root, "lib", "turbo_tests"))
+            File.write(File.join(project_root, "lib", "turbo_tests", "version.rb"), <<~RUBY)
+              module TurboTests
+                VERSION = "2.2.5"
+              end
+            RUBY
+            File.write(File.join(project_root, "lib", "turbo_tests.rb"), <<~RUBY)
+              # frozen_string_literal: true
+
+              require "securerandom"
+
+              module TurboTests
+                autoload :VERSION, "turbo_tests/version"
+              end
+            RUBY
+            File.write(File.join(project_root, "turbo_tests2.gemspec"), <<~GEMSPEC)
+              require_relative "lib/turbo_tests/version"
+
+              Gem::Specification.new do |spec|
+                spec.name = "turbo_tests2"
+                spec.version = TurboTests::VERSION
+                spec.summary = "Existing summary"
+                spec.authors = ["Peter H. Boling"]
+                spec.email = ["floss@galtzo.com"]
+                spec.required_ruby_version = ">= 2.7"
+                spec.homepage = "https://github.com/acme/turbo_tests2"
+              end
+            GEMSPEC
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            version_file = File.read(File.join(project_root, "lib", "turbo_tests", "version.rb"))
+            expect(version_file).to include("module TurboTests\n  module Version\n    VERSION = \"2.2.5\"\n  end\n  VERSION = Version::VERSION # Traditional Constant Location\nend")
+
+            entrypoint_file = File.read(File.join(project_root, "lib", "turbo_tests.rb"))
+            expect(entrypoint_file).to include('require "version_gem"')
+            expect(entrypoint_file).to include('require_relative "turbo_tests/version"')
+            expect(entrypoint_file).to include("TurboTests::Version.class_eval do")
+            expect(entrypoint_file).not_to include('autoload :VERSION, "turbo_tests/version"')
+
+            gemspec_path = File.join(project_root, "turbo_tests2.gemspec")
+            gemspec = File.read(gemspec_path)
+            expect(gemspec).to include('Kernel.load("#{__dir__}/lib/turbo_tests/version.rb", mod) }::TurboTests::Version::VERSION')
+            expect(gemspec).to include('require "turbo_tests/version"')
+
+            loaded_spec = Dir.chdir(project_root) { Gem::Specification.load(gemspec_path) }
+            expect(loaded_spec.version.to_s).to eq("2.2.5")
           end
         end
       end

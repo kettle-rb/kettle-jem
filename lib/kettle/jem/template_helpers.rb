@@ -262,10 +262,12 @@ module Kettle
         author_given_names = resolved_author_given_names(author_name, token_config)
         author_family_names = resolved_author_family_names(author_name, token_config)
         author_orcid = preferred_token_value(nil, token_config.dig("author", "orcid"), env_key: "KJ_AUTHOR_ORCID")
+        entrypoint_require = meta[:entrypoint_require].to_s
+        entrypoint_require = gem_name.tr("-", "/") if entrypoint_require.empty?
 
         replacements = {
           "KJ|GEM_NAME" => gem_name,
-          "KJ|GEM_NAME_PATH" => gem_name.tr("-", "/"),
+          "KJ|GEM_NAME_PATH" => entrypoint_require,
           "KJ|GEM_SHIELD" => gem_shield,
           "KJ|GH_ORG" => org.to_s,
           "KJ|NAMESPACE" => namespace,

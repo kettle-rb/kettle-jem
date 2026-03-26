@@ -77,6 +77,18 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(result).to eq("module MyGem")
     end
 
+    it "resolves {KJ|GEM_NAME_PATH} from the inferred entrypoint require path when available" do
+      allow(helpers).to receive(:gemspec_metadata).and_return(
+        min_ruby: Gem::Version.create("3.2"),
+        entrypoint_require: "turbo_tests",
+      )
+
+      content = 'require_relative "{KJ|GEM_NAME_PATH}/version"'
+      result = helpers.apply_common_replacements(content, **base_args.merge(gem_name: "turbo_tests2", namespace: "TurboTests"))
+
+      expect(result).to eq('require_relative "turbo_tests/version"')
+    end
+
     it "resolves {KJ|MIN_RUBY} token" do
       content = "ruby >= {KJ|MIN_RUBY}"
       result = helpers.apply_common_replacements(content, **base_args, min_ruby: "3.2")

@@ -499,6 +499,16 @@ module Kettle
           Kettle::Jem::TemplateHelpers.merge_missing_kettle_config_token_values(destination_content, token_values)
         end
 
+        def bootstrap_version_gem_touchpoints!(helpers:, project_root:, meta:)
+          Kettle::Jem::VersionGemBootstrap.bootstrap!(
+            helpers: helpers,
+            project_root: project_root,
+            entrypoint_require: meta[:entrypoint_require],
+            namespace: meta[:namespace],
+            version: meta[:version],
+          )
+        end
+
         def backfill_project_kettle_config_tokens!(helpers:, project_root:)
           config_dest = File.join(project_root, ".kettle-jem.yml")
           return false unless File.exist?(config_dest)
@@ -1140,6 +1150,13 @@ module Kettle
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
             puts "WARNING: Skipped .env.local example copy due to #{e.class}: #{e.message}"
+          end
+
+          begin
+            bootstrap_version_gem_touchpoints!(helpers: helpers, project_root: project_root, meta: meta)
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            puts "WARNING: Skipped version_gem bootstrap due to #{e.class}: #{e.message}"
           end
 
           # 7a) Special-case: gemspec example must be renamed to destination gem's name
