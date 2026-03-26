@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "prism/merge"
+
 module Kettle
   module Jem
     # Prism helpers for Gemfile-like merging.
