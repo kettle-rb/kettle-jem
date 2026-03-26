@@ -300,10 +300,58 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).to include('spec.files = Dir[')
       expect(merged).to include('"lib/**/*.rb"')
       expect(merged).to include('"sig/**/*.rbs"')
-      expect(merged).not_to include('IO.popen(%w[git ls-files -z]')
-      expect(merged).not_to include("# Specify which files should be added to the gem when it is released.")
-      expect(merged).not_to include("# The `git ls-files -z` loads the files in the RubyGem that have been added into git.")
-      expect(merged).not_to include("gemspec = File.basename(__FILE__)")
+      expect(merged).not_to include('IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL)')
+    end
+
+    it "keeps template-owned blank-line boundaries around inserted gemspec sections" do
+      template = <<~RUBY
+        # coding: utf-8
+        # frozen_string_literal: true
+
+        # kettle-jem:freeze
+        # note
+        # kettle-jem:unfreeze
+
+        gem_version = "1.0.0"
+
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = gem_version
+          spec.required_ruby_version = ">= 2.3.0"
+
+          # signing docs
+          unless ENV.include?("SKIP_GEM_SIGNING")
+            nil
+          end
+
+          spec.metadata["changelog_uri"] = "a"
+          spec.metadata["bug_tracker_uri"] = "b"
+          spec.metadata["documentation_uri"] = "c"
+        end
+      RUBY
+
+      destination = <<~RUBY
+        # frozen_string_literal: true
+
+        require_relative "lib/demo/version"
+
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+          spec.required_ruby_version = ">= 3.2.0"
+          spec.metadata["changelog_uri"] = "A"
+
+          spec.metadata["documentation_uri"] = "C"
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true), merged
+      expect(merged).to include("# frozen_string_literal: true\n\n# kettle-jem:freeze")
+      expect(merged).not_to include("# frozen_string_literal: true\n\n\n# kettle-jem:freeze")
+      expect(merged).to include("spec.required_ruby_version = \">= 2.3.0\"\n\n  # signing docs")
+      expect(merged).to include("spec.metadata[\"changelog_uri\"] = \"a\"\n  spec.metadata[\"bug_tracker_uri\"] = \"b\"")
     end
 
     it "keeps runtime dependencies above the development dependency note block without duplicate dev entries and preserves aligned trailing comments" do

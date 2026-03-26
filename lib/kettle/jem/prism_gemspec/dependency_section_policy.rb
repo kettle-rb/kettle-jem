@@ -67,15 +67,35 @@ module Kettle
         def duplicate_runtime_shadowed_development_dependency_ranges(lines, records)
           index = build_dependency_index(records)
 
-          Array(records).filter_map do |record|
+          ranges = Array(records).filter_map do |record|
             duplicate_runtime_shadowed_development_dependency_range(lines, record, runtime_gems: index[:runtime_gems])
           end
+
+          collapse_line_ranges(ranges)
         end
 
         def duplicate_runtime_shadowed_development_dependency_range(lines, record, runtime_gems:)
           return unless record[:method] == "add_development_dependency" && runtime_gems.include?(record[:gem])
 
-          dependency_block_range(lines, record[:line_index])
+          range = dependency_block_range(lines, record[:line_index])
+          return range unless range.begin.positive?
+          return range unless lines[range.begin - 1].to_s.strip.empty?
+
+          (range.begin - 1)..range.end
+        end
+
+        def collapse_line_ranges(ranges)
+          sorted = Array(ranges).sort_by(&:begin)
+          return [] if sorted.empty?
+
+          sorted.each_with_object([]) do |range, merged|
+            if merged.empty? || range.begin > merged.last.end + 1
+              merged << range
+            else
+              previous = merged.pop
+              merged << (previous.begin..[previous.end, range.end].max)
+            end
+          end
         end
 
         def relocate_runtime_dependency_blocks_before_note(lines)

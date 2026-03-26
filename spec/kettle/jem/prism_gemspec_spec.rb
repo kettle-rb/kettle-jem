@@ -1855,7 +1855,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       merged_context = {stmt_nodes: [:merged], blk_param: "spec"}
       template_context = {stmt_nodes: [:template], blk_param: "spec"}
       destination_context = {stmt_nodes: [:destination], blk_param: "spec"}
-      location = instance_double("Prism::Location", start_line: 3, end_line: 6)
+      location = double("Prism::Location", start_line: 3, end_line: 6)
       merged_node = instance_double("Prism::CallNode", slice: "merged files", location: location)
       template_node = instance_double("Prism::CallNode", slice: "template files")
       destination_node = instance_double("Prism::CallNode", slice: "destination files")
