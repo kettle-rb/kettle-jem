@@ -1256,6 +1256,12 @@ module Kettle
           handled_files = %w[
             .env.local
             .kettle-jem.yml
+            LICENSE.md
+            MIT.md
+            AGPL-3.0-only.md
+            PolyForm-Noncommercial-1.0.0.md
+            PolyForm-Small-Business-1.0.0.md
+            Big-Time-Public-License.md
           ]
 
           template_root = helpers.template_root
@@ -1607,6 +1613,19 @@ module Kettle
             end
           end
 
+          # Copy selected SPDX license files + LICENSE.md, then migrate old LICENSE.txt.
+          begin
+            copy_selected_license_files!(
+              helpers: helpers,
+              project_root: project_root,
+              template_root: template_root,
+            )
+            migrate_license_txt!(helpers: helpers, project_root: project_root)
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            puts "WARNING: License file migration failed: #{e.class}: #{e.message}"
+          end
+
           # Scan all written files for unresolved {KJ|...} tokens and abort.
           # Unresolved tokens indicate missing configuration (e.g., AUTHOR_NAME,
           # FUNDING_LIBERAPAY). The user should add missing values to .kettle-jem.yml
@@ -1656,6 +1675,92 @@ module Kettle
               error: error,
             )
           end
+        end
+
+        # Copy only the SPDX license files selected in `.kettle-jem.yml` (or gemspec fallback)
+        # into the destination project, and write the LICENSE.md index file.
+        #
+        # Files are sourced from the template directory as `<SPDX-basename>.md.example`.
+        # Token substitution is applied by +helpers.read_template+.
+        # Only files that exist in the template are copied; unknown SPDX IDs are skipped
+        # with a warning.
+        #
+        # @param helpers [TemplateHelpers]
+        # @param project_root [String] absolute path to destination project
+        # @param template_root [String] absolute path to the template directory
+        def copy_selected_license_files!(helpers:, project_root:, template_root:)
+          licenses = helpers.resolved_licenses
+
+          # Write each selected SPDX license file
+          licenses.each do |spdx_id|
+            base = helpers.spdx_basename(spdx_id)
+            src_candidates = [
+              File.join(template_root, "#{base}.md.example"),
+              File.join(template_root, "#{base}.md"),
+            ]
+            src = src_candidates.find { |c| File.exist?(c) }
+            unless src
+              helpers.add_warning("License template not found for #{spdx_id} (looked for #{base}.md.example in template/). Skipping.")
+              next
+            end
+            dest = File.join(project_root, "#{base}.md")
+            helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+            puts "WARNING: Could not copy license file #{base}.md: #{e.class}: #{e.message}"
+          end
+
+          # Write LICENSE.md from the template (expands {KJ|LICENSE_MD_CONTENT})
+          license_md_src_candidates = [
+            File.join(template_root, "LICENSE.md.example"),
+            File.join(template_root, "LICENSE.md"),
+          ]
+          license_md_src = license_md_src_candidates.find { |c| File.exist?(c) }
+          if license_md_src
+            license_md_dest = File.join(project_root, "LICENSE.md")
+            helpers.copy_file_with_prompt(license_md_src, license_md_dest, allow_create: true, allow_replace: true)
+          else
+            helpers.add_warning("LICENSE.md.example not found in template/. LICENSE.md was not written.")
+          end
+        end
+
+        # Migrate an existing LICENSE.txt into the new multi-license layout:
+        #
+        # 1. Detect whether LICENSE.txt is an MIT license via phrase matching.
+        # 2. If so, extract any copyright lines from the preamble and append
+        #    them as a `## Copyright Notice` section to the just-written LICENSE.md.
+        # 3. Delete the old LICENSE.txt.
+        #
+        # Non-MIT LICENSE.txt files are left untouched (no deletion).
+        #
+        # @param helpers [TemplateHelpers]
+        # @param project_root [String] absolute path to destination project
+        def migrate_license_txt!(helpers:, project_root:)
+          license_txt_path = File.join(project_root, "LICENSE.txt")
+          return unless File.exist?(license_txt_path)
+
+          content = File.read(license_txt_path)
+          migrator = Kettle::Jem::LicenseTxtMigrator.new(content)
+
+          unless migrator.mit_license?
+            puts "LICENSE.txt does not appear to be an MIT license; leaving it in place."
+            return
+          end
+
+          copyright_lines = migrator.copyright_lines
+          license_md_path = File.join(project_root, "LICENSE.md")
+
+          if copyright_lines.any? && File.exist?(license_md_path)
+            section = "\n\n## Copyright Notice\n\n" + copyright_lines.map { |l| l.strip }.join("\n")
+            File.open(license_md_path, "a") { |f| f.write(section) }
+            puts "Appended #{copyright_lines.size} copyright line(s) from LICENSE.txt to LICENSE.md."
+          end
+
+          File.delete(license_txt_path)
+          puts "Deleted LICENSE.txt (content migrated to LICENSE.md)."
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          puts "WARNING: Could not migrate LICENSE.txt: #{e.class}: #{e.message}"
         end
 
         def prune_workflow_matrix_by_appraisals(content, removed_appraisals)

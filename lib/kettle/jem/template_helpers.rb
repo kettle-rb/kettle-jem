@@ -325,6 +325,68 @@ module Kettle
           replacements["KJ|SOCIAL:#{platform}"] = value if present_string?(value)
         end
 
+        # ── License tokens ──────────────────────────────────────────────────────
+        licenses = resolved_licenses
+        has_non_mit = licenses.any? { |l| l != "MIT" }
+
+        # Build the LIST of license links for LICENSE.md
+        license_list_lines = licenses.map { |l| "- #{license_link(l)}" }.join("\n")
+
+        # Optionally build the use-case guide table
+        guide_table = build_use_case_guide_table(licenses, author_email: author_email)
+
+        # {KJ|LICENSE_MD_CONTENT} — full content that LICENSE.md.example expands to
+        license_md_content = <<~MARKDOWN.chomp
+          # License
+
+          This project is made available under the following license#{licenses.size > 1 ? "s" : ""}.
+          Choose the option that best fits your use case:
+
+          #{license_list_lines}
+        MARKDOWN
+        if guide_table
+          license_md_content += "\n\n## Use-case guide\n\n#{guide_table}"
+        end
+        if has_non_mit
+          contact_line = if author_email && !author_email.empty?
+            "If none of the above licenses fit your use case, please [contact us](mailto:#{author_email}) to discuss a custom commercial license."
+          else
+            "If none of the above licenses fit your use case, please contact the project maintainer to discuss a custom commercial license."
+          end
+          license_md_content += "\n\n#{contact_line}"
+        end
+        replacements["KJ|LICENSE_MD_CONTENT"] = license_md_content
+
+        # {KJ|README:LICENSE_INTRO} — body of the ## 📄 License section in README
+        if licenses == ["MIT"]
+          readme_license_intro = "The gem is available as open source under the terms of\nthe #{license_link("MIT")} [![License: MIT][📄license-img]][📄license-ref].\nSee [LICENSE.md][📄license] for the official copyright notice."
+        else
+          intro_links = licenses.map { |l| license_link(l) }.join(", ")
+          readme_license_intro = "The gem is available under the following license#{licenses.size > 1 ? "s" : ""}: #{intro_links}.\nSee [LICENSE.md][📄license] for details and the official copyright notice."
+          if has_non_mit
+            contact_snippet = if author_email && !author_email.empty?
+              "If none of the available licenses suit your use case, please [contact us](mailto:#{author_email}) to discuss a custom commercial license."
+            else
+              "If none of the available licenses suit your use case, please contact the project maintainer to discuss a custom commercial license."
+            end
+            readme_license_intro += "\n\n#{contact_snippet}"
+          end
+          if guide_table
+            readme_license_intro += "\n\n### License use-case guide\n\n#{guide_table}"
+          end
+        end
+        replacements["KJ|README:LICENSE_INTRO"] = readme_license_intro
+
+        # {KJ|README:LICENSE_REFS} — reference-link definitions for the README footer
+        license_refs = []
+        license_refs << "[📄copyright-notice-explainer]: https://opensource.stackexchange.com/questions/5778/why-do-licenses-such-as-the-mit-license-specify-a-single-year"
+        license_refs << "[📄license]: LICENSE.md"
+        if licenses.include?("MIT")
+          license_refs << "[📄license-ref]: https://opensource.org/licenses/MIT"
+          license_refs << "[📄license-img]: https://img.shields.io/badge/License-MIT-259D6C.svg"
+        end
+        replacements["KJ|README:LICENSE_REFS"] = license_refs.join("\n")
+
         @@token_replacements = replacements
       end
 
@@ -332,6 +394,110 @@ module Kettle
         config = kettle_config
         raw = config.is_a?(Hash) ? config["tokens"] : nil
         raw.is_a?(Hash) ? raw : {}
+      end
+
+      # Return the list of SPDX license identifiers configured for this project.
+      #
+      # Precedence:
+      #   1. `licenses:` key in .kettle-jem.yml (array of SPDX strings)
+      #   2. `spec.licenses` from the project gemspec (via GemSpecReader)
+      #   3. Hard fallback: ["MIT"]
+      #
+      # @return [Array<String>] Non-empty array of SPDX license identifiers
+      def resolved_licenses
+        config_value = kettle_config["licenses"]
+        if config_value.is_a?(Array) && config_value.any? { |l| l.to_s.strip != "" }
+          return config_value.map(&:to_s).reject { |l| l.strip.empty? }
+        end
+
+        gemspec_value = safe_gemspec_metadata[:licenses]
+        if gemspec_value.is_a?(Array) && gemspec_value.any? { |l| l.to_s.strip != "" }
+          return gemspec_value.map(&:to_s).reject { |l| l.strip.empty? }
+        end
+
+        ["MIT"]
+      end
+
+      # Derive a filesystem-safe basename from an SPDX license identifier.
+      #
+      # User-defined SPDX identifiers are prefixed with `LicenseRef-`.
+      # We strip that prefix so `LicenseRef-Big-Time-Public-License` becomes
+      # `Big-Time-Public-License`, matching the template filename convention.
+      #
+      # @param spdx_id [String] SPDX license identifier
+      # @return [String] Basename without `LicenseRef-` prefix
+      def spdx_basename(spdx_id)
+        spdx_id.to_s.sub(/\ALicenseRef-/, "")
+      end
+
+      # Build a Markdown inline link to a license file.
+      #
+      # @param spdx_id [String] SPDX license identifier
+      # @return [String] Markdown link, e.g. "[Big-Time-Public-License](Big-Time-Public-License.md)"
+      def license_link(spdx_id)
+        base = spdx_basename(spdx_id)
+        "[#{base}](#{base}.md)"
+      end
+
+      # All known SPDX IDs that warrant a use-case guide entry, grouped by category.
+      LICENSE_USE_CASE_CATEGORIES = {
+        floss: "MIT",
+        copyleft: "AGPL-3.0-only",
+        noncommercial: %w[PolyForm-Noncommercial-1.0.0 PolyForm-Small-Business-1.0.0 LicenseRef-Big-Time-Public-License],
+        small_biz: %w[PolyForm-Small-Business-1.0.0 LicenseRef-Big-Time-Public-License],
+        large_biz: "LicenseRef-Big-Time-Public-License",
+      }.freeze
+
+      # Build an optional use-case guide table for the LICENSE.md / README.
+      #
+      # Returns +nil+ unless the "full stack" trigger condition is met:
+      #   (MIT ∨ AGPL-3.0-only) ∧ (PolyForm-NC ∨ PolyForm-SB) ∧ LicenseRef-Big-Time-Public-License
+      #
+      # Rows whose license references do not appear in +licenses+ are omitted.
+      #
+      # @param licenses [Array<String>] resolved SPDX license identifiers
+      # @param author_email [String, nil] contact address shown in the large-biz row
+      # @return [String, nil] Markdown table string, or nil when condition not met
+      def build_use_case_guide_table(licenses, author_email: nil)
+        has_floss_oss   = licenses.include?("MIT") || licenses.include?("AGPL-3.0-only")
+        has_polyform    = licenses.include?("PolyForm-Noncommercial-1.0.0") || licenses.include?("PolyForm-Small-Business-1.0.0")
+        has_big_time    = licenses.include?("LicenseRef-Big-Time-Public-License")
+        return nil unless has_floss_oss && has_polyform && has_big_time
+
+        rows = []
+
+        if licenses.include?("MIT")
+          rows << ["FLOSS (free and open source)", license_link("MIT")]
+        end
+        if licenses.include?("AGPL-3.0-only")
+          rows << ["Copy-left open source", license_link("AGPL-3.0-only")]
+        end
+        nc_links = ["PolyForm-Noncommercial-1.0.0", "PolyForm-Small-Business-1.0.0", "LicenseRef-Big-Time-Public-License"]
+          .select { |l| licenses.include?(l) }
+          .map { |l| license_link(l) }
+        if nc_links.any?
+          rows << ["Non-commercial (research, education, personal use)", nc_links.join(" or ")]
+        end
+        sb_links = ["PolyForm-Small-Business-1.0.0", "LicenseRef-Big-Time-Public-License"]
+          .select { |l| licenses.include?(l) }
+          .map { |l| license_link(l) }
+        if sb_links.any?
+          rows << ["Small business commercial", sb_links.join(" or ")]
+        end
+        if licenses.include?("LicenseRef-Big-Time-Public-License")
+          large_biz_cell = license_link("LicenseRef-Big-Time-Public-License")
+          if author_email && !author_email.empty?
+            large_biz_cell += " or [contact us](mailto:#{author_email}) for a custom license"
+          else
+            large_biz_cell += " or contact us for a custom license"
+          end
+          rows << ["Larger business commercial", large_biz_cell]
+        end
+
+        return nil if rows.empty?
+
+        header = "| Use case | License |\n|---|---|\n"
+        header + rows.map { |use_case, lic| "| #{use_case} | #{lic} |" }.join("\n")
       end
 
       def readme_config

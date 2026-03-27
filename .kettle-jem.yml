@@ -91,6 +91,11 @@ engines:
 readme:
   top_logo_mode: org
 
+# SPDX license identifiers for this project.
+# See template/.kettle-jem.yml.example for the full list of accepted values.
+licenses:
+  - MIT
+
 # Self-test / templating CI threshold.
 # Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once
 # divergence reaches or exceeds that percent. Leave blank to report only.

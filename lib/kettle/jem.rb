@@ -79,6 +79,7 @@ module Kettle
     autoload :ChangelogMerger, "kettle/jem/changelog_merger"
     autoload :ReadmeGemspecSynchronizer, "kettle/jem/readme_gemspec_synchronizer"
     autoload :ReadmePostProcessor, "kettle/jem/readme_post_processor"
+    autoload :LicenseTxtMigrator, "kettle/jem/license_txt_migrator"
 
     # Task modules (moved from kettle-dev)
     module Tasks
