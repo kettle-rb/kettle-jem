@@ -27,7 +27,9 @@ RSpec.shared_context "with mocked git adapter" do
       checkout: true,
       pull: true,
       fetch: true,
+      ls_files: [],
     )
+    allow(adapter_double).to receive(:blame_porcelain).and_return("")
     allow(adapter_double).to receive(:remote_url) { |name| (name == "origin") ? "git@github.com:me/repo.git" : nil }
 
     # Default behavior for generic capture used by ReleaseCLI#git_output

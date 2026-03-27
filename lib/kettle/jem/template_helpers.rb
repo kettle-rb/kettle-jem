@@ -359,10 +359,10 @@ module Kettle
 
         # {KJ|README:LICENSE_INTRO} — body of the ## 📄 License section in README
         if licenses == ["MIT"]
-          readme_license_intro = "The gem is available as open source under the terms of\nthe #{license_link("MIT")} [![License: MIT][📄license-img]][📄license-ref].\nSee [LICENSE.md][📄license] for the official copyright notice."
+          readme_license_intro = "The gem is available as open source under the terms of\nthe #{license_link("MIT")} [![License: MIT][📄license-img]][📄license-ref]."
         else
           intro_links = licenses.map { |l| license_link(l) }.join(", ")
-          readme_license_intro = "The gem is available under the following license#{licenses.size > 1 ? "s" : ""}: #{intro_links}.\nSee [LICENSE.md][📄license] for details and the official copyright notice."
+          readme_license_intro = "The gem is available under the following license#{licenses.size > 1 ? "s" : ""}: #{intro_links}.\nSee [LICENSE.md][📄license] for details."
           if has_non_mit
             contact_snippet = if author_email && !author_email.empty?
               "If none of the available licenses suit your use case, please [contact us](mailto:#{author_email}) to discuss a custom commercial license."

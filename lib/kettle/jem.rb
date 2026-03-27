@@ -80,6 +80,7 @@ module Kettle
     autoload :ReadmeGemspecSynchronizer, "kettle/jem/readme_gemspec_synchronizer"
     autoload :ReadmePostProcessor, "kettle/jem/readme_post_processor"
     autoload :LicenseTxtMigrator, "kettle/jem/license_txt_migrator"
+    autoload :CopyrightCollector, "kettle/jem/copyright_collector"
 
     # Task modules (moved from kettle-dev)
     module Tasks

@@ -1621,6 +1621,7 @@ module Kettle
               template_root: template_root,
             )
             migrate_license_txt!(helpers: helpers, project_root: project_root)
+            collect_git_copyright!(helpers: helpers, project_root: project_root)
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
             puts "WARNING: License file migration failed: #{e.class}: #{e.message}"
@@ -1688,6 +1689,56 @@ module Kettle
         # @param helpers [TemplateHelpers]
         # @param project_root [String] absolute path to destination project
         # @param template_root [String] absolute path to the template directory
+        # Build the authoritative copyright section in LICENSE.md by running
+        # `git blame --porcelain` across all tracked files via GitAdapter.
+        #
+        # Replaces whatever copyright content is currently at the bottom of
+        # LICENSE.md — either the single fallback line written from the template
+        # or a `## Copyright Notice` section left by +migrate_license_txt!+ —
+        # with a fully populated list derived from git history.
+        #
+        # No-ops gracefully when:
+        # - LICENSE.md does not exist
+        # - git is unavailable
+        # - the collector returns no human contributors
+        #
+        # @param helpers [TemplateHelpers]
+        # @param project_root [String] absolute path to destination project
+        def collect_git_copyright!(helpers:, project_root:)
+          license_md_path = File.join(project_root, "LICENSE.md")
+          return unless File.exist?(license_md_path)
+
+          ga        = Kettle::Dev::GitAdapter.new
+          collector = Kettle::Jem::CopyrightCollector.new(git_adapter: ga, project_root: project_root)
+          lines     = collector.copyright_lines
+          return if lines.empty?
+
+          md_content = File.read(license_md_path)
+          md_lines   = md_content.lines
+
+          # Strip trailing blank lines
+          md_lines.pop while md_lines.last&.strip&.empty?
+
+          # Remove an existing "## Copyright Notice" section (heading + body
+          # until end-of-file or the next ## heading) …
+          if (heading_idx = md_lines.rindex { |l| l.strip == "## Copyright Notice" })
+            md_lines = md_lines.first(heading_idx)
+          # … or a bare "Copyright (c) …" fallback line
+          elsif md_lines.last&.strip&.start_with?("Copyright (c)")
+            md_lines.pop
+          end
+
+          # Strip any newly exposed trailing blanks
+          md_lines.pop while md_lines.last&.strip&.empty?
+
+          section = "\n\n## Copyright Notice\n\n" + lines.join("\n") + "\n"
+          File.write(license_md_path, md_lines.join + section)
+          puts "Wrote #{lines.size} copyright line(s) to LICENSE.md."
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          puts "WARNING: Could not build copyright section: #{e.class}: #{e.message}"
+        end
+
         def copy_selected_license_files!(helpers:, project_root:, template_root:)
           licenses = helpers.resolved_licenses
 

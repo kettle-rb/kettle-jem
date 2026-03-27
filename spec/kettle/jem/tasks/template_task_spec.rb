@@ -4820,4 +4820,102 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
   end
+
+  describe "#collect_git_copyright!" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    def build_license_md(dir, body)
+      path = File.join(dir, "LICENSE.md")
+      File.write(path, body)
+      path
+    end
+
+    let(:ga_double)        { instance_double(Kettle::Dev::GitAdapter) }
+    let(:collector_double) { instance_double(Kettle::Jem::CopyrightCollector) }
+
+    before do
+      allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(ga_double)
+      allow(Kettle::Jem::CopyrightCollector).to receive(:new)
+        .with(git_adapter: ga_double, project_root: anything)
+        .and_return(collector_double)
+    end
+
+    context "when the collector returns copyright lines" do
+      before do
+        allow(collector_double).to receive(:copyright_lines)
+          .and_return(["Copyright (c) 2026 Alice", "Copyright (c) 2025 Bob"])
+      end
+
+      it "writes a ## Copyright Notice section to LICENSE.md" do
+        Dir.mktmpdir do |dir|
+          build_license_md(dir, "# License\n\nChoose a license.\n\nCopyright (c) 2026 Fallback Author\n")
+          described_class.collect_git_copyright!(helpers: helpers, project_root: dir)
+          result = File.read(File.join(dir, "LICENSE.md"))
+          expect(result).to include("## Copyright Notice")
+          expect(result).to include("Copyright (c) 2026 Alice")
+          expect(result).to include("Copyright (c) 2025 Bob")
+        end
+      end
+
+      it "removes the fallback 'Copyright (c)' line before appending the section" do
+        Dir.mktmpdir do |dir|
+          build_license_md(dir, "# License\n\nCopyright (c) 2026 Fallback\n")
+          described_class.collect_git_copyright!(helpers: helpers, project_root: dir)
+          result = File.read(File.join(dir, "LICENSE.md"))
+          expect(result).not_to include("Fallback")
+          expect(result).to include("Copyright (c) 2026 Alice")
+        end
+      end
+
+      it "replaces an existing ## Copyright Notice section" do
+        Dir.mktmpdir do |dir|
+          build_license_md(dir, "# License\n\n## Copyright Notice\n\nCopyright (c) 2020 OldData\n")
+          described_class.collect_git_copyright!(helpers: helpers, project_root: dir)
+          result = File.read(File.join(dir, "LICENSE.md"))
+          expect(result).not_to include("OldData")
+          expect(result).to include("Copyright (c) 2026 Alice")
+        end
+      end
+    end
+
+    context "when the collector returns no lines" do
+      before { allow(collector_double).to receive(:copyright_lines).and_return([]) }
+
+      it "leaves LICENSE.md unchanged" do
+        Dir.mktmpdir do |dir|
+          original = "# License\n\nCopyright (c) 2026 Fallback\n"
+          build_license_md(dir, original)
+          described_class.collect_git_copyright!(helpers: helpers, project_root: dir)
+          expect(File.read(File.join(dir, "LICENSE.md"))).to eq(original)
+        end
+      end
+    end
+
+    context "when LICENSE.md does not exist" do
+      it "does not raise and does not create the file" do
+        Dir.mktmpdir do |dir|
+          expect {
+            described_class.collect_git_copyright!(helpers: helpers, project_root: dir)
+          }.not_to raise_error
+          expect(File.exist?(File.join(dir, "LICENSE.md"))).to be false
+        end
+      end
+    end
+
+    context "when GitAdapter.new raises an unexpected error" do
+      before do
+        allow(Kettle::Dev::GitAdapter).to receive(:new).and_raise(RuntimeError, "no git repo")
+      end
+
+      it "does not propagate the error" do
+        Dir.mktmpdir do |dir|
+          original = "# License\n\nCopyright (c) 2026 Fallback\n"
+          build_license_md(dir, original)
+          expect { described_class.collect_git_copyright!(helpers: helpers, project_root: dir) }
+            .not_to raise_error
+          expect(File.read(File.join(dir, "LICENSE.md"))).to eq(original)
+        end
+      end
+    end
+  end
 end
