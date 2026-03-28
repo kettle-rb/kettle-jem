@@ -451,54 +451,16 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "detects PATH_add bin already present in .envrc" do
+    it "reports that PATH management is handled by mise when .envrc was not created by template" do
       Dir.mktmpdir do |project_root|
-        envrc = File.join(project_root, ".envrc")
-        File.write(envrc, "\n  PATH_add   bin  \n")
-
         allow(helpers).to receive_messages(
           project_root: project_root,
           modified_by_template?: false,
           template_results: {},
         )
 
-        expect { described_class.run }.not_to raise_error
-      end
-    end
-
-    it "adds PATH_add bin to .envrc on prompt accept and continues when allowed=true", :check_output do
-      Dir.mktmpdir do |project_root|
-        envrc = File.join(project_root, ".envrc")
-        # Create unreadable scenario -> read failure rescued to ""
-        Dir.mkdir(envrc)
-
-        allow(helpers).to receive_messages(
-          project_root: project_root,
-          modified_by_template?: false,
-          ask: true,
-          template_results: {},
-        )
-
-        stub_env("allowed" => "true")
-
-        expect { described_class.run }.not_to raise_error
-        # Ensure file was created with PATH_add
-        expect(File.file?(envrc)).to be true
-        expect(File.read(envrc)).to include("PATH_add bin")
-      end
-    end
-
-    it "skips modifying .envrc when user declines" do
-      Dir.mktmpdir do |project_root|
-        allow(helpers).to receive_messages(
-          project_root: project_root,
-          modified_by_template?: false,
-          ask: false,
-          template_results: {},
-        )
-
-        expect { described_class.run }.not_to raise_error
-        expect(File).not_to exist(File.join(project_root, ".envrc"))
+        expect { described_class.run }
+          .to output(/PATH management is handled by mise/).to_stdout
       end
     end
 
@@ -648,32 +610,6 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "aborts after updating .envrc unless allowed=true", :check_output do
-      Dir.mktmpdir do |project_root|
-        allow(helpers).to receive_messages(
-          project_root: project_root,
-          modified_by_template?: false,
-          ask: true,
-          template_results: {},
-        )
-
-        # Ensure origin check doesn't abort: provide a gemspec with a valid homepage to avoid touching git
-        File.write(File.join(project_root, "demo.gemspec"), <<~G)
-          Gem::Specification.new do |spec|
-            spec.name = "demo"
-            spec.homepage = "https://github.com/acme/demo"
-          end
-        G
-
-        # No allowed set, so after updating .envrc the task should abort
-        allow(described_class).to receive(:mise_installed?).and_return(true)
-
-        expect { described_class.run }
-          .to raise_error(Kettle::Dev::Error, /review \.envrc changes before continuing/)
-          .and output(/IMPORTANT: \.envrc was updated during kettle:jem:install\.\nPlease review it before continuing\.\nIf mise prompts you to trust this repo, run:\n  mise trust/m).to_stdout
-      end
-    end
-
     it "prints summary of templating changes and handles errors in summary" do
       Dir.mktmpdir do |project_root|
         allow(helpers).to receive(:project_root).and_return(project_root)
@@ -738,25 +674,6 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         end
 
         expect { described_class.run }.not_to raise_error
-      end
-    end
-
-    it "merges essential PATH_add lines into non-empty .envrc content" do
-      Dir.mktmpdir do |project_root|
-        envrc = File.join(project_root, ".envrc")
-        File.write(envrc, "export FOO=bar\n")
-        allow(helpers).to receive_messages(
-          project_root: project_root,
-          modified_by_template?: false,
-          ask: true,
-          template_results: {},
-        )
-        stub_env("allowed" => "true")
-        described_class.run
-        txt = File.read(envrc)
-        expect(txt).to include("export FOO=bar")
-        expect(txt).to include("PATH_add exe")
-        expect(txt).to include("PATH_add bin")
       end
     end
 

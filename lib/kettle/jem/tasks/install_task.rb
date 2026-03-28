@@ -302,70 +302,7 @@ module Kettle
             puts "   Your .envrc was created/updated by kettle:jem:template."
             puts "   It is a lightweight shim for this repo's mise-managed environment."
           else
-            begin
-              current = File.file?(envrc_path) ? File.read(envrc_path) : ""
-            rescue StandardError => e
-              Kettle::Dev.debug_error(e, __method__)
-              current = ""
-            end
-
-            # Use Bash::Merge to ensure the destination .envrc has at least the essential
-            # PATH_add lines from a minimal snippet. The full template .envrc was already
-            # copied/merged by the template task; this is a supplementary check for cases
-            # where the user has a custom .envrc that predates the template.
-            essential_envrc = <<~BASH
-              # Run any command in this project's bin/ without the bin/ prefix
-              PATH_add exe
-              PATH_add bin
-            BASH
-
-            if current.empty?
-              puts "   No .envrc found."
-              if helpers.ask("Create #{envrc_path} with PATH_add bin?", false)
-                FileUtils.rm_rf(envrc_path) if File.directory?(envrc_path)
-                File.open(envrc_path, "w") { |f| f.write(essential_envrc) }
-                puts "   Created #{envrc_path}"
-                updated_envrc_by_install = true
-              else
-                puts "   Skipping creation of .envrc."
-              end
-            else
-              begin
-                merged = Bash::Merge::SmartMerger.new(
-                  essential_envrc,
-                  current,
-                  preference: :destination,
-                  add_template_only_nodes: true,
-                  freeze_token: "kettle-jem",
-                ).merge
-              rescue StandardError => e
-                Kettle::Dev.debug_error(e, __method__)
-                # Fallback: simple line-presence check when Bash::Merge isn't available
-                # (e.g., tree-sitter-bash grammar not installed)
-                missing_lines = essential_envrc.lines.reject do |line|
-                  line.strip.empty? || line.strip.start_with?("#") || current.include?(line.strip)
-                end
-                merged = if missing_lines.any?
-                  essential_envrc + "\n" + current
-                else
-                  nil # Nothing to add
-                end
-              end
-
-              if merged && merged != current
-                puts "   Your .envrc is missing some recommended entries."
-                if helpers.ask("Update #{envrc_path} with merged content?", false)
-                  FileUtils.rm_rf(envrc_path) if File.directory?(envrc_path)
-                  File.open(envrc_path, "w") { |f| f.write(merged) }
-                  puts "   Updated #{envrc_path}"
-                  updated_envrc_by_install = true
-                else
-                  puts "   Skipping modification of .envrc."
-                end
-              else
-                puts "   Your .envrc is up to date."
-              end
-            end
+            puts "   PATH management is handled by mise. No .envrc changes needed."
           end
 
           if defined?(updated_envrc_by_install) && updated_envrc_by_install
