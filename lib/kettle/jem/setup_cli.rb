@@ -566,15 +566,21 @@ module Kettle
           existed_before = File.exist?(dest)
 
           overwrite = existed_before && force? && BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES.include?(filename)
-          next if existed_before && !overwrite
-
-          FileUtils.mkdir_p(File.dirname(dest))
-          content = File.read(source)
-          if filename == "templating_local.gemfile"
-            content = strip_self_from_templating_local(content)
+          if !existed_before || overwrite
+            FileUtils.mkdir_p(File.dirname(dest))
+            content = File.read(source)
+            content = strip_self_from_templating_local(content) if filename == "templating_local.gemfile"
+            File.write(dest, content)
+            say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
+          elsif filename == "templating_local.gemfile"
+            # Always ensure the host gem is not a dependency of itself, even in existing files.
+            original = File.read(dest)
+            stripped = strip_self_from_templating_local(original)
+            if stripped != original
+              File.write(dest, stripped)
+              say("Removed self-gem from #{dest}.", verbose_only: true)
+            end
           end
-          File.write(dest, content)
-          say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
         end
       end
 
