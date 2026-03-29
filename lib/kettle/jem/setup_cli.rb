@@ -58,10 +58,10 @@ module Kettle
         end
         return if prereq_result == :bootstrap_only
 
-        ensure_gemfile_from_example!(eval_paths: BOOTSTRAP_GEMFILE_EVAL_PATHS)
-        debug_git_status("ensure_gemfile_from_example! (bootstrap)")
         ensure_bootstrap_modular_gemfiles!
         debug_git_status("ensure_bootstrap_modular_gemfiles!")
+        ensure_bootstrap_eval_gemfile!
+        debug_git_status("ensure_bootstrap_eval_gemfile!")
         ensure_bin_setup!
         debug_git_status("ensure_bin_setup!")
         run_bin_setup!
@@ -528,6 +528,23 @@ module Kettle
         Kettle::Jem::PrismGemfile
       end
 
+      # Text-based bootstrap-safe version of adding the templating eval_gemfile line.
+      # Does NOT use PrismGemfile — that requires NestedStatementWalker which may only
+      # be present in local (unreleased) prism-merge. The full PrismGemfile merge runs
+      # in the bundled phase via ensure_gemfile_from_example! after bundle exec handoff.
+      def ensure_bootstrap_eval_gemfile!
+        eval_line = %(eval_gemfile "#{BOOTSTRAP_GEMFILE_EVAL_PATHS.first}")
+        target_path = "Gemfile"
+        target = File.exist?(target_path) ? File.read(target_path) : ""
+        if target.include?(eval_line)
+          say("Gemfile already includes templating.gemfile eval.", verbose_only: true)
+          return
+        end
+        new_content = ensure_trailing_newline(target) + "\n#{eval_line}\n"
+        File.write(target_path, ensure_trailing_newline(new_content))
+        say("Added templating.gemfile eval to Gemfile.", verbose_only: true)
+      end
+
       def filter_bootstrap_example_eval_gemfiles(content, eval_paths: nil)
         return content if eval_paths.nil?
 
@@ -547,10 +564,6 @@ module Kettle
 
           dest = File.join("gemfiles", "modular", filename)
           existed_before = File.exist?(dest)
-          if filename == "templating_local.gemfile" && existed_before && local_workspace_dev_mode?
-            merge_bootstrap_templating_local_gemfile!(source: source, dest: dest)
-            next
-          end
 
           overwrite = existed_before && force? && BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES.include?(filename)
           next if existed_before && !overwrite

@@ -155,8 +155,9 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli).not_to receive(:ensure_rakefile!)
       expect(cli).not_to receive(:run_kettle_install!)
       expect(cli).not_to receive(:commit_bootstrap_changes!)
-      expect(cli).to receive(:ensure_gemfile_from_example!).with(eval_paths: ["gemfiles/modular/templating.gemfile"]).ordered.and_return(nil)
+      expect(cli).not_to receive(:ensure_gemfile_from_example!)
       expect(cli).to receive(:ensure_bootstrap_modular_gemfiles!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_bootstrap_eval_gemfile!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
@@ -1027,6 +1028,45 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "#ensure_bootstrap_eval_gemfile!" do
+    around do |ex|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { ex.run }
+      end
+    end
+
+    let(:cli) { described_class.allocate }
+    let(:eval_line) { 'eval_gemfile "gemfiles/modular/templating.gemfile"' }
+
+    it "adds the eval_gemfile line to an existing Gemfile that lacks it", :check_output do
+      File.write("Gemfile", "# frozen_string_literal: true\nsource \"https://rubygems.org\"\n")
+      expect { cli.send(:ensure_bootstrap_eval_gemfile!) }
+        .to output(/Added templating\.gemfile eval/).to_stdout
+      content = File.read("Gemfile")
+      expect(content).to include(eval_line)
+    end
+
+    it "creates Gemfile with the eval_gemfile line when Gemfile is absent", :check_output do
+      expect { cli.send(:ensure_bootstrap_eval_gemfile!) }
+        .to output(/Added templating\.gemfile eval/).to_stdout
+      expect(File.read("Gemfile")).to include(eval_line)
+    end
+
+    it "does not duplicate the eval_gemfile line when already present", :check_output do
+      File.write("Gemfile", "source \"https://rubygems.org\"\n#{eval_line}\n")
+      expect { cli.send(:ensure_bootstrap_eval_gemfile!) }
+        .to output(/already includes/).to_stdout
+      expect(File.read("Gemfile").scan(eval_line).size).to eq(1)
+    end
+
+    it "does not use PrismGemfile during the operation" do
+      File.write("Gemfile", "source \"https://rubygems.org\"\n")
+      allow(cli).to receive(:say)
+      expect(Kettle::Jem::PrismGemfile).not_to receive(:merge_gem_calls)
+      cli.send(:ensure_bootstrap_eval_gemfile!)
+    end
+  end
+
   describe "#ensure_bin_setup! and #ensure_rakefile!" do
     around do |ex|
       Dir.mktmpdir do |dir|
@@ -1281,7 +1321,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@original_argv, [])
       allow(cli).to receive(:parse!)
       allow(cli).to receive(:bundled_execution_context?).and_return(false)
-      %i[prechecks! template_config_present? ensure_gemfile_from_example! ensure_bootstrap_modular_gemfiles! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
+      %i[prechecks! template_config_present? ensure_bootstrap_modular_gemfiles! ensure_bootstrap_eval_gemfile! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
         allow(cli).to receive(:template_config_present?).and_return(true) if m == :template_config_present?
         expect(cli).to receive(m).ordered
       end
