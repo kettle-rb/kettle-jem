@@ -28,7 +28,7 @@ module Kettle
           first_arg = node.arguments&.arguments&.first
 
           if node.name == :eval_gemfile && first_arg.is_a?(Prism::StringNode)
-            return [:eval_gemfile, first_arg.unescaped.to_s]
+            return [:eval_gemfile, normalize_eval_gemfile_path(first_arg.unescaped.to_s)]
           end
 
           arg_value = case first_arg
@@ -90,6 +90,29 @@ module Kettle
                 merged << range.dup
               end
             end
+        end
+
+        # Normalize an eval_gemfile path by stripping Ruby-version bucket segments.
+        #
+        # Modular gemfile subdirectories follow the pattern:
+        #   ../../<gem_name>/<ruby_bucket>/<version>.gemfile
+        # where <ruby_bucket> is a directory like `r3`, `r4`, `r33`, etc.
+        # (the major Ruby version for which the constraint applies).
+        #
+        # When the project's minimum Ruby version changes, the template emits paths
+        # with a different bucket (e.g. r4 vs r3). Without normalization, SmartMerger
+        # treats those as distinct nodes and appends the new one alongside the old
+        # one, duplicating the dependency.
+        #
+        # By stripping the bucket, ../../erb/r3/v5.0.gemfile and
+        # ../../erb/r4/v5.0.gemfile both map to the canonical signature
+        # ../../erb/v5.0.gemfile, so SmartMerger recognizes them as the same
+        # dependency and lets the template version win.
+        #
+        # @param path [String] Raw eval_gemfile path
+        # @return [String] Canonicalized path with ruby-version bucket removed
+        def normalize_eval_gemfile_path(path)
+          path.gsub(%r{/r\d+/}, "/")
         end
       end
     end

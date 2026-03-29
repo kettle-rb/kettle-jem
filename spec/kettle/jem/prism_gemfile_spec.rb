@@ -23,6 +23,41 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         [:eval_gemfile, "gemfiles/modular/style.gemfile"],
       ])
     end
+
+    it "normalizes eval_gemfile ruby-version bucket segments so r3 and r4 variants share a canonical signature" do
+      content = <<~RUBY
+        eval_gemfile "../../erb/r3/v5.0.gemfile"
+        eval_gemfile "../../erb/r4/v5.0.gemfile"
+        eval_gemfile "../../mutex_m/r33/v0.3.gemfile"
+        eval_gemfile "gemfiles/modular/style.gemfile"
+      RUBY
+
+      result = Prism.parse(content)
+      statements = result.value.statements.body
+
+      signatures = statements.map { |stmt| described_class::MergeEntryPolicy.signature_for(stmt) }
+
+      expect(signatures[0]).to eq([:eval_gemfile, "../../erb/v5.0.gemfile"])
+      expect(signatures[1]).to eq([:eval_gemfile, "../../erb/v5.0.gemfile"])
+      expect(signatures[2]).to eq([:eval_gemfile, "../../mutex_m/v0.3.gemfile"])
+      # Paths without a ruby-version bucket are unchanged
+      expect(signatures[3]).to eq([:eval_gemfile, "gemfiles/modular/style.gemfile"])
+    end
+  end
+
+  describe "::MergeEntryPolicy.normalize_eval_gemfile_path" do
+    subject(:policy) { described_class::MergeEntryPolicy }
+
+    it "strips /r<N>/ bucket from versioned paths" do
+      expect(policy.normalize_eval_gemfile_path("../../erb/r4/v5.0.gemfile")).to eq("../../erb/v5.0.gemfile")
+      expect(policy.normalize_eval_gemfile_path("../../mutex_m/r3/v0.3.gemfile")).to eq("../../mutex_m/v0.3.gemfile")
+      expect(policy.normalize_eval_gemfile_path("../../stringio/r33/v3.0.gemfile")).to eq("../../stringio/v3.0.gemfile")
+    end
+
+    it "leaves paths that have no ruby-version bucket unchanged" do
+      expect(policy.normalize_eval_gemfile_path("gemfiles/modular/style.gemfile")).to eq("gemfiles/modular/style.gemfile")
+      expect(policy.normalize_eval_gemfile_path("../../erb/v5.0.gemfile")).to eq("../../erb/v5.0.gemfile")
+    end
   end
 
   describe "::MergeEntryPolicy.filter_content" do
@@ -328,6 +363,34 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(out.scan(/^gemspec$/).length).to eq(1)
       expect(out.scan(/^eval_gemfile "gemfiles\/modular\/style\.gemfile"$/).length).to eq(1)
       expect(out).to include('eval_gemfile "gemfiles/modular/debug.gemfile"')
+    end
+
+    it "replaces eval_gemfile entries that differ only in ruby-version bucket instead of duplicating", :prism_merge_only do
+      src = <<~RUBY
+        eval_gemfile "../../erb/r4/v5.0.gemfile"
+        eval_gemfile "../../mutex_m/r4/v0.3.gemfile"
+        eval_gemfile "../../stringio/r4/v3.0.gemfile"
+        eval_gemfile "../../benchmark/r4/v0.5.gemfile"
+      RUBY
+
+      dest = <<~RUBY
+        eval_gemfile "../../erb/r3/v5.0.gemfile"
+        eval_gemfile "../../mutex_m/r3/v0.3.gemfile"
+        eval_gemfile "../../stringio/r3/v3.0.gemfile"
+        eval_gemfile "../../benchmark/r4/v0.5.gemfile"
+      RUBY
+
+      out = described_class.merge_gem_calls(src, dest)
+
+      # r4 versions from the template should appear exactly once each
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/erb\/r4\/v5\.0\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/mutex_m\/r4\/v0\.3\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/stringio\/r4\/v3\.0\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/benchmark\/r4\/v0\.5\.gemfile"/).length).to eq(1)
+      # old r3 versions should not be present
+      expect(out).not_to include('eval_gemfile "../../erb/r3/v5.0.gemfile"')
+      expect(out).not_to include('eval_gemfile "../../mutex_m/r3/v0.3.gemfile"')
+      expect(out).not_to include('eval_gemfile "../../stringio/r3/v3.0.gemfile"')
     end
 
     it "replaces matching git_source by name and inserts when missing", :prism_merge_only do
