@@ -1713,6 +1713,9 @@ module Kettle
           lines     = collector.copyright_lines
           return if lines.empty?
 
+          prefix = helpers.polyform_licenses?(helpers.resolved_licenses) ? "Required Notice: " : ""
+          lines  = lines.map { |l| "#{prefix}#{l}" } if prefix != ""
+
           md_content = File.read(license_md_path)
           md_lines   = md_content.lines
 
@@ -1723,8 +1726,8 @@ module Kettle
           # until end-of-file or the next ## heading) …
           if (heading_idx = md_lines.rindex { |l| l.strip == "## Copyright Notice" })
             md_lines = md_lines.first(heading_idx)
-          # … or a bare "Copyright (c) …" fallback line
-          elsif md_lines.last&.strip&.start_with?("Copyright (c)")
+          # … or a bare "Copyright (c) …" / "Required Notice: Copyright (c) …" fallback line
+          elsif md_lines.last&.strip&.match?(/\A(?:Required Notice: )?Copyright \(c\)/)
             md_lines.pop
           end
 
@@ -1805,6 +1808,9 @@ module Kettle
           license_md_path = File.join(project_root, "LICENSE.md")
 
           if copyright_lines.any? && File.exist?(license_md_path)
+            prefix = helpers.polyform_licenses?(helpers.resolved_licenses) ? "Required Notice: " : ""
+            prefixed_lines = copyright_lines.map { |l| "#{prefix}#{l.strip}" }
+
             # Strip the template-generated fallback "Copyright (c) ..." line (last
             # non-empty line of the file), then append a proper ## Copyright Notice
             # section containing the real copyright lines from the old LICENSE.txt.
@@ -1814,16 +1820,16 @@ module Kettle
             while md_lines.last&.strip&.empty?
               md_lines.pop
             end
-            if md_lines.last&.strip&.start_with?("Copyright (c)")
+            if md_lines.last&.strip&.match?(/\A(?:Required Notice: )?Copyright \(c\)/)
               md_lines.pop
             end
             # Strip any newly exposed trailing blanks
             while md_lines.last&.strip&.empty?
               md_lines.pop
             end
-            section = "\n\n## Copyright Notice\n\n" + copyright_lines.map(&:strip).join("\n") + "\n"
+            section = "\n\n## Copyright Notice\n\n" + prefixed_lines.join("\n") + "\n"
             File.write(license_md_path, md_lines.join + section)
-            puts "Replaced fallback copyright with #{copyright_lines.size} line(s) from LICENSE.txt in LICENSE.md."
+            puts "Replaced fallback copyright with #{prefixed_lines.size} line(s) from LICENSE.txt in LICENSE.md."
           end
 
           File.delete(license_txt_path)

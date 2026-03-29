@@ -387,6 +387,11 @@ module Kettle
         end
         replacements["KJ|README:LICENSE_REFS"] = license_refs.join("\n")
 
+        # {KJ|COPYRIGHT_PREFIX} — "Required Notice: " when any PolyForm license is
+        # selected (PolyForm licenses require this prefix on copyright notices), or
+        # an empty string otherwise.
+        replacements["KJ|COPYRIGHT_PREFIX"] = polyform_licenses?(licenses) ? "Required Notice: " : ""
+
         @@token_replacements = replacements
       end
 
@@ -437,6 +442,15 @@ module Kettle
       def license_link(spdx_id)
         base = spdx_basename(spdx_id)
         "[#{base}](#{base}.md)"
+      end
+
+      # Returns true when any PolyForm license is present in +licenses+.
+      # PolyForm licenses require copyright notices to be prefixed with "Required Notice:".
+      #
+      # @param licenses [Array<String>] resolved SPDX license identifiers
+      # @return [Boolean]
+      def polyform_licenses?(licenses)
+        licenses.any? { |l| l.to_s.start_with?("PolyForm-") }
       end
 
       # All known SPDX IDs that warrant a use-case guide entry, grouped by category.
