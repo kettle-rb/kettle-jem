@@ -36,7 +36,7 @@ module Kettle
             destination_associated_export_match,
             excluded,
           )
-            return content
+            return destination_content || content
           end
 
           words = (destination_words + merged_words + vendored_words).uniq.reject { |word| excluded.include?(word) }

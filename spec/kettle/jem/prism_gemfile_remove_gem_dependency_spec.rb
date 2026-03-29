@@ -281,7 +281,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
 
-      expect(out).to eq(merged)
+      expect(out).to eq(destination)
     end
 
     it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
