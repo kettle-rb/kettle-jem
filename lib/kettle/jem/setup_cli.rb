@@ -569,35 +569,39 @@ module Kettle
           next if existed_before && !overwrite
 
           FileUtils.mkdir_p(File.dirname(dest))
-          FileUtils.cp(source, dest)
+          content = File.read(source)
+          if filename == "templating_local.gemfile"
+            content = strip_self_from_templating_local(content)
+          end
+          File.write(dest, content)
           say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
         end
       end
 
+      # Pure text-based removal of the host gem's own name from the templating_local gemfile
+      # so it does not conflict with the gemspec source declaration. No AST tools used here
+      # because this runs in the bootstrap phase before bundle exec is active.
+      def strip_self_from_templating_local(content)
+        gem_name = gemspec_string_value("name")
+        return content unless gem_name
+
+        # Remove "  gem-name" line from the %w[ ] array
+        content = content.gsub(/^[ \t]+#{Regexp.escape(gem_name)}[ \t]*\n/, "")
+
+        # Remove gem-name from the VENDORED_GEMS comment (comma-delimited, may be anywhere)
+        content = content.gsub(
+          /^(# export VENDORED_GEMS=)(.*)$/,
+        ) do
+          prefix = ::Regexp.last_match(1)
+          gems = ::Regexp.last_match(2).split(",").reject { |g| g.strip == gem_name }
+          "#{prefix}#{gems.join(",")}"
+        end
+
+        content
+      end
+
       def local_workspace_dev_mode?
         ENV.fetch("KETTLE_RB_DEV", "false").to_s.strip.casecmp("false").nonzero?
-      end
-
-      def merge_bootstrap_templating_local_gemfile!(source:, dest:)
-        source_content = File.read(source)
-        destination_content = File.read(dest)
-        merged_content = merge_bootstrap_templating_local_content(
-          source_content,
-          destination_content,
-          excluded_gems: gemspec_string_value("name"),
-        )
-        return if merged_content == destination_content
-
-        File.write(dest, merged_content)
-        say("Updated #{dest} with required local templating gems.", verbose_only: true)
-      end
-
-      def merge_bootstrap_templating_local_content(source_content, destination_content, excluded_gems: [])
-        Kettle::Jem::PrismGemfile.merge_bootstrap_local_gem_overrides(
-          source_content,
-          destination_content,
-          excluded_gems: excluded_gems,
-        )
       end
 
       # 3c. Ensure gemfiles/modular/* are present (copied like template task)

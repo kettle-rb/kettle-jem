@@ -969,26 +969,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
     end
 
-    it "merges required local templating gems into an existing templating_local.gemfile in local-dev mode" do
-      stub_env("KETTLE_RB_DEV" => "true")
-      FileUtils.mkdir_p(File.join("gemfiles", "modular"))
-      File.write("ast-merge.gemspec", <<~RUBY)
+    it "strips the host gem's name from templating_local.gemfile on fresh copy", :check_output do
+      File.write("rbs-merge.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
-          spec.name = "ast-merge"
-        end
-      RUBY
-      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), <<~RUBY)
-        require "nomono/bundler"
-
-        local_gems = %w[
-          tree_haver
-          bash-merge
-          prism-merge
-        ]
-
-        # export VENDORED_GEMS=tree_haver,bash-merge,prism-merge
-        platform :mri do
-          eval_nomono_gems(gems: local_gems)
+          spec.name = "rbs-merge"
         end
       RUBY
 
@@ -999,32 +983,31 @@ RSpec.describe Kettle::Jem::SetupCLI do
         require "nomono/bundler"
 
         local_gems = %w[
-          ast-merge
           tree_haver
-          bash-merge
+          ast-merge
+          rbs-merge
           kettle-jem
-          prism-merge
         ]
 
-        # export VENDORED_GEMS=ast-merge,tree_haver,bash-merge,kettle-jem,prism-merge
+        # export VENDORED_GEMS=tree_haver,ast-merge,rbs-merge,kettle-jem
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
       RUBY
 
       cli = described_class.allocate
-      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
+      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "rbs-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
-      cli.send(:ensure_bootstrap_modular_gemfiles!)
+      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
+        .to output(/Copied gemfiles\/modular\/templating_local\.gemfile/).to_stdout
 
       result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
       expect(result).to include("tree_haver")
-      expect(result).to include("bash-merge")
-      expect(result).to include("prism-merge")
+      expect(result).to include("ast-merge")
       expect(result).to include("kettle-jem")
-      expect(result).not_to include("ast-merge\n")
-      expect(result).to include("# export VENDORED_GEMS=tree_haver,bash-merge,prism-merge,kettle-jem")
+      expect(result).not_to match(/^\s+rbs-merge\s*$/)
+      expect(result).not_to include("rbs-merge")
     end
   end
 
@@ -1064,6 +1047,51 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:say)
       expect(Kettle::Jem::PrismGemfile).not_to receive(:merge_gem_calls)
       cli.send(:ensure_bootstrap_eval_gemfile!)
+    end
+  end
+
+  describe "#strip_self_from_templating_local" do
+    let(:cli) { described_class.allocate }
+
+    let(:content_with_rbs_merge) do
+      <<~RUBY
+        require "nomono/bundler"
+
+        local_gems = %w[
+          tree_haver
+          ast-merge
+          rbs-merge
+          kettle-jem
+        ]
+
+        # export VENDORED_GEMS=tree_haver,ast-merge,rbs-merge,kettle-jem
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+    end
+
+    it "removes the host gem from the %w[] array and VENDORED_GEMS comment" do
+      allow(cli).to receive(:gemspec_string_value).with("name").and_return("rbs-merge")
+      result = cli.send(:strip_self_from_templating_local, content_with_rbs_merge)
+      expect(result).not_to match(/^\s+rbs-merge\s*$/)
+      expect(result).not_to include("rbs-merge")
+      expect(result).to include("tree_haver")
+      expect(result).to include("ast-merge")
+      expect(result).to include("kettle-jem")
+      expect(result).to include("# export VENDORED_GEMS=tree_haver,ast-merge,kettle-jem")
+    end
+
+    it "returns content unchanged when gem name is nil" do
+      allow(cli).to receive(:gemspec_string_value).with("name").and_return(nil)
+      result = cli.send(:strip_self_from_templating_local, content_with_rbs_merge)
+      expect(result).to eq(content_with_rbs_merge)
+    end
+
+    it "handles a gem name not present in the content gracefully" do
+      allow(cli).to receive(:gemspec_string_value).with("name").and_return("no-such-gem")
+      result = cli.send(:strip_self_from_templating_local, content_with_rbs_merge)
+      expect(result).to eq(content_with_rbs_merge)
     end
   end
 
