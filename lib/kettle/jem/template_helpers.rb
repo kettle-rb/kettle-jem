@@ -423,6 +423,22 @@ module Kettle
         ["MIT"]
       end
 
+      # Return the list of machine/automation user names and emails to exclude from
+      # generated copyright output.
+      #
+      # Reads the +machine_users+ array from .kettle-jem.yml.  Falls back to the
+      # default list +["autobolt"]+ when the key is absent or empty.
+      #
+      # @return [Array<String>]
+      def resolved_machine_users
+        config_value = kettle_config["machine_users"]
+        if config_value.is_a?(Array) && config_value.any? { |u| u.to_s.strip != "" }
+          return config_value.map(&:to_s).reject { |u| u.strip.empty? }
+        end
+
+        ["autobolt"]
+      end
+
       # Derive a filesystem-safe basename from an SPDX license identifier.
       #
       # User-defined SPDX identifiers are prefixed with `LicenseRef-`.

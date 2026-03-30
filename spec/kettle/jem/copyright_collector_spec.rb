@@ -427,6 +427,126 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
   end
 
+  # ─── machine_users exclusion ───────────────────────────────────────────────
+
+  describe "#copyright_lines with machine_users:" do
+    subject(:collector) do
+      described_class.new(git_adapter: git_adapter, project_root: project_root,
+        machine_users: machine_users)
+    end
+
+    let(:file) { touch_file("lib/foo.rb") }
+
+    context "when an author name exactly matches a machine user (case-insensitive)" do
+      let(:machine_users) { ["autobolt"] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025) +
+          blame_stanza(sha: SHA_B, name: "Autobolt", email: "autobolt@ci.example.com",
+            timestamp: TS_2025, line_num: 2)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "excludes the machine user by name" do
+        lines = collector.copyright_lines
+        expect(lines).to eq(["Copyright (c) 2025 Alice"])
+        expect(lines.join).not_to include("Autobolt")
+      end
+    end
+
+    context "when an author email exactly matches a machine user entry" do
+      let(:machine_users) { ["autobolt@ci.example.com"] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025) +
+          blame_stanza(sha: SHA_B, name: "AutoBolt CI", email: "autobolt@ci.example.com",
+            timestamp: TS_2025, line_num: 2)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "excludes the machine user by email" do
+        lines = collector.copyright_lines
+        expect(lines).to eq(["Copyright (c) 2025 Alice"])
+        expect(lines.join).not_to include("AutoBolt CI")
+      end
+    end
+
+    context "when machine_users contains mixed case entries" do
+      let(:machine_users) { ["AUTOBOLT"] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "autobolt", email: "bot@example.com", timestamp: TS_2025)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "matches case-insensitively and excludes the user" do
+        expect(collector.copyright_lines).to eq([])
+      end
+    end
+
+    context "when machine_users is empty" do
+      let(:machine_users) { [] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "autobolt", email: "autobolt@ci.example.com", timestamp: TS_2025)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "does not exclude any users" do
+        expect(collector.copyright_lines).to eq(["Copyright (c) 2025 autobolt"])
+      end
+    end
+
+    context "when the machine user is the only author" do
+      let(:machine_users) { ["autobolt"] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "autobolt", email: "autobolt@ci.example.com", timestamp: TS_2025)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "returns an empty array" do
+        expect(collector.copyright_lines).to eq([])
+      end
+    end
+
+    context "when multiple machine users are listed" do
+      let(:machine_users) { ["autobolt", "release-bot@example.com"] }
+      let(:output) do
+        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2024) +
+          blame_stanza(sha: SHA_B, name: "autobolt", email: "autobolt@ci.example.com",
+            timestamp: TS_2025, line_num: 2) +
+          blame_stanza(sha: SHA_C, name: "Release Bot", email: "release-bot@example.com",
+            timestamp: TS_2025, line_num: 3)
+      end
+
+      before do
+        allow(git_adapter).to receive(:ls_files).and_return([file])
+        allow(git_adapter).to receive(:blame_porcelain).with(file).and_return(output)
+      end
+
+      it "excludes all listed machine users and keeps humans" do
+        lines = collector.copyright_lines
+        expect(lines).to eq(["Copyright (c) 2024 Alice"])
+      end
+    end
+  end
+
   # ─── #format_years (private) ───────────────────────────────────────────────
 
   describe "#format_years" do

@@ -11,9 +11,13 @@ module Kettle
     # are taken from the first occurrence seen in blame output. Bot-authored
     # commits (GitHub Actions, Dependabot, etc.) are filtered out.
     #
+    # Additional machine/automation users can be excluded via the +machine_users+
+    # parameter (matched case-insensitively against name and email).
+    #
     # @example
     #   ga = Kettle::Dev::GitAdapter.new
-    #   collector = CopyrightCollector.new(git_adapter: ga, project_root: Dir.pwd)
+    #   collector = CopyrightCollector.new(git_adapter: ga, project_root: Dir.pwd,
+    #                                      machine_users: ["autobolt"])
     #   collector.copyright_lines
     #   # => ["Copyright (c) 2024-2026 Peter H. Boling",
     #   #     "Copyright (c) 2025 Jane Contributor"]
@@ -30,9 +34,13 @@ module Kettle
 
       # @param git_adapter [Kettle::Dev::GitAdapter]
       # @param project_root [String] absolute path to the repository root
-      def initialize(git_adapter:, project_root:)
-        @git_adapter  = git_adapter
-        @project_root = project_root.to_s
+      # @param machine_users [Array<String>] names or email addresses of automation
+      #   accounts to exclude from copyright output (case-insensitive).
+      #   Matched against both the author name and the author email.
+      def initialize(git_adapter:, project_root:, machine_users: [])
+        @git_adapter   = git_adapter
+        @project_root  = project_root.to_s
+        @machine_users = Array(machine_users).map { |u| u.to_s.downcase.strip }.reject(&:empty?).to_set
       end
 
       # Return one formatted copyright string per unique human contributor,
@@ -46,13 +54,14 @@ module Kettle
         raw
           .values
           .reject { |entry| bot_entry?(entry) }
+          .reject { |entry| machine_user_entry?(entry) }
           .sort_by { |entry| [entry[:years].map(&:to_i).min, entry[:name].to_s.downcase] }
           .map { |entry| "Copyright (c) #{format_years(entry[:years])} #{entry[:name]}" }
       end
 
       private
 
-      attr_reader :git_adapter, :project_root
+      attr_reader :git_adapter, :project_root, :machine_users
 
       # @return [Hash{String => {name: String, years: Set<String>, email: String}}]
       def collect_raw_authors
@@ -185,6 +194,20 @@ module Kettle
         name  = entry[:name].to_s
         email = entry[:email].to_s
         name.match?(BOT_NAME_SUFFIX) || email.match?(BOT_EMAIL_PATTERN)
+      end
+
+      # Returns true when the entry's name or email matches a configured machine user.
+      #
+      # Matching is case-insensitive and performed against the normalised
+      # (downcased, stripped) versions of both the author name and email.
+      #
+      # @param entry [Hash]
+      def machine_user_entry?(entry)
+        return false if machine_users.empty?
+
+        name  = entry[:name].to_s.downcase.strip
+        email = entry[:email].to_s.downcase.strip
+        machine_users.include?(name) || machine_users.include?(email)
       end
 
       # Collapse a set/array of year strings into a compact human-readable string.

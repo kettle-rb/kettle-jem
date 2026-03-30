@@ -1709,7 +1709,11 @@ module Kettle
           return unless File.exist?(license_md_path)
 
           ga        = Kettle::Dev::GitAdapter.new
-          collector = Kettle::Jem::CopyrightCollector.new(git_adapter: ga, project_root: project_root)
+          collector = Kettle::Jem::CopyrightCollector.new(
+            git_adapter:   ga,
+            project_root:  project_root,
+            machine_users: helpers.resolved_machine_users,
+          )
           lines     = collector.copyright_lines
           return if lines.empty?
 

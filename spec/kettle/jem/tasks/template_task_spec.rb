@@ -4836,7 +4836,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     before do
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(ga_double)
       allow(Kettle::Jem::CopyrightCollector).to receive(:new)
-        .with(git_adapter: ga_double, project_root: anything)
+        .with(git_adapter: ga_double, project_root: anything, machine_users: anything)
         .and_return(collector_double)
     end
 
