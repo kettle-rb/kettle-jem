@@ -140,6 +140,11 @@ Gem::Specification.new do |spec|
   #
   #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
   #       and preferably a modular one (see gemfiles/modular/*.gemfile).
+  #
+  #       required_ruby_version ">= 3.2.0" (or lower)
+  #
+  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
+  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
   # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
   spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
 
