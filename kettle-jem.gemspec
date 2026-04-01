@@ -13,8 +13,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["Peter H. Boling"]
   spec.email = ["floss@galtzo.com"]
 
-  spec.summary = "☯️ Gem templating engine using AST-based merging and configurable token resolution."
-  spec.description = "☯️ Kettle::Jem provides gem scaffolding, templating, and setup automation using the *-merge gem family for AST-based file merging and token-resolver for template token resolution. Includes MergerConfig presets, YAML recipes, and a complete gem template scaffold."
+  spec.summary = "🍲 Gem templating engine using AST-based merging and configurable token resolution."
+  spec.description = "🍲 Kettle::Jem provides gem scaffolding, templating, and setup automation using the *-merge gem family for AST-based file merging and token-resolver for template token resolution. Includes MergerConfig presets, YAML recipes, and a complete gem template scaffold."
   spec.homepage = "https://github.com/kettle-rb/kettle-jem"
   spec.licenses = ["MIT"]
   spec.required_ruby_version = ">= 3.2.0"
@@ -115,6 +115,11 @@ Gem::Specification.new do |spec|
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
+  #
+  #       required_ruby_version ">= 3.2.0" (or lower)
+  #
+  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
+  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
   # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
   spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
 
@@ -125,12 +130,6 @@ Gem::Specification.new do |spec|
   #       This gem, and its gemspec runtime dependencies, will install on Ruby down to 3.2.0.
   #       This gem, and its gemspec development dependencies, will install on Ruby down to 3.2.0.
   #       Thus, dev dependencies in gemspec must have
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-
   # Security
   spec.add_development_dependency("bundler-audit", "~> 0.9.3")                      # ruby >= 2.0.0
 

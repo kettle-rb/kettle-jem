@@ -128,9 +128,9 @@ Always make commands self-contained. Use `mise exec -C /home/pboling/src/kettle-
 
 **CRITICAL**: NEVER write to root `/tmp` or any other root-level folder when acting as an agent.
 
-- ALWAYS write temporary files, scratch files, reports, or other agent-created artifacts under the repo-local `tmp/` directory.
-- If the needed subdirectory does not exist under `tmp/`, create it inside the repository instead of falling back to `/tmp`.
-- Treat this as a hard rule for manual agent actions even if existing project output or fixtures still reference `/tmp`.
+- Uses `kettle-test` for RSpec helpers (stubbed_env, block_is_expected, silent_stream, timecop)
+- Uses `Dir.mktmpdir` for isolated filesystem tests
+- Spec helper is loaded by `.rspec` — never add `require "spec_helper"` to spec files
 
 ### Running Tests
 
