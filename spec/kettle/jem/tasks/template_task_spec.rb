@@ -4919,6 +4919,59 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     end
   end
 
+  describe "#sync_existing_kettle_config! preserves destination licenses" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "does not add template-only licenses back when destination already has a licenses key (REPRO)" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          # Template uses flow sequence (the fixed format) so the merger does NOT
+          # recurse into the sequence and add template items to the destination.
+          template_config = <<~YAML
+            # Managed by kettle-jem
+            licenses: [MIT]
+          YAML
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+
+          # User's project config has removed MIT and uses only AGPL
+          dest_config = <<~YAML
+            # My project config
+            licenses:
+              - AGPL-3.0-only
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
+
+          # Stub all helpers methods used by sync_existing_kettle_config!
+          allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
+          allow(helpers).to receive(:configure_tokens!).and_return(nil)
+          allow(helpers).to receive(:read_template) { |p| File.read(p) }
+          allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
+          allow(helpers).to receive(:clear_tokens!).and_return(nil)
+          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
+          allow(helpers).to receive(:project_root).and_return(project_root)
+          allow(helpers).to receive(:record_template_result).and_return(nil)
+          allow(helpers).to receive(:output_path) { |p| p }
+          allow(helpers).to receive(:ask).and_return(true)
+          allow(helpers).to receive(:force_mode?).and_return(false)
+
+          described_class.sync_existing_kettle_config!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: {org: "test-org", gem_name: "test-gem", namespace: "Test", namespace_shield: "TEST", gem_shield: "test-gem"},
+          )
+
+          result = File.read(File.join(project_root, ".kettle-jem.yml"))
+          parsed = YAML.safe_load(result)
+          # AGPL must be kept; MIT must NOT be added back
+          expect(parsed["licenses"]).to include("AGPL-3.0-only")
+          expect(parsed["licenses"]).not_to include("MIT"), \
+            "licenses array must NOT have MIT re-added by the SmartMerger; got: #{parsed["licenses"].inspect}"
+        end
+      end
+    end
+  end
+
   describe "#remove_obsolete_license_files!" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
 

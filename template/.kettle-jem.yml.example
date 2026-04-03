@@ -110,8 +110,7 @@ readme:
 #   - Any non-MIT license adds a "contact for commercial license" prompt.
 #   - When MIT (or AGPL), a PolyForm variant, AND LicenseRef-Big-Time-Public-License
 #     are all present, a use-case guide table is added to README and LICENSE.md.
-licenses:
-  - MIT
+licenses: [MIT]
 
 # Machine / automation accounts to exclude from generated copyright output.
 #
