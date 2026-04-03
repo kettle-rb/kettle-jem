@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.summary = "🍲 Gem templating engine using AST-based merging and configurable token resolution."
   spec.description = "🍲 Kettle::Jem provides gem scaffolding, templating, and setup automation using the *-merge gem family for AST-based file merging and token-resolver for template token resolution. Includes MergerConfig presets, YAML recipes, and a complete gem template scaffold."
   spec.homepage = "https://github.com/kettle-rb/kettle-jem"
-  spec.licenses = ["MIT"]
+  spec.licenses = ["AGPL-3.0-only", "PolyForm-Small-Business-1.0.0", "LicenseRef-Big-Time-Public-License"]
   spec.required_ruby_version = ">= 3.2.0"
 
   # Linux distros often package gems and securely certify them independent
@@ -155,6 +155,12 @@ Gem::Specification.new do |spec|
   #       This gem, and its gemspec runtime dependencies, will install on Ruby down to 3.2.0.
   #       This gem, and its gemspec development dependencies, will install on Ruby down to 3.2.0.
   #       Thus, dev dependencies in gemspec must have
+  #
+  #       required_ruby_version ">= 3.2.0" (or lower)
+  #
+  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
+  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
+
   # Security
   spec.add_development_dependency("bundler-audit", "~> 0.9.3")                      # ruby >= 2.0.0
 
