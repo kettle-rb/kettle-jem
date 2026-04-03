@@ -1218,6 +1218,65 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       )
     end
 
+    # Regression: bare `#` continuation lines inside the NOTE block were not
+    # recognized as part of the block, so note_block_end_index stopped too early.
+    # This caused the lines between note_end and the runtime dep (the tail of the NOTE
+    # block comment) to be treated as attached comments of that dep and moved with it,
+    # duplicating them on every subsequent template run.
+    it "includes bare comment-continuation lines (empty #) within the note block boundary" do
+      lines = <<~TEXT.lines
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
+        #       Thus, dev dependencies in gemspec must have
+        #
+        #       required_ruby_version ">= 3.2.0" (or lower)
+        #
+        #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile".
+      TEXT
+
+      note_start = described_class.note_block_start_index(lines)
+      note_end = described_class.note_block_end_index(lines, note_start)
+
+      # Every line is part of the note block (indices 0..6)
+      expect(note_end).to eq(6)
+    end
+
+    it "does not pull note-block continuation lines into an extracted runtime dependency block" do
+      # The NOTE block tail (bare # + required_ruby_version + ...) is separated from
+      # the runtime dep only by contiguous comments (no blank line in between).
+      # Without the fix, attached_comment_start_index would walk all the way back
+      # through those comment lines and include them in the moved block, placing the
+      # note-block tail *before* NOTE. On subsequent template-merge passes the template
+      # re-inserts those lines back into the NOTE body, producing one more duplicate
+      # on every run.
+      lines = <<~TEXT.lines
+        spec.add_dependency("version_gem", "~> 1.1")
+
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
+        #       Thus, dev dependencies in gemspec must have
+        #
+        #       required_ruby_version ">= 3.2.0" (or lower)
+        #
+        #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile".
+        # Dev tooling
+        spec.add_dependency("kettle-dev", "~> 2.0")
+
+        spec.add_development_dependency("rake", "~> 13.0")
+      TEXT
+
+      result = described_class.relocate_runtime_dependency_blocks_before_note(lines)
+
+      # The note-block tail (required_ruby_version etc.) must remain INSIDE the NOTE
+      # block – i.e. it must appear *after* the "# NOTE:" line in the output.
+      note_pos = result.index("# NOTE:")
+      req_ruby_pos = result.index("required_ruby_version")
+      expect(req_ruby_pos).to be > note_pos
+
+      # kettle-dev must land before the NOTE block after relocation
+      expect(result.index('spec.add_dependency("kettle-dev"')).to be < note_pos
+    end
+
     it "builds a relocation snapshot from the note boundary and runtime records that trail it" do
       lines = ["spec.name = \"demo\"\n"]
       note_index = 2

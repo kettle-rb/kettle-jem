@@ -188,7 +188,14 @@ module Kettle
         def note_block_end_index(lines, note_index)
           end_index = note_index
 
-          while lines[end_index + 1]&.lstrip&.match?(/^#\s{2,}/)
+          # Match NOTE-block continuation lines: either indented comment lines
+          # (#  two-or-more-spaces) or bare empty comment lines (# alone).
+          # Bare `#` lines act as blank separators within the NOTE paragraph and
+          # must be included so the full block boundary is computed correctly;
+          # otherwise the tail of the NOTE body (e.g. the required_ruby_version
+          # advisory) is mistakenly classified as attached comments of the next
+          # code node, causing those lines to be moved and duplicated on each run.
+          while lines[end_index + 1]&.lstrip&.match?(/^#(\s{2,}|$)/)
             end_index += 1
           end
 
