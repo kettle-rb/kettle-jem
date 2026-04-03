@@ -849,11 +849,7 @@ module Kettle
                   begin
                     merger_class = case dest_rel
                     when /\.json$/
-                      if content.match?(%r{^\s*//})
-                        Jsonc::Merge::SmartMerger
-                      else
-                        Json::Merge::SmartMerger
-                      end
+                      Json::Merge::SmartMerger
                     when /\.sh$/
                       Bash::Merge::SmartMerger
                     end
