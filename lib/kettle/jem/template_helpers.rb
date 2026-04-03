@@ -1495,7 +1495,11 @@ module Kettle
         config = kettle_config
         return unless config && config["files"]
 
-        parts = relative_path.split("/")
+        # Strip a leading "./" so "README.md" and "./README.md" resolve identically.
+        # Without this, split("/") would produce [".", "README.md"] and the lookup
+        # would silently miss config["files"]["README.md"], falling back to :merge.
+        normalized = relative_path.to_s.delete_prefix("./")
+        parts = normalized.split("/")
         current = config["files"]
 
         parts.each do |part|

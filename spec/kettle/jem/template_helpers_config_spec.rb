@@ -278,6 +278,33 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       config = described_class.find_file_config("nonexistent/file.rb")
       expect(config).to be_nil
     end
+
+    it "resolves a dotslash-prefixed path identically to its bare form" do
+      Dir.mktmpdir do |dir|
+        project_root = File.join(dir, "project")
+        template_root = File.join(dir, "template")
+        FileUtils.mkdir_p(project_root)
+        FileUtils.mkdir_p(template_root)
+        File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          patterns: []
+          files:
+            AGENTS.md:
+              strategy: accept_template
+        YAML
+
+        allow(described_class).to receive_messages(project_root: project_root, template_root: template_root)
+        described_class.clear_kettle_config!
+
+        # Both forms must resolve to the same config — a leading "./" must not
+        # cause the lookup to walk config["files"]["."]["AGENTS.md"] and miss.
+        expect(described_class.find_file_config("AGENTS.md")).to include(strategy: :accept_template)
+        expect(described_class.find_file_config("./AGENTS.md")).to include(strategy: :accept_template)
+      end
+    end
   end
 
   describe ".load_manifest" do
