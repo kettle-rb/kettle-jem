@@ -13,6 +13,13 @@ module Kettle
         MODULAR_GEMFILE_DIR = "gemfiles/modular"
         MARKDOWN_HEADING_EXTENSIONS = %w[.md .markdown].freeze
         OBSOLETE_WORKFLOWS = %w[ancient.yml legacy.yml supported.yml unsupported.yml main.yml hoary.yml].freeze
+
+        # Markdown basenames that live in template/ as *.md.example but are NOT
+        # SPDX license files.  Used to distinguish license files from other
+        # template-managed markdown documents when pruning obsolete licenses.
+        NON_LICENSE_MD_BASENAMES = %w[
+          AGENTS CHANGELOG CODE_OF_CONDUCT CONTRIBUTING FUNDING LICENSE README RUBOCOP SECURITY
+        ].to_set.freeze
         MARKDOWN_PARAGRAPH_BASE_REFINER = Ast::Merge::ContentMatchRefiner.new(
           threshold: 0.3,
           node_types: [:paragraph],
@@ -1178,7 +1185,7 @@ module Kettle
                       repl[:email] = Array(orig_meta[:email]).map(&:to_s) if orig_meta[:email]
                       repl[:summary] = orig_meta[:summary].to_s if orig_meta[:summary] && !orig_meta[:summary].to_s.strip.empty?
                       repl[:description] = orig_meta[:description].to_s if orig_meta[:description] && !orig_meta[:description].to_s.strip.empty?
-                      repl[:licenses] = Array(orig_meta[:licenses]).map(&:to_s) if orig_meta[:licenses]
+                      repl[:licenses] = helpers.resolved_licenses
                       if orig_meta[:required_ruby_version]
                         repl[:required_ruby_version] = orig_meta[:required_ruby_version].to_s
                       end
@@ -1620,6 +1627,11 @@ module Kettle
               project_root: project_root,
               template_root: template_root,
             )
+            remove_obsolete_license_files!(
+              helpers: helpers,
+              project_root: project_root,
+              template_root: template_root,
+            )
             migrate_license_txt!(helpers: helpers, project_root: project_root)
             collect_git_copyright!(helpers: helpers, project_root: project_root)
           rescue StandardError => e
@@ -1780,6 +1792,41 @@ module Kettle
           else
             helpers.add_warning("LICENSE.md.example not found in template/. LICENSE.md was not written.")
           end
+        end
+
+        # Remove license files that are no longer listed in `.kettle-jem.yml`.
+        #
+        # Any `<basename>.md` file in the project root that was previously written
+        # by kettle-jem (i.e. it has a corresponding `<basename>.md.example` in
+        # the template directory and is not a non-license markdown document) but
+        # whose SPDX identifier is absent from the current +resolved_licenses+ list
+        # is deleted.  This keeps the project's license files in sync with the
+        # configured license set.
+        #
+        # @param helpers [TemplateHelpers]
+        # @param project_root [String] absolute path to destination project
+        # @param template_root [String] absolute path to the kettle-jem template directory
+        def remove_obsolete_license_files!(helpers:, project_root:, template_root:)
+          active_basenames = helpers.resolved_licenses
+            .map { |id| helpers.spdx_basename(id) }
+            .to_set
+
+          Dir.glob(File.join(template_root, "*.md.example"))
+            .map { |f| File.basename(f, ".md.example") }
+            .reject { |b| NON_LICENSE_MD_BASENAMES.include?(b) }
+            .reject { |b| active_basenames.include?(b) }
+            .each do |base|
+              path = File.join(project_root, "#{base}.md")
+              next unless File.exist?(path)
+
+              begin
+                File.delete(path)
+                puts "Removed obsolete license file: #{base}.md (not in configured licenses)."
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+                puts "WARNING: Could not remove obsolete license file #{base}.md: #{e.class}: #{e.message}"
+              end
+            end
         end
 
         # Migrate an existing LICENSE.txt into the new multi-license layout:

@@ -4918,4 +4918,152 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
   end
+
+  describe "#remove_obsolete_license_files!" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "deletes license files whose SPDX id is absent from resolved_licenses" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          # Simulate a template directory with three known license file templates
+          File.write(File.join(template_root, "MIT.md.example"), "MIT license")
+          File.write(File.join(template_root, "AGPL-3.0-only.md.example"), "AGPL license")
+          File.write(File.join(template_root, "Apache-2.0.md.example"), "Apache license")
+          # Non-license markdown that must never be touched
+          File.write(File.join(template_root, "README.md.example"), "readme template")
+
+          # Project currently has all three SPDX license files
+          File.write(File.join(project_root, "MIT.md"), "MIT license text")
+          File.write(File.join(project_root, "AGPL-3.0-only.md"), "AGPL license text")
+          File.write(File.join(project_root, "Apache-2.0.md"), "Apache license text")
+
+          # Config now only lists MIT and AGPL — Apache is obsolete
+          allow(helpers).to receive(:resolved_licenses).and_return(["MIT", "AGPL-3.0-only"])
+          allow(helpers).to receive(:spdx_basename) { |id| id }
+
+          described_class.remove_obsolete_license_files!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+          )
+
+          expect(File.exist?(File.join(project_root, "MIT.md"))).to be true
+          expect(File.exist?(File.join(project_root, "AGPL-3.0-only.md"))).to be true
+          expect(File.exist?(File.join(project_root, "Apache-2.0.md"))).to be false
+        end
+      end
+    end
+
+    it "does not touch non-license markdown files even when they have a template counterpart" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          File.write(File.join(template_root, "MIT.md.example"), "MIT license")
+          File.write(File.join(template_root, "README.md.example"), "readme")
+          File.write(File.join(template_root, "CHANGELOG.md.example"), "changelog")
+
+          File.write(File.join(project_root, "README.md"), "my readme")
+          File.write(File.join(project_root, "CHANGELOG.md"), "my changelog")
+          File.write(File.join(project_root, "MIT.md"), "MIT license text")
+
+          # Only MIT is active — README and CHANGELOG should never be touched
+          allow(helpers).to receive(:resolved_licenses).and_return(["MIT"])
+          allow(helpers).to receive(:spdx_basename) { |id| id }
+
+          described_class.remove_obsolete_license_files!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+          )
+
+          expect(File.exist?(File.join(project_root, "README.md"))).to be true
+          expect(File.exist?(File.join(project_root, "CHANGELOG.md"))).to be true
+          expect(File.exist?(File.join(project_root, "MIT.md"))).to be true
+        end
+      end
+    end
+
+    it "does not raise when a managed obsolete license file is absent from the project" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          File.write(File.join(template_root, "Apache-2.0.md.example"), "Apache license")
+
+          # Apache-2.0.md does NOT exist in project_root — should be a no-op
+          allow(helpers).to receive(:resolved_licenses).and_return(["MIT"])
+          allow(helpers).to receive(:spdx_basename) { |id| id }
+
+          expect do
+            described_class.remove_obsolete_license_files!(
+              helpers: helpers,
+              project_root: project_root,
+              template_root: template_root,
+            )
+          end.not_to raise_error
+        end
+      end
+    end
+  end
+
+  describe "config-to-gemspec license sync" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    before { stub_env("allowed" => "true") }
+
+    it "writes the .kettle-jem.yml license list into spec.licenses instead of preserving the gemspec value" do
+      Dir.mktmpdir do |gem_root|
+        Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+
+          File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo-gem"
+              spec.version = "1.0.0"
+              spec.authors = ["Template Author"]
+              spec.email = ["t@example.com"]
+              spec.summary = "Template summary"
+              spec.description = "Template description"
+              spec.licenses = ["MIT"]
+              spec.required_ruby_version = ">= 2.3.0"
+              spec.require_paths = ["lib"]
+              spec.bindir = "exe"
+              spec.executables = []
+            end
+          GEMSPEC
+
+          # Existing gemspec has Apache-2.0 only
+          File.write(File.join(project_root, "demo-gem.gemspec"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo-gem"
+              spec.version = "0.1.0"
+              spec.authors = ["Alice"]
+              spec.email = ["alice@example.com"]
+              spec.summary = "My gem"
+              spec.description = "My gem does things"
+              spec.licenses = ["Apache-2.0"]
+              spec.required_ruby_version = ">= 3.0"
+              spec.require_paths = ["lib"]
+              spec.bindir = "exe"
+              spec.executables = []
+            end
+          GEMSPEC
+
+          # Config declares MIT + AGPL — these should win over the gemspec's Apache-2.0
+          allow(helpers).to receive(:resolved_licenses).and_return(["MIT", "AGPL-3.0-only"])
+          allow(helpers).to receive_messages(
+            project_root: project_root,
+            template_root: template_root,
+            ensure_clean_git!: nil,
+            ask: true,
+          )
+
+          described_class.run
+
+          dest = File.read(File.join(project_root, "demo-gem.gemspec"))
+          expect(dest).to include("MIT")
+          expect(dest).to include("AGPL-3.0-only")
+          expect(dest).not_to include("Apache-2.0")
+        end
+      end
+    end
+  end
 end
