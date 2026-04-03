@@ -39,7 +39,11 @@ module Kettle
             return destination_content || content
           end
 
-          words = (destination_words + merged_words + vendored_words).uniq.reject { |word| excluded.include?(word) }
+          words = if merged_local_gems_match || merged_vendored_match
+            (merged_words + vendored_gems_words_from_match(merged_vendored_match)).uniq.reject { |word| excluded.include?(word) }
+          else
+            (destination_words + vendored_words).uniq.reject { |word| excluded.include?(word) }
+          end
           out = content.dup
           block_export_template = nil
 
@@ -93,9 +97,7 @@ module Kettle
           destination_associated_export_match = associated_local_override_export_match(destination_content, destination_local_match, destination_export_match)
           excluded = excluded_words_set(excluded_gems)
           words = (
-            local_gems_words_from_match(destination_local_match) +
             local_gems_words_from_match(source_local_match) +
-            vendored_gems_words_from_match(destination_export_match) +
             vendored_gems_words_from_match(source_export_match)
           ).uniq.reject { |word| excluded.include?(word) }
 

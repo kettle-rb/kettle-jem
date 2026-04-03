@@ -144,15 +144,17 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
   end
 
   describe ".merge_local_gem_overrides" do
-    it "keeps destination-only local workspace gems, adds template-only gems, and excludes the current gem" do
+    it "uses the template local workspace gems as authoritative while excluding the current gem" do
       merged = <<~RUBY
         local_gems = %w[
+          tree_haver
+          ast-merge
           bash-merge
           kettle-jem
           prism-merge
         ]
 
-        # export VENDORED_GEMS=bash-merge,kettle-jem,prism-merge
+        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-jem,prism-merge
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
@@ -160,28 +162,28 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       destination = <<~RUBY
         local_gems = %w[
-          ast-merge
-          tree_haver
-          prism-merge
+          legacy-merge
+          bash-merge
         ]
 
-        # export VENDORED_GEMS=ast-merge,tree_haver,prism-merge
+        # export VENDORED_GEMS=legacy-merge,bash-merge
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
       RUBY
 
-      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "ast-merge")
 
-      expect(out).to include("ast-merge")
       expect(out).to include("tree_haver")
       expect(out).to include("bash-merge")
       expect(out).to include("prism-merge")
-      expect(out).not_to include("kettle-jem\n")
-      expect(out).to include("# export VENDORED_GEMS=ast-merge,tree_haver,prism-merge,bash-merge")
+      expect(out).to include("kettle-jem")
+      expect(out).not_to include("legacy-merge")
+      expect(out).not_to include("ast-merge")
+      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-jem,prism-merge")
     end
 
-    it "preserves single-line local_gems formatting while merging words from both sides" do
+    it "preserves single-line local_gems formatting while using template-owned words" do
       merged = <<~RUBY
         local_gems = %w[bash-merge kettle-jem prism-merge]
 
@@ -200,7 +202,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
 
-      expect(out).to include("local_gems = %w[ast-merge prism-merge bash-merge]")
+      expect(out).to include("local_gems = %w[bash-merge prism-merge]")
       expect(out).not_to include("local_gems = %w[\n")
     end
 
@@ -231,8 +233,9 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
 
       expect(out).to include("] # keep this note")
-      expect(out).to include("  ast-merge")
       expect(out).to include("  bash-merge")
+      expect(out).to include("  prism-merge")
+      expect(out).not_to include("  ast-merge")
     end
 
     it "keeps the vendored export comment on its own line after a single-line local_gems assignment" do
@@ -256,7 +259,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
 
-      expect(out).to include("local_gems = %w[ast-merge prism-merge bash-merge]\n\n# export VENDORED_GEMS=ast-merge,prism-merge,bash-merge\nplatform :mri do")
+      expect(out).to include("local_gems = %w[bash-merge prism-merge]\n\n# export VENDORED_GEMS=bash-merge,prism-merge\nplatform :mri do")
       expect(out).not_to include("]# export VENDORED_GEMS")
     end
 
@@ -314,7 +317,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
   end
 
   describe ".merge_bootstrap_local_gem_overrides" do
-    it "keeps destination ordering while adding source-only bootstrap gems and excluding the current gem" do
+    it "uses the source bootstrap gems as authoritative while excluding the current gem" do
       source = <<~RUBY
         require "nomono/bundler"
 
@@ -336,12 +339,11 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
         require "nomono/bundler"
 
         local_gems = %w[
+          legacy-merge
           tree_haver
-          bash-merge
-          prism-merge
         ]
 
-        # export VENDORED_GEMS=tree_haver,bash-merge,prism-merge
+        # export VENDORED_GEMS=legacy-merge,tree_haver
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
@@ -353,8 +355,9 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to include("bash-merge")
       expect(out).to include("prism-merge")
       expect(out).to include("kettle-jem")
-      expect(out).not_to include("ast-merge\n")
-      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,prism-merge,kettle-jem")
+      expect(out).not_to include("legacy-merge")
+      expect(out).not_to include("ast-merge")
+      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-jem,prism-merge")
     end
 
     it "leaves the destination unchanged when the source has no bootstrap override metadata" do

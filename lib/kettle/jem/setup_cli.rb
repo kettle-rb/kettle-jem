@@ -27,7 +27,7 @@ module Kettle
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
-      BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile].freeze
+      BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
 
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)

@@ -933,7 +933,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "overwrites bootstrap templating.gemfile when --force is provided", :check_output do
+    it "overwrites bootstrap modular gemfiles when --force is provided", :check_output do
       FileUtils.mkdir_p(File.join("gemfiles", "modular"))
       File.write(File.join("gemfiles", "modular", "templating.gemfile"), "gem 'templating-old'\n")
       File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
@@ -947,26 +947,69 @@ RSpec.describe Kettle::Jem::SetupCLI do
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
       expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Overwrote gemfiles\/modular\/templating\.gemfile\./).to_stdout
+        .to output(/Overwrote gemfiles\/modular\/templating\.gemfile\..*Overwrote gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
       expect(File.read(File.join("gemfiles", "modular", "templating.gemfile"))).to eq("gem 'templating-new'\n")
-      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
+      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "preserves bootstrap templating_local.gemfile even when --force is provided" do
+    it "refreshes bootstrap templating_local.gemfile from template on --force while stripping only the destination gem", :check_output do
+      File.write("ast-merge.gemspec", <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "ast-merge"
+        end
+      RUBY
+
       FileUtils.mkdir_p(File.join("gemfiles", "modular"))
-      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
+      File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), <<~RUBY)
+        require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)
+
+        local_gems = %w[
+          tree_haver
+          bash-merge
+          legacy-merge
+        ]
+
+        # export VENDORED_GEMS=tree_haver,bash-merge,legacy-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
 
       templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
       templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
       File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, "gem 'templating-local-new'\n")
+      File.write(templating_local_source, <<~RUBY)
+        require "nomono/bundler"
+
+        local_gems = %w[
+          tree_haver
+          ast-merge
+          bash-merge
+          kettle-jem
+          prism-merge
+        ]
+
+        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-jem,prism-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
 
       cli = described_class.new(["--force"])
+      cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
-      cli.send(:ensure_bootstrap_modular_gemfiles!)
+      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
+        .to output(/Overwrote gemfiles\/modular\/templating_local\.gemfile\./).to_stdout
 
-      expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-old'\n")
+      result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
+      expect(result).to include('require "nomono/bundler"')
+      expect(result).to include("tree_haver")
+      expect(result).to include("bash-merge")
+      expect(result).to include("kettle-jem")
+      expect(result).to include("prism-merge")
+      expect(result).not_to include("legacy-merge")
+      expect(result).not_to include("ast-merge")
     end
 
     it "strips the host gem's name from templating_local.gemfile on fresh copy", :check_output do
