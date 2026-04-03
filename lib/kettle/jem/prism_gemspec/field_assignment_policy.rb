@@ -38,6 +38,28 @@ module Kettle
           end
 
           plans = add_field_insertion_plans(plans, content: content, lines: lines, insertions: insertions)
+
+          # When spec.licenses (plural) is being set, remove any conflicting spec.license (singular)
+          if replacements.key?(:licenses)
+            singular_license_node = context[:stmt_nodes].find do |node|
+              node.is_a?(Prism::CallNode) &&
+                node.receiver&.slice&.strip&.end_with?(context[:blk_param]) &&
+                node.name.to_s == "license="
+            end
+            if singular_license_node
+              plans << Ast::Merge::StructuralEdit::RemovePlan.new(
+                source: content,
+                remove_start_line: singular_license_node.location.start_line,
+                remove_end_line: singular_license_node.location.end_line,
+                metadata: {
+                  source: :kettle_jem_prism_gemspec,
+                  edit: :remove_singular_license,
+                  field: "license",
+                },
+              )
+            end
+          end
+
           return content if plans.empty?
 
           merged_content_from_plans(content: content, plans: plans, metadata: {source: :kettle_jem_prism_gemspec})

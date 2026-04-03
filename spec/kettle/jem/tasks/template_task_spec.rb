@@ -5061,6 +5061,66 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
     before { stub_env("allowed" => "true") }
 
+    it "removes spec.license (singular) when spec.licenses (plural) is being set" do
+      Dir.mktmpdir do |gem_root|
+        Dir.mktmpdir do |project_root|
+          template_root = File.join(gem_root, "template")
+          FileUtils.mkdir_p(template_root)
+
+          File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo-gem"
+              spec.version = "1.0.0"
+              spec.authors = ["Template Author"]
+              spec.email = ["t@example.com"]
+              spec.summary = "Template summary"
+              spec.description = "Template description"
+              spec.licenses = ["MIT"]
+              spec.required_ruby_version = ">= 2.3.0"
+              spec.require_paths = ["lib"]
+              spec.bindir = "exe"
+              spec.executables = []
+            end
+          GEMSPEC
+
+          # Existing gemspec uses singular spec.license (as scaffolded by `bundle gem`)
+          File.write(File.join(project_root, "demo-gem.gemspec"), <<~GEMSPEC)
+            Gem::Specification.new do |spec|
+              spec.name = "demo-gem"
+              spec.version = "0.1.0"
+              spec.authors = ["Alice"]
+              spec.email = ["alice@example.com"]
+              spec.summary = "My gem"
+              spec.description = "My gem does things"
+              spec.license = "MIT"
+              spec.required_ruby_version = ">= 3.0"
+              spec.require_paths = ["lib"]
+              spec.bindir = "exe"
+              spec.executables = []
+            end
+          GEMSPEC
+
+          # Config declares multiple licenses — spec.licenses should be written and spec.license removed
+          allow(helpers).to receive(:resolved_licenses).and_return(["AGPL-3.0-only", "PolyForm-Small-Business-1.0.0", "LicenseRef-Big-Time-Public-License"])
+          allow(helpers).to receive_messages(
+            project_root: project_root,
+            template_root: template_root,
+            ensure_clean_git!: nil,
+            ask: true,
+          )
+
+          described_class.run
+
+          dest = File.read(File.join(project_root, "demo-gem.gemspec"))
+          expect(dest).to include("AGPL-3.0-only")
+          expect(dest).to include("PolyForm-Small-Business-1.0.0")
+          expect(dest).to include("LicenseRef-Big-Time-Public-License")
+          expect(dest).to include("spec.licenses")
+          expect(dest).not_to match(/spec\.license\s*=\s*"/)
+        end
+      end
+    end
+
     it "writes the .kettle-jem.yml license list into spec.licenses instead of preserving the gemspec value" do
       Dir.mktmpdir do |gem_root|
         Dir.mktmpdir do |project_root|
