@@ -20,6 +20,10 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Added
 
+- New `{KJ|GEM_MAJOR}` token, resolved from the target gem's gemspec version,
+  emitting just the major version integer (e.g. `"3"` for a `3.1.0` gem). Use
+  it in templates wherever a `"~> X.0"` dependency constraint is needed, such
+  as the `spec.add_dependency` example line in README templates.
 - Templating now writes a dedicated per-run Markdown report under
   `tmp/kettle-jem/`, capturing run status, warnings or errors, and the active
   merge-gem environment.
@@ -50,6 +54,9 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- README templates now use `"~> {KJ|GEM_MAJOR}.0"` for the `spec.add_dependency`
+  example line instead of the hardcoded `"~> 1.0"`, so the generated constraint
+  reflects the target gem's actual major version.
 - `kettle-jem --quiet` now propagates into each `bin/setup` run so its
   `bundle install` stays quiet, suppresses the direct `bundle binstubs --all`
   step during setup, trims extra setup progress banners/command echoes, and

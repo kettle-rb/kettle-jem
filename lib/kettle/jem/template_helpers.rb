@@ -265,10 +265,18 @@ module Kettle
         entrypoint_require = meta[:entrypoint_require].to_s
         entrypoint_require = gem_name.tr("-", "/") if entrypoint_require.empty?
 
+        gem_version_str = meta[:version].to_s
+        gem_major = begin
+          Gem::Version.new(gem_version_str).segments.first.to_s
+        rescue StandardError
+          "0"
+        end
+
         replacements = {
           "KJ|GEM_NAME" => gem_name,
           "KJ|GEM_NAME_PATH" => entrypoint_require,
           "KJ|GEM_SHIELD" => gem_shield,
+          "KJ|GEM_MAJOR" => gem_major,
           "KJ|GH_ORG" => org.to_s,
           "KJ|NAMESPACE" => namespace,
           "KJ|NAMESPACE_SHIELD" => namespace_shield,
