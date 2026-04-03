@@ -91,6 +91,11 @@ Please file a bug if you notice a violation of semantic versioning.
   non-README/CHANGELOG merges, preventing near-matching `AGENTS.md`
   paragraphs from being misclassified as separate destination-only and
   template-only blocks and then both surviving output during self-merges.
+- `AGENTS.md` and other markdown files no longer duplicate the H1 document
+  title when the template and destination use differently-worded headings
+  (e.g. `# AGENTS.md - Development Guide` vs `# AGENTS.md - myGem Development Guide`).
+  H1 is now a singleton structural slot in `markdown-merge`, so the preferred
+  version replaces the other instead of both being kept.
 
 ### Security
 

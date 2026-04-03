@@ -66,6 +66,14 @@ lambda do |node|
   case node.type
   when :header, :heading
     level = node.respond_to?(:header_level) ? node.header_level : nil
+    # H1 is the document title — treat as a singleton.
+    # A well-formed markdown document has exactly one H1, so matching by level
+    # alone is correct and avoids false non-matches when the template title is
+    # generic ("AGENTS.md - Development Guide") while the destination carries a
+    # gem-specific qualifier ("AGENTS.md - dotenv-merge Development Guide").
+    # Treating them as different headings causes both to be kept (duplication).
+    return [:header, 1] if level == 1
+
     text = extract_heading_text(node)
     [:header, level, normalize_heading(text)]
 
