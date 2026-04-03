@@ -92,7 +92,7 @@ Gem::Specification.new do |spec|
   spec.executables = ["kettle-jem"]
 
   # Shared merge infrastructure
-  spec.add_dependency("ast-merge", "~> 4.0", ">= 4.0.6")                # ruby >= 3.2.0
+  spec.add_dependency("ast-merge", "~> 5.0", ">= 5.0.0")                # ruby >= 3.2.0
 
   # Token parsing and resolution for template ETL
   spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.2")           # ruby >= 3.2.0
@@ -101,16 +101,15 @@ Gem::Specification.new do |spec|
   spec.add_dependency("tree_haver", "~> 6.0", ">= 6.0.0")               # ruby >= 3.2.0
 
   # Merge infrastructure
-  spec.add_dependency("bash-merge", "~> 2.0", ">= 2.0.6")               # ruby >= 3.2.0
-  spec.add_dependency("dotenv-merge", "~> 1.0", ">= 1.0.3")             # ruby >= 3.2.0
-  spec.add_dependency("jsonc-merge", "~> 1.0", ">= 1.0.1")              # ruby >= 3.2.0
-  spec.add_dependency("json-merge", "~> 1.1", ">= 1.1.2")               # ruby >= 3.2.0
-  spec.add_dependency("markdown-merge", "~> 1.0", ">= 1.0.3")           # ruby >= 3.2.0
-  spec.add_dependency("markly-merge", "~> 1.0")                         # ruby >= 3.2.0
-  spec.add_dependency("prism-merge", "~> 2.0", ">= 2.0.4")              # ruby >= 3.2.0
-  spec.add_dependency("psych-merge", "~> 1.0")                          # ruby >= 3.2.0
-  spec.add_dependency("rbs-merge", "~> 2.0")                            # ruby >= 3.2.0
-  spec.add_dependency("toml-merge", "~> 2.0")                           # ruby >= 3.2.0
+  spec.add_dependency("bash-merge", "~> 3.0")                           # ruby >= 3.2.0
+  spec.add_dependency("dotenv-merge", "~> 2.0")                         # ruby >= 3.2.0
+  spec.add_dependency("json-merge", "~> 2.0")                           # ruby >= 3.2.0
+  spec.add_dependency("markdown-merge", "~> 2.0")                       # ruby >= 3.2.0
+  spec.add_dependency("markly-merge", "~> 2.0")                         # ruby >= 3.2.0
+  spec.add_dependency("prism-merge", "~> 3.0")                          # ruby >= 3.2.0
+  spec.add_dependency("psych-merge", "~> 2.0")                          # ruby >= 3.2.0
+  spec.add_dependency("rbs-merge", "~> 3.0")                            # ruby >= 3.2.0
+  spec.add_dependency("toml-merge", "~> 3.0")                           # ruby >= 3.2.0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
