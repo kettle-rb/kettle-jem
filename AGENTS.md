@@ -25,22 +25,26 @@ mise exec -C /path/to/project -- bundle exec rspec
 Do this before spending time on unrelated debugging; in this workspace pattern, silent `mise` commands are usually a trust problem first.
 
 ✅ **CORRECT** — Run self-contained commands with `mise exec`:
+
 ```bash
 mise exec -C /path/to/project -- bundle exec rspec
 ```
 
 ✅ **CORRECT** — If you need shell syntax first, load the environment in the same command:
+
 ```bash
 eval "$(mise env -C /path/to/project -s bash)" && bundle exec rspec
 ```
 
 ❌ **WRONG** — Do not rely on a previous command changing directories:
+
 ```bash
 cd /path/to/project
 bundle exec rspec
 ```
 
 ❌ **WRONG** — A chained `cd` does not give directory-change hooks time to update the environment:
+
 ```bash
 cd /path/to/project && bundle exec rspec
 ```
@@ -48,6 +52,7 @@ cd /path/to/project && bundle exec rspec
 ### Prefer Internal Tools Over Terminal
 
 ✅ **PREFERRED** — Use internal tools:
+
 - `grep_search` instead of `grep` command
 - `file_search` instead of `find` command
 - `read_file` instead of `cat` command
@@ -55,13 +60,15 @@ cd /path/to/project && bundle exec rspec
 - `replace_string_in_file` or `create_file` instead of `sed` / manual editing
 
 ❌ **AVOID** when possible:
+
 - `run_in_terminal` for information gathering
 
 Only use terminal for:
+
 - Running tests (`bundle exec rspec`)
 - Installing dependencies (`bundle install`)
-- Git operations that require interaction
-- Commands that actually need to execute (not just gather info)
+- Simple commands that do not require much shell escaping
+- Running scripts (prefer writing a script over a complicated command with shell escaping)
 
 When you do run tests, keep the full output visible so you can inspect failures completely.
 
@@ -123,14 +130,7 @@ gemfiles/
 ### Running Commands
 
 Always make commands self-contained. Use `mise exec -C /home/pboling/src/kettle-rb/prism-merge -- ...` so the command gets the project environment in the same invocation.
-
-### Temporary Files and Scratch Paths
-
-**CRITICAL**: NEVER write to root `/tmp` or any other root-level folder when acting as an agent.
-
-- Uses `kettle-test` for RSpec helpers (stubbed_env, block_is_expected, silent_stream, timecop)
-- Uses `Dir.mktmpdir` for isolated filesystem tests
-- Spec helper is loaded by `.rspec` — never add `require "spec_helper"` to spec files
+If the command is complicated write a script in local tmp/ and then run the script.
 
 ### Running Tests
 
@@ -226,7 +226,4 @@ end
 
 ## 🚫 Common Pitfalls
 
-1. **NEVER add backward compatibility** — No shims, aliases, or deprecation layers. Bump major version instead.
-2. **NEVER expect `cd` to persist** — Every terminal command is isolated; use a self-contained `mise exec -C ... -- ...` invocation.
-3. **NEVER pipe test output through `head`/`tail`** — Run tests without truncation so you can inspect the full output.
-4. **Terminal commands do not share shell state** — Previous `cd`, `export`, aliases, and functions are not available to the next command.
+1. **NEVER pipe test output through `head`/`tail`** — Run tests without truncation so you can inspect the full output.
