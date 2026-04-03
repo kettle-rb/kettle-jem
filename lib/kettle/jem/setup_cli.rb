@@ -114,7 +114,7 @@ module Kettle
       end
 
       def debug(msg)
-        return if ENV.fetch("DEBUG", "false").casecmp("true").nonzero?
+        return if ENV.fetch("KETTLE_DEV_DEBUG", "false").casecmp("true").nonzero?
 
         $stderr.puts("[kettle-jem] DEBUG: #{msg}")
       end

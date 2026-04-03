@@ -14,7 +14,6 @@ module Kettle
         bash-merge
         dotenv-merge
         json-merge
-        jsonc-merge
         markdown-merge
         markly-merge
         prism-merge
