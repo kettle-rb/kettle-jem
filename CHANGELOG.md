@@ -54,6 +54,17 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- `Kettle::Jem::Signatures.gemfile` now normalizes ruby-version bucket segments
+  (e.g. `/r3/`, `/r4/`) when building `eval_gemfile` signatures, so template
+  paths like `../../erb/r4/v5.0.gemfile` and destination paths like
+  `../../erb/r3/v5.0.gemfile` map to the same canonical signature and the
+  template version replaces the destination version instead of being appended
+  as a duplicate. This fixes the root cause of `erb`, `mutex_m`, `stringio`,
+  and similar entries being duplicated in `x_std_libs/r4/libs.gemfile` (and
+  any other sub-gemfile merged via `PrismGemfile.merge`) after a template run.
+  The normalization was already present in `MergeEntryPolicy.signature_for`
+  (used by `merge_gem_calls`) but was missing from the `Signatures.gemfile`
+  lambda that `PrismGemfile.merge` uses for all other Gemfile-type file merges.
 - README templates now use `"~> {KJ|GEM_MAJOR}.0"` for the `spec.add_dependency`
   example line instead of the hardcoded `"~> 1.0"`, so the generated constraint
   reflects the target gem's actual major version.

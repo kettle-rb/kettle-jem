@@ -393,6 +393,36 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(out).not_to include('eval_gemfile "../../stringio/r3/v3.0.gemfile"')
     end
 
+    it "replaces eval_gemfile entries differing only in ruby-version bucket via PrismGemfile.merge (the sub-gemfile code path)", :prism_merge_only do
+      src = <<~RUBY
+        eval_gemfile "../../erb/r4/v5.0.gemfile"
+        eval_gemfile "../../mutex_m/r4/v0.3.gemfile"
+        eval_gemfile "../../stringio/r4/v3.0.gemfile"
+        eval_gemfile "../../benchmark/r4/v0.5.gemfile"
+      RUBY
+
+      dest = <<~RUBY
+        eval_gemfile "../../erb/r3/v5.0.gemfile"
+        eval_gemfile "../../mutex_m/r3/v0.3.gemfile"
+        eval_gemfile "../../stringio/r3/v3.0.gemfile"
+        eval_gemfile "../../benchmark/r4/v0.5.gemfile"
+      RUBY
+
+      # This uses PrismGemfile.merge (not merge_gem_calls), which is the actual
+      # code path taken when merging sub-gemfiles like x_std_libs/r4/libs.gemfile
+      # during a kettle-jem template run. The real path uses preference: :template
+      # (via SourceMerger#merger_options_for default), so we mirror that here.
+      out = described_class.merge(src, dest, merger_options: {preference: :template})
+
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/erb\/r4\/v5\.0\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/mutex_m\/r4\/v0\.3\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/stringio\/r4\/v3\.0\.gemfile"/).length).to eq(1)
+      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/benchmark\/r4\/v0\.5\.gemfile"/).length).to eq(1)
+      expect(out).not_to include('eval_gemfile "../../erb/r3/v5.0.gemfile"')
+      expect(out).not_to include('eval_gemfile "../../mutex_m/r3/v0.3.gemfile"')
+      expect(out).not_to include('eval_gemfile "../../stringio/r3/v3.0.gemfile"')
+    end
+
     it "replaces matching git_source by name and inserts when missing", :prism_merge_only do
       src = <<~'RUBY'
         git_source(:github) { |repo| "https://github.com/#{repo}.git" }

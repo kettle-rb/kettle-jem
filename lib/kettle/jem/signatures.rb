@@ -50,10 +50,12 @@ module Kettle
                 node
               end
             when :eval_gemfile
-              # eval_gemfile() matches by path
+              # eval_gemfile() matches by path, normalizing ruby-version bucket
+              # segments so ../../erb/r3/v5.0.gemfile and ../../erb/r4/v5.0.gemfile
+              # map to the same canonical signature and the template version wins.
               first_arg = actual.arguments&.arguments&.first
               if first_arg.is_a?(Prism::StringNode)
-                [:eval_gemfile, first_arg.unescaped]
+                [:eval_gemfile, normalize_eval_gemfile_path(first_arg.unescaped)]
               else
                 node
               end
@@ -217,6 +219,16 @@ module Kettle
         end
 
         private
+
+        # Normalize an eval_gemfile path by stripping Ruby-version bucket segments
+        # (e.g. /r3/ or /r4/) so paths that differ only in bucket map to the same
+        # canonical signature.
+        #
+        # @param path [String] Raw eval_gemfile path
+        # @return [String] Canonicalized path
+        def normalize_eval_gemfile_path(path)
+          path.gsub(%r{/r\d+/}, "/")
+        end
 
         # Extract receiver name from a call node.
         #

@@ -36,6 +36,30 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with eval_gemfile() call using ruby-version bucket r3" do
+      let(:node) { parse_call('eval_gemfile "../../erb/r3/v5.0.gemfile"') }
+
+      it "normalizes the path by stripping the ruby-version bucket" do
+        expect(generator.call(node)).to eq([:eval_gemfile, "../../erb/v5.0.gemfile"])
+      end
+    end
+
+    context "with eval_gemfile() call using ruby-version bucket r4" do
+      let(:node) { parse_call('eval_gemfile "../../erb/r4/v5.0.gemfile"') }
+
+      it "normalizes the path, matching the same canonical signature as the r3 variant" do
+        expect(generator.call(node)).to eq([:eval_gemfile, "../../erb/v5.0.gemfile"])
+      end
+    end
+
+    context "with eval_gemfile() using a multi-digit ruby bucket r33" do
+      let(:node) { parse_call('eval_gemfile "../../mutex_m/r33/v0.3.gemfile"') }
+
+      it "normalizes multi-digit ruby-version buckets" do
+        expect(generator.call(node)).to eq([:eval_gemfile, "../../mutex_m/v0.3.gemfile"])
+      end
+    end
+
     context "with ruby() call" do
       let(:node) { parse_call('ruby "3.2.0"') }
 
