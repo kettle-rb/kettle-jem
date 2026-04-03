@@ -98,7 +98,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.2")           # ruby >= 3.2.0
 
   # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
-  spec.add_dependency("tree_haver", "~> 5.0", ">= 5.0.5")               # ruby >= 3.2.0
+  spec.add_dependency("tree_haver", "~> 6.0", ">= 6.0.0")               # ruby >= 3.2.0
 
   # Merge infrastructure
   spec.add_dependency("bash-merge", "~> 2.0", ">= 2.0.6")               # ruby >= 3.2.0
