@@ -38,6 +38,8 @@ RSpec.configure do |config|
     hide_env(
       "FUNDING_ORG",
       "OPENCOLLECTIVE_HANDLE",
+      "DEBUG",
+      "KETTLE_DEV_DEBUG",
       "force",
       "allowed",
       "only",

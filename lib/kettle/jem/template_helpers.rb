@@ -138,7 +138,6 @@ module Kettle
         tool_versions
         text
         json
-        jsonc
         toml
         dotenv
         rbs

@@ -450,7 +450,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "logs debug when reading .opencollective.yml fails", :check_output do
-      stub_env("DEBUG" => "true")
+      stub_env("KETTLE_DEV_DEBUG" => "true")
       oc = File.join(Dir.pwd, ".opencollective.yml")
       # Create file and then force File.read to raise for this specific path
       File.write(oc, "org: nope\n")
@@ -467,7 +467,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "uses remotes_with_urls when remote_url is unavailable and sets FUNDING_ORG from origin", :check_output do
-      stub_env("DEBUG" => "true")
+      stub_env("KETTLE_DEV_DEBUG" => "true")
       fake_ga = Object.new
       def fake_ga.respond_to?(m)
         m == :remotes_with_urls
@@ -481,7 +481,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "logs debug when remotes_with_urls raises and otherwise continues silently", :check_output do
-      stub_env("DEBUG" => "true")
+      stub_env("KETTLE_DEV_DEBUG" => "true")
       fake_ga = Object.new
       def fake_ga.respond_to?(m)
         m == :remotes_with_urls
@@ -496,7 +496,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "swallows unexpected adapter errors and logs debug (outer rescue)", :check_output do
-      stub_env("DEBUG" => "true")
+      stub_env("KETTLE_DEV_DEBUG" => "true")
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_raise(RuntimeError, "kaput")
       cli = build_cli
       expect { cli.send(:derive_funding_org_from_git_if_missing!) }
@@ -579,13 +579,13 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
   describe "#debug" do
     it "prints when DEBUG=true", :check_output do
-      stub_env("DEBUG" => "true")
+      stub_env("KETTLE_DEV_DEBUG" => "true")
       cli = described_class.allocate
       expect { cli.send(:debug, "hi") }.to output(/DEBUG: hi/).to_stderr
     end
 
     it "does not print when DEBUG=false", :check_output do
-      stub_env("DEBUG" => "false")
+      stub_env("KETTLE_DEV_DEBUG" => "false")
       cli = described_class.allocate
       expect { cli.send(:debug, "hi") }.not_to output.to_stderr
     end
@@ -781,7 +781,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       cli = described_class.allocate
       # Ensure derivation path is taken; use stub_env to clear FUNDING_ORG without asserting on ENV later
-      stub_env("FUNDING_ORG" => nil, "DEBUG" => "true")
+      stub_env("FUNDING_ORG" => nil, "KETTLE_DEV_DEBUG" => "true")
       expect { cli.send(:prechecks!) }
         .to output(/Derived FUNDING_ORG from git origin: acme/).to_stderr
     end

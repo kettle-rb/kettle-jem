@@ -288,14 +288,6 @@ module Kettle
                 add_template_only_nodes: true,
                 freeze_token: "kettle-jem",
               ).merge
-            elsif file_type == :jsonc
-              Jsonc::Merge::SmartMerger.new(
-                content,
-                dest_content,
-                preference: :template,
-                add_template_only_nodes: true,
-                freeze_token: "kettle-jem",
-              ).merge
             elsif file_type == :toml
               Toml::Merge::SmartMerger.new(
                 content,
