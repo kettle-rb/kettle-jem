@@ -291,6 +291,38 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).to eq(merged)
     end
 
+    it "strips the excluded gem from local_gems when the template re-introduces it (regression: host gem in template)" do
+      # Regression: the template's local_gems may include the host gem (e.g. `ast-merge`
+      # when kettle-jem merges into ast-merge). After apply_strategy with preference:
+      # :template, the merged content contains `ast-merge` in %w[...].
+      # `remove_gem_dependency` only removes explicit `gem "ast-merge"` call nodes, so
+      # the array element survives. `merge_local_gem_overrides` must strip it even when
+      # the two gem lists are otherwise logically equivalent (the equivalence fast-path).
+      merged = <<~RUBY
+        local_gems = %w[ast-merge prism-merge bash-merge]
+
+        # export VENDORED_GEMS=ast-merge,prism-merge,bash-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      destination = <<~RUBY
+        local_gems = %w[prism-merge bash-merge]
+
+        # export VENDORED_GEMS=prism-merge,bash-merge
+        platform :mri do
+          eval_nomono_gems(gems: local_gems)
+        end
+      RUBY
+
+      out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "ast-merge")
+
+      expect(out).not_to include("ast-merge")
+      expect(out).to include("prism-merge")
+      expect(out).to include("bash-merge")
+    end
+
     it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
       merged = <<~RUBY
         platform :mri do

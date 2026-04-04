@@ -40,7 +40,15 @@ module Kettle
             # Return `content` (the apply_strategy result), NOT `destination_content`,
             # so that template-preference updates to non-list nodes (e.g. the
             # `require` line) are preserved rather than discarded.
-            return content
+            # Strip any excluded gems that may have been re-introduced via template
+            # preference (e.g. a gem that belongs in the template but is the *host*
+            # gem when merging into a sibling repo).  `remove_gem_dependency` only
+            # removes explicit `gem "name"` call nodes; it does not touch elements
+            # inside `local_gems = %w[...]`, so we must do that here.
+            return excluded.reduce(content) { |c, word|
+              c2 = remove_word_from_local_gems_array(c, word)
+              remove_word_from_vendored_gems_export_comment(c2, word)
+            }
           end
 
           words = if merged_local_gems_match || merged_vendored_match
