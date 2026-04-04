@@ -36,7 +36,11 @@ module Kettle
             destination_associated_export_match,
             excluded,
           )
-            return destination_content || content
+            # Gem lists are already equivalent — no list manipulation needed.
+            # Return `content` (the apply_strategy result), NOT `destination_content`,
+            # so that template-preference updates to non-list nodes (e.g. the
+            # `require` line) are preserved rather than discarded.
+            return content
           end
 
           words = if merged_local_gems_match || merged_vendored_match

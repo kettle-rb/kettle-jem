@@ -263,7 +263,7 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).not_to include("]# export VENDORED_GEMS")
     end
 
-    it "leaves logically equivalent local override blocks unchanged" do
+    it "returns content unchanged when local override blocks are logically equivalent" do
       merged = <<~RUBY
         local_gems = %w[ast-merge prism-merge bash-merge]
 
@@ -284,7 +284,11 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       out = described_class.merge_local_gem_overrides(merged, destination, excluded_gems: "kettle-jem")
 
-      expect(out).to eq(destination)
+      # When gem lists are logically equivalent, return `content` (the already-merged
+      # result from apply_strategy) rather than `destination_content`. This preserves
+      # any other template-preference changes (e.g. an updated `require` line) that
+      # apply_strategy made before merge_local_gem_overrides was called.
+      expect(out).to eq(merged)
     end
 
     it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
