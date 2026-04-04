@@ -21,3 +21,4 @@ OPENCOLLECTIVE_HANDLE = "false"
 FUNDING_ORG = "false"
 _.path = ["exe", "bin"]
 _.file = { path = ".env.local", redact = true }
+_.source = ".config/mise/env.sh"

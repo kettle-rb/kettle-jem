@@ -543,15 +543,64 @@ module Kettle
           config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
           config_dest = File.join(project_root, ".kettle-jem.yml")
           return :missing_template unless File.exist?(config_src)
-          return :present if File.exist?(config_dest)
 
-          seeded_config_content = seeded_kettle_config_content(helpers, config_src, token_options)
-          helpers.write_file(config_dest, seeded_config_content)
-          helpers.record_template_result(config_dest, :create)
-          helpers.clear_kettle_config!
+          bootstrapped_files = []
+
+          # .kettle-jem.yml — copy (seeded with token values) if absent.
+          unless File.exist?(config_dest)
+            seeded_config_content = seeded_kettle_config_content(helpers, config_src, token_options)
+            helpers.write_file(config_dest, seeded_config_content)
+            helpers.record_template_result(config_dest, :create)
+            helpers.clear_kettle_config!
+            bootstrapped_files << config_dest
+          end
+
+          # mise.toml — copy if absent; merge template into dest if present.
+          mise_src = helpers.prefer_example_with_osc_check(File.join(template_root, "mise.toml"))
+          mise_dest = File.join(project_root, "mise.toml")
+          if File.exist?(mise_src)
+            if !File.exist?(mise_dest)
+              helpers.write_file(mise_dest, File.read(mise_src))
+              helpers.record_template_result(mise_dest, :create)
+              bootstrapped_files << mise_dest
+            else
+              begin
+                dest_content = File.read(mise_dest)
+                merged = Toml::Merge::SmartMerger.new(
+                  File.read(mise_src),
+                  dest_content,
+                  preference: :destination,
+                  add_template_only_nodes: true,
+                  freeze_token: "kettle-jem",
+                ).merge
+                if merged != dest_content
+                  helpers.write_file(mise_dest, merged)
+                  helpers.record_template_result(mise_dest, :replace)
+                  bootstrapped_files << mise_dest
+                end
+              rescue StandardError => e
+                Kettle::Dev.debug_error(e, __method__)
+              end
+            end
+          end
+
+          # .config/mise/env.sh — copy if absent.
+          env_sh_src = File.join(template_root, ".config/mise/env.sh")
+          env_sh_dest = File.join(project_root, ".config/mise/env.sh")
+          if File.exist?(env_sh_src) && !File.exist?(env_sh_dest)
+            FileUtils.mkdir_p(File.dirname(env_sh_dest))
+            FileUtils.cp(env_sh_src, env_sh_dest)
+            helpers.record_template_result(env_sh_dest, :create)
+            bootstrapped_files << env_sh_dest
+          end
+
+          return :present if bootstrapped_files.empty?
+
           helpers.template_run_outcome = :bootstrap_only
-          puts "[kettle-jem] Wrote #{config_dest}."
-          puts "[kettle-jem] Review that file, fill in any missing token values, commit it, then re-run kettle-jem."
+          bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
+          puts "[kettle-jem] Review the file(s) above, fill in any missing token values, then:"
+          puts "[kettle-jem]   mise trust -C #{project_root}"
+          puts "[kettle-jem] Commit the changes and re-run kettle-jem."
           :bootstrap_only
         end
 
