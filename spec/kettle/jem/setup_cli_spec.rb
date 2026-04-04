@@ -1507,6 +1507,9 @@ RSpec.describe Kettle::Jem::SetupCLI do
       )
       allow(Kettle::Jem::TemplateHelpers).to receive(:template_run_timestamp).and_return(Time.new(2026, 3, 14, 12, 0, 0, "+00:00"))
       allow(Kettle::Jem::TemplateHelpers).to receive(:kettle_jem_version).and_return("9.9.9")
+      # Prevent the template's own .kettle-jem.yml.example (which contains real author
+      # data) from being loaded as the config fallback when the temp dir has no config.
+      allow(Kettle::Jem::TemplateHelpers).to receive(:kettle_config).and_return({})
 
       cli.send(:ensure_rakefile!)
 
