@@ -335,6 +335,10 @@ module Kettle
           result = (merged.is_a?(String) && !merged.empty?) ? merged : content
           # Ensure all merge results end with a trailing newline (standard file convention)
           SourceMerger.ensure_trailing_newline(result)
+        rescue Ast::Merge::DestinationParseError => e
+          # Destination has syntax errors; cannot safely merge — use template content.
+          Kernel.warn("[kettle-jem] #{rel}: #{e.message}; destination is unparseable, using template content")
+          SourceMerger.ensure_trailing_newline(content)
         rescue Ast::Merge::ParseError => e
           # tree-sitter or other structural parser unavailable for this file type;
           # fall back to line-based text merge so dest-only content is preserved.
@@ -964,6 +968,9 @@ module Kettle
                         freeze_token: "kettle-jem",
                       ).merge
                     end
+                  rescue Ast::Merge::DestinationParseError => e
+                    # Destination has syntax errors; cannot safely merge — use template content.
+                    Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; destination is unparseable, using template content")
                   rescue Ast::Merge::ParseError => e
                     # tree-sitter parser unavailable; fall back to line-based text merge
                     Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; falling back to text merge")
