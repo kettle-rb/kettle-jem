@@ -335,6 +335,17 @@ module Kettle
           result = (merged.is_a?(String) && !merged.empty?) ? merged : content
           # Ensure all merge results end with a trailing newline (standard file convention)
           SourceMerger.ensure_trailing_newline(result)
+        rescue Ast::Merge::ParseError => e
+          # tree-sitter or other structural parser unavailable for this file type;
+          # fall back to line-based text merge so dest-only content is preserved.
+          Kernel.warn("[kettle-jem] #{rel}: #{e.message}; falling back to text merge")
+          result = Ast::Merge::Text::SmartMerger.new(
+            content,
+            dest_content,
+            preference: :template,
+            add_template_only_nodes: true,
+          ).merge
+          SourceMerger.ensure_trailing_newline((result.is_a?(String) && !result.empty?) ? result : content)
         rescue StandardError => e
           if failure_mode == :rescue
             Kettle::Dev.debug_error(e, __method__)
@@ -862,6 +873,15 @@ module Kettle
                         freeze_token: "kettle-jem",
                       ).merge
                     end
+                  rescue Ast::Merge::ParseError => e
+                    # tree-sitter parser unavailable; fall back to line-based text merge
+                    Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; falling back to text merge")
+                    c = Ast::Merge::Text::SmartMerger.new(
+                      c,
+                      File.read(dest),
+                      preference: :template,
+                      add_template_only_nodes: true,
+                    ).merge
                   rescue StandardError => e
                     Kettle::Dev.debug_error(e, __method__)
                   end
