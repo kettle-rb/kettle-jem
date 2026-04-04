@@ -5157,6 +5157,34 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     end
   end
 
+  describe "TemplateHelpers#resolve_tokens on destination content" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "resolves {KJ|...} token placeholders in destination content" do
+      # Simulate a destination with a stale token placeholder (e.g., mise.toml written
+      # before token resolution ran, or with preference: :destination blocking template wins)
+      dest_with_token = "FUNDING_ORG = \"{KJ|OPENCOLLECTIVE_ORG}\"\nFOO = \"bar\"\n"
+
+      helpers.configure_tokens!(
+        org: "test-org",
+        gem_name: "test-gem",
+        namespace: "Test::Gem",
+        namespace_shield: "Test%3A%3AGem",
+        gem_shield: "test--gem",
+        funding_org: "my-oc-handle",
+        include_config_tokens: false,
+      )
+
+      result = helpers.resolve_tokens(dest_with_token)
+
+      expect(result).to include("my-oc-handle")
+      expect(result).not_to include("{KJ|OPENCOLLECTIVE_ORG}")
+      expect(result).to include("FOO = \"bar\"")
+    ensure
+      helpers.clear_tokens!
+    end
+  end
+
   describe "TemplateHelpers#seed_gemspec_licenses_in_config_content" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
 

@@ -572,7 +572,7 @@ module Kettle
           mise_dest = File.join(project_root, "mise.toml")
           if File.exist?(mise_src)
             if !File.exist?(mise_dest)
-              base_content = File.read(mise_src)
+              base_content = helpers.read_template(mise_src)
               fragment = discovered_grammar_toml_fragment(base_content)
               final_content = if fragment
                 Toml::Merge::SmartMerger.new(
@@ -590,10 +590,13 @@ module Kettle
             else
               begin
                 dest_content = File.read(mise_dest)
-                # Pass 1: merge template keys into dest (dest wins on conflicts)
+                # Resolve any unresolved token placeholders in dest before merging,
+                # so destination-wins preference doesn't preserve stale token text.
+                resolved_dest_content = helpers.resolve_tokens(dest_content)
+                # Pass 1: merge template keys into dest (dest wins on conflicts, except unresolved token placeholders)
                 merged = Toml::Merge::SmartMerger.new(
-                  File.read(mise_src),
-                  dest_content,
+                  helpers.read_template(mise_src),
+                  resolved_dest_content,
                   preference: :destination,
                   add_template_only_nodes: true,
                   freeze_token: "kettle-jem",
