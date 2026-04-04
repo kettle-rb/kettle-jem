@@ -110,6 +110,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency("psych-merge", "~> 2.0")                          # ruby >= 3.2.0
   spec.add_dependency("rbs-merge", "~> 3.0")                            # ruby >= 3.2.0
   spec.add_dependency("toml-merge", "~> 3.0")                           # ruby >= 3.2.0
+  spec.add_dependency("toml-rb", "~> 4.1")                              # ruby >= 2.3.0
+  spec.add_dependency("citrus", "~> 3.0", ">= 3.0.2")                   # ruby >= 0
+  spec.add_dependency("parslet", "~> 2.0")                              # ruby >= 0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
