@@ -1817,7 +1817,12 @@ module Kettle
         # @param project_root [String] absolute path to destination project
         def collect_git_copyright!(helpers:, project_root:)
           license_md_path = File.join(project_root, "LICENSE.md")
-          return unless File.exist?(license_md_path)
+          # When writes are redirected to an output_dir (e.g. during selftest), the
+          # template has already written LICENSE.md to the output path. Read from and
+          # write to that path so the selftest output stays consistent. In normal mode
+          # output_path returns the path unchanged.
+          actual_license_md_path = helpers.output_path(license_md_path)
+          return unless File.exist?(actual_license_md_path)
 
           ga        = Kettle::Dev::GitAdapter.new
           collector = Kettle::Jem::CopyrightCollector.new(
@@ -1831,7 +1836,7 @@ module Kettle
           prefix = helpers.polyform_licenses?(helpers.resolved_licenses) ? "Required Notice: " : ""
           lines  = lines.map { |l| "#{prefix}#{l}" } if prefix != ""
 
-          md_content = File.read(license_md_path)
+          md_content = File.read(actual_license_md_path)
           md_lines   = md_content.lines
 
           # Strip trailing blank lines
@@ -1850,7 +1855,7 @@ module Kettle
           md_lines.pop while md_lines.last&.strip&.empty?
 
           section = "\n\n## Copyright Notice\n\n" + lines.join("\n") + "\n"
-          File.write(license_md_path, md_lines.join + section)
+          File.write(actual_license_md_path, md_lines.join + section)
           puts "Wrote #{lines.size} copyright line(s) to LICENSE.md."
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)

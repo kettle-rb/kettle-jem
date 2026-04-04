@@ -15,9 +15,12 @@ module Kettle
 
       def ensure_version_file!(helpers:, project_root:, entrypoint_require:, namespace:, version:)
         dest = File.join(project_root, "lib", entrypoint_require, "version.rb")
-        actual_dest = helpers.output_path(dest)
-        existed_before = File.file?(actual_dest)
-        current = existed_before ? File.read(actual_dest) : ""
+        # Read from dest (source path), not output_path(dest). When writes are redirected
+        # to an output_dir (e.g. during selftest), the output path may not exist yet even
+        # though the file exists at the source path. Writing still goes through write_file
+        # which applies the output_dir redirect correctly.
+        existed_before = File.file?(dest)
+        current = existed_before ? File.read(dest) : ""
         resolved_version = extract_version_string(current) || version.to_s.strip
         resolved_version = "0.0.1.pre" if resolved_version.empty?
         desired = render_version_file(namespace: namespace, version: resolved_version)
@@ -30,9 +33,11 @@ module Kettle
 
       def ensure_entrypoint_file!(helpers:, project_root:, entrypoint_require:, namespace:)
         dest = File.join(project_root, "lib", "#{entrypoint_require}.rb")
-        actual_dest = helpers.output_path(dest)
-        existed_before = File.file?(actual_dest)
-        current = existed_before ? File.read(actual_dest) : ""
+        # Read from dest (source path), not output_path(dest). When writes are redirected
+        # to an output_dir (e.g. during selftest), the output path may not exist yet even
+        # though the source file does. Writing still goes through write_file.
+        existed_before = File.file?(dest)
+        current = existed_before ? File.read(dest) : ""
         desired = if existed_before
           bootstrap_entrypoint_content(current, entrypoint_require: entrypoint_require, namespace: namespace)
         else
