@@ -48,6 +48,7 @@ module Kettle
         # These are classified as "skipped" (informational) rather than
         # "removed" (potentially concerning) in the self-test report.
         SKIPPED_PREFIXES = %w[
+          examples/
           exe/
           lib/
           sig/
