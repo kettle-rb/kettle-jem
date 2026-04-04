@@ -48,6 +48,12 @@
 #   max_recursion_depth:
 #     Limit for recursive merging when a merger supports it
 #
+# Other per-file options (apply to any strategy):
+#   skip_unresolved_scan:
+#     true  - do not scan this file for unresolved {KJ|...} tokens after writing.
+#             Use when a file legitimately contains {KJ|...} text as documentation
+#             or example content rather than as a template placeholder.
+#
 # Token values:
 #   Precedence is:
 #     1) ENV variables

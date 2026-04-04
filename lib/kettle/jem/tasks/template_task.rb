@@ -769,6 +769,7 @@ module Kettle
           scan_paths.uniq.each do |path|
             rel = path.sub(%r{^#{Regexp.escape(scan_root)}/?}, "")
             next if rel.empty? || rel == ".kettle-jem.yml"
+            next if helpers.config_for(rel)&.fetch(:skip_unresolved_scan, false)
 
             ext = File.extname(path)
             next unless %w[.rb .gemspec .gemfile .yml .yaml .toml .md .txt .sh .json .jsonc .cff .example .lock].include?(ext) ||

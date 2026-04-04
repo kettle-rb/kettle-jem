@@ -1537,6 +1537,8 @@ module Kettle
         result = {strategy: strategy}
         result[:path] = path if path
 
+        result[:skip_unresolved_scan] = true if entry["skip_unresolved_scan"]
+
         if entry.key?("file_type")
           file_type = entry["file_type"].to_s.strip.downcase.tr("-", "_").to_sym
           unless SUPPORTED_FILE_TYPES.include?(file_type)
