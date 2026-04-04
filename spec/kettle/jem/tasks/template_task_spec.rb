@@ -5028,6 +5028,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           allow(helpers).to receive(:configure_tokens!).and_return(nil)
           allow(helpers).to receive(:read_template) { |p| File.read(p) }
           allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
+          allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) { |c| c }
           allow(helpers).to receive(:clear_tokens!).and_return(nil)
           allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
           allow(helpers).to receive(:project_root).and_return(project_root)
@@ -5051,6 +5052,149 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             "licenses array must NOT have MIT re-added by the SmartMerger; got: #{parsed["licenses"].inspect}"
         end
       end
+    end
+
+    it "does not add template-only licenses back when destination already has a licenses key (block sequence template)" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          # Template uses block sequence — the real template format that triggered the bug
+          template_config = <<~YAML
+            # Managed by kettle-jem
+            licenses:
+              - MIT
+              - Apache-2.0
+              - PolyForm-Small-Business-1.0.0
+              - LicenseRef-Big-Time-Public-License
+          YAML
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+
+          # User's project config has replaced the template licenses with a single custom one
+          dest_config = <<~YAML
+            # My project config
+            licenses:
+              - AGPL-3.0-only
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
+
+          allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
+          allow(helpers).to receive(:configure_tokens!).and_return(nil)
+          allow(helpers).to receive(:read_template) { |p| File.read(p) }
+          allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
+          allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) { |c| c }
+          allow(helpers).to receive(:clear_tokens!).and_return(nil)
+          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
+          allow(helpers).to receive(:project_root).and_return(project_root)
+          allow(helpers).to receive(:record_template_result).and_return(nil)
+          allow(helpers).to receive(:output_path) { |p| p }
+          allow(helpers).to receive(:ask).and_return(true)
+          allow(helpers).to receive(:force_mode?).and_return(false)
+
+          described_class.sync_existing_kettle_config!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: {org: "test-org", gem_name: "test-gem", namespace: "Test", namespace_shield: "TEST", gem_shield: "test-gem"},
+          )
+
+          result = File.read(File.join(project_root, ".kettle-jem.yml"))
+          parsed = YAML.safe_load(result)
+          # User's AGPL-3.0-only must be kept; template licenses must NOT be added
+          expect(parsed["licenses"]).to eq(["AGPL-3.0-only"]), \
+            "licenses must NOT be overwritten with template defaults; got: #{parsed["licenses"].inspect}"
+        end
+      end
+    end
+
+    it "seeds licenses from gemspec when destination config has no licenses key" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          template_config = <<~YAML
+            # Managed by kettle-jem
+            licenses:
+              - MIT
+              - Apache-2.0
+          YAML
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+
+          # Destination has no licenses: key at all
+          dest_config = <<~YAML
+            # My project config
+            name: my-gem
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
+
+          allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
+          allow(helpers).to receive(:configure_tokens!).and_return(nil)
+          allow(helpers).to receive(:read_template) { |p| File.read(p) }
+          allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
+          # seed_gemspec_licenses_in_config_content replaces licenses: in template content
+          # with the gemspec value ["ISC"]. Not stubbed here — exercised directly below.
+          allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) do |c|
+            c.sub(/^licenses:.*\n(?:  - .*\n)*/m, "licenses:\n  - ISC\n")
+          end
+          allow(helpers).to receive(:clear_tokens!).and_return(nil)
+          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
+          allow(helpers).to receive(:project_root).and_return(project_root)
+          allow(helpers).to receive(:record_template_result).and_return(nil)
+          allow(helpers).to receive(:output_path) { |p| p }
+          allow(helpers).to receive(:ask).and_return(true)
+          allow(helpers).to receive(:force_mode?).and_return(false)
+
+          described_class.sync_existing_kettle_config!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: {org: "test-org", gem_name: "test-gem", namespace: "Test", namespace_shield: "TEST", gem_shield: "test-gem"},
+          )
+
+          result = File.read(File.join(project_root, ".kettle-jem.yml"))
+          parsed = YAML.safe_load(result)
+          # The gemspec-seeded ISC license must appear (not the template default MIT/Apache)
+          expect(parsed["licenses"]).to eq(["ISC"]), \
+            "licenses must be seeded from gemspec when absent from dest; got: #{parsed["licenses"].inspect}"
+        end
+      end
+    end
+  end
+
+  describe "TemplateHelpers#seed_gemspec_licenses_in_config_content" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    it "replaces the licenses: block in template content with gemspec value" do
+      template_content = <<~YAML
+        name: project
+        licenses:
+          - MIT
+          - Apache-2.0
+        version: "1.0"
+      YAML
+      allow(helpers).to receive(:safe_gemspec_metadata).and_return({licenses: ["ISC"]})
+      result = helpers.seed_gemspec_licenses_in_config_content(template_content)
+      parsed = YAML.safe_load(result)
+      expect(parsed["licenses"]).to eq(["ISC"])
+      expect(parsed["name"]).to eq("project")
+      expect(parsed["version"]).to eq("1.0")
+    end
+
+    it "uses MIT fallback when gemspec has no licenses" do
+      template_content = <<~YAML
+        licenses:
+          - Apache-2.0
+      YAML
+      allow(helpers).to receive(:safe_gemspec_metadata).and_return({})
+      result = helpers.seed_gemspec_licenses_in_config_content(template_content)
+      parsed = YAML.safe_load(result)
+      expect(parsed["licenses"]).to eq(["MIT"])
+    end
+
+    it "returns content unchanged when an error occurs" do
+      template_content = <<~YAML
+        licenses:
+          - Apache-2.0
+      YAML
+      allow(helpers).to receive(:safe_gemspec_metadata).and_raise(StandardError, "inner error")
+      result = helpers.seed_gemspec_licenses_in_config_content(template_content)
+      expect(result).to eq(template_content)
     end
   end
 

@@ -684,6 +684,31 @@ module Kettle
         destination_content
       end
 
+      # Seed the licenses: value in a .kettle-jem.yml template content string
+      # from the gemspec (not from existing config). Used so that when the
+      # seeded template is later psych-merged against the dest, an absent or
+      # newly-created dest inherits the gemspec value instead of the generic
+      # template default.
+      def seed_gemspec_licenses_in_config_content(content)
+        gemspec_value = safe_gemspec_metadata[:licenses]
+        licenses = if gemspec_value.is_a?(Array) && gemspec_value.any? { |l| l.to_s.strip != "" }
+          gemspec_value.map(&:to_s).reject { |l| l.strip.empty? }
+        else
+          ["MIT"]
+        end
+
+        flow_line = "licenses: [#{licenses.join(", ")}]\n"
+
+        # Replace block sequence (e.g. `licenses:\n  - MIT\n  - Apache-2.0\n`)
+        result = content.sub(/^licenses:\n(?:  - [^\n]*\n)+/, flow_line)
+        # Replace flow sequence (e.g. `licenses: [MIT, Apache-2.0]`)
+        result = result.sub(/^licenses:\s*\[.*?\]\n/, flow_line)
+        result
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        content
+      end
+
       def safe_gemspec_metadata
         gemspec_metadata
       rescue StandardError => e

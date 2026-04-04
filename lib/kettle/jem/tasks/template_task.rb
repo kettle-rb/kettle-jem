@@ -497,7 +497,8 @@ module Kettle
         def seeded_kettle_config_content(helpers, config_src, token_options)
           helpers.configure_tokens!(**token_options, include_config_tokens: false)
           seeded_content = helpers.read_template(config_src)
-          helpers.seed_kettle_config_content(seeded_content, helpers.derived_token_config_values)
+          seeded_content = helpers.seed_kettle_config_content(seeded_content, helpers.derived_token_config_values)
+          helpers.seed_gemspec_licenses_in_config_content(seeded_content)
         ensure
           helpers.clear_tokens!
         end
@@ -661,6 +662,7 @@ module Kettle
                   File.read(config_dest),
                   preference: :destination,
                   add_template_only_nodes: true,
+                  add_template_only_sequence_items: false,
                 ).merge
               rescue StandardError => e
                 Kettle::Dev.debug_error(e, __method__)
