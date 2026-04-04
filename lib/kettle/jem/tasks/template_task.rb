@@ -426,6 +426,11 @@ module Kettle
         ACCEPT_TEMPLATE_PATHS = %w[bin/setup].freeze
         # Basenames that use "tool version" key-value format (first word = key)
         TOOL_VERSIONS_BASENAMES = %w[.tool-versions].freeze
+        # Tree-sitter grammar languages whose paths we attempt to auto-discover
+        # and write into mise.toml so they are available to subsequent runs.
+        TREE_SITTER_GRAMMAR_LANGUAGES = %w[
+          bash css javascript json jsonc python rbs ruby toml yaml
+        ].freeze
 
         # Custom signature generator for .tool-versions files.
         # Matches lines by the tool name (first word) so that e.g.
@@ -555,17 +560,32 @@ module Kettle
             bootstrapped_files << config_dest
           end
 
-          # mise.toml — copy if absent; merge template into dest if present.
+          # mise.toml — copy if absent; merge template into dest if present;
+          # then inject any auto-discovered TREE_SITTER_*_PATH values that
+          # are missing so users have an editable handle for each grammar.
           mise_src = helpers.prefer_example_with_osc_check(File.join(template_root, "mise.toml"))
           mise_dest = File.join(project_root, "mise.toml")
           if File.exist?(mise_src)
             if !File.exist?(mise_dest)
-              helpers.write_file(mise_dest, File.read(mise_src))
+              base_content = File.read(mise_src)
+              fragment = discovered_grammar_toml_fragment(base_content)
+              final_content = if fragment
+                Toml::Merge::SmartMerger.new(
+                  fragment,
+                  base_content,
+                  preference: :destination,
+                  add_template_only_nodes: true,
+                ).merge
+              else
+                base_content
+              end
+              helpers.write_file(mise_dest, final_content)
               helpers.record_template_result(mise_dest, :create)
               bootstrapped_files << mise_dest
             else
               begin
                 dest_content = File.read(mise_dest)
+                # Pass 1: merge template keys into dest (dest wins on conflicts)
                 merged = Toml::Merge::SmartMerger.new(
                   File.read(mise_src),
                   dest_content,
@@ -573,6 +593,18 @@ module Kettle
                   add_template_only_nodes: true,
                   freeze_token: "kettle-jem",
                 ).merge
+                # Pass 2: inject newly-discovered grammar paths not yet in dest
+                fragment = discovered_grammar_toml_fragment(merged)
+                merged = if fragment
+                  Toml::Merge::SmartMerger.new(
+                    fragment,
+                    merged,
+                    preference: :destination,
+                    add_template_only_nodes: true,
+                  ).merge
+                else
+                  merged
+                end
                 if merged != dest_content
                   helpers.write_file(mise_dest, merged)
                   helpers.record_template_result(mise_dest, :replace)
@@ -2086,6 +2118,35 @@ module Kettle
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           [content, 0, 0, false]
+        end
+
+        # Build a minimal TOML [env] fragment containing auto-discovered
+        # TREE_SITTER_*_PATH values for all languages in TREE_SITTER_GRAMMAR_LANGUAGES
+        # that (a) have a grammar .so on this machine and (b) are not already
+        # present in +existing_toml_content+.
+        #
+        # Returns nil when nothing new was discovered.
+        #
+        # @param existing_toml_content [String]
+        # @return [String, nil]
+        def discovered_grammar_toml_fragment(existing_toml_content)
+          lines = []
+          TREE_SITTER_GRAMMAR_LANGUAGES.each do |lang|
+            env_key = "TREE_SITTER_#{lang.upcase}_PATH"
+            # Skip if already present (don't overwrite user customisation)
+            next if existing_toml_content.include?(env_key)
+
+            finder = TreeHaver::GrammarFinder.new(lang)
+            path = finder.find_library_path
+            next unless path
+
+            lines << "#{env_key} = #{path.inspect}"
+          rescue StandardError
+            next
+          end
+          return nil if lines.empty?
+
+          "[env]\n#{lines.join("\n")}\n"
         end
       end
     end
