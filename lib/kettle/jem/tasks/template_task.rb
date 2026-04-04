@@ -571,6 +571,12 @@ module Kettle
           mise_src = helpers.prefer_example_with_osc_check(File.join(template_root, "mise.toml"))
           mise_dest = File.join(project_root, "mise.toml")
           if File.exist?(mise_src)
+            # Tokens must be configured before read_template and resolve_tokens work correctly.
+            # We do a short-lived configure/clear here because this method runs before the
+            # main configure_tokens! call in run(). include_config_tokens: false avoids
+            # reading the just-written .kettle-jem.yml before it's committed.
+            helpers.configure_tokens!(**token_options, include_config_tokens: false) unless helpers.tokens_configured?
+            began_with_tokens = helpers.tokens_configured?
             if !File.exist?(mise_dest)
               base_content = helpers.read_template(mise_src)
               fragment = discovered_grammar_toml_fragment(base_content)
@@ -622,6 +628,7 @@ module Kettle
                 Kettle::Dev.debug_error(e, __method__)
               end
             end
+            helpers.clear_tokens! unless began_with_tokens
           end
 
           # .config/mise/env.sh — copy if absent.
