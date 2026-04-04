@@ -570,12 +570,21 @@ module Kettle
             FileUtils.mkdir_p(File.dirname(dest))
             content = File.read(source)
             content = strip_self_from_templating_local(content) if filename == "templating_local.gemfile"
+            content = strip_self_from_templating_gemfile(content) if filename == "templating.gemfile"
             File.write(dest, content)
             say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
           elsif filename == "templating_local.gemfile"
             # Always ensure the host gem is not a dependency of itself, even in existing files.
             original = File.read(dest)
             stripped = strip_self_from_templating_local(original)
+            if stripped != original
+              File.write(dest, stripped)
+              say("Removed self-gem from #{dest}.", verbose_only: true)
+            end
+          elsif filename == "templating.gemfile"
+            # Always ensure the host gem is not a dependency of itself, even in existing files.
+            original = File.read(dest)
+            stripped = strip_self_from_templating_gemfile(original)
             if stripped != original
               File.write(dest, stripped)
               say("Removed self-gem from #{dest}.", verbose_only: true)
@@ -604,6 +613,18 @@ module Kettle
         end
 
         content
+      end
+
+      # Pure text-based removal of a `gem "host-gem-name"` call from the templating gemfile.
+      # The template contains `gem "kettle-jem"` inside the non-dev conditional branch so
+      # downstream consumers can pull the gem from RubyGems. When templating the host gem
+      # itself that line must not exist (it conflicts with the gemspec PATH source).
+      # No AST tools used here because this runs in the bootstrap phase.
+      def strip_self_from_templating_gemfile(content)
+        gem_name = gemspec_string_value("name")
+        return content unless gem_name
+
+        content.gsub(/^[ \t]*gem\s+['"]#{Regexp.escape(gem_name)}['"][^\n]*\n?/, "")
       end
 
       def local_workspace_dev_mode?
