@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.summary = "🍲 Gem templating engine using AST-based merging and configurable token resolution."
   spec.description = "🍲 Kettle::Jem provides gem scaffolding, templating, and setup automation using the *-merge gem family for AST-based file merging and token-resolver for template token resolution. Includes MergerConfig presets, YAML recipes, and a complete gem template scaffold."
   spec.homepage = "https://github.com/kettle-rb/kettle-jem"
-  spec.licenses = ["AGPL-3.0-only", "PolyForm-Small-Business-1.0.0", "LicenseRef-Big-Time-Public-License"]
+  spec.licenses = ["AGPL-3.0-only"]
   spec.required_ruby_version = ">= 3.2.0"
 
   # Linux distros often package gems and securely certify them independent
@@ -117,36 +117,6 @@ Gem::Specification.new do |spec|
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
 
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-  #
-  #       required_ruby_version ">= 3.2.0" (or lower)
-  #
-  #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-  #       and preferably a modular one (see gemfiles/modular/*.gemfile).
   # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
   spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
 
@@ -184,14 +154,12 @@ Gem::Specification.new do |spec|
   # The 'git' gem is optional; kettle-jem falls back to shelling out to `git` if it is not present.
   # The current release of the git gem depends on activesupport, which makes it too heavy to depend on directly
   # spec.add_dependency("git", ">= 1.19.1")                               # ruby >= 2.3
-
   # Development tasks
   # The cake is a lie. erb v2.2, the oldest release, was never compatible with Ruby 2.3.
   # This means we have no choice but to use the erb that shipped with Ruby 2.3
   # /opt/hostedtoolcache/Ruby/2.3.8/x64/lib/ruby/gems/2.3.0/gems/erb-2.2.2/lib/erb.rb:670:in `prepare_trim_mode': undefined method `match?' for "-":String (NoMethodError)
   # spec.add_development_dependency("erb", ">= 2.2")                                  # ruby >= 2.3.0, not SemVer, old rubies get dropped in a patch.
   spec.add_development_dependency("gitmoji-regex", "~> 1.0", ">= 1.0.3")            # ruby >= 2.3.0
-
   # HTTP recording for deterministic specs
   # In Ruby 3.5 (HEAD) the CGI library has been pared down, so we also need to depend on gem "cgi" for ruby@head
   # This is done in the "head" appraisal.
