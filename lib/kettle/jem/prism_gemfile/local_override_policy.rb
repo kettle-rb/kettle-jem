@@ -267,6 +267,13 @@ module Kettle
         def replace_local_gems_array(content, match, words)
           node = match.fetch(:node)
           replacement = rebuild_local_gems_array(match, words)
+          # Ensure the replacement ends with a newline so that the `]` line is
+          # properly terminated.  Without this, SplicePlan concatenates the
+          # replacement directly with after_content; if after_content starts
+          # with a blank line (`\n`), that blank line is consumed as the `]`
+          # line ending, collapsing `]\n\n# export ...` into `]\n# export ...`
+          # (or even `]# export ...` if after_content starts with non-blank).
+          replacement += "\n" unless replacement.end_with?("\n")
 
           Ast::Merge::StructuralEdit::PlanSet.new(
             source: content,

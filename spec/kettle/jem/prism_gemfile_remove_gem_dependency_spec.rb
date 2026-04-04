@@ -298,8 +298,15 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       # `remove_gem_dependency` only removes explicit `gem "ast-merge"` call nodes, so
       # the array element survives. `merge_local_gem_overrides` must strip it even when
       # the two gem lists are otherwise logically equivalent (the equivalence fast-path).
+      # Critically, the blank line between `]` and `# export VENDORED_GEMS=` must be
+      # preserved — replace_local_gems_array must end its replacement with `\n` so the
+      # `]` line is properly terminated before the blank line in after_content.
       merged = <<~RUBY
-        local_gems = %w[ast-merge prism-merge bash-merge]
+        local_gems = %w[
+          ast-merge
+          prism-merge
+          bash-merge
+        ]
 
         # export VENDORED_GEMS=ast-merge,prism-merge,bash-merge
         platform :mri do
@@ -308,7 +315,10 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       RUBY
 
       destination = <<~RUBY
-        local_gems = %w[prism-merge bash-merge]
+        local_gems = %w[
+          prism-merge
+          bash-merge
+        ]
 
         # export VENDORED_GEMS=prism-merge,bash-merge
         platform :mri do
@@ -321,6 +331,8 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
       expect(out).not_to include("ast-merge")
       expect(out).to include("prism-merge")
       expect(out).to include("bash-merge")
+      # Blank line between `]` and `# export VENDORED_GEMS=` must be preserved
+      expect(out).to match(/\]\n\n# export VENDORED_GEMS=/)
     end
 
     it "restores destination local override metadata when the merged content lacks the local_gems preamble" do
