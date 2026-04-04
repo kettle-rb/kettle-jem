@@ -772,7 +772,17 @@ module Kettle
 
             begin
               content = File.read(path)
-              tokens = content.scan(token_pattern).uniq
+              # For markdown files, strip code spans and fenced code blocks before
+              # scanning so that tokens documented by name (e.g. `{KJ|GEM_MAJOR}` in
+              # CHANGELOG.md) are not treated as unresolved placeholders.
+              scan_content = if ext == ".md"
+                content
+                  .gsub(/^```.*?^```/m, "")        # fenced code blocks
+                  .gsub(/`[^`\n]+`/, "")            # inline code spans
+              else
+                content
+              end
+              tokens = scan_content.scan(token_pattern).uniq
               unresolved_by_file[rel] = tokens unless tokens.empty?
             rescue StandardError
               # Skip files that can't be read as text.
