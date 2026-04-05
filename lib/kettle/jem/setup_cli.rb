@@ -62,6 +62,11 @@ module Kettle
         debug_git_status("ensure_bootstrap_modular_gemfiles!")
         ensure_bootstrap_eval_gemfile!
         debug_git_status("ensure_bootstrap_eval_gemfile!")
+        # Update gemspec dev dependencies before running bin/setup so that
+        # bundle install can resolve kettle-dev ~> 2.0 even if the gemspec
+        # still carries an older constraint from a prior release cycle.
+        ensure_dev_deps!
+        debug_git_status("ensure_dev_deps! (bootstrap)")
         ensure_bin_setup!
         debug_git_status("ensure_bin_setup!")
         run_bin_setup!
