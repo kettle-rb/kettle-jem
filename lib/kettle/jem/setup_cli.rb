@@ -29,6 +29,13 @@ module Kettle
       BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
       BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
 
+      # Gems added by `bundle gem` scaffold that are covered by the kettle-jem template.
+      # These are removed from the Gemfile during templating because they are either:
+      #   - moved to the gemspec as development dependencies (rake, rspec)
+      #   - managed by a modular gemfile (rubocop via style.gemfile/standard)
+      # irb is intentionally excluded; it stays in the Gemfile via the template's own declaration.
+      SCAFFOLD_DEFAULT_GEMS = %w[rake rspec rubocop].freeze
+
       # @param argv [Array<String>] CLI arguments
       def initialize(argv)
         @argv = argv
@@ -523,6 +530,7 @@ module Kettle
 
         load_bootstrap_gemfile_merge_runtime!
         merged = Kettle::Jem::PrismGemfile.merge_gem_calls(example, target)
+        merged = remove_scaffold_default_gems(merged)
         return say("Gemfile already contains required entries from example.", verbose_only: true) if merged == target
 
         File.write(target_path, ensure_trailing_newline(merged))
@@ -531,6 +539,18 @@ module Kettle
 
       def load_bootstrap_gemfile_merge_runtime!
         Kettle::Jem::PrismGemfile
+      end
+
+      # Remove scaffold-default gems from Gemfile content.
+      # These gems are added by `bundle gem` but are covered by the kettle-jem template
+      # (moved to gemspec dev deps or managed by modular gemfiles), so they should not
+      # remain as direct top-level Gemfile declarations after templating.
+      # @param content [String] Gemfile content
+      # @return [String] Content with scaffold default gems removed
+      def remove_scaffold_default_gems(content)
+        SCAFFOLD_DEFAULT_GEMS.reduce(content) do |acc, gem_name|
+          Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
+        end
       end
 
       # Text-based bootstrap-safe version of adding the templating eval_gemfile line.
