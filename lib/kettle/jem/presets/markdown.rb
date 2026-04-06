@@ -215,7 +215,6 @@ module Kettle
 
           # Merge JSON code blocks using json-merge.
           def merge_json_code(template_code, dest_code, preference)
-
             merger = JSON::Merge::SmartMerger.new(
               template_code,
               dest_code,

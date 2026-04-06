@@ -561,7 +561,7 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           result = File.read(File.join(dest_dir, "templating_local.gemfile"))
           expect(result).to include('require_relative "../../lib/nomono/bundler"')
           expect(result).not_to include('require "nomono/bundler"')
-          expect(result.scan(/# Local path overrides for development\./).size).to eq(1)
+          expect(result.scan("# Local path overrides for development.").size).to eq(1)
           expect(result).to include("ast-merge")
           expect(result).to include("bash-merge")
         end

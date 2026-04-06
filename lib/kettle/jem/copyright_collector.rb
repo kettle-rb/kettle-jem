@@ -38,8 +38,8 @@ module Kettle
       #   accounts to exclude from copyright output (case-insensitive).
       #   Matched against both the author name and the author email.
       def initialize(git_adapter:, project_root:, machine_users: [])
-        @git_adapter   = git_adapter
-        @project_root  = project_root.to_s
+        @git_adapter = git_adapter
+        @project_root = project_root.to_s
         @machine_users = Array(machine_users).map { |u| u.to_s.downcase.strip }.reject(&:empty?).to_set
       end
 
@@ -100,10 +100,10 @@ module Kettle
         commit_meta = {}
 
         # State for the current group being parsed
-        current_sha   = nil
-        current_name  = nil
+        current_sha = nil
+        current_name = nil
         current_email = nil
-        current_time  = nil
+        current_time = nil
 
         output.each_line do |raw_line|
           line = raw_line.chomp
@@ -113,13 +113,13 @@ module Kettle
             current_sha = line[0, 40]
             if commit_meta.key?(current_sha)
               # Repeat occurrence — no header stanza follows (except filename)
-              current_name  = commit_meta[current_sha][:name]
+              current_name = commit_meta[current_sha][:name]
               current_email = commit_meta[current_sha][:email]
-              current_time  = commit_meta[current_sha][:time]
+              current_time = commit_meta[current_sha][:time]
             else
-              current_name  = nil
+              current_name = nil
               current_email = nil
-              current_time  = nil
+              current_time = nil
             end
           elsif line.start_with?("author ") && !commit_meta.key?(current_sha.to_s)
             current_name = line[7..].strip
@@ -133,9 +133,9 @@ module Kettle
 
             unless commit_meta.key?(current_sha)
               commit_meta[current_sha] = {
-                name:  current_name,
+                name: current_name,
                 email: current_email,
-                time:  current_time,
+                time: current_time,
               }
             end
 
@@ -160,14 +160,14 @@ module Kettle
         uncommitted = author_map.delete(NOT_COMMITTED_EMAIL)
         return unless uncommitted && uncommitted[:years].any?
 
-        real_name, name_ok   = git_adapter.capture(["config", "user.name"])
+        real_name, name_ok = git_adapter.capture(["config", "user.name"])
         real_email, email_ok = git_adapter.capture(["config", "user.email"])
 
         # If git config isn't available, discard the uncommitted years rather
         # than attributing them to an unknown author.
         return unless name_ok && email_ok && real_email && !real_email.strip.empty?
 
-        real_name  = real_name.strip
+        real_name = real_name.strip
         real_email = real_email.strip
 
         author_map[real_email][:name] ||= real_name
@@ -181,7 +181,7 @@ module Kettle
       #
       # @return [Array<(String, String)>] [name, email], empty strings on failure
       def git_config_user
-        name,  = git_adapter.capture(["config", "user.name"])
+        name, = git_adapter.capture(["config", "user.name"])
         email, = git_adapter.capture(["config", "user.email"])
         [name.to_s.strip, email.to_s.strip]
       rescue StandardError => e
@@ -191,7 +191,7 @@ module Kettle
 
       # @param entry [Hash]
       def bot_entry?(entry)
-        name  = entry[:name].to_s
+        name = entry[:name].to_s
         email = entry[:email].to_s
         name.match?(BOT_NAME_SUFFIX) || email.match?(BOT_EMAIL_PATTERN)
       end
@@ -205,7 +205,7 @@ module Kettle
       def machine_user_entry?(entry)
         return false if machine_users.empty?
 
-        name  = entry[:name].to_s.downcase.strip
+        name = entry[:name].to_s.downcase.strip
         email = entry[:email].to_s.downcase.strip
         machine_users.include?(name) || machine_users.include?(email)
       end
@@ -220,8 +220,8 @@ module Kettle
         return years.first.to_s if years.size == 1
 
         # Build contiguous runs
-        runs  = []
-        run   = [years.first]
+        runs = []
+        run = [years.first]
         years[1..].each do |y|
           if y == run.last + 1
             run << y
@@ -232,7 +232,7 @@ module Kettle
         end
         runs << run
 
-        runs.map { |r| r.size == 1 ? r.first.to_s : "#{r.first}-#{r.last}" }.join(", ")
+        runs.map { |r| (r.size == 1) ? r.first.to_s : "#{r.first}-#{r.last}" }.join(", ")
       end
     end
   end

@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Kettle
   module Jem
     module PrismGemfile
@@ -43,7 +42,6 @@ module Kettle
             end
             found << node if arg_val && arg_val.to_s == gem_name.to_s
           end
-
 
           found
         end

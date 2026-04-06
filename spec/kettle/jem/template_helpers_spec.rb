@@ -153,7 +153,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         File.write(dest, "appraise \"ruby-2-7\" do\nend\n")
 
         allow(described_class).to receive(:gemspec_metadata).and_return({min_ruby: Gem::Version.new("3.2")})
-        expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+        allow(Kettle::Jem::SourceMerger).to receive(:apply).with(
           strategy: :merge,
           src: "appraise \"ruby-3-2\" do\nend\n",
           dest: "appraise \"ruby-2-7\" do\nend\n",

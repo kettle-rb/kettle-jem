@@ -92,7 +92,6 @@ module Kettle
         content
       end
 
-
       def merge_local_gem_overrides(content, destination_content, excluded_gems: [])
         LocalOverridePolicy.merge(content, destination_content, excluded_gems: excluded_gems)
       end
@@ -100,7 +99,6 @@ module Kettle
       def merge_bootstrap_local_gem_overrides(source_content, destination_content, excluded_gems: [])
         LocalOverridePolicy.merge_bootstrap(source_content, destination_content, excluded_gems: excluded_gems)
       end
-
 
       # Validate that the merged content does not contain the same gem nested
       # inside block nodes with different signatures.
@@ -156,8 +154,6 @@ module Kettle
         normalized = lines.first(header_end_index) + ["\n"] + normalized_tail
         normalized.join
       end
-
-
     end
   end
 end

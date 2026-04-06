@@ -309,7 +309,7 @@ RSpec.describe "Gemfile parsing idempotency" do
         path: "gemfiles/modular/coverage_local.gemfile",
       )
 
-      expect(result.scan(/require File\.expand_path\(/).count).to eq(1)
+      expect(result.scan("require File.expand_path(").count).to eq(1)
       expect(result).to include('require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)')
       expect(result).not_to include('require File.expand_path("../../lib/nomono/bundler", __dir__)')
     end

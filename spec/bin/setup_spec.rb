@@ -3,6 +3,7 @@
 require "fileutils"
 require "open3"
 
+# rubocop:disable RSpec/DescribeClass
 RSpec.describe "bin/setup" do
   let(:script_path) { File.expand_path("../../bin/setup", __dir__) }
 
@@ -33,3 +34,4 @@ RSpec.describe "bin/setup" do
     end
   end
 end
+# rubocop:enable RSpec/DescribeClass

@@ -20,8 +20,8 @@ module Kettle
     module SourceMerger
       BUG_URL = "https://github.com/kettle-rb/kettle-jem/issues"
       FREEZE_TOKEN = "kettle-jem"
-      RAKEFILE_DEFAULT_TASK_COMMENT = "# Define a base default task early so other files can enhance it.".freeze
-      RAKEFILE_DEFAULT_TASK_DESC = 'desc "Default tasks aggregator"'.freeze
+      RAKEFILE_DEFAULT_TASK_COMMENT = "# Define a base default task early so other files can enhance it."
+      RAKEFILE_DEFAULT_TASK_DESC = 'desc "Default tasks aggregator"'
       RUBY_FILE_TYPES = %i[ruby gemfile appraisals gemspec rakefile].freeze
       SUPPORTED_PREFERENCES = %i[template destination].freeze
 
@@ -345,7 +345,6 @@ module Kettle
         with_blank_line = "#{anchor}\n"
         content.include?(with_blank_line) ? with_blank_line : anchor
       end
-
 
       # @param file_type [Symbol]
       # @return [Class] Preset class

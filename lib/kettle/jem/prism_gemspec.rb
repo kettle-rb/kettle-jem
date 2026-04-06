@@ -18,6 +18,7 @@ module Kettle
       autoload :VersionLoaderPolicy, "kettle/jem/prism_gemspec/version_loader_policy"
 
       module_function
+
       extend DependencyEntryPolicy
       extend DependencyRemovalPolicy
       extend GemspecContextPolicy

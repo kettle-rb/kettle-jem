@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Kettle
   module Jem
     module PrismGemfile
@@ -93,7 +92,7 @@ module Kettle
 
         def describe_call_context(node)
           args = node.arguments&.arguments
-          if args && args.any?
+          if args&.any?
             first = args.first
             arg_str = case first
             when Prism::SymbolNode then ":#{first.unescaped}"
@@ -141,7 +140,7 @@ module Kettle
         def next_context_stack_for_child(node:, child_kind:, current_context:)
           case node
           when Prism::CallNode
-            child_kind == :call_block ? current_context + [describe_call_context(node)] : current_context
+            (child_kind == :call_block) ? current_context + [describe_call_context(node)] : current_context
           when Prism::IfNode
             current_context + ["if #{describe_condition(node)}"]
           when Prism::UnlessNode

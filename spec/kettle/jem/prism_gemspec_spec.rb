@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe Kettle::Jem::PrismGemspec do
   def gemspec_field_node_for(content, field = "files")
     context = described_class.send(:gemspec_context, content)
@@ -28,9 +27,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       runner = instance_double(Ast::Merge::Recipe::Runner)
       result = Struct.new(:content).new("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n")
 
-      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
-      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
-      expect(runner).to receive(:run_content).with(
+      allow(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      allow(runner).to receive(:run_content).with(
         template_content: template,
         destination_content: dest,
         relative_path: "project.gemspec",
@@ -46,9 +45,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       runner = instance_double(Ast::Merge::Recipe::Runner)
       result = Struct.new(:content).new("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n")
 
-      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
-      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
-      expect(runner).to receive(:run_content).with(
+      allow(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      allow(runner).to receive(:run_content).with(
         template_content: template,
         destination_content: dest,
         relative_path: "project.gemspec",
@@ -102,8 +101,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       recipe = instance_double(Ast::Merge::Recipe::Config)
       runner = instance_double(Ast::Merge::Recipe::Runner)
 
-      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
-      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      allow(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
       expect(runner).to receive(:run_content).with(
         template_content: template,
         destination_content: dest,
@@ -122,9 +121,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       runner = instance_double(Ast::Merge::Recipe::Runner)
       result = Struct.new(:content).new("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nendend\n")
 
-      expect(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
-      expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
-      expect(runner).to receive(:run_content).with(
+      allow(Kettle::Jem).to receive(:recipe).with(:gemspec).and_return(recipe)
+      allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+      allow(runner).to receive(:run_content).with(
         template_content: template,
         destination_content: dest,
         relative_path: "project.gemspec",
@@ -183,7 +182,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "symbolizes hash-like context keys, overwrites stale runtime metadata, and drops blank optional fields" do
       expect(
         described_class.build_runtime_context(
-          {"existing" => 1, keep: true, "min_ruby" => "stale"},
+          {"existing" => 1, :keep => true, "min_ruby" => "stale"},
           min_ruby: Gem::Version.new("3.2"),
           entrypoint_require: "kettle/jem",
           namespace: "Kettle::Jem",
@@ -522,19 +521,19 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "short-circuits empty content and otherwise runs files-union before dependency normalization" do
       expect(described_class.harmonize_merged_content("", template_content: "template", destination_content: "dest")).to eq("")
 
-      expect(described_class).to receive(:union_literal_dir_assignment).with(
+      allow(described_class).to receive(:union_literal_dir_assignment).with(
         "merged",
         field: "files",
         template_content: "template",
         destination_content: "dest",
       ).and_return("unioned")
-      expect(described_class).to receive(:cleanup_destination_nonliteral_dir_assignment).with(
+      allow(described_class).to receive(:cleanup_destination_nonliteral_dir_assignment).with(
         "unioned",
         field: "files",
         template_content: "template",
         destination_content: "dest",
       ).and_return("cleaned")
-      expect(described_class).to receive(:normalize_dependency_sections).with(
+      allow(described_class).to receive(:normalize_dependency_sections).with(
         "cleaned",
         template_content: "template",
         destination_content: "dest",
@@ -568,7 +567,6 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
   end
 
-
   describe described_class::DependencySectionPolicy do
     def normalize_dependency_sections(content, template_content:, destination_content:, prefer_template: false)
       described_class.normalize(
@@ -591,8 +589,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "keeps dependency records and lookup keyed by the same normalized scan contract" do
       content = <<~RUBY
-          spec.add_dependency("demo", "~> 1.0") # runtime
-          spec.add_development_dependency("rspec",    ">= 3")
+        spec.add_dependency("demo", "~> 1.0") # runtime
+        spec.add_development_dependency("rspec",    ">= 3")
       RUBY
 
       records = described_class.dependency_records(content.lines)
@@ -626,9 +624,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "filters development dependency records from the shared scan snapshot" do
       content = <<~RUBY
-          # spec.add_development_dependency("ignored", "~> 9.9")
-          spec.add_dependency("demo", "~> 1.0")
-          spec.add_development_dependency("rspec",    ">= 3") # comment
+        # spec.add_development_dependency("ignored", "~> 9.9")
+        spec.add_dependency("demo", "~> 1.0")
+        spec.add_development_dependency("rspec",    ">= 3") # comment
       RUBY
 
       records = described_class.development_dependency_records(content)
@@ -648,9 +646,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "indexes first development records by gem while tracking runtime gems from the shared scan snapshot" do
       content = <<~RUBY
-          spec.add_dependency("demo", "~> 1.0")
-          spec.add_development_dependency("rake", ">= 12")
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_dependency("demo", "~> 1.0")
+        spec.add_development_dependency("rake", ">= 12")
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
 
       index = described_class.dependency_record_index(content)
@@ -731,11 +729,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "prefers one lookup source while filling unmatched dependency signatures from the fallback source" do
       template_content = <<~RUBY
-          spec.add_dependency("demo", "~> 1.0") # template
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_dependency("demo", "~> 1.0") # template
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
       destination_content = <<~RUBY
-          spec.add_dependency "demo", "~> 1.0" # destination
+        spec.add_dependency "demo", "~> 1.0" # destination
       RUBY
 
       lookup = described_class.preferred_dependency_line_lookup(
@@ -757,8 +755,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       template_lookup = {template: true}
       destination_lookup = {destination: true}
 
-      expect(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
-      expect(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
 
       default_sources = described_class.preferred_dependency_lookup_sources(
         template_content: template_content,
@@ -767,8 +765,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(default_sources).to eq([destination_lookup, template_lookup])
 
-      expect(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
-      expect(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
 
       template_preferred_sources = described_class.preferred_dependency_lookup_sources(
         template_content: template_content,
@@ -785,7 +783,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       preferred_lookup = {preferred: "line\n"}
       fallback_lookup = {fallback: "fallback\n"}
 
-      expect(described_class).to receive(:preferred_dependency_lookup_sources).with(
+      allow(described_class).to receive(:preferred_dependency_lookup_sources).with(
         template_content: template_content,
         destination_content: destination_content,
         prefer_template: true,
@@ -827,12 +825,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       fallback_lookup = {fallback: "fallback\n"}
       merged_lookup = {preferred: "line\n", fallback: "fallback\n"}
 
-      expect(described_class).to receive(:preferred_dependency_lookup_sources).with(
+      allow(described_class).to receive(:preferred_dependency_lookup_sources).with(
         template_content: template_content,
         destination_content: destination_content,
         prefer_template: false,
       ).and_return([preferred_lookup, fallback_lookup])
-      expect(described_class).to receive(:fill_preferred_dependency_lookup).with(preferred_lookup, fallback_lookup).and_return(merged_lookup)
+      allow(described_class).to receive(:fill_preferred_dependency_lookup).with(preferred_lookup, fallback_lookup).and_return(merged_lookup)
 
       lookup = described_class.preferred_dependency_line_lookup(
         template_content: template_content,
@@ -902,7 +900,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         gem: "rake",
       }
 
-      expect(described_class).to receive(:dependency_block_range).with(lines, 0).and_return(0..0)
+      allow(described_class).to receive(:dependency_block_range).with(lines, 0).and_return(0..0)
 
       range = described_class.duplicate_runtime_shadowed_development_dependency_range(
         lines,
@@ -925,21 +923,21 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       records = [{gem: "rake"}, {gem: "rspec"}, {gem: "rubocop"}]
       runtime_gems = Set["rake"]
 
-      expect(described_class).to receive(:build_dependency_index).with(records).and_return(
+      allow(described_class).to receive(:build_dependency_index).with(records).and_return(
         development_by_gem: {},
         runtime_gems: runtime_gems,
       )
-      expect(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
+      allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
         lines,
         records[0],
         runtime_gems: runtime_gems,
       ).ordered.and_return(0..0)
-      expect(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
+      allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
         lines,
         records[1],
         runtime_gems: runtime_gems,
       ).ordered.and_return(nil)
-      expect(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
+      allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
         lines,
         records[2],
         runtime_gems: runtime_gems,
@@ -956,10 +954,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       ranges = [1..1]
       sentinel = ["before\n", "after\n"]
 
-      expect(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_ranges).with(lines, records).and_return(
+      allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_ranges).with(lines, records).and_return(
         ranges,
       )
-      expect(Kettle::Jem::PrismGemspec).to receive(:remove_line_ranges_with_plans).with(
+      allow(Kettle::Jem::PrismGemspec).to receive(:remove_line_ranges_with_plans).with(
         content: lines.join,
         lines: lines,
         ranges: ranges,
@@ -977,12 +975,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "builds dependency block ranges from the shared start and end helpers" do
       lines = ["# NOTE\n", "# Runtime\n", 'spec.add_dependency("alpha", "~> 1.0")\n', "\n"]
 
-      expect(described_class).to receive(:attached_comment_start_index).with(
+      allow(described_class).to receive(:attached_comment_start_index).with(
         lines,
         2,
         stop_above_index: 0,
       ).and_return(1)
-      expect(described_class).to receive(:trailing_blank_line_end_index).with(lines, 2).and_return(3)
+      allow(described_class).to receive(:trailing_blank_line_end_index).with(lines, 2).and_return(3)
 
       range = described_class.dependency_block_range(lines, 2, stop_above_index: 0)
 
@@ -1090,11 +1088,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         record: {line_index: 3, method: "add_development_dependency", gem: "rake", line: "third\n", signature: '"rake", "~> 13.0"'},
       }
 
-      expect(described_class).to receive(:dependency_line_source).with("content").and_return(source)
-      expect(described_class).to receive(:dependency_scan_record).with("first\n", 0).ordered.and_return(first_payload)
-      expect(described_class).to receive(:dependency_scan_record).with("second", 1).ordered.and_return(second_payload)
-      expect(described_class).to receive(:dependency_scan_record).with("ignored\n", 2).ordered.and_return(nil)
-      expect(described_class).to receive(:dependency_scan_record).with("third\n", 3).ordered.and_return(third_payload)
+      allow(described_class).to receive(:dependency_line_source).with("content").and_return(source)
+      allow(described_class).to receive(:dependency_scan_record).with("first\n", 0).ordered.and_return(first_payload)
+      allow(described_class).to receive(:dependency_scan_record).with("second", 1).ordered.and_return(second_payload)
+      allow(described_class).to receive(:dependency_scan_record).with("ignored\n", 2).ordered.and_return(nil)
+      allow(described_class).to receive(:dependency_scan_record).with("third\n", 3).ordered.and_return(third_payload)
 
       scan = described_class.dependency_scan("content")
 
@@ -1181,9 +1179,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         {method: "add_development_dependency", line_index: 7},
       ]
 
-      expect(described_class).to receive(:runtime_record_after_note?).with(records[0], note_index).ordered.and_return(true)
-      expect(described_class).to receive(:runtime_record_after_note?).with(records[1], note_index).ordered.and_return(true)
-      expect(described_class).to receive(:runtime_record_after_note?).with(records[2], note_index).ordered.and_return(false)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[0], note_index).ordered.and_return(true)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[1], note_index).ordered.and_return(true)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[2], note_index).ordered.and_return(false)
 
       result = described_class.runtime_records_after_note(lines, note_index, records: records)
 
@@ -1192,13 +1190,13 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "finds runtime records below the note through the default dependency-record accessor" do
       lines = <<~RUBY.lines
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          spec.add_dependency("alpha", "~> 1.0")
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_dependency("alpha", "~> 1.0")
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
 
       note_end_index = described_class.note_block_end_index(lines, described_class.note_block_start_index(lines))
@@ -1283,9 +1281,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       note_end_index = 4
       runtime_after_note = [{line_index: 6, method: "add_dependency", gem: "alpha"}]
 
-      expect(described_class).to receive(:note_block_start_index).with(lines).and_return(note_index)
-      expect(described_class).to receive(:note_block_end_index).with(lines, note_index).and_return(note_end_index)
-      expect(described_class).to receive(:runtime_records_after_note).with(lines, note_end_index).and_return(runtime_after_note)
+      allow(described_class).to receive(:note_block_start_index).with(lines).and_return(note_index)
+      allow(described_class).to receive(:note_block_end_index).with(lines, note_index).and_return(note_end_index)
+      allow(described_class).to receive(:runtime_records_after_note).with(lines, note_end_index).and_return(runtime_after_note)
 
       snapshot = described_class.runtime_dependency_relocation_snapshot(lines)
 
@@ -1298,15 +1296,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "extracts one runtime dependency block below the note boundary into a moved block plus remaining lines" do
       lines = <<~RUBY.lines
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime
-          spec.add_dependency("alpha", "~> 1.0")
+        # Runtime
+        spec.add_dependency("alpha", "~> 1.0")
 
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
       note_end_index = described_class.note_block_end_index(lines, described_class.note_block_start_index(lines))
 
@@ -1347,12 +1345,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       after_beta = ["after beta\n"]
       after_alpha = ["after alpha\n"]
 
-      expect(described_class).to receive(:extract_runtime_dependency_block_after_note).with(
+      allow(described_class).to receive(:extract_runtime_dependency_block_after_note).with(
         lines,
         records[1],
         note_end_index,
       ).ordered.and_return([beta_block, after_beta])
-      expect(described_class).to receive(:extract_runtime_dependency_block_after_note).with(
+      allow(described_class).to receive(:extract_runtime_dependency_block_after_note).with(
         after_beta,
         records[0],
         note_end_index,
@@ -1367,7 +1365,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "returns the original lines joined when there is no note block to insert above" do
       lines = ["spec.name = \"demo\"\n", 'spec.add_dependency("alpha", "~> 1.0")\n']
 
-      expect(described_class).to receive(:note_block_start_index).with(lines).and_return(nil)
+      allow(described_class).to receive(:note_block_start_index).with(lines).and_return(nil)
       expect(described_class).not_to receive(:build_dependency_block_insertion)
 
       result = described_class.insert_blocks_before_note(lines, [["ignored\n"]])
@@ -1384,8 +1382,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       blocks = [["# Runtime\n", "spec.add_dependency(\"alpha\", \"~> 1.0\")\n", "\n"]]
       insertion = ["# Runtime\n", "spec.add_dependency(\"alpha\", \"~> 1.0\")\n", "\n"]
 
-      expect(described_class).to receive(:note_block_start_index).with(lines).and_return(2)
-      expect(described_class).to receive(:build_dependency_block_insertion).with(
+      allow(described_class).to receive(:note_block_start_index).with(lines).and_return(2)
+      allow(described_class).to receive(:build_dependency_block_insertion).with(
         blocks,
         before_line: lines[1],
         after_line: lines[2],
@@ -1395,11 +1393,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(result).to eq(
         "spec.name = \"demo\"\n" \
-        "\n" \
-        "# Runtime\n" \
-        "spec.add_dependency(\"alpha\", \"~> 1.0\")\n" \
-        "\n" \
-        "# NOTE: It is preferable to list development dependencies in the gemspec due to increased\n",
+          "\n" \
+          "# Runtime\n" \
+          "spec.add_dependency(\"alpha\", \"~> 1.0\")\n" \
+          "\n" \
+          "# NOTE: It is preferable to list development dependencies in the gemspec due to increased\n",
       )
     end
 
@@ -1450,20 +1448,20 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       deduped_lines = ["deduped\n"]
       sentinel = "normalized\n"
 
-      expect(described_class).to receive(:preferred_dependency_line_lookup).with(
+      allow(described_class).to receive(:preferred_dependency_line_lookup).with(
         template_content: template_content,
         destination_content: destination_content,
         prefer_template: false,
       ).and_return(preferred_lines)
-      expect(described_class).to receive(:dependency_records).with(lines).and_return(records)
-      expect(described_class).to receive(:apply_preferred_dependency_lines).with(lines, records, preferred_lines).and_return(
+      allow(described_class).to receive(:dependency_records).with(lines).and_return(records)
+      allow(described_class).to receive(:apply_preferred_dependency_lines).with(lines, records, preferred_lines).and_return(
         formatted_lines,
       )
-      expect(described_class).to receive(:remove_runtime_shadowed_development_dependency_blocks).with(
+      allow(described_class).to receive(:remove_runtime_shadowed_development_dependency_blocks).with(
         formatted_lines,
         records,
       ).and_return(deduped_lines)
-      expect(described_class).to receive(:relocate_runtime_dependency_blocks_before_note).with(deduped_lines).and_return(
+      allow(described_class).to receive(:relocate_runtime_dependency_blocks_before_note).with(deduped_lines).and_return(
         sentinel,
       )
 
@@ -1486,13 +1484,13 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       remaining_lines = ["remaining\n"]
       sentinel = "relocated\n"
 
-      expect(described_class).to receive(:runtime_dependency_relocation_snapshot).with(lines).and_return(relocation_snapshot)
-      expect(described_class).to receive(:extract_runtime_dependency_blocks_after_note).with(
+      allow(described_class).to receive(:runtime_dependency_relocation_snapshot).with(lines).and_return(relocation_snapshot)
+      allow(described_class).to receive(:extract_runtime_dependency_blocks_after_note).with(
         lines,
         relocation_snapshot[:runtime_after_note],
         relocation_snapshot[:note_end_index],
       ).and_return([moved_blocks, remaining_lines])
-      expect(described_class).to receive(:insert_blocks_before_note).with(remaining_lines, moved_blocks).and_return(sentinel)
+      allow(described_class).to receive(:insert_blocks_before_note).with(remaining_lines, moved_blocks).and_return(sentinel)
 
       out = described_class.relocate_runtime_dependency_blocks_before_note(lines)
 
@@ -1559,11 +1557,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "removes development dependency blocks when the gem is also a runtime dependency" do
       content = <<~RUBY
-          spec.add_dependency("kettle-dev", "~> 2.0")
-          # Dev Tasks
-          spec.add_development_dependency("kettle-dev", "~> 2.0")
+        spec.add_dependency("kettle-dev", "~> 2.0")
+        # Dev Tasks
+        spec.add_development_dependency("kettle-dev", "~> 2.0")
 
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1580,15 +1578,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "removes every duplicate development dependency block for a gem promoted to runtime" do
       content = <<~RUBY
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # Dev Tasks
-          spec.add_development_dependency("kettle-dev", "~> 2.0")
+        # Dev Tasks
+        spec.add_development_dependency("kettle-dev", "~> 2.0")
 
-          # Legacy duplicate
-          spec.add_development_dependency("kettle-dev", "~> 1.9")
+        # Legacy duplicate
+        spec.add_development_dependency("kettle-dev", "~> 1.9")
 
-          spec.add_development_dependency("rake", "~> 13.0")
+        spec.add_development_dependency("rake", "~> 13.0")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1598,7 +1596,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       )
 
       expect(out).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
-      expect(out.scan(/add_development_dependency\("kettle-dev"/).size).to eq(0)
+      expect(out.scan('add_development_dependency("kettle-dev"').size).to eq(0)
       expect(out).to include('spec.add_development_dependency("rake", "~> 13.0")')
       expect(out).not_to include("# Dev Tasks")
       expect(out).not_to include("# Legacy duplicate")
@@ -1606,16 +1604,16 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "keeps the note separator when removing a duplicate development block directly below the note" do
       content = <<~RUBY
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Dev, Test, & Release Tasks
-          spec.add_development_dependency("kettle-dev", "~> 2.0")
+        # Dev, Test, & Release Tasks
+        spec.add_development_dependency("kettle-dev", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1631,16 +1629,16 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "moves runtime dependency blocks above the development dependency note block with attached comments" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        # Runtime
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1650,25 +1648,25 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       )
 
       expect(out).to include("# Runtime\nspec.add_dependency(\"kettle-dev\", \"~> 2.0\")")
-      expect(out.index('# Runtime')).to be < out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
-      expect(out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')).to be < out.index('# Security')
+      expect(out.index("# Runtime")).to be < out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")
+      expect(out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")).to be < out.index("# Security")
     end
 
     it "keeps multiple runtime blocks below the note in their original order when moving them above it" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime A
-          spec.add_dependency("alpha", "~> 1.0")
+        # Runtime A
+        spec.add_dependency("alpha", "~> 1.0")
 
-          # Runtime B
-          spec.add_runtime_dependency("beta", "~> 2.0")
+        # Runtime B
+        spec.add_runtime_dependency("beta", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1677,20 +1675,20 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         destination_content: content,
       )
 
-      expect(out.index('# Runtime A')).to be < out.index('spec.add_dependency("alpha", "~> 1.0")')
-      expect(out.index('spec.add_dependency("alpha", "~> 1.0")')).to be < out.index('# Runtime B')
-      expect(out.index('# Runtime B')).to be < out.index('spec.add_runtime_dependency("beta", "~> 2.0")')
-      expect(out.index('spec.add_runtime_dependency("beta", "~> 2.0")')).to be < out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
+      expect(out.index("# Runtime A")).to be < out.index('spec.add_dependency("alpha", "~> 1.0")')
+      expect(out.index('spec.add_dependency("alpha", "~> 1.0")')).to be < out.index("# Runtime B")
+      expect(out.index("# Runtime B")).to be < out.index('spec.add_runtime_dependency("beta", "~> 2.0")')
+      expect(out.index('spec.add_runtime_dependency("beta", "~> 2.0")')).to be < out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")
     end
 
     it "inserts a single separator before moved runtime blocks when the note directly follows nonblank content" do
       content = <<~RUBY
-          spec.name = "demo"
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        spec.name = "demo"
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        # Runtime
+        spec.add_dependency("kettle-dev", "~> 2.0")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1705,14 +1703,14 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "does not introduce an extra blank line after the note when the remaining development section starts immediately" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
-          # Runtime
-          spec.add_dependency("kettle-dev", "~> 2.0")
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
+        # Runtime
+        spec.add_dependency("kettle-dev", "~> 2.0")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1727,17 +1725,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "preserves a single blank line after a blank-terminated note block when a remaining development section still follows it" do
       content = <<~RUBY
-          spec.name = "demo"
-          spec.add_dependency("version_gem", "~> 1.1")
+        spec.name = "demo"
+        spec.add_dependency("version_gem", "~> 1.1")
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        # Runtime
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1752,19 +1750,19 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     it "does not move detached comments separated from a runtime dependency block by a blank line" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Detached
-          # Commentary
+        # Detached
+        # Commentary
 
-          # Runtime
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        # Runtime
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1773,24 +1771,24 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         destination_content: content,
       )
 
-      expect(out.index('# Runtime')).to be < out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
-      expect(out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')).to be < out.index('# Detached')
-      expect(out.index('# Detached')).to be < out.index('# Security')
+      expect(out.index("# Runtime")).to be < out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")
+      expect(out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")).to be < out.index("# Detached")
+      expect(out.index("# Detached")).to be < out.index("# Security")
     end
 
     it "moves contiguous attached comments with the runtime dependency block" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime
-          # Additional context
-          spec.add_dependency("kettle-dev", "~> 2.0")
+        # Runtime
+        # Additional context
+        spec.add_dependency("kettle-dev", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1800,24 +1798,24 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       )
 
       expect(out).to include("# Runtime\n# Additional context\nspec.add_dependency(\"kettle-dev\", \"~> 2.0\")")
-      expect(out.index('# Runtime')).to be < out.index('# NOTE: It is preferable to list development dependencies in the gemspec due to increased')
+      expect(out.index("# Runtime")).to be < out.index("# NOTE: It is preferable to list development dependencies in the gemspec due to increased")
     end
 
     it "preserves exactly one blank line between moved runtime blocks and the note" do
       content = <<~RUBY
-          spec.name = "demo"
+        spec.name = "demo"
 
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
 
-          # Runtime A
-          spec.add_dependency("alpha", "~> 1.0")
+        # Runtime A
+        spec.add_dependency("alpha", "~> 1.0")
 
-          # Runtime B
-          spec.add_runtime_dependency("beta", "~> 2.0")
+        # Runtime B
+        spec.add_runtime_dependency("beta", "~> 2.0")
 
-          # Security
-          spec.add_development_dependency("bundler-audit", "~> 0.9.3")
+        # Security
+        spec.add_development_dependency("bundler-audit", "~> 0.9.3")
       RUBY
 
       out = normalize_dependency_sections(
@@ -1904,7 +1902,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         },
       ]
 
-      expect(described_class::DependencySectionPolicy).to receive(:development_dependency_records).with("content").and_return(records)
+      allow(described_class::DependencySectionPolicy).to receive(:development_dependency_records).with("content").and_return(records)
 
       expect(described_class.send(:development_dependency_entries_fallback, "content")).to eq(
         [
@@ -1932,7 +1930,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         {gem: "rspec", signature: '"rspec", ">= 3"'},
       ]
 
-      expect(described_class).to receive(:development_dependency_entries).with("content").and_return(entries)
+      allow(described_class).to receive(:development_dependency_entries).with("content").and_return(entries)
 
       expect(described_class.development_dependency_signatures("content")).to eq(
         [
@@ -1966,17 +1964,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       template_context = {stmt_nodes: [:template], blk_param: "spec"}
       destination_context = {stmt_nodes: [:destination], blk_param: "spec"}
       location = double("Prism::Location", start_line: 3, end_line: 6)
-      merged_node = instance_double("Prism::CallNode", slice: "merged files", location: location)
-      template_node = instance_double("Prism::CallNode", slice: "template files")
-      destination_node = instance_double("Prism::CallNode", slice: "destination files")
+      merged_node = instance_double(Prism::CallNode, slice: "merged files", location: location)
+      template_node = instance_double(Prism::CallNode, slice: "template files")
+      destination_node = instance_double(Prism::CallNode, slice: "destination files")
 
-      expect(described_class).to receive(:gemspec_context).with("merged").and_return(merged_context)
-      expect(described_class).to receive(:gemspec_context).with("template").and_return(template_context)
-      expect(described_class).to receive(:gemspec_context).with("destination").and_return(destination_context)
-      expect(described_class).to receive(:find_field_node).with(merged_context[:stmt_nodes], merged_context[:blk_param], "files").and_return(merged_node)
-      expect(described_class).to receive(:find_field_node).with(template_context[:stmt_nodes], template_context[:blk_param], "files").and_return(template_node)
-      expect(described_class).to receive(:find_field_node).with(destination_context[:stmt_nodes], destination_context[:blk_param], "files").and_return(destination_node)
-      expect(described_class).to receive(:merge_dir_assignment_source).with(
+      allow(described_class).to receive(:gemspec_context).with("merged").and_return(merged_context)
+      allow(described_class).to receive(:gemspec_context).with("template").and_return(template_context)
+      allow(described_class).to receive(:gemspec_context).with("destination").and_return(destination_context)
+      allow(described_class).to receive(:find_field_node).with(merged_context[:stmt_nodes], merged_context[:blk_param], "files").and_return(merged_node)
+      allow(described_class).to receive(:find_field_node).with(template_context[:stmt_nodes], template_context[:blk_param], "files").and_return(template_node)
+      allow(described_class).to receive(:find_field_node).with(destination_context[:stmt_nodes], destination_context[:blk_param], "files").and_return(destination_node)
+      allow(described_class).to receive(:merge_dir_assignment_source).with(
         merged_node: merged_node,
         merged_content: "merged",
         template_node: template_node,
@@ -1984,7 +1982,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         destination_node: destination_node,
         destination_content: "destination",
       ).and_return("replacement")
-      expect(described_class).to receive(:build_splice_plan).with(
+      allow(described_class).to receive(:build_splice_plan).with(
         content: "merged",
         replacement: "replacement",
         start_line: 3,
@@ -1995,7 +1993,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           field: "files",
         },
       ).and_return(:plan)
-      expect(described_class).to receive(:merged_content_from_plans).with(
+      allow(described_class).to receive(:merged_content_from_plans).with(
         content: "merged",
         plans: [:plan],
         metadata: {
@@ -2071,9 +2069,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
   describe ".gemspec_context" do
     it "returns nil when Prism parsing fails before any gemspec extraction happens" do
-      failure = instance_double("Prism::ParseResult", success?: false)
+      failure = instance_double(Prism::ParseResult, success?: false)
 
-      expect(Kettle::Jem::PrismUtils).to receive(:parse_with_comments).with("broken").and_return(failure)
+      allow(Kettle::Jem::PrismUtils).to receive(:parse_with_comments).with("broken").and_return(failure)
 
       expect(described_class.send(:gemspec_context, "broken")).to be_nil
     end
@@ -2226,12 +2224,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: destination_content,
         ),
       ).to eq(
-        "  spec.files = Dir[\n" \
-        "    \"sig/**/*.rbs\",\n" \
-        "    \"test/**/*.rb\",\n" \
-        "    \"lib/**/*.rb\",\n" \
-        "    \"README.md\",\n" \
-        "  ]\n",
+        "  spec.files = Dir[\n    " \
+          "\"sig/**/*.rbs\",\n    " \
+          "\"test/**/*.rb\",\n    " \
+          "\"lib/**/*.rb\",\n    " \
+          "\"README.md\",\n  " \
+          "]\n",
       )
     end
 
@@ -2318,11 +2316,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: destination_content,
         ),
       ).to eq(
-        replacement: "  # Specify which files are part of the released package.\n" \
-          "  spec.files = Dir[\n" \
-          "    \"lib/**/*.rb\",\n" \
-          "    \"sig/**/*.rbs\",\n" \
-          "  ]\n",
+        replacement: "  # Specify which files are part of the released package.\n  " \
+          "spec.files = Dir[\n    " \
+          "\"lib/**/*.rb\",\n    " \
+          "\"sig/**/*.rbs\",\n  " \
+          "]\n",
         start_line: 3,
         end_line: 9,
       )
@@ -2437,37 +2435,35 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
   end
 
-
-
   describe ".dependency_node_records" do
     it "returns an empty list when there are no statement nodes to inspect" do
       expect(described_class.send(:dependency_node_records, nil, "spec")).to eq([])
     end
 
     it "keeps only dependency calls with a nonblank gem literal and projects shared node metadata" do
-      dependency_location = instance_double("Prism::Location", start_line: 5, end_line: 6)
-      blank_location = instance_double("Prism::Location", start_line: 7, end_line: 7)
-      dependency_arguments = instance_double("Prism::ArgumentsNode", arguments: [:rake_arg])
-      blank_arguments = instance_double("Prism::ArgumentsNode", arguments: [:blank_arg])
+      dependency_location = instance_double(Prism::Location, start_line: 5, end_line: 6)
+      blank_location = instance_double(Prism::Location, start_line: 7, end_line: 7)
+      dependency_arguments = instance_double(Prism::ArgumentsNode, arguments: [:rake_arg])
+      blank_arguments = instance_double(Prism::ArgumentsNode, arguments: [:blank_arg])
       dependency_node = instance_double(
-        "Prism::CallNode",
+        Prism::CallNode,
         arguments: dependency_arguments,
         name: :add_development_dependency,
         location: dependency_location,
       )
       blank_node = instance_double(
-        "Prism::CallNode",
+        Prism::CallNode,
         arguments: blank_arguments,
         name: :add_dependency,
         location: blank_location,
       )
       ignored_node = Object.new
 
-      expect(described_class).to receive(:gemspec_dependency_call?).with(dependency_node, "spec").ordered.and_return(true)
-      expect(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:rake_arg).ordered.and_return("rake")
-      expect(described_class).to receive(:gemspec_dependency_call?).with(blank_node, "spec").ordered.and_return(true)
-      expect(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:blank_arg).ordered.and_return(nil)
-      expect(described_class).to receive(:gemspec_dependency_call?).with(ignored_node, "spec").ordered.and_return(false)
+      allow(described_class).to receive(:gemspec_dependency_call?).with(dependency_node, "spec").ordered.and_return(true)
+      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:rake_arg).ordered.and_return("rake")
+      allow(described_class).to receive(:gemspec_dependency_call?).with(blank_node, "spec").ordered.and_return(true)
+      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:blank_arg).ordered.and_return(nil)
+      allow(described_class).to receive(:gemspec_dependency_call?).with(ignored_node, "spec").ordered.and_return(false)
 
       expect(
         described_class.send(:dependency_node_records, [dependency_node, blank_node, ignored_node], "spec"),
@@ -2510,13 +2506,13 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
   describe ".dependency_indent" do
     it "extracts only the leading indentation from the first line of the node slice" do
-      node = instance_double("Prism::CallNode", slice: "    spec.add_dependency(\"demo\")\n      continued")
+      node = instance_double(Prism::CallNode, slice: "    spec.add_dependency(\"demo\")\n      continued")
 
       expect(described_class.send(:dependency_indent, node)).to eq("    ")
     end
 
     it "returns an empty indentation string when the first line is not indented" do
-      node = instance_double("Prism::CallNode", slice: "spec.add_dependency(\"demo\")\n")
+      node = instance_double(Prism::CallNode, slice: "spec.add_dependency(\"demo\")\n")
 
       expect(described_class.send(:dependency_indent, node)).to eq("")
     end
@@ -2537,15 +2533,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
   describe ".dependency_signature" do
     it "joins normalized arguments in order and returns an empty signature when no arguments are present" do
       args = [:gem_arg, :constraint_arg, :platform_arg]
-      arguments_node = instance_double("Prism::ArgumentsNode", arguments: args)
-      node = instance_double("Prism::CallNode", arguments: arguments_node)
+      arguments_node = instance_double(Prism::ArgumentsNode, arguments: args)
+      node = instance_double(Prism::CallNode, arguments: arguments_node)
 
-      expect(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:gem_arg).ordered.and_return('"demo"')
-      expect(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:constraint_arg).ordered.and_return('"~> 1.0"')
-      expect(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:platform_arg).ordered.and_return('platforms: %i[mri]')
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:gem_arg).ordered.and_return('"demo"')
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:constraint_arg).ordered.and_return('"~> 1.0"')
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:platform_arg).ordered.and_return("platforms: %i[mri]")
 
       expect(described_class.send(:dependency_signature, node)).to eq('"demo", "~> 1.0", platforms: %i[mri]')
-      expect(described_class.send(:dependency_signature, instance_double("Prism::CallNode", arguments: nil))).to eq("")
+      expect(described_class.send(:dependency_signature, instance_double(Prism::CallNode, arguments: nil))).to eq("")
     end
   end
 
@@ -2561,17 +2557,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       replacement_action = {action: :replace_existing_dev, gem_name: "rake"}
       insertion_action = {action: :insert_missing, gem_name: "rspec"}
 
-      expect(described_class).to receive(:development_dependency_sync_action).with(
+      allow(described_class).to receive(:development_dependency_sync_action).with(
         "kettle-dev",
         desired.fetch("kettle-dev"),
         dependency_index,
       ).ordered.and_return(runtime_action)
-      expect(described_class).to receive(:development_dependency_sync_action).with(
+      allow(described_class).to receive(:development_dependency_sync_action).with(
         "rake",
         desired.fetch("rake"),
         dependency_index,
       ).ordered.and_return(replacement_action)
-      expect(described_class).to receive(:development_dependency_sync_action).with(
+      allow(described_class).to receive(:development_dependency_sync_action).with(
         "rspec",
         desired.fetch("rspec"),
         dependency_index,
@@ -2650,19 +2646,19 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       rspec_line = "    spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n"
       rubocop_line = "    spec.add_development_dependency(\"rubocop\", \"~> 1.72\")\n"
 
-      expect(described_class).to receive(:development_dependency_missing_line).with(
+      allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[0],
         indent: "    ",
       ).ordered.and_return(nil)
-      expect(described_class).to receive(:development_dependency_missing_line).with(
+      allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[1],
         indent: "    ",
       ).ordered.and_return(rspec_line)
-      expect(described_class).to receive(:development_dependency_missing_line).with(
+      allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[2],
         indent: "    ",
       ).ordered.and_return(nil)
-      expect(described_class).to receive(:development_dependency_missing_line).with(
+      allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[3],
         indent: "    ",
       ).ordered.and_return(rubocop_line)
@@ -2720,7 +2716,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       ]
       missing_lines = ["    spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n"]
 
-      expect(described_class).to receive(:development_dependency_missing_lines).with(
+      allow(described_class).to receive(:development_dependency_missing_lines).with(
         sync_actions,
         indent: "    ",
       ).and_return(missing_lines)
@@ -2833,10 +2829,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       missing_lines = [
         [
-          '  spec.add_development_dependency(',
+          "  spec.add_development_dependency(",
           '    "rubocop",',
           '    "~> 1.72"',
-          '  )',
+          "  )",
         ].join("\n") + "\n",
         '  spec.add_development_dependency("rspec", "~> 3.12")\n',
       ]
@@ -2936,7 +2932,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       ).to eq("    ")
 
       node = Object.new
-      expect(described_class).to receive(:dependency_indent).with(node).and_return("  ")
+      allow(described_class).to receive(:dependency_indent).with(node).and_return("  ")
       expect(
         described_class.send(
           :development_dependency_replacement_indent,
@@ -2957,8 +2953,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "derives indentation through the shared helper before formatting the replacement line" do
       record = {start_line: 3, node: Object.new}
 
-      expect(described_class).to receive(:development_dependency_replacement_indent).with(record, content: "content").and_return("    ")
-      expect(described_class).to receive(:formatted_dependency_line).with(
+      allow(described_class).to receive(:development_dependency_replacement_indent).with(record, content: "content").and_return("    ")
+      allow(described_class).to receive(:formatted_dependency_line).with(
         'spec.add_development_dependency("rake", "~> 13.0")',
         indent: "    ",
       ).and_return("    spec.add_development_dependency(\"rake\", \"~> 13.0\")\n")
@@ -2976,9 +2972,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
   describe ".plan_overlapping_line" do
     it "returns the first plan whose line range includes the requested line number and nil when none match" do
-      first_overlap = instance_double("Ast::Merge::StructuralEdit::SplicePlan", line_range: 3..5)
-      later_overlap = instance_double("Ast::Merge::StructuralEdit::SplicePlan", line_range: 5..7)
-      non_overlap = instance_double("Ast::Merge::StructuralEdit::SplicePlan", line_range: 9..10)
+      first_overlap = instance_double(Ast::Merge::StructuralEdit::SplicePlan, line_range: 3..5)
+      later_overlap = instance_double(Ast::Merge::StructuralEdit::SplicePlan, line_range: 5..7)
+      non_overlap = instance_double(Ast::Merge::StructuralEdit::SplicePlan, line_range: 9..10)
 
       expect(described_class.send(:plan_overlapping_line, [first_overlap, later_overlap, non_overlap], 5)).to equal(first_overlap)
       expect(described_class.send(:plan_overlapping_line, [non_overlap], 5)).to be_nil
@@ -2990,21 +2986,21 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     it "builds a plan from the anchor line and appends it when no existing plan overlaps the insertion line" do
       plans = [:existing]
       metadata = {source: :spec}
-      built_plan = instance_double("Ast::Merge::StructuralEdit::SplicePlan")
+      built_plan = instance_double(Ast::Merge::StructuralEdit::SplicePlan)
 
-      expect(described_class).to receive(:anchor_splice_replacement).with(
+      allow(described_class).to receive(:anchor_splice_replacement).with(
         "before\n",
         "inserted\n",
         position: :before,
       ).and_return("replacement")
-      expect(described_class).to receive(:build_splice_plan).with(
+      allow(described_class).to receive(:build_splice_plan).with(
         content: "before\nafter\n",
         replacement: "replacement",
         start_line: 1,
         end_line: 1,
         metadata: metadata,
       ).and_return(built_plan)
-      expect(described_class).to receive(:plan_overlapping_line).with(plans, 1).and_return(nil)
+      allow(described_class).to receive(:plan_overlapping_line).with(plans, 1).and_return(nil)
 
       expect(
         described_class.send(
@@ -3020,11 +3016,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
 
     it "delegates overlap handling to merge_anchor_splice_plan with merged metadata" do
-      overlap = instance_double("Ast::Merge::StructuralEdit::SplicePlan", metadata: {existing: true})
-      trailing = instance_double("Ast::Merge::StructuralEdit::SplicePlan")
+      overlap = instance_double(Ast::Merge::StructuralEdit::SplicePlan, metadata: {existing: true})
+      trailing = instance_double(Ast::Merge::StructuralEdit::SplicePlan)
 
-      expect(described_class).to receive(:plan_overlapping_line).with([overlap, trailing], 1).and_return(overlap)
-      expect(described_class).to receive(:merge_anchor_splice_plan).with(
+      allow(described_class).to receive(:plan_overlapping_line).with([overlap, trailing], 1).and_return(overlap)
+      allow(described_class).to receive(:merge_anchor_splice_plan).with(
         plans: [overlap, trailing],
         content: "before\nafter\n",
         overlap_plan: overlap,
@@ -3082,7 +3078,6 @@ RSpec.describe Kettle::Jem::PrismGemspec do
     end
   end
 
-
   describe ".ast_development_dependency_replacement_plan" do
     it "builds the single replacement splice plan for an AST replace action" do
       content = <<~RUBY
@@ -3136,7 +3131,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         replacement_text: "  payload replacement\n",
       }
 
-      expect(described_class).to receive(:development_dependency_replacement_payload).with(
+      allow(described_class).to receive(:development_dependency_replacement_payload).with(
         action,
         content: content,
       ).and_return(payload)
@@ -3165,18 +3160,18 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       plan_one = Object.new
       plan_three = Object.new
 
-      expect(described_class).to receive(:development_dependency_replacement_actions).with(sync_actions).and_return(
+      allow(described_class).to receive(:development_dependency_replacement_actions).with(sync_actions).and_return(
         [action_one, action_two, action_three],
       )
-      expect(described_class).to receive(:ast_development_dependency_replacement_plan).with(
+      allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_one,
         content: content,
       ).ordered.and_return(plan_one)
-      expect(described_class).to receive(:ast_development_dependency_replacement_plan).with(
+      allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_two,
         content: content,
       ).ordered.and_return(nil)
-      expect(described_class).to receive(:ast_development_dependency_replacement_plan).with(
+      allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_three,
         content: content,
       ).ordered.and_return(plan_three)
@@ -3195,7 +3190,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       action_two = {gem_name: "rspec"}
       seen_lines = []
 
-      expect(described_class).to receive(:development_dependency_replacement_actions).with(sync_actions).and_return(
+      allow(described_class).to receive(:development_dependency_replacement_actions).with(sync_actions).and_return(
         [action_one, action_two],
       )
       expect(described_class).to receive(:apply_fallback_development_dependency_replacement).with(
@@ -3280,7 +3275,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         replacement_text: "payload replacement\n",
       }
 
-      expect(described_class).to receive(:development_dependency_replacement_payload).with(action).and_return(payload)
+      allow(described_class).to receive(:development_dependency_replacement_payload).with(action).and_return(payload)
 
       described_class.send(:apply_fallback_development_dependency_replacement, updated_lines, action)
 
@@ -3299,7 +3294,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         desired_line: 'spec.add_development_dependency("rspec", "~> 3.12")',
       }
 
-      expect(described_class).to receive(:development_dependency_replacement_payload).with(action).and_return(nil)
+      allow(described_class).to receive(:development_dependency_replacement_payload).with(action).and_return(nil)
 
       expect {
         described_class.send(:apply_fallback_development_dependency_replacement, updated_lines, action)
@@ -3316,7 +3311,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       insertion = {line_index: 1, insertion_text: missing_lines.join}
       forwarded = [:forwarded]
 
-      expect(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(nil)
+      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(nil)
 
       no_op = described_class.send(
         :add_missing_development_dependency_plans,
@@ -3328,10 +3323,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(no_op).to eq(plans)
 
-      expect(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(
+      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(
         insertion,
       )
-      expect(described_class).to receive(:add_missing_development_dependency_plan).with(
+      allow(described_class).to receive(:add_missing_development_dependency_plan).with(
         plans,
         content: content,
         lines: lines,
@@ -3439,11 +3434,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       described_class.send(:apply_fallback_missing_development_dependency_insertion, updated_lines, missing_lines)
 
       expect(updated_lines.join).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  # Security\n",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "# Security\n",
       )
       expect(updated_lines.first).to eq("Gem::Specification.new do |spec|\n")
       expect(updated_lines.last).to eq("end\n")
@@ -3461,7 +3456,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(seeded).to eq(
         "spec.add_development_dependency(\"rake\", \"~> 13.0\")\n" \
-        "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n",
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n",
       )
     end
   end
@@ -3523,7 +3518,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       content = "Gem::Specification.new do |spec|\nend\n"
       sentinel = [:forwarded]
 
-      expect(described_class).to receive(:ast_development_dependency_replacement_plans).with(
+      allow(described_class).to receive(:ast_development_dependency_replacement_plans).with(
         sync_snapshot[:sync_actions],
         content: content,
       ).and_return(sentinel)
@@ -3557,7 +3552,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       lines = content.lines
       sentinel = [:forwarded]
 
-      expect(described_class).to receive(:add_missing_development_dependency_plans).with(
+      allow(described_class).to receive(:add_missing_development_dependency_plans).with(
         plans,
         content: content,
         lines: lines,
@@ -3584,7 +3579,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       }
       sentinel = ["forwarded"]
 
-      expect(described_class).to receive(:apply_fallback_development_dependency_replacements).with(
+      allow(described_class).to receive(:apply_fallback_development_dependency_replacements).with(
         lines,
         sync_snapshot[:sync_actions],
       ).and_return(sentinel)
@@ -3606,8 +3601,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       index = {development_by_gem: {}, runtime_gems: Set.new}
       sentinel = {sync_actions: [], missing_lines: []}
 
-      expect(described_class::DependencySectionPolicy).to receive(:dependency_record_index).with(lines).and_return(index)
-      expect(described_class).to receive(:development_dependency_sync_snapshot).with(desired, index).and_return(sentinel)
+      allow(described_class::DependencySectionPolicy).to receive(:dependency_record_index).with(lines).and_return(index)
+      allow(described_class).to receive(:development_dependency_sync_snapshot).with(desired, index).and_return(sentinel)
 
       result = described_class.send(:fallback_development_dependency_sync_snapshot, desired, lines)
 
@@ -3625,8 +3620,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       index = {development_by_gem: {}, runtime_gems: Set.new}
       sentinel = {sync_actions: [], missing_lines: []}
 
-      expect(described_class).to receive(:dependency_node_index).with(context[:stmt_nodes], context[:blk_param]).and_return(index)
-      expect(described_class).to receive(:development_dependency_sync_snapshot).with(desired, index).and_return(sentinel)
+      allow(described_class).to receive(:dependency_node_index).with(context[:stmt_nodes], context[:blk_param]).and_return(index)
+      allow(described_class).to receive(:development_dependency_sync_snapshot).with(desired, index).and_return(sentinel)
 
       result = described_class.send(:ast_development_dependency_sync_snapshot, desired, context)
 
@@ -3642,10 +3637,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       fallback_snapshot = {sync_actions: [:fallback], missing_lines: []}
       ast_snapshot = {sync_actions: [:ast], missing_lines: []}
 
-      expect(described_class).to receive(:fallback_development_dependency_sync_snapshot).with(desired, lines).ordered.and_return(
+      allow(described_class).to receive(:fallback_development_dependency_sync_snapshot).with(desired, lines).ordered.and_return(
         fallback_snapshot,
       )
-      expect(described_class).to receive(:ast_development_dependency_sync_snapshot).with(desired, context).ordered.and_return(
+      allow(described_class).to receive(:ast_development_dependency_sync_snapshot).with(desired, context).ordered.and_return(
         ast_snapshot,
       )
 
@@ -3665,7 +3660,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       }
       sentinel = ["forwarded"]
 
-      expect(described_class).to receive(:apply_fallback_missing_development_dependency_insertions).with(
+      allow(described_class).to receive(:apply_fallback_missing_development_dependency_insertions).with(
         updated_lines,
         sync_snapshot[:missing_lines],
       ).and_return(sentinel)
@@ -3687,7 +3682,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       sync_snapshot = {sync_actions: [], missing_lines: []}
       updated_lines = ["updated\n"]
 
-      expect(described_class).to receive(:apply_fallback_development_dependency_sync).with(lines, sync_snapshot).and_return(
+      allow(described_class).to receive(:apply_fallback_development_dependency_sync).with(lines, sync_snapshot).and_return(
         updated_lines,
       )
 
@@ -3709,12 +3704,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       plans = [:plans]
       sentinel = "updated\n"
 
-      expect(described_class).to receive(:ast_development_dependency_sync_plans).with(
+      allow(described_class).to receive(:ast_development_dependency_sync_plans).with(
         sync_snapshot,
         content: content,
         lines: lines,
       ).and_return(plans)
-      expect(described_class).to receive(:materialize_development_dependency_sync_plans).with(content, plans).and_return(
+      allow(described_class).to receive(:materialize_development_dependency_sync_plans).with(content, plans).and_return(
         sentinel,
       )
 
@@ -3777,10 +3772,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
     end
@@ -3821,10 +3816,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
     end
@@ -3840,7 +3835,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       updated = "updated\n"
       sentinel = "normalized\n"
 
-      expect(described_class).to receive(:normalize_dependency_sections).with(
+      allow(described_class).to receive(:normalize_dependency_sections).with(
         updated,
         template_content: desired.values.join("\n"),
         destination_content: content,
@@ -3869,20 +3864,20 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       updated = "updated\n"
       sentinel = "normalized\n"
 
-      expect(described_class).to receive(:development_dependency_sync_snapshot_for).with(
+      allow(described_class).to receive(:development_dependency_sync_snapshot_for).with(
         desired,
         lines: lines,
       ).and_return(
         sync_snapshot,
       )
-      expect(described_class).to receive(:materialize_development_dependency_sync).with(
+      allow(described_class).to receive(:materialize_development_dependency_sync).with(
         content,
         lines: lines,
         sync_snapshot: sync_snapshot,
       ).and_return(
         updated,
       )
-      expect(described_class).to receive(:finalize_development_dependency_sync).with(
+      allow(described_class).to receive(:finalize_development_dependency_sync).with(
         content: content,
         desired: desired,
         updated: updated,
@@ -3906,18 +3901,18 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       updated = "updated\n"
       sentinel = "normalized\n"
 
-      expect(described_class).to receive(:development_dependency_sync_snapshot_for).with(
+      allow(described_class).to receive(:development_dependency_sync_snapshot_for).with(
         desired,
         lines: lines,
         context: context,
       ).and_return(sync_snapshot)
-      expect(described_class).to receive(:materialize_development_dependency_sync).with(
+      allow(described_class).to receive(:materialize_development_dependency_sync).with(
         content,
         lines: lines,
         sync_snapshot: sync_snapshot,
         context: context,
       ).and_return(updated)
-      expect(described_class).to receive(:finalize_development_dependency_sync).with(
+      allow(described_class).to receive(:finalize_development_dependency_sync).with(
         content: content,
         desired: desired,
         updated: updated,
@@ -3966,10 +3961,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
     end
@@ -4004,10 +3999,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
     end
@@ -4170,7 +4165,6 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).not_to include(">= 12")
     end
 
-
     it "adds missing development dependencies that are not present at all" do
       destination = <<~RUBY
         Gem::Specification.new do |spec|
@@ -4276,10 +4270,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       desired = {
         "rubocop" => [
-          '  spec.add_development_dependency(',
+          "  spec.add_development_dependency(",
           '    "rubocop",',
           '    "~> 1.72"',
-          '  )',
+          "  )",
         ].join("\n"),
         "rspec" => '  spec.add_development_dependency("rspec", "~> 3.12")',
       }
@@ -4287,17 +4281,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       result = described_class.ensure_development_dependencies(destination, desired)
 
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\n" \
-        "    \"rubocop\",\n" \
-        "    \"~> 1.72\"\n" \
-        "  )\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  # Security",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\n    " \
+          "\"rubocop\",\n    " \
+          "\"~> 1.72\"\n  " \
+          ")\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "# Security",
       )
-      expect(result.index('spec.add_development_dependency(')).to be < result.index('spec.add_development_dependency("rspec", "~> 3.12")')
-      expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index('# Security')
+      expect(result.index("spec.add_development_dependency(")).to be < result.index('spec.add_development_dependency("rspec", "~> 3.12")')
+      expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index("# Security")
     end
 
     it "preserves multiline fallback insertions directly below the note block and before later section comments" do
@@ -4317,10 +4311,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       desired = {
         "rubocop" => [
-          '  spec.add_development_dependency(',
+          "  spec.add_development_dependency(",
           '    "rubocop",',
           '    "~> 1.72"',
-          '  )',
+          "  )",
         ].join("\n"),
         "rspec" => '  spec.add_development_dependency("rspec", "~> 3.12")',
       }
@@ -4328,17 +4322,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       result = described_class.ensure_development_dependencies(destination, desired)
 
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\n" \
-        "    \"rubocop\",\n" \
-        "    \"~> 1.72\"\n" \
-        "  )\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  # Security",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\n    " \
+          "\"rubocop\",\n    " \
+          "\"~> 1.72\"\n  " \
+          ")\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "# Security",
       )
-      expect(result.index('spec.add_development_dependency(')).to be < result.index('spec.add_development_dependency("rspec", "~> 3.12")')
-      expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index('# Security')
+      expect(result.index("spec.add_development_dependency(")).to be < result.index('spec.add_development_dependency("rspec", "~> 3.12")')
+      expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index("# Security")
     end
 
     it "keeps AST-path runtime skip, replacement, and insertion decisions aligned on the mixed-action path" do
@@ -4365,10 +4359,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
       expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index('spec.add_development_dependency("rake", "~> 13.0")')
@@ -4400,10 +4394,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(result).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
       expect(result).not_to include('spec.add_development_dependency("kettle-dev", "~> 2.0")')
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n" \
-        "  spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n  " \
+          "spec.add_development_dependency(\"rspec\", \"~> 3.12\")\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")",
       )
       expect(result).not_to include('spec.add_development_dependency("rake", ">= 12")')
       expect(result.index('spec.add_development_dependency("rspec", "~> 3.12")')).to be < result.index('spec.add_development_dependency("rake", "~> 13.0")')
@@ -4578,10 +4572,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       result = described_class.ensure_development_dependencies(destination, desired)
 
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")\n" \
-        "  spec.add_development_dependency(\"bundler-audit\", \"~> 0.9.3\")",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")\n  " \
+          "spec.add_development_dependency(\"bundler-audit\", \"~> 0.9.3\")",
       )
       expect(result).not_to include('spec.add_development_dependency("bundler-audit", "~> 0.9.2")')
       expect(result.index('spec.add_development_dependency("rake", "~> 13.0")')).to be < result.index('spec.add_development_dependency("bundler-audit", "~> 0.9.3")')
@@ -4606,10 +4600,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       desired = {
         "rake" => '  spec.add_development_dependency("rake", "~> 13.0")',
         "bundler-audit" => [
-          '  spec.add_development_dependency(',
+          "  spec.add_development_dependency(",
           '    "bundler-audit",',
           '    "~> 0.9.3"',
-          '  )',
+          "  )",
         ].join("\n"),
       }
 
@@ -4617,13 +4611,13 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(Prism.parse(result).success?).to be(true)
       expect(result).to include(
-        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n" \
-        "  #       visibility and discoverability.\n\n" \
-        "  spec.add_development_dependency(\"rake\", \"~> 13.0\")\n" \
-        "  spec.add_development_dependency(\n" \
-        "    \"bundler-audit\",\n" \
-        "    \"~> 0.9.3\"\n" \
-        "  )",
+        "  # NOTE: It is preferable to list development dependencies in the gemspec due to increased\n  " \
+          "#       visibility and discoverability.\n\n  " \
+          "spec.add_development_dependency(\"rake\", \"~> 13.0\")\n  " \
+          "spec.add_development_dependency(\n    " \
+          "\"bundler-audit\",\n    " \
+          "\"~> 0.9.3\"\n  " \
+          ")",
       )
       expect(result).not_to include('"~> 0.9.2"')
       expect(result.index('spec.add_development_dependency("rake", "~> 13.0")')).to be < result.index("spec.add_development_dependency(\n    \"bundler-audit\",")

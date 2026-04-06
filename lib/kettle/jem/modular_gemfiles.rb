@@ -186,7 +186,7 @@ module Kettle
         return true unless match
 
         major = match[1].to_i
-        minor = match[2] ? match[2].to_i : nil
+        minor = match[2]&.to_i
 
         return false if min_version.segments[0].to_i > major
         return true if min_version.segments[0].to_i < major

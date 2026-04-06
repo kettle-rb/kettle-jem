@@ -102,17 +102,17 @@ Gem::Specification.new do |spec|
 
   # Merge infrastructure
   spec.add_dependency("bash-merge", "~> 3.0")                           # ruby >= 3.2.0
+  spec.add_dependency("citrus", "~> 3.0", ">= 3.0.2")                   # ruby >= 0
   spec.add_dependency("dotenv-merge", "~> 2.0")                         # ruby >= 3.2.0
   spec.add_dependency("json-merge", "~> 2.0")                           # ruby >= 3.2.0
   spec.add_dependency("markdown-merge", "~> 2.0")                       # ruby >= 3.2.0
   spec.add_dependency("markly-merge", "~> 2.0")                         # ruby >= 3.2.0
+  spec.add_dependency("parslet", "~> 2.0")                              # ruby >= 0
   spec.add_dependency("prism-merge", "~> 3.0")                          # ruby >= 3.2.0
   spec.add_dependency("psych-merge", "~> 2.0")                          # ruby >= 3.2.0
   spec.add_dependency("rbs-merge", "~> 3.0")                            # ruby >= 3.2.0
   spec.add_dependency("toml-merge", "~> 3.0")                           # ruby >= 3.2.0
   spec.add_dependency("toml-rb", "~> 4.1")                              # ruby >= 2.3.0
-  spec.add_dependency("citrus", "~> 3.0", ">= 3.0.2")                   # ruby >= 0
-  spec.add_dependency("parslet", "~> 2.0")                              # ruby >= 0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0

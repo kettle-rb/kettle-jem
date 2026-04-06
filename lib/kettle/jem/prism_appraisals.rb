@@ -141,7 +141,6 @@ module Kettle
       def remove_nodes(content, nodes, source:, &metadata_block)
         return content if nodes.empty?
 
-
         plans = nodes.filter_map do |node|
           next unless node.respond_to?(:location) && node.location
 

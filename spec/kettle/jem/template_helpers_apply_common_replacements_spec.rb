@@ -47,14 +47,9 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       "KJ_SOCIAL_LINKTREE" => nil,
       "KJ_SOCIAL_DEVTO" => nil,
     )
-    allow(helpers).to receive(:gemspec_metadata).and_return(
-      min_ruby: Gem::Version.create("3.2"),
-    )
-    allow(helpers).to receive(:kettle_config).and_return(
-      {
-        "defaults" => {"freeze_token" => "kettle-jem"},
-        "tokens" => {},
-      },
+    allow(helpers).to receive_messages(
+      gemspec_metadata: {min_ruby: Gem::Version.create("3.2")},
+      kettle_config: {"defaults" => {"freeze_token" => "kettle-jem"}, "tokens" => {}},
     )
   end
 
@@ -96,8 +91,10 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     end
 
     it "resolves dynamic kettle-jem version and template run timestamp tokens" do
-      allow(helpers).to receive(:kettle_jem_version).and_return("9.9.9")
-      allow(helpers).to receive(:template_run_timestamp).and_return(Time.new(2026, 3, 14, 12, 0, 0, "+00:00"))
+      allow(helpers).to receive_messages(
+        kettle_jem_version: "9.9.9",
+        template_run_timestamp: Time.new(2026, 3, 14, 12, 0, 0, "+00:00"),
+      )
 
       content = "v{KJ|KETTLE_JEM_VERSION} on {KJ|TEMPLATE_RUN_DATE} ({KJ|TEMPLATE_RUN_YEAR})"
       result = helpers.apply_common_replacements(content, **base_args)
@@ -497,13 +494,13 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
 
     context "with author identity derived from gemspec metadata" do
       before do
-        allow(helpers).to receive(:kettle_config).and_return(
-          {"defaults" => {"freeze_token" => "kettle-jem"}, "tokens" => {}},
-        )
-        allow(helpers).to receive(:gemspec_metadata).and_return(
-          min_ruby: Gem::Version.create("3.2"),
-          authors: ["Jane Marie Doe"],
-          email: ["jane@example.com"],
+        allow(helpers).to receive_messages(
+          kettle_config: {"defaults" => {"freeze_token" => "kettle-jem"}, "tokens" => {}},
+          gemspec_metadata: {
+            min_ruby: Gem::Version.create("3.2"),
+            authors: ["Jane Marie Doe"],
+            email: ["jane@example.com"],
+          },
         )
       end
 

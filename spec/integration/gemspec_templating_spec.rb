@@ -297,10 +297,10 @@ RSpec.describe "Gemspec Templating Integration" do
 
       expect(Prism.parse(merged).success?).to be(true)
       expect(merged).to include("# Specify which files are part of the released package.")
-      expect(merged).to include('spec.files = Dir[')
+      expect(merged).to include("spec.files = Dir[")
       expect(merged).to include('"lib/**/*.rb"')
       expect(merged).to include('"sig/**/*.rbs"')
-      expect(merged).not_to include('IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL)')
+      expect(merged).not_to include("IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL)")
     end
 
     it "keeps template-owned blank-line boundaries around inserted gemspec sections" do

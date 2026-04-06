@@ -5,7 +5,6 @@ require "find"
 require "set"
 require "yaml"
 
-
 module Kettle
   module Jem
     # Helpers shared by kettle:jem Rake tasks for templating and file ops.
@@ -346,7 +345,7 @@ module Kettle
         license_md_content = <<~MARKDOWN.chomp
           # License
 
-          This project is made available under the following license#{licenses.size > 1 ? "s" : ""}.
+          This project is made available under the following license#{"s" if licenses.size > 1}.
           Choose the option that best fits your use case:
 
           #{license_list_lines}
@@ -369,7 +368,7 @@ module Kettle
           readme_license_intro = "The gem is available as open source under the terms of\nthe #{license_link("MIT")} [![License: MIT][📄license-img]][📄license-ref]."
         else
           intro_links = licenses.map { |l| license_link(l) }.join(", ")
-          readme_license_intro = "The gem is available under the following license#{licenses.size > 1 ? "s" : ""}: #{intro_links}.\nSee [LICENSE.md][📄license] for details."
+          readme_license_intro = "The gem is available under the following license#{"s" if licenses.size > 1}: #{intro_links}.\nSee [LICENSE.md][📄license] for details."
           if has_non_mit
             contact_snippet = if author_email && !author_email.empty?
               "If none of the available licenses suit your use case, please [contact us](mailto:#{author_email}) to discuss a custom commercial license."
@@ -496,10 +495,10 @@ module Kettle
       # @param author_email [String, nil] contact address shown in the large-biz row
       # @return [String, nil] Markdown table string, or nil when condition not met
       def build_use_case_guide_table(licenses, author_email: nil)
-        has_floss_oss   = licenses.include?("MIT") || licenses.include?("AGPL-3.0-only")
-        has_polyform    = licenses.include?("PolyForm-Noncommercial-1.0.0") || licenses.include?("PolyForm-Small-Business-1.0.0")
-        has_big_time    = licenses.include?("LicenseRef-Big-Time-Public-License")
-        return nil unless has_floss_oss && has_polyform && has_big_time
+        has_floss_oss = licenses.include?("MIT") || licenses.include?("AGPL-3.0-only")
+        has_polyform = licenses.include?("PolyForm-Noncommercial-1.0.0") || licenses.include?("PolyForm-Small-Business-1.0.0")
+        has_big_time = licenses.include?("LicenseRef-Big-Time-Public-License")
+        return unless has_floss_oss && has_polyform && has_big_time
 
         rows = []
 
@@ -523,15 +522,15 @@ module Kettle
         end
         if licenses.include?("LicenseRef-Big-Time-Public-License")
           large_biz_cell = license_link("LicenseRef-Big-Time-Public-License")
-          if author_email && !author_email.empty?
-            large_biz_cell += " or [contact us](mailto:#{author_email}) for a custom license"
+          large_biz_cell += if author_email && !author_email.empty?
+            " or [contact us](mailto:#{author_email}) for a custom license"
           else
-            large_biz_cell += " or contact us for a custom license"
+            " or contact us for a custom license"
           end
           rows << ["Larger business commercial", large_biz_cell]
         end
 
-        return nil if rows.empty?
+        return if rows.empty?
 
         header = "| Use case | License |\n|---|---|\n"
         header + rows.map { |use_case, lic| "| #{use_case} | #{lic} |" }.join("\n")

@@ -163,7 +163,7 @@ module Kettle
             current_entry = entry_nodes.first
 
             if current_entry && literal_collection_entry_line_index(field_node, current_entry) == body_index + 1
-              return unless literal_collection_entry_node?(current_entry)
+              next unless literal_collection_entry_node?(current_entry)
 
               groups << {
                 key: current_entry.slice,
@@ -179,7 +179,7 @@ module Kettle
               next
             end
 
-            return
+            next
           end
 
           return if entry_nodes.any?

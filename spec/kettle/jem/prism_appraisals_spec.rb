@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe Kettle::Jem::PrismAppraisals do
   describe ".build_runtime_context" do
     it "symbolizes hash-like input and overwrites stale min_ruby values" do
@@ -99,9 +98,9 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
         runner = instance_double(Ast::Merge::Recipe::Runner)
         result = Struct.new(:content).new("appraise \"recipe\" do\nend\n")
 
-        expect(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
-        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
-        expect(runner).to receive(:run_content).with(
+        allow(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
+        allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+        allow(runner).to receive(:run_content).with(
           template_content: template,
           destination_content: dest,
           relative_path: "Appraisals",
@@ -115,9 +114,9 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
         runner = instance_double(Ast::Merge::Recipe::Runner)
         result = Struct.new(:content).new("appraise \"ruby-3-2\" do\nend\n")
 
-        expect(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
-        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
-        expect(runner).to receive(:run_content).with(
+        allow(Kettle::Jem).to receive(:recipe).with(:appraisals).and_return(recipe)
+        allow(Ast::Merge::Recipe::Runner).to receive(:new).with(recipe).and_return(runner)
+        allow(runner).to receive(:run_content).with(
           template_content: template,
           destination_content: dest,
           relative_path: "Appraisals",

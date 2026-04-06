@@ -323,7 +323,7 @@ module Kettle
           if lines_or_content.is_a?(Array)
             lines_or_content.each_with_index
           else
-            lines_or_content.to_s.each_line.each_with_index
+            lines_or_content.to_s.each_line.with_index
           end
         end
 
@@ -353,7 +353,6 @@ module Kettle
         def dependency_block_range(lines, line_index, stop_above_index: nil)
           attached_comment_start_index(lines, line_index, stop_above_index: stop_above_index)..trailing_blank_line_end_index(lines, line_index)
         end
-
 
         def build_dependency_block_insertion(blocks, before_line:, after_line:)
           insertion = []

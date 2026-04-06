@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe Kettle::Jem::PrismUtils do
   describe ".parse_with_comments" do
     it "parses Ruby source and returns parse result" do

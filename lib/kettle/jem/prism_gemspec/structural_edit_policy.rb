@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Kettle
   module Jem
     module PrismGemspec
@@ -89,7 +88,6 @@ module Kettle
         end
 
         def merged_content_from_plans(content:, plans:, metadata:)
-
           Ast::Merge::StructuralEdit::PlanSet.new(
             source: content,
             plans: plans,

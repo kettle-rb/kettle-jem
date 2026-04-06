@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 RSpec.describe Kettle::Jem::PrismGemfile do
   describe "::MergeEntryPolicy.signature_for" do
     it "uses singleton and path-keyed signatures for top-level merge entries" do
@@ -204,7 +203,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(result).to include('gem "keep-two"')
       expect(result).not_to include('gem "drop-one"')
       expect(result).not_to include('gem "drop-two"')
-      expect(result).not_to include('require: false')
+      expect(result).not_to include("require: false")
     end
   end
 
@@ -214,7 +213,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       dest = "gem \"bar\"\n"
       signature = described_class::MergeEntryPolicy.method(:signature_for)
 
-      expect(described_class::MergePipelinePolicy).to receive(:merge).with(
+      allow(described_class::MergePipelinePolicy).to receive(:merge).with(
         src,
         dest,
         runtime: described_class::MergeRuntimePolicy,
@@ -237,8 +236,8 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       dest = "gem \"bar\"\n"
       signature = ->(_node) { [:gem, "foo"] }
 
-      expect(Kettle::Jem::Signatures).to receive(:gemfile).and_return(signature)
-      expect(described_class::MergePipelinePolicy).to receive(:merge).with(
+      allow(Kettle::Jem::Signatures).to receive(:gemfile).and_return(signature)
+      allow(described_class::MergePipelinePolicy).to receive(:merge).with(
         src,
         dest,
         runtime: described_class::MergeRuntimePolicy,
@@ -255,7 +254,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       src = "gem \"foo\"\n"
       dest = "gem \"bar\"\n"
 
-      expect(described_class::MergePipelinePolicy).to receive(:merge).and_return("merged")
+      allow(described_class::MergePipelinePolicy).to receive(:merge).and_return("merged")
       expect(described_class).to receive(:validate_no_cross_nesting_duplicates).with("merged", src, path: "Gemfile")
 
       expect(described_class.merge(src, dest)).to eq("merged")
@@ -274,8 +273,8 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         expect(runtime).to eq(described_class::MergeRuntimePolicy)
         expect(filter_template).to be(false)
         expect(signature_for).to be_a(Proc)
-        expect(Ast::Merge::Recipe::Runner).to receive(:new).with(preset, verbose: true).and_return(runner)
-        expect(runner).to receive(:run_content).with(
+        allow(Ast::Merge::Recipe::Runner).to receive(:new).with(preset, verbose: true).and_return(runner)
+        allow(runner).to receive(:run_content).with(
           template_content: src,
           destination_content: dest,
           relative_path: "Gemfile",
@@ -383,10 +382,10 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       out = described_class.merge_gem_calls(src, dest)
 
       # r4 versions from the template should appear exactly once each
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/erb\/r4\/v5\.0\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/mutex_m\/r4\/v0\.3\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/stringio\/r4\/v3\.0\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/benchmark\/r4\/v0\.5\.gemfile"/).length).to eq(1)
+      expect(out.scan('eval_gemfile "../../erb/r4/v5.0.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../mutex_m/r4/v0.3.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../stringio/r4/v3.0.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../benchmark/r4/v0.5.gemfile"').length).to eq(1)
       # old r3 versions should not be present
       expect(out).not_to include('eval_gemfile "../../erb/r3/v5.0.gemfile"')
       expect(out).not_to include('eval_gemfile "../../mutex_m/r3/v0.3.gemfile"')
@@ -414,10 +413,10 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       # (via SourceMerger#merger_options_for default), so we mirror that here.
       out = described_class.merge(src, dest, merger_options: {preference: :template})
 
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/erb\/r4\/v5\.0\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/mutex_m\/r4\/v0\.3\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/stringio\/r4\/v3\.0\.gemfile"/).length).to eq(1)
-      expect(out.scan(/eval_gemfile "\.\.\/\.\.\/benchmark\/r4\/v0\.5\.gemfile"/).length).to eq(1)
+      expect(out.scan('eval_gemfile "../../erb/r4/v5.0.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../mutex_m/r4/v0.3.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../stringio/r4/v3.0.gemfile"').length).to eq(1)
+      expect(out.scan('eval_gemfile "../../benchmark/r4/v0.5.gemfile"').length).to eq(1)
       expect(out).not_to include('eval_gemfile "../../erb/r3/v5.0.gemfile"')
       expect(out).not_to include('eval_gemfile "../../mutex_m/r3/v0.3.gemfile"')
       expect(out).not_to include('eval_gemfile "../../stringio/r3/v3.0.gemfile"')
@@ -766,9 +765,9 @@ RSpec.describe Kettle::Jem::PrismGemfile do
 
       result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
 
-      expect(result).to include('  # debug ships elsewhere.')
+      expect(result).to include("  # debug ships elsewhere.")
       expect(result).to include('  # gem "debug", ">= 1.1"')
-      expect(result.index('  # debug ships elsewhere.')).to be < result.index('  gem "ast-merge"')
+      expect(result.index("  # debug ships elsewhere.")).to be < result.index('  gem "ast-merge"')
     end
 
     it "anchors top-level tombstone blocks before the first top-level statement" do
@@ -787,7 +786,7 @@ RSpec.describe Kettle::Jem::PrismGemfile do
 
       result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
 
-      expect(result.index('# standard ships with Ruby now.')).to be < result.index('source "https://gem.coop"')
+      expect(result.index("# standard ships with Ruby now.")).to be < result.index('source "https://gem.coop"')
       expect(result).to include('# gem "irb", "~> 1.15"')
     end
 
@@ -808,8 +807,8 @@ RSpec.describe Kettle::Jem::PrismGemfile do
 
       result = described_class::MergeRuntimePolicy.restore_tombstone_comment_blocks(content, template)
 
-      expect(result).to include('# debug ships elsewhere.')
-      expect(result).not_to include('# old note')
+      expect(result).to include("# debug ships elsewhere.")
+      expect(result).not_to include("# old note")
       expect(result.scan(/^# gem "debug", ">= 1.1"$/).size).to eq(1)
     end
   end

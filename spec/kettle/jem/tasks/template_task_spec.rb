@@ -1156,7 +1156,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               Template synopsis.
             MARKDOWN
 
-            File.write(File.join(template_root, "gem.gemspec.example"), <<~'GEMSPEC')
+            File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-jem"
                 spec.version = "1.0.0"
@@ -2677,7 +2677,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(gemspec).to include('Kernel.load("#{__dir__}/lib/turbo_tests/version.rb", mod) }::TurboTests::Version::VERSION')
             expect(gemspec).to include('require "turbo_tests/version"')
 
+            # rubocop:disable ThreadSafety/DirChdir
             loaded_spec = Dir.chdir(project_root) { Gem::Specification.load(gemspec_path) }
+            # rubocop:enable ThreadSafety/DirChdir
             expect(loaded_spec.version.to_s).to eq("2.2.5")
           end
         end
@@ -4905,15 +4907,14 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
   describe "#collect_git_copyright!" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
+    let(:ga_double) { instance_double(Kettle::Dev::GitAdapter) }
+    let(:collector_double) { instance_double(Kettle::Jem::CopyrightCollector) }
 
     def build_license_md(dir, body)
       path = File.join(dir, "LICENSE.md")
       File.write(path, body)
       path
     end
-
-    let(:ga_double)        { instance_double(Kettle::Dev::GitAdapter) }
-    let(:collector_double) { instance_double(Kettle::Jem::CopyrightCollector) }
 
     before do
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(ga_double)
@@ -5025,17 +5026,19 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
           # Stub all helpers methods used by sync_existing_kettle_config!
           allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
-          allow(helpers).to receive(:configure_tokens!).and_return(nil)
           allow(helpers).to receive(:read_template) { |p| File.read(p) }
           allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
           allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) { |c| c }
-          allow(helpers).to receive(:clear_tokens!).and_return(nil)
-          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
-          allow(helpers).to receive(:project_root).and_return(project_root)
-          allow(helpers).to receive(:record_template_result).and_return(nil)
           allow(helpers).to receive(:output_path) { |p| p }
-          allow(helpers).to receive(:ask).and_return(true)
-          allow(helpers).to receive(:force_mode?).and_return(false)
+          allow(helpers).to receive_messages(
+            configure_tokens!: nil,
+            clear_tokens!: nil,
+            clear_kettle_config!: nil,
+            project_root: project_root,
+            record_template_result: nil,
+            ask: true,
+            force_mode?: false,
+          )
 
           described_class.sync_existing_kettle_config!(
             helpers: helpers,
@@ -5048,7 +5051,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           parsed = YAML.safe_load(result)
           # AGPL must be kept; MIT must NOT be added back
           expect(parsed["licenses"]).to include("AGPL-3.0-only")
-          expect(parsed["licenses"]).not_to include("MIT"), \
+          expect(parsed["licenses"]).not_to include("MIT"),
             "licenses array must NOT have MIT re-added by the SmartMerger; got: #{parsed["licenses"].inspect}"
         end
       end
@@ -5077,17 +5080,19 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
 
           allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
-          allow(helpers).to receive(:configure_tokens!).and_return(nil)
           allow(helpers).to receive(:read_template) { |p| File.read(p) }
           allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
           allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) { |c| c }
-          allow(helpers).to receive(:clear_tokens!).and_return(nil)
-          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
-          allow(helpers).to receive(:project_root).and_return(project_root)
-          allow(helpers).to receive(:record_template_result).and_return(nil)
           allow(helpers).to receive(:output_path) { |p| p }
-          allow(helpers).to receive(:ask).and_return(true)
-          allow(helpers).to receive(:force_mode?).and_return(false)
+          allow(helpers).to receive_messages(
+            configure_tokens!: nil,
+            clear_tokens!: nil,
+            clear_kettle_config!: nil,
+            project_root: project_root,
+            record_template_result: nil,
+            ask: true,
+            force_mode?: false,
+          )
 
           described_class.sync_existing_kettle_config!(
             helpers: helpers,
@@ -5099,7 +5104,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           result = File.read(File.join(project_root, ".kettle-jem.yml"))
           parsed = YAML.safe_load(result)
           # User's AGPL-3.0-only must be kept; template licenses must NOT be added
-          expect(parsed["licenses"]).to eq(["AGPL-3.0-only"]), \
+          expect(parsed["licenses"]).to eq(["AGPL-3.0-only"]),
             "licenses must NOT be overwritten with template defaults; got: #{parsed["licenses"].inspect}"
         end
       end
@@ -5124,7 +5129,6 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
 
           allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
-          allow(helpers).to receive(:configure_tokens!).and_return(nil)
           allow(helpers).to receive(:read_template) { |p| File.read(p) }
           allow(helpers).to receive(:seed_kettle_config_content) { |c, _| c }
           # seed_gemspec_licenses_in_config_content replaces licenses: in template content
@@ -5132,13 +5136,16 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) do |c|
             c.sub(/^licenses:.*\n(?:  - .*\n)*/m, "licenses:\n  - ISC\n")
           end
-          allow(helpers).to receive(:clear_tokens!).and_return(nil)
-          allow(helpers).to receive(:clear_kettle_config!).and_return(nil)
-          allow(helpers).to receive(:project_root).and_return(project_root)
-          allow(helpers).to receive(:record_template_result).and_return(nil)
           allow(helpers).to receive(:output_path) { |p| p }
-          allow(helpers).to receive(:ask).and_return(true)
-          allow(helpers).to receive(:force_mode?).and_return(false)
+          allow(helpers).to receive_messages(
+            configure_tokens!: nil,
+            clear_tokens!: nil,
+            clear_kettle_config!: nil,
+            project_root: project_root,
+            record_template_result: nil,
+            ask: true,
+            force_mode?: false,
+          )
 
           described_class.sync_existing_kettle_config!(
             helpers: helpers,
@@ -5150,7 +5157,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           result = File.read(File.join(project_root, ".kettle-jem.yml"))
           parsed = YAML.safe_load(result)
           # The gemspec-seeded ISC license must appear (not the template default MIT/Apache)
-          expect(parsed["licenses"]).to eq(["ISC"]), \
+          expect(parsed["licenses"]).to eq(["ISC"]),
             "licenses must be seeded from gemspec when absent from dest; got: #{parsed["licenses"].inspect}"
         end
       end

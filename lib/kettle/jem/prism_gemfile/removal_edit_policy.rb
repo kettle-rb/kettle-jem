@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Kettle
   module Jem
     module PrismGemfile
@@ -33,7 +32,6 @@ module Kettle
 
         def remove_declarations(content, declarations)
           return content if declarations.empty?
-
 
           plans = declarations.map do |declaration|
             Ast::Merge::StructuralEdit::RemovePlan.new(

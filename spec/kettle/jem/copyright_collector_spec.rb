@@ -41,21 +41,23 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     PORCELAIN
   end
 
-  # Named timestamp constants (UTC year in parentheses)
-  TS_2023 = 1690000000 # => 2023
-  TS_2024 = 1720000000 # => 2024
-  TS_2025 = 1750000000 # => 2025
-
-  SHA_A = "a" * 40
-  SHA_B = "b" * 40
-  SHA_C = "c" * 40
-
   # ─── Shared setup ──────────────────────────────────────────────────────────
 
   subject(:collector) { described_class.new(git_adapter: git_adapter, project_root: project_root) }
 
-  let(:git_adapter)   { instance_double(Kettle::Dev::GitAdapter) }
-  let(:project_root)  { Dir.mktmpdir }
+  let(:git_adapter) { instance_double(Kettle::Dev::GitAdapter) }
+  let(:project_root) { Dir.mktmpdir }
+
+  # Named timestamp helpers (UTC year in parentheses)
+  # rubocop:disable RSpec/IndexedLet
+  let(:ts_2023) { 1690000000 } # => 2023
+  let(:ts_2024) { 1720000000 } # => 2024
+  let(:ts_2025) { 1750000000 } # => 2025
+  # rubocop:enable RSpec/IndexedLet
+
+  let(:sha_a) { "a" * 40 }
+  let(:sha_b) { "b" * 40 }
+  let(:sha_c) { "c" * 40 }
 
   after { FileUtils.remove_entry(project_root) }
 
@@ -100,7 +102,7 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
 
     context "with a single author and a single year" do
       let(:file) { touch_file("lib/foo.rb") }
-      let(:output) { blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025) }
+      let(:output) { blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2025) }
 
       before do
         allow(git_adapter).to receive(:ls_files).and_return([file])
@@ -113,15 +115,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "with a single author across two contiguous years" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2024))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2025))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2024))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2025))
       end
 
       it "collapses the years into a range" do
@@ -132,9 +134,9 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "with a single author across three contiguous years" do
       let(:file) { touch_file("lib/foo.rb") }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2023) +
-          blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2024, line_num: 2) +
-          blame_stanza(sha: SHA_C, name: "Alice", email: "alice@example.com", timestamp: TS_2025, line_num: 3)
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2023) +
+          blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2024, line_num: 2) +
+          blame_stanza(sha: sha_c, name: "Alice", email: "alice@example.com", timestamp: ts_2025, line_num: 3)
       end
 
       before do
@@ -148,15 +150,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "with a single author having non-contiguous years" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2023))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2025))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2023))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2025))
       end
 
       it "lists the non-contiguous years comma-separated" do
@@ -165,16 +167,16 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "with multiple authors sorted by earliest year" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
         # Bob committed in 2025, Alice in 2023 — Alice should appear first
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Bob", email: "bob@example.com", timestamp: TS_2025))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2023))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Bob", email: "bob@example.com", timestamp: ts_2025))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2023))
       end
 
       it "sorts by earliest year ascending" do
@@ -185,15 +187,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "with multiple authors sharing the same earliest year, sorted by name" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Zelda", email: "zelda@example.com", timestamp: TS_2024))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2024))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Zelda", email: "zelda@example.com", timestamp: ts_2024))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2024))
       end
 
       it "sorts alphabetically by name within the same year" do
@@ -209,9 +211,12 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       before do
         allow(git_adapter).to receive(:ls_files).and_return([file])
         allow(git_adapter).to receive(:blame_porcelain).with(file)
-          .and_return(blame_stanza(sha: SHA_A, name: "dependabot[bot]",
+          .and_return(blame_stanza(
+            sha: sha_a,
+            name: "dependabot[bot]",
             email: "49699333+dependabot[bot]@users.noreply.github.com",
-            timestamp: TS_2025))
+            timestamp: ts_2025,
+          ))
       end
 
       it "filters out the bot and returns an empty array" do
@@ -225,9 +230,12 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       before do
         allow(git_adapter).to receive(:ls_files).and_return([file])
         allow(git_adapter).to receive(:blame_porcelain).with(file)
-          .and_return(blame_stanza(sha: SHA_A, name: "github-actions[bot]",
+          .and_return(blame_stanza(
+            sha: sha_a,
+            name: "github-actions[bot]",
             email: "41898282+github-actions[bot]@users.noreply.github.com",
-            timestamp: TS_2025))
+            timestamp: ts_2025,
+          ))
       end
 
       it "filters out the GitHub Actions bot" do
@@ -238,10 +246,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "with a mix of human and bot authors" do
       let(:file) { touch_file("lib/foo.rb") }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2024) +
-          blame_stanza(sha: SHA_B, name: "dependabot[bot]",
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2024) +
+          blame_stanza(
+            sha: sha_b,
+            name: "dependabot[bot]",
             email: "49699333+dependabot[bot]@users.noreply.github.com",
-            timestamp: TS_2025, line_num: 2)
+            timestamp: ts_2025,
+            line_num: 2,
+          )
       end
 
       before do
@@ -255,14 +267,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "when blame_porcelain raises an error for one file" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1).and_raise(StandardError, "git exploded")
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2025))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a).and_raise(StandardError, "git exploded")
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2025))
       end
 
       it "skips the failing file and processes the others" do
@@ -283,15 +295,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "when the same author appears in multiple files (year deduplication)" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@example.com", timestamp: TS_2025))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2025))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@example.com", timestamp: ts_2025))
       end
 
       it "deduplicates years and emits one entry" do
@@ -303,9 +315,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       let(:file) { touch_file("lib/foo.rb") }
       # First occurrence has full stanza; second is a repeat (no headers)
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com",
-          timestamp: TS_2025, line_num: 1, group_size: 2) +
-          blame_repeat(sha: SHA_A, line_num: 2)
+        blame_stanza(
+          sha: sha_a,
+          name: "Alice",
+          email: "alice@example.com",
+          timestamp: ts_2025,
+          line_num: 1,
+          group_size: 2,
+        ) +
+          blame_repeat(sha: sha_a, line_num: 2)
       end
 
       before do
@@ -319,15 +337,15 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     end
 
     context "when the same author has two different email addresses" do
-      let(:file1) { touch_file("lib/a.rb") }
-      let(:file2) { touch_file("lib/b.rb") }
+      let(:file_a) { touch_file("lib/a.rb") }
+      let(:file_b) { touch_file("lib/b.rb") }
 
       before do
-        allow(git_adapter).to receive(:ls_files).and_return([file1, file2])
-        allow(git_adapter).to receive(:blame_porcelain).with(file1)
-          .and_return(blame_stanza(sha: SHA_A, name: "Alice", email: "alice@work.com", timestamp: TS_2024))
-        allow(git_adapter).to receive(:blame_porcelain).with(file2)
-          .and_return(blame_stanza(sha: SHA_B, name: "Alice", email: "alice@personal.com", timestamp: TS_2025))
+        allow(git_adapter).to receive(:ls_files).and_return([file_a, file_b])
+        allow(git_adapter).to receive(:blame_porcelain).with(file_a)
+          .and_return(blame_stanza(sha: sha_a, name: "Alice", email: "alice@work.com", timestamp: ts_2024))
+        allow(git_adapter).to receive(:blame_porcelain).with(file_b)
+          .and_return(blame_stanza(sha: sha_b, name: "Alice", email: "alice@personal.com", timestamp: ts_2025))
       end
 
       it "produces two separate copyright entries (one per email)" do
@@ -344,8 +362,12 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       let(:not_committed_sha) { "0" * 40 }
       let(:file) { touch_file("lib/foo.rb") }
       let(:uncommitted_output) do
-        blame_stanza(sha: not_committed_sha, name: "Not Committed Yet",
-          email: "not.committed.yet", timestamp: TS_2025)
+        blame_stanza(
+          sha: not_committed_sha,
+          name: "Not Committed Yet",
+          email: "not.committed.yet",
+          timestamp: ts_2025,
+        )
       end
 
       before do
@@ -369,9 +391,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       # Alice has committed lines in 2024 AND uncommitted lines (would resolve to test@example.com)
       # The git config resolves to test@example.com / "Test User", distinct from Alice
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2024) +
-          blame_stanza(sha: not_committed_sha, name: "Not Committed Yet",
-            email: "not.committed.yet", timestamp: TS_2025, line_num: 2)
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2024) +
+          blame_stanza(
+            sha: not_committed_sha,
+            name: "Not Committed Yet",
+            email: "not.committed.yet",
+            timestamp: ts_2025,
+            line_num: 2,
+          )
       end
 
       before do
@@ -392,9 +419,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       let(:file) { touch_file("lib/foo.rb") }
       let(:output) do
         # Committed line by the same person who is in git config
-        blame_stanza(sha: SHA_A, name: "Test User", email: "test@example.com", timestamp: TS_2024) +
-          blame_stanza(sha: not_committed_sha, name: "Not Committed Yet",
-            email: "not.committed.yet", timestamp: TS_2025, line_num: 2)
+        blame_stanza(sha: sha_a, name: "Test User", email: "test@example.com", timestamp: ts_2024) +
+          blame_stanza(
+            sha: not_committed_sha,
+            name: "Not Committed Yet",
+            email: "not.committed.yet",
+            timestamp: ts_2025,
+            line_num: 2,
+          )
       end
 
       before do
@@ -414,8 +446,12 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       before do
         allow(git_adapter).to receive(:ls_files).and_return([file])
         allow(git_adapter).to receive(:blame_porcelain).with(file)
-          .and_return(blame_stanza(sha: not_committed_sha, name: "Not Committed Yet",
-            email: "not.committed.yet", timestamp: TS_2025))
+          .and_return(blame_stanza(
+            sha: not_committed_sha,
+            name: "Not Committed Yet",
+            email: "not.committed.yet",
+            timestamp: ts_2025,
+          ))
         # Override default capture stubs to simulate git config failure
         allow(git_adapter).to receive(:capture).with(["config", "user.name"]).and_return(["", false])
         allow(git_adapter).to receive(:capture).with(["config", "user.email"]).and_return(["", false])
@@ -431,8 +467,11 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
 
   describe "#copyright_lines with machine_users:" do
     subject(:collector) do
-      described_class.new(git_adapter: git_adapter, project_root: project_root,
-        machine_users: machine_users)
+      described_class.new(
+        git_adapter: git_adapter,
+        project_root: project_root,
+        machine_users: machine_users,
+      )
     end
 
     let(:file) { touch_file("lib/foo.rb") }
@@ -440,9 +479,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when an author name exactly matches a machine user (case-insensitive)" do
       let(:machine_users) { ["autobolt"] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025) +
-          blame_stanza(sha: SHA_B, name: "Autobolt", email: "autobolt@ci.example.com",
-            timestamp: TS_2025, line_num: 2)
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2025) +
+          blame_stanza(
+            sha: sha_b,
+            name: "Autobolt",
+            email: "autobolt@ci.example.com",
+            timestamp: ts_2025,
+            line_num: 2,
+          )
       end
 
       before do
@@ -460,9 +504,14 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when an author email exactly matches a machine user entry" do
       let(:machine_users) { ["autobolt@ci.example.com"] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2025) +
-          blame_stanza(sha: SHA_B, name: "AutoBolt CI", email: "autobolt@ci.example.com",
-            timestamp: TS_2025, line_num: 2)
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2025) +
+          blame_stanza(
+            sha: sha_b,
+            name: "AutoBolt CI",
+            email: "autobolt@ci.example.com",
+            timestamp: ts_2025,
+            line_num: 2,
+          )
       end
 
       before do
@@ -480,7 +529,7 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when machine_users contains mixed case entries" do
       let(:machine_users) { ["AUTOBOLT"] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "autobolt", email: "bot@example.com", timestamp: TS_2025)
+        blame_stanza(sha: sha_a, name: "autobolt", email: "bot@example.com", timestamp: ts_2025)
       end
 
       before do
@@ -496,7 +545,7 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when machine_users is empty" do
       let(:machine_users) { [] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "autobolt", email: "autobolt@ci.example.com", timestamp: TS_2025)
+        blame_stanza(sha: sha_a, name: "autobolt", email: "autobolt@ci.example.com", timestamp: ts_2025)
       end
 
       before do
@@ -512,7 +561,7 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when the machine user is the only author" do
       let(:machine_users) { ["autobolt"] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "autobolt", email: "autobolt@ci.example.com", timestamp: TS_2025)
+        blame_stanza(sha: sha_a, name: "autobolt", email: "autobolt@ci.example.com", timestamp: ts_2025)
       end
 
       before do
@@ -528,11 +577,21 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
     context "when multiple machine users are listed" do
       let(:machine_users) { ["autobolt", "release-bot@example.com"] }
       let(:output) do
-        blame_stanza(sha: SHA_A, name: "Alice", email: "alice@example.com", timestamp: TS_2024) +
-          blame_stanza(sha: SHA_B, name: "autobolt", email: "autobolt@ci.example.com",
-            timestamp: TS_2025, line_num: 2) +
-          blame_stanza(sha: SHA_C, name: "Release Bot", email: "release-bot@example.com",
-            timestamp: TS_2025, line_num: 3)
+        blame_stanza(sha: sha_a, name: "Alice", email: "alice@example.com", timestamp: ts_2024) +
+          blame_stanza(
+            sha: sha_b,
+            name: "autobolt",
+            email: "autobolt@ci.example.com",
+            timestamp: ts_2025,
+            line_num: 2,
+          ) +
+          blame_stanza(
+            sha: sha_c,
+            name: "Release Bot",
+            email: "release-bot@example.com",
+            timestamp: ts_2025,
+            line_num: 3,
+          )
       end
 
       before do
@@ -592,7 +651,7 @@ RSpec.describe Kettle::Jem::CopyrightCollector do
       let(:input) { ["2026", "2024", "2025"] }
 
       it "sorts before collapsing" do
-        is_expected.to eq("2024-2026")
+        expect(subject).to eq("2024-2026")
       end
     end
 

@@ -24,7 +24,7 @@ module Kettle
 
       # @param content [String] Raw text content of the LICENSE.txt file
       def initialize(content)
-        @content  = content.to_s
+        @content = content.to_s
         @analysis = Ast::Merge::Text::FileAnalysis.new(@content)
       end
 

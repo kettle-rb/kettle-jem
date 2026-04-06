@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+# rubocop:disable RSpec/MultipleDescribes
 RSpec.describe Kettle::Jem::PrismGemfile, ".validate_no_cross_nesting_duplicates" do
   def validate(merged, template, path: "test.gemfile")
     described_class.validate_no_cross_nesting_duplicates(merged, template, path: path)
@@ -314,7 +315,7 @@ RSpec.describe Kettle::Jem::PrismGemfile::MergeRuntimePolicy, ".collect_commente
   end
 end
 
-RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validation" do
+RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validation" do # rubocop:disable RSpec/DescribeMethod
   let(:template) do
     <<~RUBY
       platform :mri do
@@ -357,7 +358,7 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
 
   context "with explicit force" do
     it "passes force through to PrismGemfile and returns its fallback content" do
-      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+      allow(Kettle::Jem::PrismGemfile).to receive(:merge).with(
         template,
         destination,
         merger_options: kind_of(Hash),
@@ -396,3 +397,4 @@ RSpec.describe Kettle::Jem::SourceMerger, "gemfile duplicate-signature validatio
     }.not_to raise_error
   end
 end
+# rubocop:enable RSpec/MultipleDescribes

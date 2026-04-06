@@ -6,6 +6,7 @@ RSpec.describe "kettle-jem.gemspec file list" do # rubocop:disable RSpec/Describ
     gemspec_dir = File.dirname(gemspec_path)
 
     Dir.mktmpdir do |dir|
+      # rubocop:disable ThreadSafety/DirChdir
       Dir.chdir(dir) do
         expect(Dir.pwd).to eq(dir)
 
@@ -18,6 +19,7 @@ RSpec.describe "kettle-jem.gemspec file list" do # rubocop:disable RSpec/Describ
         files = spec.files
         expect(files).to include("template/gemfiles/modular/optional.gemfile.example")
       end
+      # rubocop:enable ThreadSafety/DirChdir
     end
   end
 end

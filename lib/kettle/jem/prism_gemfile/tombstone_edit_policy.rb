@@ -66,7 +66,6 @@ module Kettle
           start_index ||= comment_block_index_for_marker(lines, tombstone[:slice].to_s, tombstone[:context], ranges)
           start_index = comment_block_start_index(lines, start_index) if start_index
 
-
           plan = if start_index
             end_index = comment_block_end_index(lines, start_index, include_trailing_blank_lines: true)
             Ast::Merge::StructuralEdit::SplicePlan.new(

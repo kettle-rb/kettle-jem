@@ -10,8 +10,7 @@ module Kettle
         module_function
 
         def merge(src_content, dest_content, runtime:, filter_template: true,
-                  signature_for:, merge_body: nil)
-
+          signature_for:, merge_body: nil)
           template_content = filter_template ? runtime.filter_to_top_level_gems(src_content) : src_content
           destination_content = prepare_destination(dest_content, template_content: src_content, runtime: runtime)
 

@@ -97,17 +97,19 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
-      allow(cli).to receive(:bundled_execution_context?).and_return(true)
-      allow(cli).to receive(:ensure_project_files!).and_return(nil)
-      allow(cli).to receive(:load_bundled_runtime!).and_return(nil)
-      allow(cli).to receive(:ensure_dev_deps!).and_return(nil)
-      allow(cli).to receive(:ensure_gemfile_from_example!).and_return(nil)
-      allow(cli).to receive(:ensure_modular_gemfiles!).and_return(nil)
-      allow(cli).to receive(:ensure_rakefile!).and_return(nil)
-      allow(cli).to receive(:run_bin_setup!).and_return(nil)
-      allow(cli).to receive(:run_bundle_binstubs!).and_return(nil)
-      allow(cli).to receive(:run_kettle_install!).and_return(nil)
-      allow(cli).to receive(:commit_bootstrap_changes!).and_return(nil)
+      allow(cli).to receive_messages(
+        bundled_execution_context?: true,
+        ensure_project_files!: nil,
+        load_bundled_runtime!: nil,
+        ensure_dev_deps!: nil,
+        ensure_gemfile_from_example!: nil,
+        ensure_modular_gemfiles!: nil,
+        ensure_rakefile!: nil,
+        run_bin_setup!: nil,
+        run_bundle_binstubs!: nil,
+        run_kettle_install!: nil,
+        commit_bootstrap_changes!: nil,
+      )
 
       expect { cli.run! }.not_to output.to_stdout
     end
@@ -122,10 +124,12 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
-      allow(cli).to receive(:bundled_execution_context?).and_return(false)
-      allow(cli).to receive(:prechecks!).and_return(nil)
-      allow(cli).to receive(:template_config_present?).and_return(false)
-      allow(cli).to receive(:ensure_template_config_bootstrap!).and_return(:bootstrap_only)
+      allow(cli).to receive_messages(
+        bundled_execution_context?: false,
+        prechecks!: nil,
+        template_config_present?: false,
+        ensure_template_config_bootstrap!: :bootstrap_only,
+      )
       expect(cli).not_to receive(:ensure_gemfile_from_example!)
       expect(cli).not_to receive(:ensure_bootstrap_modular_gemfiles!)
       expect(cli).not_to receive(:handoff_to_bundled_phase!)
@@ -145,9 +149,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
-      allow(cli).to receive(:bundled_execution_context?).and_return(false)
-      allow(cli).to receive(:prechecks!).and_return(nil)
-      allow(cli).to receive(:template_config_present?).and_return(true)
+      allow(cli).to receive_messages(bundled_execution_context?: false, prechecks!: nil, template_config_present?: true)
 
       expect(cli).not_to receive(:ensure_template_config_bootstrap!)
       expect(cli).not_to receive(:ensure_dev_deps!)
@@ -245,7 +247,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
             "KJ_AUTHOR_GIVEN_NAMES" => nil,
             "KJ_AUTHOR_FAMILY_NAMES" => nil,
             "KJ_AUTHOR_EMAIL" => nil,
-            "KJ_AUTHOR_DOMAIN" => nil
+            "KJ_AUTHOR_DOMAIN" => nil,
           )
 
           values = cli.send(:bootstrap_template_config_values)
@@ -743,8 +745,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       expect(result).to include('source "https://gem.coop"')
       expect(result).to include("gemspec")
-      expect(result).to include('git_source(:codeberg)')
-      expect(result).to include('git_source(:gitlab)')
+      expect(result).to include("git_source(:codeberg)")
+      expect(result).to include("git_source(:gitlab)")
       expect(result).to include('eval_gemfile "gemfiles/modular/templating.gemfile"')
       expect(result).not_to include('eval_gemfile "gemfiles/modular/debug.gemfile"')
       expect(result).not_to include('eval_gemfile "gemfiles/modular/coverage.gemfile"')
@@ -752,7 +754,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
-  describe "#prechecks!" do
+  describe "#prechecks! (funding and env derivation)" do
     around do |ex|
       Dir.mktmpdir do |dir|
         Dir.chdir(dir) { ex.run }
@@ -844,15 +846,17 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
-      allow(cli).to receive(:bundled_execution_context?).and_return(true)
-      allow(cli).to receive(:load_bundled_runtime!).and_return(nil)
-      allow(cli).to receive(:ensure_gemfile_from_example!).and_return(nil)
-      allow(cli).to receive(:ensure_modular_gemfiles!).and_return(nil)
-      allow(cli).to receive(:ensure_rakefile!).and_return(nil)
-      allow(cli).to receive(:run_bin_setup!).and_return(nil)
-      allow(cli).to receive(:run_bundle_binstubs!).and_return(nil)
-      allow(cli).to receive(:run_kettle_install!).and_return(nil)
-      allow(cli).to receive(:commit_bootstrap_changes!).and_return(nil)
+      allow(cli).to receive_messages(
+        bundled_execution_context?: true,
+        load_bundled_runtime!: nil,
+        ensure_gemfile_from_example!: nil,
+        ensure_modular_gemfiles!: nil,
+        ensure_rakefile!: nil,
+        run_bin_setup!: nil,
+        run_bundle_binstubs!: nil,
+        run_kettle_install!: nil,
+        commit_bootstrap_changes!: nil,
+      )
 
       expect(cli).to receive(:ensure_dev_deps!) do
         expect(cli.instance_variable_get(:@gemspec_path)).to eq("demo.gemspec")
@@ -879,14 +883,16 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
-      allow(cli).to receive(:load_bundled_runtime!).and_return(nil)
-      allow(cli).to receive(:ensure_gemfile_from_example!).and_return(nil)
-      allow(cli).to receive(:ensure_modular_gemfiles!).and_return(nil)
-      allow(cli).to receive(:ensure_rakefile!).and_return(nil)
-      allow(cli).to receive(:run_bin_setup!).and_return(nil)
-      allow(cli).to receive(:run_bundle_binstubs!).and_return(nil)
-      allow(cli).to receive(:run_kettle_install!).and_return(nil)
-      allow(cli).to receive(:commit_bootstrap_changes!).and_return(nil)
+      allow(cli).to receive_messages(
+        load_bundled_runtime!: nil,
+        ensure_gemfile_from_example!: nil,
+        ensure_modular_gemfiles!: nil,
+        ensure_rakefile!: nil,
+        run_bin_setup!: nil,
+        run_bundle_binstubs!: nil,
+        run_kettle_install!: nil,
+        commit_bootstrap_changes!: nil,
+      )
 
       expect(Kettle::Jem::PrismGemspec).to receive(:ensure_development_dependencies) do |target, wanted|
         expect(target).to eq(File.read("demo.gemspec"))
@@ -1494,22 +1500,24 @@ RSpec.describe Kettle::Jem::SetupCLI do
         require "bundler/gem_tasks"
       RUBY
       allow(cli).to receive(:installed_path).and_return(src)
-      allow(Kettle::Jem::TemplateHelpers).to receive(:project_root).and_return(Dir.pwd)
-      allow(Kettle::Jem::TemplateHelpers).to receive(:gemspec_metadata).and_return(
-        gem_name: "demo-gem",
-        min_ruby: Gem::Version.create("3.2"),
-        forge_org: "acme",
-        namespace: "DemoGem",
-        namespace_shield: "Demo__Gem",
-        gem_shield: "demo__gem",
-        authors: ["Test User"],
-        email: ["test@example.com"],
+      allow(Kettle::Jem::TemplateHelpers).to receive_messages(
+        project_root: Dir.pwd,
+        gemspec_metadata: {
+          gem_name: "demo-gem",
+          min_ruby: Gem::Version.create("3.2"),
+          forge_org: "acme",
+          namespace: "DemoGem",
+          namespace_shield: "Demo__Gem",
+          gem_shield: "demo__gem",
+          authors: ["Test User"],
+          email: ["test@example.com"],
+        },
+        template_run_timestamp: Time.new(2026, 3, 14, 12, 0, 0, "+00:00"),
+        kettle_jem_version: "9.9.9",
+        # Prevent the template's own .kettle-jem.yml.example (which contains real author
+        # data) from being loaded as the config fallback when the temp dir has no config.
+        kettle_config: {},
       )
-      allow(Kettle::Jem::TemplateHelpers).to receive(:template_run_timestamp).and_return(Time.new(2026, 3, 14, 12, 0, 0, "+00:00"))
-      allow(Kettle::Jem::TemplateHelpers).to receive(:kettle_jem_version).and_return("9.9.9")
-      # Prevent the template's own .kettle-jem.yml.example (which contains real author
-      # data) from being loaded as the config fallback when the temp dir has no config.
-      allow(Kettle::Jem::TemplateHelpers).to receive(:kettle_config).and_return({})
 
       cli.send(:ensure_rakefile!)
 

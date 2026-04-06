@@ -111,7 +111,7 @@ RSpec.describe "SmartMerger gemfile integration" do
 
       GEMFILE
 
-      template_source_content = <<~'GEMFILE'
+      template_source_content = <<~GEMFILE
         # frozen_string_literal: true
 
         # We run code coverage on the latest version of Ruby only.
@@ -155,7 +155,7 @@ RSpec.describe "SmartMerger gemfile integration" do
         # Coverage
       GEMFILE
 
-      template_source_content = <<~'GEMFILE'
+      template_source_content = <<~GEMFILE
         # frozen_string_literal: true
 
         # We run code coverage on the latest version of Ruby only.
@@ -284,7 +284,7 @@ RSpec.describe "SmartMerger gemfile integration" do
       )
 
       expect(result).to start_with(
-        <<~GEMFILE
+        <<~GEMFILE,
           # frozen_string_literal: true
 
           # See unlocked_deps appraisal for more details on irb inclusion

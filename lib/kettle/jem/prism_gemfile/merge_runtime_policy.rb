@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-
 module Kettle
   module Jem
     module PrismGemfile

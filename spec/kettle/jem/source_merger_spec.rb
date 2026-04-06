@@ -79,7 +79,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       src = "gem \"foo\"\n"
       dest = "gem \"bar\"\n"
 
-      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+      allow(Kettle::Jem::PrismGemfile).to receive(:merge).with(
         src,
         dest,
         merger_options: satisfy { |options| options.is_a?(Hash) && !options.key?(:signature_generator) },
@@ -98,7 +98,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       src = "gem \"foo\"\n"
       dest = "gem \"bar\"\n"
 
-      expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+      allow(Kettle::Jem::PrismGemfile).to receive(:merge).with(
         src,
         dest,
         merger_options: hash_including(
@@ -182,7 +182,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
           end
         RUBY
 
-        expect(Kettle::Jem::PrismGemfile).to receive(:merge).with(
+        allow(Kettle::Jem::PrismGemfile).to receive(:merge).with(
           "gem \"foo\"\n",
           "gem \"bar\"\n",
           merger_options: satisfy { |options| options.is_a?(Hash) },
@@ -300,8 +300,8 @@ RSpec.describe Kettle::Jem::SourceMerger do
 
         # External gems that define tasks - add here!
       RUBY
-      expect(merged.index('desc "Default tasks aggregator"')).to be < merged.index('task :default do')
-      expect(merged.index('task :default do')).to be < merged.index('# External gems that define tasks - add here!')
+      expect(merged.index('desc "Default tasks aggregator"')).to be < merged.index("task :default do")
+      expect(merged.index("task :default do")).to be < merged.index("# External gems that define tasks - add here!")
     end
 
     it "inserts the bootstrap default task when the desc is present but the template task is missing entirely", :prism_merge_only do
@@ -342,7 +342,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
 
         # External gems that define tasks - add here!
       RUBY
-      expect(merged.index('task :default do')).to be < merged.index('# External gems that define tasks - add here!')
+      expect(merged.index("task :default do")).to be < merged.index("# External gems that define tasks - add here!")
     end
 
     it "applies caller merge options to generic Ruby merges" do
@@ -354,7 +354,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
         expect(template_content).to eq(src)
         expect(destination_content).to eq(dest)
         expect(kwargs[:preference]).to eq(:destination)
-        expect(kwargs[:add_template_only_nodes]).to eq(false)
+        expect(kwargs[:add_template_only_nodes]).to be(false)
         expect(kwargs[:freeze_token]).to eq("custom-freeze")
         expect(kwargs[:max_recursion_depth]).to eq(3)
         expect(kwargs[:signature_generator]).to be_a(Proc)
@@ -379,7 +379,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       src = "appraise \"ruby-3-2\" do\nend\n"
       dest = "appraise \"ruby-3-1\" do\nend\n"
 
-      expect(Kettle::Jem::PrismAppraisals).to receive(:merge).with(src, dest).and_return("appraise \"ruby-3-2\" do\nend")
+      allow(Kettle::Jem::PrismAppraisals).to receive(:merge).with(src, dest).and_return("appraise \"ruby-3-2\" do\nend")
 
       merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "Appraisals")
       expect(merged).to eq("appraise \"ruby-3-2\" do\nend\n")
@@ -389,7 +389,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
       src = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
       dest = "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n"
 
-      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, dest).and_return("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend")
+      allow(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, dest).and_return("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend")
 
       merged = described_class.apply(strategy: :merge, src: src, dest: dest, path: "demo.gemspec")
       expect(merged).to eq("Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n")
@@ -403,7 +403,7 @@ RSpec.describe Kettle::Jem::SourceMerger do
         namespace: "Kettle::Jem",
       }
 
-      expect(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, "", context: context).and_return(src.chomp)
+      allow(Kettle::Jem::PrismGemspec).to receive(:merge).with(src, "", context: context).and_return(src.chomp)
 
       merged = described_class.apply(
         strategy: :accept_template,

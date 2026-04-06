@@ -349,7 +349,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       result = described_class.build_config_entry(nil, {"strategy" => "merge"})
 
       expect(result[:preference]).to eq(:destination)
-      expect(result[:add_template_only_nodes]).to eq(false)
+      expect(result[:add_template_only_nodes]).to be(false)
       expect(result[:freeze_token]).to eq("custom-freeze")
       expect(result[:max_recursion_depth]).to eq(7)
     end
@@ -422,7 +422,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       allow(File).to receive(:exist?).with(dest_path).and_return(true)
       allow(File).to receive(:read).with(dest_path).and_return("destination")
 
-      expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+      allow(Kettle::Jem::SourceMerger).to receive(:apply).with(
         strategy: :merge,
         src: "template",
         dest: "destination",
@@ -453,7 +453,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       allow(File).to receive(:exist?).with(dest_path).and_return(true)
       allow(File).to receive(:read).with(dest_path).and_return("destination")
 
-      expect(Kettle::Jem::SourceMerger).to receive(:apply).with(
+      allow(Kettle::Jem::SourceMerger).to receive(:apply).with(
         strategy: :merge,
         src: "template",
         dest: "destination",

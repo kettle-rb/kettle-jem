@@ -47,7 +47,7 @@ module Kettle
                 total_template: total_template,
                 total_dest: total_dest,
               )
-              next unless score >= MARKDOWN_PARAGRAPH_BASE_REFINER.threshold
+              next if score < MARKDOWN_PARAGRAPH_BASE_REFINER.threshold
 
               candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
                 template_node: template_node,
@@ -157,7 +157,7 @@ module Kettle
           return false if template_text.empty? || dest_text.empty?
           return true unless label_style_markdown_paragraph?(template_text) || label_style_markdown_paragraph?(dest_text)
 
-          !(markdown_significant_tokens(template_text) & markdown_significant_tokens(dest_text)).empty?
+          !!markdown_significant_tokens(template_text).intersect?(markdown_significant_tokens(dest_text))
         end
 
         def markdown_paragraph_match_score(template_node, dest_node, template_idx:, dest_idx:, total_template:, total_dest:)
@@ -1844,20 +1844,20 @@ module Kettle
           actual_license_md_path = helpers.output_path(license_md_path)
           return unless File.exist?(actual_license_md_path)
 
-          ga        = Kettle::Dev::GitAdapter.new
+          ga = Kettle::Dev::GitAdapter.new
           collector = Kettle::Jem::CopyrightCollector.new(
             git_adapter:   ga,
             project_root:  project_root,
             machine_users: helpers.resolved_machine_users,
           )
-          lines     = collector.copyright_lines
+          lines = collector.copyright_lines
           return if lines.empty?
 
           prefix = helpers.polyform_licenses?(helpers.resolved_licenses) ? "Required Notice: " : ""
-          lines  = lines.map { |l| "#{prefix}#{l}" } if prefix != ""
+          lines = lines.map { |l| "#{prefix}#{l}" } if prefix != ""
 
           md_content = File.read(actual_license_md_path)
-          md_lines   = md_content.lines
+          md_lines = md_content.lines
 
           # Strip trailing blank lines
           md_lines.pop while md_lines.last&.strip&.empty?
@@ -2053,7 +2053,7 @@ module Kettle
               removed_count += 1
               start_line = item.start_line
               leading = item.leading_comments
-              if leading && leading.any?
+              if leading&.any?
                 start_line = [start_line, leading.first[:line]].min
               end
               end_line = item.end_line || start_line
@@ -2132,7 +2132,7 @@ module Kettle
               removed_count += 1
               start_line = item.start_line
               leading = item.leading_comments
-              if leading && leading.any?
+              if leading&.any?
                 start_line = [start_line, leading.first[:line]].min
               end
               end_line = item.end_line || start_line
@@ -2179,7 +2179,7 @@ module Kettle
           rescue StandardError
             next
           end
-          return nil if lines.empty?
+          return if lines.empty?
 
           "[env]\n#{lines.join("\n")}\n"
         end
