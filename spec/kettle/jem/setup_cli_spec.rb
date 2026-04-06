@@ -152,7 +152,6 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive_messages(bundled_execution_context?: false, prechecks!: nil, template_config_present?: true)
 
       expect(cli).not_to receive(:ensure_template_config_bootstrap!)
-      expect(cli).not_to receive(:ensure_dev_deps!)
       expect(cli).not_to receive(:ensure_modular_gemfiles!)
       expect(cli).not_to receive(:ensure_rakefile!)
       expect(cli).not_to receive(:run_kettle_install!)
@@ -160,6 +159,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli).not_to receive(:ensure_gemfile_from_example!)
       expect(cli).to receive(:ensure_bootstrap_modular_gemfiles!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_bootstrap_eval_gemfile!).ordered.and_return(nil)
+      expect(cli).to receive(:ensure_dev_deps!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
@@ -1442,7 +1442,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@original_argv, [])
       allow(cli).to receive(:parse!)
       allow(cli).to receive(:bundled_execution_context?).and_return(false)
-      %i[prechecks! template_config_present? ensure_bootstrap_modular_gemfiles! ensure_bootstrap_eval_gemfile! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
+      %i[prechecks! template_config_present? ensure_bootstrap_modular_gemfiles! ensure_bootstrap_eval_gemfile! ensure_dev_deps! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
         allow(cli).to receive(:template_config_present?).and_return(true) if m == :template_config_present?
         expect(cli).to receive(m).ordered
       end

@@ -9,8 +9,8 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
   let(:exe_path) { File.expand_path("../../../exe/kettle-jem", __dir__) }
   let(:exe_content) { File.read(exe_path) }
 
-  it "loads the full runtime from the gem itself via require_relative" do
-    expect(exe_content).to include('require_relative "../lib/kettle/jem"')
+  it "loads the full runtime from the gem itself via require" do
+    expect(exe_content).to include('require "kettle/jem"')
   end
 
   it "does not depend on separately requiring setup_cli or version in the exe" do
