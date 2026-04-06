@@ -611,6 +611,121 @@ RSpec.describe Kettle::Jem::SourceMerger do
     end
   end
 
+  describe ".apply with :raw_copy strategy" do
+    it "returns the source content unchanged" do
+      result = described_class.apply(strategy: :raw_copy, src: "source content\n", dest: "dest content\n", path: "test.rb")
+      expect(result).to eq("source content\n")
+    end
+  end
+
+  describe ".apply with unsupported explicit file_type" do
+    it "raises an error for non-Ruby file_type" do
+      expect {
+        described_class.apply(strategy: :merge, src: "x", dest: "y", path: "test.rb", file_type: "banana")
+      }.to raise_error(Kettle::Jem::Error, /Unsupported Ruby merge file_type/)
+    end
+  end
+
+  describe ".normalize_preference_option" do
+    it "raises for an unrecognized preference" do
+      expect {
+        described_class.apply(strategy: :merge, src: "x", dest: "y", path: "test.rb", preference: "banana")
+      }.to raise_error(Kettle::Jem::Error, /Unknown merge preference/)
+    end
+  end
+
+  describe ".normalize_boolean_option" do
+    it "returns nil for nil" do
+      expect(described_class.normalize_boolean_option(nil)).to be_nil
+    end
+
+    it "returns true for true" do
+      expect(described_class.normalize_boolean_option(true)).to be(true)
+    end
+
+    it "returns false for false" do
+      expect(described_class.normalize_boolean_option(false)).to be(false)
+    end
+
+    it "returns true for '1'" do
+      expect(described_class.normalize_boolean_option("1")).to be(true)
+    end
+
+    it "returns false for '0'" do
+      expect(described_class.normalize_boolean_option("0")).to be(false)
+    end
+
+    it "returns the original value for unrecognized strings" do
+      expect(described_class.normalize_boolean_option(:maybe)).to eq(:maybe)
+    end
+  end
+
+  describe ".normalize_integer_option" do
+    it "returns nil for nil" do
+      expect(described_class.normalize_integer_option(nil)).to be_nil
+    end
+
+    it "returns integer as-is" do
+      expect(described_class.normalize_integer_option(42)).to eq(42)
+    end
+
+    it "returns nil for empty string" do
+      expect(described_class.normalize_integer_option("  ")).to be_nil
+    end
+
+    it "parses string integer" do
+      expect(described_class.normalize_integer_option("10")).to eq(10)
+    end
+
+    it "returns original value for non-numeric string" do
+      expect(described_class.normalize_integer_option("abc")).to eq("abc")
+    end
+  end
+
+  describe ".resolve_recipe_option" do
+    it "returns nil for nil" do
+      expect(described_class.resolve_recipe_option(nil)).to be_nil
+    end
+
+    it "returns nil for blank string" do
+      expect(described_class.resolve_recipe_option("  ")).to be_nil
+    end
+
+    it "returns object with execution_steps directly" do
+      recipe = double("recipe", execution_steps: [])
+      expect(described_class.resolve_recipe_option(recipe)).to eq(recipe)
+    end
+
+    it "raises for unknown non-path recipe name" do
+      expect {
+        described_class.resolve_recipe_option("nonexistent_recipe_xyz")
+      }.to raise_error(Kettle::Jem::Error, /Unknown merge recipe/)
+    end
+
+    it "loads recipe from .yml path" do
+      Dir.mktmpdir do |dir|
+        recipe_path = File.join(dir, "custom.yml")
+        script_dir = File.join(dir, "custom")
+        FileUtils.mkdir_p(script_dir)
+        File.write(recipe_path, <<~YAML)
+          name: test_recipe
+          parser: prism
+          steps:
+            - kind: ruby_script
+              name: identity
+              script: merge.rb
+        YAML
+        File.write(File.join(script_dir, "merge.rb"), <<~RUBY)
+          lambda do |template_content:, **|
+            {content: template_content}
+          end
+        RUBY
+        result = described_class.resolve_recipe_option(recipe_path)
+        expect(result).to respond_to(:execution_steps)
+      end
+    end
+  end
+
   describe ".preset_for" do
     it "returns Gemfile preset for :gemfile" do
       expect(described_class.preset_for(:gemfile)).to eq(Kettle::Jem::Presets::Gemfile)

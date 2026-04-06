@@ -531,4 +531,21 @@ RSpec.describe Kettle::Jem::ChangelogMerger do
       expect(result).to end_with("\n")
     end
   end
+
+  describe ".merge_unreleased_content" do
+    it "returns template when template has no Unreleased heading" do
+      template = "# Changelog\n\n## [1.0.0] - 2024-01-01\n### Added\n- Initial release\n"
+      destination = "# Changelog\n\n## [Unreleased]\n### Added\n- dest item\n"
+      result = described_class.merge_unreleased_content(template, destination)
+      expect(result).to eq(template)
+    end
+
+    it "falls back to raw line parsing when dest_context is nil" do
+      template = "# Changelog\n\n## [Unreleased]\n### Added\n- template item\n"
+      # Destination that doesn't parse via Markly analysis but has no Unreleased section
+      destination = "not valid changelog markdown at all"
+      result = described_class.merge_unreleased_content(template, destination)
+      expect(result).to be_a(String)
+    end
+  end
 end

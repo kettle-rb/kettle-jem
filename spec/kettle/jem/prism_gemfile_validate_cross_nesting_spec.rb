@@ -268,6 +268,28 @@ RSpec.describe Kettle::Jem::PrismGemfile::DeclarationContextPolicy, ".collect_ge
     expect(decls.find { |d| d[:name] == "first" }[:line]).to eq(1)
     expect(decls.find { |d| d[:name] == "second" }[:line]).to eq(3)
   end
+
+  it "describes a call context with non-symbol/string first arg" do
+    content = <<~RUBY
+      platform 42 do
+        gem "native-thing"
+      end
+    RUBY
+    decls = collect(content)
+    expect(decls.size).to eq(1)
+    expect(decls.first[:context]).to include("platform")
+  end
+
+  it "describes a call context with no arguments" do
+    content = <<~RUBY
+      install_if do
+        gem "conditional-gem"
+      end
+    RUBY
+    decls = collect(content)
+    expect(decls.size).to eq(1)
+    expect(decls.first[:context]).to eq("install_if")
+  end
 end
 
 RSpec.describe Kettle::Jem::PrismGemfile::MergeRuntimePolicy, ".collect_commented_gem_tombstones" do

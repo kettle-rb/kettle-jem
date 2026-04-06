@@ -166,6 +166,21 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(merged).not_to include("gem_version =")
       expect(merged).to include('spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/jem/version.rb", mod) }::Kettle::Jem::Version::VERSION')
     end
+
+    it "returns template_content when an unexpected StandardError is raised during merge" do
+      allow(described_class).to receive(:harmonize_merged_content).and_raise(StandardError, "unexpected")
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+        end
+      RUBY
+      dest = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+        end
+      RUBY
+      expect(described_class.merge(template, dest)).to eq(template)
+    end
   end
 
   describe ".debug_error" do
@@ -382,6 +397,16 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(out).to include("spec.name = generate_name")
       expect(out).not_to include('spec.name = "x"')
     end
+
+    it "returns content when an unexpected StandardError is raised" do
+      allow(described_class).to receive(:merged_content_from_plans).and_raise(StandardError, "unexpected")
+      src = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "old"
+        end
+      RUBY
+      expect(described_class.replace_gemspec_fields(src, {name: "new"})).to eq(src)
+    end
   end
 
   describe ".remove_spec_dependency" do
@@ -418,6 +443,16 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(out).to include("# Keep this comment with the file")
       expect(out).to include('spec.add_dependency "other"')
       expect(out).not_to include('spec.add_dependency "kettle-dev", "~> 2.0"')
+    end
+
+    it "returns content when an unexpected StandardError is raised" do
+      allow(described_class).to receive(:merged_content_from_plans).and_raise(StandardError, "test")
+      content = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.add_dependency "kettle-dev", "~> 1.0"
+        end
+      RUBY
+      expect(described_class.remove_spec_dependency(content, "kettle-dev")).to eq(content)
     end
   end
 
@@ -515,6 +550,34 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(out).to include('require "kettle/dev/version"')
       expect(out).to include("spec.version = gem_version")
     end
+
+    it "inserts version using gemspec_call anchor when the block has no statements" do
+      gemspec_call_mock = double("gemspec_call", location: double("location", end_line: 3))
+      result = described_class.send(
+        :raw_field_insertion_anchor_line,
+        nil,
+        gemspec_call_mock,
+      )
+      expect(result).to eq(3)
+    end
+
+    it "returns content when an unexpected StandardError is raised" do
+      allow(described_class).to receive(:rewrite_version_preamble).and_raise(StandardError, "unexpected")
+      content = <<~RUBY
+        # frozen_string_literal: true
+        Gem::Specification.new do |spec|
+          spec.version = "1.0.0"
+        end
+      RUBY
+      expect(
+        described_class.rewrite_version_loader(
+          content,
+          min_ruby: Gem::Version.new("3.0"),
+          entrypoint_require: "kettle/dev",
+          namespace: "Kettle::Dev",
+        ),
+      ).to eq(content)
+    end
   end
 
   describe ".harmonize_merged_content" do
@@ -564,6 +627,50 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: "dest",
         )
       }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
+    end
+
+    it "returns content when an unexpected StandardError is raised during harmonization" do
+      allow(described_class).to receive(:union_literal_dir_assignment).and_raise(StandardError, "unexpected")
+
+      result = described_class.harmonize_merged_content(
+        "merged",
+        template_content: "template",
+        destination_content: "dest",
+      )
+      expect(result).to eq("merged")
+    end
+  end
+
+  describe ".normalize_dependency_sections" do
+    it "returns content when DependencySectionPolicy raises a non-Kettle::Jem::Error" do
+      allow(Kettle::Jem::PrismGemspec::DependencySectionPolicy).to receive(:normalize).and_raise(StandardError, "unexpected")
+      content = "original content"
+      expect(
+        described_class.send(
+          :normalize_dependency_sections,
+          content,
+          template_content: "template",
+          destination_content: "dest",
+        ),
+      ).to eq(content)
+    end
+  end
+
+  describe ".remove_singular_license_if_plural_present" do
+    let(:gemspec_with_both_licenses) do
+      <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.licenses = ["MIT"]
+          spec.license = "MIT"
+        end
+      RUBY
+    end
+
+    it "returns content when merged_content_from_plans raises a StandardError" do
+      allow(described_class).to receive(:merged_content_from_plans).and_raise(StandardError, "plans error")
+      expect(
+        described_class.send(:remove_singular_license_if_plural_present, gemspec_with_both_licenses),
+      ).to eq(gemspec_with_both_licenses)
     end
   end
 
@@ -4675,6 +4782,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       # The replacement lines should include their new trailing comments
       expect(result).to include("~> 13.0")
       expect(result).to include("~> 3.12")
+    end
+
+    it "returns content when an unexpected StandardError is raised" do
+      allow(described_class).to receive(:ensure_development_dependencies_ast).and_raise(StandardError, "test")
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.add_development_dependency("rspec", "~> 3.0")
+        end
+      RUBY
+      desired = {"rspec" => '  spec.add_development_dependency("rspec", "~> 3.12")'}
+      expect(described_class.ensure_development_dependencies(destination, desired)).to eq(destination)
     end
   end
 end

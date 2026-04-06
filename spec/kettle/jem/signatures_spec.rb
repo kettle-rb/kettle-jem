@@ -116,6 +116,70 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with gem() call with non-string first arg" do
+      let(:node) { parse_call("gem :rspec") }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with gem() call with no arguments" do
+      let(:node) { parse_call("gem()") }
+
+      it "returns the node unchanged (nil first_arg via empty args)" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with eval_gemfile() call with non-string first arg" do
+      let(:node) { parse_call("eval_gemfile :some_gemfile") }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with eval_gemfile() call with no arguments" do
+      let(:node) { parse_call("eval_gemfile()") }
+
+      it "returns the node unchanged (nil first_arg via empty args)" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with git_source() call with non-symbol first arg" do
+      let(:node) { parse_call('git_source "github"') }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with a method call that has no arguments" do
+      let(:node) { parse_call("bundler_setup") }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with require File.expand_path whose base is not __dir__" do
+      let(:node) { parse_call('require File.expand_path("nomono/lib/nomono/bundler", File.dirname(__FILE__))') }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with require File.expand_path whose path is not a nomono path" do
+      let(:node) { parse_call('require File.expand_path("some/other/library", __dir__)') }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
     def parse_call(code)
       result = Prism.parse(code)
       result.value.statements.body.first
@@ -154,6 +218,26 @@ RSpec.describe Kettle::Jem::Signatures do
 
       it "returns [:gem, gem_name] signature" do
         expect(generator.call(node)).to eq([:gem, "rspec"])
+      end
+    end
+
+    context "with appraise() call with non-string arg (symbol)" do
+      let(:node) do
+        code = "appraise :ruby_33"
+        result = Prism.parse(code)
+        result.value.statements.body.first
+      end
+
+      it "falls back to gemfile generator which extracts symbol arg" do
+        expect(generator.call(node)).to eq([:appraise, :ruby_33])
+      end
+    end
+
+    context "with non-CallNode" do
+      let(:node) { Prism.parse("x = 1").value.statements.body.first }
+
+      it "returns the node unchanged" do
+        expect(generator.call(node)).to eq(node)
       end
     end
   end
@@ -228,6 +312,41 @@ RSpec.describe Kettle::Jem::Signatures do
       end
     end
 
+    context "with spec.add_dependency with non-string first arg" do
+      it "returns the node unchanged" do
+        node = parse_call("spec.add_dependency(:runtime_dep)")
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with non-spec assignment (other.name =)" do
+      it "returns the node unchanged" do
+        node = parse_call('other.name = "test"')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with CallOperatorWriteNode where receiver is not spec" do
+      it "returns the node unchanged" do
+        node = parse_call('other.rdoc_options += ["--quiet"]')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with spec.metadata[] assignment with non-string key" do
+      it "returns the node unchanged" do
+        node = parse_call("spec.metadata[key_var] = \"value\"")
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with non-spec Gem::Specification method (not .new)" do
+      it "returns the node unchanged" do
+        node = parse_call('Gem::Specification.find_by_name("foo")')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
     def parse_call(code)
       result = Prism.parse(code)
       result.value.statements.body.first
@@ -295,6 +414,20 @@ RSpec.describe Kettle::Jem::Signatures do
     context "with unknown call" do
       it "returns the node for unrecognized method" do
         node = parse_call('puts "hello"')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with task with string arg (not symbol/hash)" do
+      it "returns the node unchanged" do
+        node = parse_call('task "test_string_task"')
+        expect(generator.call(node)).to eq(node)
+      end
+    end
+
+    context "with namespace with string arg (not symbol)" do
+      it "returns the node unchanged" do
+        node = parse_call('namespace "my_ns"')
         expect(generator.call(node)).to eq(node)
       end
     end

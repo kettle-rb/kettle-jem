@@ -443,6 +443,24 @@ RSpec.describe Kettle::Jem::PrismUtils do
       expect(normalized).to include("}")
     end
 
+    it "normalizes a KeywordHashNode with a non-symbol/non-string key using slice" do
+      source = "foo(1 => :val)"
+      result = described_class.parse_with_comments(source)
+      call = result.value.statements.body.first
+      node = call.arguments.arguments.first
+      normalized = described_class.normalize_argument(node)
+      expect(normalized).to include("1 =>")
+    end
+
+    it "normalizes a KeywordHashNode with a string key using hash-rocket format" do
+      source = 'foo("key" => :val)'
+      result = described_class.parse_with_comments(source)
+      call = result.value.statements.body.first
+      node = call.arguments.arguments.first
+      normalized = described_class.normalize_argument(node)
+      expect(normalized).to include('"key" =>')
+    end
+
     it "falls back to slice for unknown node types" do
       source = "1 + 2"
       result = described_class.parse_with_comments(source)

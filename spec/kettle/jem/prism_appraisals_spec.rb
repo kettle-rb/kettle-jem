@@ -453,4 +453,38 @@ RSpec.describe Kettle::Jem::PrismAppraisals do
       expect(pruned).not_to match(/\n{3,}/)
     end
   end
+
+  describe ".remove_gem_dependency" do
+    it "removes a gem from appraisals blocks" do
+      content = <<~RUBY
+        appraise "ruby-3-2" do
+          gem "debug", "~> 1.0"
+          gem "rspec", "~> 3.12"
+        end
+      RUBY
+      result = described_class.remove_gem_dependency(content, "debug")
+      expect(result).not_to include('gem "debug"')
+      expect(result).to include('gem "rspec"')
+    end
+
+    it "returns content unchanged when gem not present" do
+      content = <<~RUBY
+        appraise "ruby-3-2" do
+          gem "rspec"
+        end
+      RUBY
+      expect(described_class.remove_gem_dependency(content, "missing")).to eq(content)
+    end
+
+    context "when inner dependency raises" do
+      before do
+        allow(Kettle::Jem::PrismUtils).to receive(:parse_with_comments).and_raise(StandardError, "parse fail")
+      end
+
+      it "returns original content" do
+        content = 'appraise "ruby-3-2" do; end'
+        expect(described_class.remove_gem_dependency(content, "gem_name")).to eq(content)
+      end
+    end
+  end
 end

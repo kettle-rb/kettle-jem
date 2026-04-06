@@ -125,5 +125,29 @@ RSpec.describe Kettle::Jem::Presets::Rakefile do
         expect(result.merge_type).to eq(:test_task)
       end
     end
+
+    context "when node is task with no arguments" do
+      it "returns the node unchanged (nil first_arg)" do
+        node = parse_call("task")
+        result = callable.call(node)
+        expect(result).to eq(node)
+      end
+    end
+
+    context "when node is task with numeric arg (not unescaped/elements)" do
+      it "returns the node unchanged (task_name is nil)" do
+        node = parse_call("task 42")
+        result = callable.call(node)
+        expect(result).to eq(node)
+      end
+    end
+
+    context "when node is not a task call" do
+      it "returns the node unchanged" do
+        node = parse_call('puts "hello"')
+        result = callable.call(node)
+        expect(result).to eq(node)
+      end
+    end
   end
 end

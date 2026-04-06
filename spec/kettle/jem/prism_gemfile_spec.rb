@@ -182,6 +182,39 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         ])
       end
     end
+
+    describe ".merge (without merge_body)" do
+      let(:runtime) do
+        Module.new do
+          module_function
+
+          def filter_to_top_level_gems(content)
+            content
+          end
+
+          def prepare_destination(content, _template)
+            content
+          end
+
+          def finalize_merged_content(content, _template)
+            content
+          end
+        end
+      end
+
+      it "merges using default SmartMerger when no merge_body given" do
+        src = "gem \"foo\"\n"
+        dest = "gem \"bar\"\n"
+        result = described_class::MergePipelinePolicy.merge(
+          src,
+          dest,
+          runtime: runtime,
+          filter_template: false,
+          signature_for: ->(node) { node.is_a?(Prism::CallNode) ? [:gem, node.arguments&.arguments&.first&.unescaped] : node },
+        )
+        expect(result).to be_a(String)
+      end
+    end
   end
 
   describe "::RemovalEditPolicy.remove_declarations" do
@@ -703,6 +736,12 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       result = described_class::RemovalEditPolicy.remove_github_git_source(content)
       expect(result).to eq(content)
     end
+
+    it "leaves git_source with no arguments unchanged" do
+      content = "git_source\ngem \"foo\"\n"
+      result = described_class::RemovalEditPolicy.remove_github_git_source(content)
+      expect(result).to eq(content)
+    end
   end
 
   describe ".remove_gem_dependency" do
@@ -744,6 +783,40 @@ RSpec.describe Kettle::Jem::PrismGemfile do
         gem "bar"
       RUBY
       expect(described_class.remove_gem_dependency(content, "baz")).to eq(content)
+    end
+
+    it "returns content unchanged when content fails to parse" do
+      content = "not valid ruby {{{"
+      expect(described_class.remove_gem_dependency(content, "foo")).to eq(content)
+    end
+
+    it "skips gem() calls with no arguments in find_gem_nodes_recursive" do
+      content = <<~RUBY
+        gem()
+        gem "foo"
+      RUBY
+      result = described_class.remove_gem_dependency(content, "foo")
+      expect(result).not_to include('gem "foo"')
+    end
+  end
+
+  describe ".remove_gem_dependency rescue path" do
+    context "when DependencyRemovalPolicy.remove_gem_dependency raises" do
+      before do
+        allow(Kettle::Jem::PrismGemfile::DependencyRemovalPolicy).to receive(:remove_gem_dependency).and_raise(StandardError, "test error")
+      end
+
+      it "returns the original content" do
+        content = 'gem "foo"'
+        expect(described_class.remove_gem_dependency(content, "foo")).to eq(content)
+      end
+
+      it "uses Kernel.warn when Kettle::Dev debug_error is unavailable" do
+        allow(Kettle::Dev).to receive(:respond_to?).with(:debug_error).and_return(false)
+        content = 'gem "foo"'
+        expect(Kernel).to receive(:warn).with(/test error/)
+        expect(described_class.remove_gem_dependency(content, "foo")).to eq(content)
+      end
     end
   end
 
@@ -810,6 +883,107 @@ RSpec.describe Kettle::Jem::PrismGemfile do
       expect(result).to include("# debug ships elsewhere.")
       expect(result).not_to include("# old note")
       expect(result.scan(/^# gem "debug", ">= 1.1"$/).size).to eq(1)
+    end
+  end
+
+  describe "::MergeRuntimePolicy rescue path" do
+    let(:runtime) { described_class::MergeRuntimePolicy }
+
+    describe ".filter_to_top_level_gems" do
+      context "when MergeEntryPolicy.filter_content raises" do
+        before do
+          allow(Kettle::Jem::PrismGemfile::MergeEntryPolicy).to receive(:filter_content).and_raise(StandardError, "test")
+        end
+
+        it "returns original content" do
+          expect(runtime.filter_to_top_level_gems("gem 'foo'")).to eq("gem 'foo'")
+        end
+      end
+    end
+
+    describe ".collect_commented_gem_tombstones" do
+      context "when TombstonePolicy.collect_commented_gem_tombstones raises" do
+        before do
+          allow(Kettle::Jem::PrismGemfile::TombstonePolicy).to receive(:collect_commented_gem_tombstones).and_raise(StandardError, "test")
+        end
+
+        it "returns empty array" do
+          expect(runtime.collect_commented_gem_tombstones("content")).to eq([])
+        end
+      end
+    end
+
+    describe ".remove_tombstoned_gem_declarations" do
+      context "when TombstoneEditPolicy.remove_tombstoned_gem_declarations raises" do
+        before do
+          allow(Kettle::Jem::PrismGemfile::TombstoneEditPolicy).to receive(:remove_tombstoned_gem_declarations).and_raise(StandardError, "test")
+        end
+
+        it "returns original destination content" do
+          dest = "gem 'foo'"
+          expect(runtime.remove_tombstoned_gem_declarations(dest, "gem 'bar'")).to eq(dest)
+        end
+      end
+    end
+
+    describe ".restore_tombstone_comment_blocks" do
+      context "when TombstoneEditPolicy.restore_tombstone_comment_blocks raises" do
+        before do
+          allow(Kettle::Jem::PrismGemfile::TombstoneEditPolicy).to receive(:restore_tombstone_comment_blocks).and_raise(StandardError, "test")
+        end
+
+        it "returns original content" do
+          content = "gem 'foo'"
+          expect(runtime.restore_tombstone_comment_blocks(content, "template")).to eq(content)
+        end
+      end
+    end
+
+    describe ".suppress_commented_gem_declarations" do
+      context "when TombstoneEditPolicy.suppress_commented_gem_declarations raises" do
+        before do
+          allow(Kettle::Jem::PrismGemfile::TombstoneEditPolicy).to receive(:suppress_commented_gem_declarations).and_raise(StandardError, "test")
+        end
+
+        it "returns original content" do
+          content = "gem 'foo'"
+          expect(runtime.suppress_commented_gem_declarations(content)).to eq(content)
+        end
+      end
+    end
+
+    describe ".prepare_destination" do
+      context "when remove_tombstoned_gem_declarations raises" do
+        before do
+          allow(runtime).to receive(:remove_tombstoned_gem_declarations).and_raise(StandardError, "test")
+        end
+
+        it "returns original content" do
+          content = "gem 'foo'"
+          expect(runtime.prepare_destination(content, "template")).to eq(content)
+        end
+      end
+    end
+
+    describe ".finalize_merged_content" do
+      context "when restore_tombstone_comment_blocks raises" do
+        before do
+          allow(runtime).to receive(:restore_tombstone_comment_blocks).and_raise(StandardError, "test")
+        end
+
+        it "returns original content" do
+          content = "gem 'foo'"
+          expect(runtime.finalize_merged_content(content, "template")).to eq(content)
+        end
+      end
+    end
+  end
+
+  describe ".truthy_option?" do
+    it "returns the string-based truthy check when value is not a boolean" do
+      expect(described_class.send(:truthy_option?, "1")).to be(true)
+      expect(described_class.send(:truthy_option?, "yes")).to be(true)
+      expect(described_class.send(:truthy_option?, "false")).to be(false)
     end
   end
 end

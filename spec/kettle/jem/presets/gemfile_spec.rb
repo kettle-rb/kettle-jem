@@ -167,5 +167,17 @@ RSpec.describe Kettle::Jem::Presets::Gemfile do
       result = callable.call(node)
       expect(result).to eq(node)
     end
+
+    it "returns node unchanged when first arg is not a string/symbol (e.g. local variable)" do
+      node = parse_call("gem my_gem_var")
+      result = callable.call(node)
+      expect(result).to eq(node)
+    end
+
+    it "returns node unchanged when gem has no arguments" do
+      node = parse_call("gem")
+      result = callable.call(node)
+      expect(result).to eq(node)
+    end
   end
 end

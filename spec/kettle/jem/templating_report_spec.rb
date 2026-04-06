@@ -134,6 +134,30 @@ RSpec.describe Kettle::Jem::TemplatingReport do
       expect(result).to end_with("/src/kettle-rb")
       expect(result).not_to end_with("/true")
     end
+
+    it "returns nil when KETTLE_RB_DEV=true but no nomono sibling exists" do
+      stub_env("KETTLE_RB_DEV" => "true")
+      allow(File).to receive(:directory?).and_return(false)
+      expect(described_class.default_workspace_root).to be_nil
+    end
+
+    it "returns canonical path when KETTLE_RB_DEV is a specific path" do
+      Dir.mktmpdir do |dir|
+        stub_env("KETTLE_RB_DEV" => dir)
+        result = described_class.default_workspace_root
+        expect(result).to eq(File.realpath(dir))
+      end
+    end
+  end
+
+  describe ".source_label (private)" do
+    it "returns 'not loaded' when entry is not loaded" do
+      expect(described_class.send(:source_label, {loaded: false})).to eq("not loaded")
+    end
+
+    it "returns 'installed gem' when entry is loaded and not a local path" do
+      expect(described_class.send(:source_label, {loaded: true, local_path: false})).to eq("installed gem")
+    end
   end
 
   describe ".local_path?" do

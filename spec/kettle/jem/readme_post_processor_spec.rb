@@ -17,6 +17,11 @@ RSpec.describe Kettle::Jem::ReadmePostProcessor do
       expect(described_class.compatibility_badge_min_mri("💎jruby-headi")).to be_nil
       expect(described_class.compatibility_badge_min_mri("💎truby-headi")).to be_nil
     end
+
+    it "returns nil when an unexpected StandardError is raised" do
+      allow(Gem::Version).to receive(:new).and_raise(StandardError, "bad version")
+      expect(described_class.compatibility_badge_min_mri("💎ruby-3.2i")).to be_nil
+    end
   end
 
   describe ".normalize_compatibility_badge_cell" do
@@ -80,6 +85,30 @@ RSpec.describe Kettle::Jem::ReadmePostProcessor do
       expect(processed).to match(/^\[💎truby-25\.0i\]:/)
       expect(processed).to match(/^\[🚎9-t-wf\]:/)
       expect(processed).to match(/^\[🚎11-c-wf\]:/)
+    end
+
+    it "removes disabled engine rows when engines list is provided" do
+      content = <<~MD
+        | Works with JRuby | [![JRuby 10.0 Compat][💎jruby-10.0i]][🚎3-j-wf] |
+        | Works with Truffle Ruby | [![Truffle Ruby 23.2 Compat][💎truby-23.2i]][🚎9-t-wf] |
+
+        [💎jruby-10.0i]: https://example/jruby-100
+        [💎truby-23.2i]: https://example/truby-232
+        [🚎3-j-wf]: https://example/jruby-wf
+        [🚎9-t-wf]: https://example/truby-wf
+      MD
+
+      processed = described_class.process(
+        content: content,
+        min_ruby: Gem::Version.new("3.2"),
+        engines: ["truffleruby"],
+      )
+
+      expect(processed).not_to include("Works with JRuby")
+      expect(processed).not_to include("jruby-10.0i")
+      expect(processed).not_to match(/^\[🚎3-j-wf\]:/)
+      expect(processed).to include("Works with Truffle Ruby")
+      expect(processed).to include("truby-23.2i")
     end
   end
 end
