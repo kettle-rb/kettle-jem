@@ -20,6 +20,23 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Added
 
+- `PrismGemfile::CONFLICTING_GEMS` constant (`%w[appraisal]`) identifies gems
+  that conflict with the kettle-jem template ecosystem. The `appraisal` gem is
+  replaced by the `appraisal2` hard-fork (same `appraisal` executable,
+  incompatible internals); keeping both causes execution conflicts.
+- `SetupCLI#remove_conflicting_gems` strips `CONFLICTING_GEMS` from the main
+  Gemfile during the bootstrap `ensure_gemfile_from_example!` merge, handling
+  gems that carry the old `appraisal` dependency in their Gemfile.
+- `TemplateHelpers#remove_conflicting_gemfile_gems` strips `CONFLICTING_GEMS`
+  from `Appraisal.root.gemfile` after the destination-wins merge, where the old
+  `gem "appraisal"` declaration would otherwise survive as a destination-only
+  node and conflict with `appraisal2` at runtime.
+- `SetupCLI#remove_scaffold_default_gems` now removes `rake`, `rspec`, and
+  `rubocop` from a freshly scaffolded gem's Gemfile during templating. These
+  gems are added by `bundle gem` but are redundant after kettle-jem applies:
+  `rake` moves to gemspec dev-deps, `rspec` is pulled in transitively by
+  `kettle-test`, and `rubocop` is managed by `standard` via `style.gemfile`.
+
 - New `{KJ|GEM_MAJOR}` token, resolved from the target gem's gemspec version,
   emitting just the major version integer (e.g. `"3"` for a `3.1.0` gem). Use
   it in templates wherever a `"~> X.0"` dependency constraint is needed, such
