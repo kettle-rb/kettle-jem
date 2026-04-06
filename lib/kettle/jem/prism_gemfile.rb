@@ -16,6 +16,11 @@ module Kettle
       autoload :TombstoneEditPolicy, "kettle/jem/prism_gemfile/tombstone_edit_policy"
       autoload :TombstonePolicy, "kettle/jem/prism_gemfile/tombstone_policy"
 
+      # Gems that conflict with the kettle-jem template regardless of origin:
+      # - "appraisal": old pattern; replaced by the appraisal2 hard-fork (same executable,
+      #   incompatible API). Must be removed from Gemfile and Appraisal.root.gemfile on merge.
+      CONFLICTING_GEMS = %w[appraisal].freeze
+
       module_function
 
       def merge(src_content, dest_content, merger_options: {}, filter_template: false, path: "Gemfile", force: false, preset: nil, context: nil, **options)

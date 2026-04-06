@@ -531,6 +531,7 @@ module Kettle
         load_bootstrap_gemfile_merge_runtime!
         merged = Kettle::Jem::PrismGemfile.merge_gem_calls(example, target)
         merged = remove_scaffold_default_gems(merged)
+        merged = remove_conflicting_gems(merged)
         return say("Gemfile already contains required entries from example.", verbose_only: true) if merged == target
 
         File.write(target_path, ensure_trailing_newline(merged))
@@ -549,6 +550,15 @@ module Kettle
       # @return [String] Content with scaffold default gems removed
       def remove_scaffold_default_gems(content)
         SCAFFOLD_DEFAULT_GEMS.reduce(content) do |acc, gem_name|
+          Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
+        end
+      end
+
+      # Remove gems that conflict with the kettle-jem template ecosystem from Gemfile content.
+      # @param content [String] Gemfile content
+      # @return [String] Content with conflicting gems removed
+      def remove_conflicting_gems(content)
+        Kettle::Jem::PrismGemfile::CONFLICTING_GEMS.reduce(content) do |acc, gem_name|
           Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
         end
       end

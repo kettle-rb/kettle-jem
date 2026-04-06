@@ -1151,6 +1151,7 @@ module Kettle
             begin
               prior = File.read(dest_path)
               content = merge_gemfile_dependencies(content, prior)
+              content = remove_conflicting_gemfile_gems(content)
             rescue StandardError => e
               Kettle::Dev.debug_error(e, __method__)
             end
@@ -1201,6 +1202,19 @@ module Kettle
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         dest_content
+      end
+
+      # Remove gems that conflict with the kettle-jem template ecosystem.
+      # Applied to Gemfile and Appraisal.root.gemfile after merging.
+      # @param content [String] gemfile-like content
+      # @return [String] content with conflicting gems removed
+      def remove_conflicting_gemfile_gems(content)
+        Kettle::Jem::PrismGemfile::CONFLICTING_GEMS.reduce(content) do |acc, gem_name|
+          Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
+        end
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        content
       end
 
       def apply_appraisals_merge(content, dest_path)
