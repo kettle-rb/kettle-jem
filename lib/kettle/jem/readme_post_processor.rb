@@ -20,7 +20,6 @@ module Kettle
           "22.3" => Gem::Version.new("3.0"),
           "23.0" => Gem::Version.new("3.0"),
           "23.1" => Gem::Version.new("3.1"),
-          "23.2" => Gem::Version.new("3.2"),
           "24.2" => Gem::Version.new("3.3"),
           "25.0" => Gem::Version.new("3.3"),
           "33.0" => Gem::Version.new("3.3"),

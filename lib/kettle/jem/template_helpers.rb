@@ -50,7 +50,6 @@ module Kettle
         "truffleruby-22.3" => "truffleruby",
         "truffleruby-23.0" => "truffleruby",
         "truffleruby-23.1" => "truffleruby",
-        "truffleruby-23.2" => "truffleruby",
         "truffleruby-24.2" => "truffleruby",
         "truffleruby-25.0" => "truffleruby",
       }.freeze

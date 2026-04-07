@@ -4,7 +4,6 @@ RSpec.describe Kettle::Jem::ReadmePostProcessor do
   describe ".compatibility_badge_min_mri" do
     it "maps fixed JRuby and TruffleRuby badges to MRI compatibility versions" do
       expect(described_class.compatibility_badge_min_mri("💎jruby-10.0i")).to eq(Gem::Version.new("3.4"))
-      expect(described_class.compatibility_badge_min_mri("💎truby-23.2i")).to eq(Gem::Version.new("3.2"))
       expect(described_class.compatibility_badge_min_mri("💎truby-24.2i")).to eq(Gem::Version.new("3.3"))
       expect(described_class.compatibility_badge_min_mri("💎truby-25.0i")).to eq(Gem::Version.new("3.3"))
     end
