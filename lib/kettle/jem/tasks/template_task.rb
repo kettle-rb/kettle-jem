@@ -99,6 +99,33 @@ module Kettle
           end
         end
 
+        # HTML comment block refiner — matches `<!-- ... -->` blocks that differ
+        # slightly between template and destination. These are top-level HTML nodes
+        # in the Markdown AST. After NodeTypeNormalizer wrapping, type is the string
+        # "html_block". Uses string_content for text extraction since Markly/CommonMark
+        # nodes return empty plaintext for HTML blocks.
+        MARKDOWN_HTML_COMMENT_REFINER = Ast::Merge::TokenMatchRefiner.new(
+          threshold: 0.35,
+          node_types: [:html_block, :html, "html_block", "html"],
+          text_extractor: ->(node) {
+            if node.respond_to?(:string_content)
+              node.string_content.to_s
+            elsif node.respond_to?(:node) && node.node.respond_to?(:string_content)
+              node.node.string_content.to_s
+            else
+              node.text.to_s
+            end
+          },
+        )
+
+        # Composite refiner chaining paragraph/list matching with HTML comment matching.
+        # The paragraph/list refiner runs first (consuming its matches), then the
+        # HTML comment refiner processes any remaining unmatched :html_block nodes.
+        MARKDOWN_MATCH_REFINER = Ast::Merge::CompositeMatchRefiner.new(
+          MARKDOWN_PARAGRAPH_MATCH_REFINER,
+          MARKDOWN_HTML_COMMENT_REFINER,
+        )
+
         module_function
 
         # Whether a relative template path should be raw-copied (no tokens, no merge).
@@ -324,7 +351,7 @@ module Kettle
                 backend: :markly,
                 preference: :template,
                 add_template_only_nodes: true,
-                match_refiner: MARKDOWN_PARAGRAPH_MATCH_REFINER,
+                match_refiner: MARKDOWN_MATCH_REFINER,
                 inner_merge_lists: true,
               ).merge
             elsif file_type == :bash
