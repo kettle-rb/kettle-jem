@@ -226,10 +226,14 @@ module Kettle
       end
 
       def merger_options_for(file_type, **options)
+        preset_class = preset_for(file_type)
+        effective_preference = normalize_preference_option(options[:preference]) || preset_class.default_preference
+        effective_add_template_only = normalize_boolean_option(options[:add_template_only_nodes])
+        effective_add_template_only = preset_class.default_add_template_only_nodes if effective_add_template_only.nil?
         config = config_for_file_type(
           file_type,
-          preference: normalize_preference_option(options[:preference]) || :template,
-          add_template_only_nodes: normalize_boolean_option(options[:add_template_only_nodes]),
+          preference: effective_preference,
+          add_template_only_nodes: effective_add_template_only,
           freeze_token: normalize_string_option(options[:freeze_token]) || FREEZE_TOKEN,
         )
 

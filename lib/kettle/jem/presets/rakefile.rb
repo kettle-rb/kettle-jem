@@ -17,6 +17,23 @@ module Kettle
       # @see Kettle::Jem::Signatures.rakefile
       class Rakefile < Base
         class << self
+          # Rakefiles default to destination-wins: user task customizations,
+          # :nocov: wrappers, and custom task bodies are preserved.
+          # Template-only nodes (new tasks from template) are still added.
+          #
+          # @return [Symbol]
+          def default_preference
+            :destination
+          end
+
+          # Rakefiles add template-only nodes by default — new tasks from the
+          # template should appear in the destination even under destination-wins.
+          #
+          # @return [Boolean]
+          def default_add_template_only_nodes
+            true
+          end
+
           # Returns the signature generator for Rakefile merging.
           #
           # @return [Proc] Lambda that generates signatures for Rake nodes

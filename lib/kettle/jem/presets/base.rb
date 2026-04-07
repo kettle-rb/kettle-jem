@@ -92,6 +92,28 @@ module Kettle
           def default_node_typing
             nil
           end
+
+          # Returns the default merge preference for this file type.
+          #
+          # Override in subclasses where the default should differ.
+          # Rakefiles default to :destination (preserve user task customizations);
+          # most other file types default to :template (apply template updates).
+          #
+          # @return [Symbol] :template or :destination
+          def default_preference
+            :template
+          end
+
+          # Returns whether template-only nodes should be added by default.
+          #
+          # Override in subclasses where the default should differ.
+          # Rakefiles return true (new tasks from template should be added
+          # even under destination-wins preference).
+          #
+          # @return [Boolean, nil] nil means follow the preference-based default
+          def default_add_template_only_nodes
+            nil
+          end
         end
       end
     end
