@@ -1102,8 +1102,7 @@ module Kettle
                       c = Psych::Merge::SmartMerger.new(
                         c,
                         File.read(dest),
-                        preference: :template,
-                        add_template_only_nodes: true,
+                        **Presets::Yaml.workflow_config.to_h,
                       ).merge
                     rescue StandardError => e
                       Kettle::Dev.debug_error(e, __method__)

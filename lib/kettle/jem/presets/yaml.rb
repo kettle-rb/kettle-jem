@@ -52,19 +52,19 @@ module Kettle
           # - Steps that may need special handling
           # - Matrix configurations that may differ
           #
+          # The `uses:` key receives special treatment: the template always wins so
+          # that SHA-pinned action references propagate from the template to every
+          # downstream gem.  All other keys default to destination-wins so that
+          # per-project customisations (matrix, env, timeouts, etc.) are preserved.
+          #
           # @param freeze_token [String, nil] Override freeze token
           # @return [Ast::Merge::MergerConfig] Config preset
           def workflow_config(freeze_token: nil)
             Ast::Merge::MergerConfig.new(
-              preference: {
-                default: :destination,
-                env: :template,           # Environment vars from template
-                permissions: :template,   # Permissions from template
-                concurrency: :template,    # Concurrency settings from template
-              },
-              add_template_only_nodes: true, # Add new jobs from template
+              preference: { default: :destination, gha_action: :template },
+              add_template_only_nodes: true,
               freeze_token: freeze_token || default_freeze_token,
-              signature_generator: workflow_signature_generator,
+              node_typing: gha_uses_node_typing,
             )
           end
 
@@ -93,13 +93,24 @@ module Kettle
 
           private
 
-          # Signature generator for workflow files.
-          def workflow_signature_generator
-            ->(node) do
-              # Psych nodes have specific structure
-              # This is a simplified example - actual implementation depends on psych-merge
-              node
-            end
+          # Node typing for GitHub Actions workflow files.
+          #
+          # Tags any YAML mapping entry whose key is `uses` with the merge type
+          # `:gha_action`.  Combined with `preference: { gha_action: :template }` in
+          # `workflow_config`, this ensures that SHA-pinned action references from the
+          # template always overwrite older (floating-tag) values in destination files
+          # while every other key continues to use the default (destination-wins) rule.
+          #
+          # The callable receives `Psych::Merge::FileAnalysis::MappingEntry` nodes.
+          # The key name is exposed via `#key_name`.
+          #
+          # @return [Hash] node_typing configuration for Psych::Merge::SmartMerger
+          def gha_uses_node_typing
+            {
+              MappingEntry: ->(node) {
+                node.key_name == "uses" ? Ast::Merge::NodeTyping.with_merge_type(node, :gha_action) : node
+              },
+            }
           end
         end
       end
