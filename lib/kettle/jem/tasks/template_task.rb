@@ -28,33 +28,71 @@ module Kettle
         MARKDOWN_MATCH_STOPWORDS = %w[
           about after all and are before false for from hard into must not only or the this true use when with
         ].to_set.freeze
-        MARKDOWN_PARAGRAPH_MATCH_REFINER = lambda do |template_nodes, dest_nodes, context|
+        # Minimum Jaccard-style token overlap ratio to fuzzy-match two list nodes.
+        MARKDOWN_LIST_MATCH_THRESHOLD = 0.4
+        # Tags ordered/unordered list nodes with the :markdown_list merge type so the
+        # per-type preference hash can use :destination for matched lists (preserving
+        # project-specific customisations) while keeping :template for everything else.
+        MARKDOWN_LIST_NODE_TYPING = {
+          list: ->(node) {
+            Ast::Merge::NodeTyping.with_merge_type(node, :markdown_list)
+          },
+        }.freeze
+        # Fuzzy match refiner for unmatched Markdown block nodes.
+        #
+        # Handles two categories of unmatched nodes:
+        #   • paragraphs – uses position-aware content similarity (existing logic)
+        #   • lists      – uses significant-token overlap to prevent the
+        #                  "growing list" bug where adjacent ordered lists are merged
+        #                  by the CommonMark parser into a single larger list, causing
+        #                  the template list to be re-added on every run
+        MARKDOWN_PARAGRAPH_MATCH_REFINER = lambda do |template_nodes, dest_nodes, _context|
           template_paragraphs = template_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
           dest_paragraphs = dest_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
-          next [] if template_paragraphs.empty? || dest_paragraphs.empty?
+          template_lists = template_nodes.select { |node| TemplateTask.markdown_list_node?(node) }
+          dest_lists = dest_nodes.select { |node| TemplateTask.markdown_list_node?(node) }
 
           candidates = []
-          total_template = template_paragraphs.size
-          total_dest = dest_paragraphs.size
 
-          template_paragraphs.each_with_index do |template_node, template_idx|
-            dest_paragraphs.each_with_index do |dest_node, dest_idx|
-              score = TemplateTask.markdown_paragraph_match_score(
-                template_node,
-                dest_node,
-                template_idx: template_idx,
-                dest_idx: dest_idx,
-                total_template: total_template,
-                total_dest: total_dest,
-              )
-              next if score < MARKDOWN_PARAGRAPH_BASE_REFINER.threshold
+          unless template_paragraphs.empty? || dest_paragraphs.empty?
+            total_template = template_paragraphs.size
+            total_dest = dest_paragraphs.size
 
-              candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
-                template_node: template_node,
-                dest_node: dest_node,
-                score: score,
-                metadata: {},
-              )
+            template_paragraphs.each_with_index do |template_node, template_idx|
+              dest_paragraphs.each_with_index do |dest_node, dest_idx|
+                score = TemplateTask.markdown_paragraph_match_score(
+                  template_node,
+                  dest_node,
+                  template_idx: template_idx,
+                  dest_idx: dest_idx,
+                  total_template: total_template,
+                  total_dest: total_dest,
+                )
+                next if score < MARKDOWN_PARAGRAPH_BASE_REFINER.threshold
+
+                candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
+                  template_node: template_node,
+                  dest_node: dest_node,
+                  score: score,
+                  metadata: {},
+                )
+              end
+            end
+          end
+
+          unless template_lists.empty? || dest_lists.empty?
+            template_lists.each do |template_node|
+              dest_lists.each do |dest_node|
+                score = TemplateTask.markdown_list_match_score(template_node, dest_node)
+                next if score < MARKDOWN_LIST_MATCH_THRESHOLD
+
+                candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
+                  template_node: template_node,
+                  dest_node: dest_node,
+                  score: score,
+                  metadata: {},
+                )
+              end
             end
           end
 
@@ -191,6 +229,25 @@ module Kettle
           false
         end
 
+        def markdown_list_node?(node)
+          return false unless node.respond_to?(:type)
+
+          node.type.to_sym == :list
+        rescue StandardError
+          false
+        end
+
+        # Compute a similarity score for two list nodes based on Jaccard-style
+        # overlap of their significant tokens.  Returns 0.0..1.0.
+        def markdown_list_match_score(template_node, dest_node)
+          template_tokens = markdown_significant_tokens(template_node&.text)
+          dest_tokens = markdown_significant_tokens(dest_node&.text)
+          return 0.0 if template_tokens.empty? || dest_tokens.empty?
+
+          overlap = (template_tokens & dest_tokens).size
+          overlap.to_f / [template_tokens.size, dest_tokens.size].max
+        end
+
         def normalize_markdown_match_text(text)
           text.to_s.strip.gsub(/\s+/, " ")
         end
@@ -255,14 +312,19 @@ module Kettle
               # use SmartMerger with template preference. Fuzzy paragraph
               # matching helps near-matching unmatched paragraphs align so they
               # are not emitted separately as destination-only and template-only
-              # blocks.
+              # blocks.  Fuzzy list matching prevents the "growing list" bug:
+              # adjacent ordered lists are merged by the CommonMark parser into
+              # a single larger list, so without fuzzy matching the template list
+              # would be re-added on every run.  Matched lists use destination
+              # preference to preserve project-specific customisations.
               Markdown::Merge::SmartMerger.new(
                 content,
                 dest_content,
                 backend: :markly,
-                preference: :template,
+                preference: {default: :template, markdown_list: :destination},
                 add_template_only_nodes: true,
                 match_refiner: MARKDOWN_PARAGRAPH_MATCH_REFINER,
+                node_typing: MARKDOWN_LIST_NODE_TYPING,
               ).merge
             elsif file_type == :bash
               # Shell / bash files: bash-merge
