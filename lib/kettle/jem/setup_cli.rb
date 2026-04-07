@@ -803,6 +803,15 @@ module Kettle
 
       # 8. Commit template bootstrap changes if any
       def commit_bootstrap_changes!
+        # Re-lock Gemfile.lock so that any gemspec dependency changes
+        # (e.g. version_gem added by ensure_dev_deps!) are reflected
+        # in the lockfile BEFORE we commit.  Without this, the next
+        # invocation of kettle-jem would dirty Gemfile.lock on process
+        # startup and fail the prechecks! dirty-worktree guard.
+        if File.exist?("Gemfile.lock")
+          sh!(Shellwords.join(["bundle", "lock"]), suppress_output: quiet?, suppress_command_log: quiet?)
+        end
+
         dirty = begin
           if defined?(Kettle::Dev::GitAdapter)
             !Kettle::Dev::GitAdapter.new.clean?
