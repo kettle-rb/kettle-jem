@@ -263,7 +263,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
   end
 
   describe "#ensure_modular_gemfiles!" do
-    it "calls ModularGemfiles.sync! and rescues metadata errors (min_ruby=nil)" do
+    it "raises when metadata extraction fails so token configuration cannot proceed" do
       cli = described_class.allocate
       helpers = class_double(Kettle::Jem::TemplateHelpers)
       allow(helpers).to receive_messages(
@@ -272,21 +272,14 @@ RSpec.describe Kettle::Jem::SetupCLI do
         opencollective_disabled?: false,
       )
       allow(helpers).to receive(:gemspec_metadata).and_raise(StandardError)
-      allow(helpers).to receive(:configure_tokens!).and_raise(StandardError)
+      allow(helpers).to receive(:configure_tokens!).and_raise(Kettle::Jem::Error, "Gem name could not be derived")
       stub_const("Kettle::Jem::TemplateHelpers", helpers)
 
-      called = false
-      expect(Kettle::Jem::ModularGemfiles).to receive(:sync!) do |args|
-        called = true
-        expect(args[:helpers]).to eq(helpers)
-        expect(args[:project_root]).to eq("/tmp/project")
-        expect(args[:min_ruby]).to be_nil
-        expect(args[:gem_name]).to be_nil
-        expect(args).not_to have_key(:token_replacer)
-      end
-
-      cli.send(:ensure_modular_gemfiles!)
-      expect(called).to be true
+      # Token configuration failure is now fatal — ensure_modular_gemfiles! must not swallow it
+      expect(Kettle::Jem::ModularGemfiles).not_to receive(:sync!)
+      expect {
+        cli.send(:ensure_modular_gemfiles!)
+      }.to raise_error(Kettle::Jem::Error, /Gem name could not be derived/)
     end
   end
 
@@ -1195,6 +1188,21 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
+    after { Kettle::Jem::TemplateHelpers.clear_tokens! }
+
+    # Write a minimal gemspec so configure_tokens! can derive gem_name/org/namespace.
+    def write_minimal_gemspec!
+      File.write("test-gem.gemspec", <<~GEMSPEC)
+        Gem::Specification.new do |spec|
+          spec.name = "test-gem"
+          spec.version = "0.1.0"
+          spec.authors = ["Test"]
+          spec.summary = "test"
+          spec.homepage = "https://github.com/test-org/test-gem"
+        end
+      GEMSPEC
+    end
+
     it "copies bin/setup when missing", :check_output do
       cli = described_class.allocate
       # create a temp source file to simulate installed gem asset
@@ -1231,6 +1239,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "writes Rakefile from example and announces merge or creation", :check_output do
+      write_minimal_gemspec!
       cli = described_class.allocate
       # create a temp source Rakefile.example to simulate installed gem asset
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
@@ -1245,6 +1254,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "raises Kettle::Dev::Error when Rakefile merge fails in error mode (default)" do
+      write_minimal_gemspec!
       cli = described_class.allocate
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
       File.write(src, "# frozen_string_literal: true\nrequire \"bundler/gem_tasks\"\n")
@@ -1259,6 +1269,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "falls back to template content when Rakefile merge fails in rescue mode", :check_output do
+      write_minimal_gemspec!
       cli = described_class.allocate
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
       File.write(src, "# template content\n")

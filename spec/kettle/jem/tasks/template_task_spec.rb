@@ -2894,12 +2894,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "when gem_name is missing and no gemspec exists, uses example basename without .example" do
+      it "when gem_name is missing and no gemspec exists, returns :unavailable and writes no files" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
             FileUtils.mkdir_p(template_root)
-            # Provide template example only
+            # Provide template example only (no project gemspec)
             File.write(File.join(template_root, "gem.gemspec.example"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
                 spec.name = "kettle-dev"
@@ -2907,7 +2907,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
 
-            # No destination gemspecs present
+            # No destination gemspecs present — PrepareTask cannot derive gem_name
             allow(helpers).to receive_messages(
               project_root: project_root,
               template_root: template_root,
@@ -2915,15 +2915,11 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               ask: true,
             )
 
-            described_class.run
+            result = described_class.run
 
-            # Should write gem.gemspec (no .example)
-            dest = File.join(project_root, "gem.gemspec")
-            expect(File).to exist(dest)
-            txt = File.read(dest)
-            expect(txt).not_to include("gem.gemspec.example")
-            # Note: when gem_name is unknown, namespace/gem replacements depending on gem_name may not occur.
-            # This test verifies the destination file name logic only.
+            # Without a valid gem_name, prerequisites return :unavailable and no files are written
+            expect(result).to eq(:unavailable)
+            expect(File).not_to exist(File.join(project_root, "gem.gemspec"))
           end
         end
       end

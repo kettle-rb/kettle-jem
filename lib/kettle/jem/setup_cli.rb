@@ -713,9 +713,6 @@ module Kettle
           funding_org: funding_org,
           min_ruby: min_ruby,
         )
-      rescue StandardError => e
-        helpers.clear_tokens! if helpers.respond_to?(:clear_tokens!)
-        debug("Token configuration failed: #{e.class}: #{e.message}")
       end
 
       def ensure_template_prerequisites!

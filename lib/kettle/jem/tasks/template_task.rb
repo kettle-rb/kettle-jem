@@ -558,12 +558,13 @@ module Kettle
         end
 
         def seeded_kettle_config_content(helpers, config_src, token_options)
+          began_with_tokens = helpers.tokens_configured?
           helpers.configure_tokens!(**token_options, include_config_tokens: false)
           seeded_content = helpers.read_template(config_src)
           seeded_content = helpers.seed_kettle_config_content(seeded_content, helpers.derived_token_config_values)
           helpers.seed_gemspec_licenses_in_config_content(seeded_content)
         ensure
-          helpers.clear_tokens!
+          helpers.clear_tokens! unless began_with_tokens
         end
 
         def placeholder_or_blank_scalar?(raw_value)
@@ -935,24 +936,21 @@ module Kettle
             meta: meta,
           )
           return :bootstrap_only if prerequisites == :bootstrap_only
+          return prerequisites unless prerequisites == :ready
 
           # Configure token replacements once for the entire session.
           # All template reads (via read_template) will automatically resolve tokens.
-          begin
-            helpers.configure_tokens!(
-              org: forge_org,
-              gem_name: gem_name,
-              namespace: namespace,
-              namespace_shield: namespace_shield,
-              gem_shield: gem_shield,
-              funding_org: funding_org,
-              min_ruby: min_ruby,
-            )
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
-            $stderr.puts("[kettle-jem] WARNING: Token configuration failed: #{e.message}")
-            $stderr.puts("[kettle-jem] Templates will be written with unresolved tokens.")
-          end
+          # Token configuration failure is FATAL — continuing without tokens would
+          # silently write raw {KJ|...} patterns to every downstream gem.
+          helpers.configure_tokens!(
+            org: forge_org,
+            gem_name: gem_name,
+            namespace: namespace,
+            namespace_shield: namespace_shield,
+            gem_shield: gem_shield,
+            funding_org: funding_org,
+            min_ruby: min_ruby,
+          )
 
           # Require project_emoji to be set before processing any templates.
           # Without it the {KJ|PROJECT_EMOJI} token is unresolved, which corrupts
@@ -1003,20 +1001,16 @@ module Kettle
           # sync_existing_kettle_config! temporarily seeds and clears token state
           # while rewriting .kettle-jem.yml, so restore the full replacement map
           # before templating the rest of the project files.
-          begin
-            helpers.configure_tokens!(
-              org: forge_org,
-              gem_name: gem_name,
-              namespace: namespace,
-              namespace_shield: namespace_shield,
-              gem_shield: gem_shield,
-              funding_org: funding_org,
-              min_ruby: min_ruby,
-            )
-          rescue StandardError => e
-            Kettle::Dev.debug_error(e, __method__)
-            $stderr.puts("[kettle-jem] WARNING: Token configuration failed after syncing .kettle-jem.yml: #{e.message}")
-          end
+          # Token configuration failure is FATAL — see comment above.
+          helpers.configure_tokens!(
+            org: forge_org,
+            gem_name: gem_name,
+            namespace: namespace,
+            namespace_shield: namespace_shield,
+            gem_shield: gem_shield,
+            funding_org: funding_org,
+            min_ruby: min_ruby,
+          )
 
           # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
           devcontainer_src_dir = File.join(template_root, ".devcontainer")

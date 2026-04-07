@@ -805,19 +805,28 @@ module Kettle
       #
       # @param src_path [String] path to the template file
       # @return [String] content with all known tokens resolved
-      # @raise [Kettle::Jem::Error] if tokens have not been configured
+      # @raise [Kettle::Dev::Error] if content contains {KJ|...} patterns but tokens are not configured
       def read_template(src_path)
         content = File.read(src_path)
         resolve_tokens(content)
       end
 
       # Resolve all {KJ|...} tokens in content using the configured replacements.
-      # Unresolved tokens are kept as-is so they can be diagnosed.
+      # Raises immediately if tokens are not configured and content contains
+      # {KJ|...} patterns — unresolved tokens must NEVER leak to output.
       #
       # @param content [String]
       # @return [String] content with known tokens resolved
+      # @raise [Kettle::Dev::Error] if tokens are not configured and content contains token patterns
       def resolve_tokens(content)
-        return content unless @@token_replacements
+        unless @@token_replacements
+          if content.to_s.include?("{KJ|")
+            raise Kettle::Dev::Error,
+              "resolve_tokens called with unconfigured tokens on content containing {KJ|...} patterns. " \
+              "Call configure_tokens! first. Content preview: #{content[0, 120].inspect}"
+          end
+          return content
+        end
 
         doc = Token::Resolver::Document.new(content, config: TOKEN_CONFIG)
         resolver = Token::Resolver::Resolve.new(on_missing: :keep)
@@ -891,12 +900,26 @@ module Kettle
       # @param dest_path [String]
       # @param content [String]
       # @return [void]
+      # Pattern that matches unresolved {KJ|...} token placeholders.
+      # Used by write_file as the absolute last-resort guardrail.
+      UNRESOLVED_TOKEN_RE = /\{KJ\|[A-Z][A-Z0-9_:]*\}/.freeze
+
       def write_file(dest_path, content)
         actual = output_path(dest_path)
         FileUtils.mkdir_p(File.dirname(actual))
         # Ensure trailing newline — all text files should end with one
         normalized = content.to_s
         normalized += "\n" unless normalized.empty? || normalized.end_with?("\n")
+
+        # Absolute last-resort guardrail: never write unresolved {KJ|...} tokens to disk.
+        if normalized.match?(UNRESOLVED_TOKEN_RE)
+          tokens_found = normalized.scan(UNRESOLVED_TOKEN_RE).uniq.sort
+          raise Kettle::Dev::Error,
+            "FATAL: write_file refusing to write unresolved tokens to #{actual}. " \
+            "Unresolved tokens: #{tokens_found.join(", ")}. " \
+            "This means configure_tokens! was not called or token resolution was skipped."
+        end
+
         File.open(actual, "w") { |f| f.write(normalized) }
       end
 
@@ -1018,9 +1041,10 @@ module Kettle
       # @param task_label [String] name of the rake task for user-facing messages (e.g., "kettle:jem:install")
       # @return [void]
       def ensure_clean_git!(root:, task_label:)
-        # When force mode is active (e.g., from SetupCLI --force), skip the
-        # dirty-tree check. The CLI workflow intentionally dirties the tree
-        # before running the template task, and commits everything at the end.
+        # When running via SetupCLI with --force, bootstrap steps (ensure_modular_gemfiles!,
+        # ensure_rakefile!, etc.) intentionally dirty the tree before run_kettle_install!
+        # is called. The CLI already enforces an unconditional dirty check in prechecks!
+        # before any modifications are made, so bypassing here is safe.
         return if force_mode?
 
         inside_repo = begin

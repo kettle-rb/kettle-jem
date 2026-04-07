@@ -29,6 +29,16 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           ask: true,
         )
 
+        # Configure tokens so read_template resolves {KJ|...} tokens
+        helpers.configure_tokens!(
+          org: "test-org",
+          gem_name: "test-gem",
+          namespace: "TestGem",
+          namespace_shield: "Test__Gem",
+          gem_shield: "test__gem",
+          min_ruby: Gem::Version.new("3.2"),
+        )
+
         expect {
           described_class.sync!(helpers: helpers, project_root: proj, min_ruby: Gem::Version.new("3.2"))
         }.not_to raise_error
