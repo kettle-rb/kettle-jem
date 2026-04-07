@@ -650,6 +650,7 @@ module Kettle
                   base_content,
                   preference: :destination,
                   add_template_only_nodes: true,
+                  sort_keys: true,
                 ).merge
               else
                 base_content
@@ -670,6 +671,7 @@ module Kettle
                   preference: :destination,
                   add_template_only_nodes: true,
                   freeze_token: "kettle-jem",
+                  sort_keys: true,
                 ).merge
                 # Pass 2: inject newly-discovered grammar paths not yet in dest
                 fragment = discovered_grammar_toml_fragment(merged)
@@ -679,6 +681,7 @@ module Kettle
                     merged,
                     preference: :destination,
                     add_template_only_nodes: true,
+                    sort_keys: true,
                   ).merge
                 else
                   merged
