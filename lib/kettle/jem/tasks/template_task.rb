@@ -646,6 +646,7 @@ module Kettle
           return :missing_template unless File.exist?(config_src)
 
           bootstrapped_files = []
+          config_bootstrapped = false
 
           # .kettle-jem.yml — copy (seeded with token values) if absent.
           unless File.exist?(config_dest)
@@ -654,6 +655,7 @@ module Kettle
             helpers.record_template_result(config_dest, :create)
             helpers.clear_kettle_config!
             bootstrapped_files << config_dest
+            config_bootstrapped = true
           end
 
           # mise.toml — copy if absent; merge template into dest if present;
@@ -736,6 +738,15 @@ module Kettle
           end
 
           return :present if bootstrapped_files.empty?
+
+          # Only require a manual review + re-run when .kettle-jem.yml itself
+          # was freshly created.  Auto-generated infrastructure files like
+          # mise.toml and .config/mise/env.sh don't need user review and
+          # shouldn't block the rest of the template phases.
+          unless config_bootstrapped
+            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
+            return :present
+          end
 
           helpers.template_run_outcome = :bootstrap_only
           bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
@@ -1196,7 +1207,8 @@ module Kettle
               else
                 prepared = nil
                 if rel.start_with?(".github/workflows/")
-                  c = helpers.read_template(src)
+                  template_content = helpers.read_template(src)
+                  c = template_content.dup
                   if file_strategy != :accept_template && File.exist?(dest)
                     begin
                       c = Psych::Merge::SmartMerger.new(
@@ -1204,6 +1216,11 @@ module Kettle
                         File.read(dest),
                         **Presets::Yaml.workflow_config.to_h,
                       ).merge
+                      # psych-merge strips the YAML document separator (---).
+                      # Restore it when the template starts with one.
+                      if template_content.start_with?("---\n") && !c.start_with?("---\n")
+                        c = "---\n#{c}"
+                      end
                     rescue StandardError => e
                       Kettle::Dev.debug_error(e, __method__)
                     end
@@ -1222,6 +1239,12 @@ module Kettle
                     end
                     next
                   end
+                  # Normalize stray blank lines left by engine/appraisal pruning.
+                  # After removing matrix include blocks, trailing blank lines
+                  # can remain before "steps:". Collapse triple+ newlines to
+                  # double, and remove the blank line directly before "steps:".
+                  c = c.gsub(/\n{3,}/, "\n\n")
+                  c = c.gsub(/\n\n(\s+steps:)/, "\n\\1")
                   prepared = c
                 end
 
@@ -1586,6 +1609,15 @@ module Kettle
                       c = merge_by_file_type(c, dest, rel, helpers)
                     end
                     c = normalize_markdown_spacing(c) if markdown_heading_file?(rel)
+                    # Prune Appraisals entries for Ruby versions below min_ruby
+                    # so that stale ruby-2.x blocks don't survive the merge.
+                    if File.basename(rel) == "Appraisals" && min_ruby
+                      begin
+                        c, _removed = Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(c, min_ruby: min_ruby)
+                      rescue StandardError => e
+                        Kettle::Dev.debug_error(e, __method__)
+                      end
+                    end
                     c
                   end
                 end
