@@ -1239,12 +1239,9 @@ module Kettle
                     end
                     next
                   end
-                  # Normalize stray blank lines left by engine/appraisal pruning.
-                  # After removing matrix include blocks, trailing blank lines
-                  # can remain before "steps:". Collapse triple+ newlines to
-                  # double, and remove the blank line directly before "steps:".
+                  # Collapse triple+ consecutive newlines left by engine/appraisal
+                  # pruning into double newlines.
                   c = c.gsub(/\n{3,}/, "\n\n")
-                  c = c.gsub(/\n\n(\s+steps:)/, "\n\\1")
                   prepared = c
                 end
 
