@@ -128,7 +128,7 @@ RSpec.describe Kettle::Jem::Presets::Gemspec do
 
       context "when spec.metadata = (metadata)" do
         it "adds :spec_metadata merge type" do
-          node = parse_call('spec.metadata = {}')
+          node = parse_call("spec.metadata = {}")
           result = call_node_typing.call(node)
           expect(result.merge_type).to eq(:spec_metadata)
         end
@@ -168,7 +168,7 @@ RSpec.describe Kettle::Jem::Presets::Gemspec do
 
       context "when spec.extra_rdoc_files = (files)" do
         it "adds :spec_files merge type" do
-          node = parse_call('spec.extra_rdoc_files = []')
+          node = parse_call("spec.extra_rdoc_files = []")
           result = call_node_typing.call(node)
           expect(result.merge_type).to eq(:spec_files)
         end

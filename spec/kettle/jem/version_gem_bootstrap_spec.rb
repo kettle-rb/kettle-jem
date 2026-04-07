@@ -283,8 +283,8 @@ RSpec.describe Kettle::Jem::VersionGemBootstrap do
 
   describe ".bootstrap_entrypoint_content" do
     it "falls back to manually_bootstrap_entrypoint_content when normalize_entrypoint_content raises" do
-      allow(mod).to receive(:normalize_entrypoint_content).and_raise(StandardError, "normalize error")
-      allow(mod).to receive(:manually_bootstrap_entrypoint_content).and_return("fallback content")
+      allow(mod).to receive(:normalize_entrypoint_content).and_raise(StandardError, "normalize error") # rubocop:disable RSpec/SubjectStub
+      allow(mod).to receive(:manually_bootstrap_entrypoint_content).and_return("fallback content") # rubocop:disable RSpec/SubjectStub
       result = mod.bootstrap_entrypoint_content(
         "original",
         entrypoint_require: "my_gem",

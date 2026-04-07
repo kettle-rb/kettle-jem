@@ -142,7 +142,7 @@ RSpec.describe Kettle::Jem::Presets::Rakefile do
       end
     end
 
-    context "when node is not a task call" do
+    context "when node is a non-task method call" do
       it "returns the node unchanged" do
         node = parse_call('puts "hello"')
         result = callable.call(node)

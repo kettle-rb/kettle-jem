@@ -12,11 +12,8 @@
 # warnings.
 RSpec.describe "Rakefile :nocov: wrapper preservation via TemplateHelpers.apply_strategy" do
   let(:helpers) { Kettle::Jem::TemplateHelpers }
-
-  FIXTURE_DIR = "spec/fixtures/rakefile_nocov"
-
-  let(:template_content) { File.read("#{FIXTURE_DIR}/template.rb") }
-  let(:dest_content)     { File.read("#{FIXTURE_DIR}/destination.rb") }
+  let(:template_content) { File.read("spec/fixtures/rakefile_nocov/template.rb") }
+  let(:dest_content) { File.read("spec/fixtures/rakefile_nocov/destination.rb") }
 
   # Reset TemplateHelpers global state between every example.
   after do

@@ -13,11 +13,9 @@
 #   - misplaced / missing `# :nocov:` markers
 #   - stray bare `end` lines
 #   - false "unclosed :nocov:" warnings on stderr
-RSpec.describe Kettle::Jem::SourceMerger, ".apply — Rakefile :nocov: preservation" do
-  FIXTURE_DIR = "spec/fixtures/rakefile_nocov"
-
-  let(:template_content) { File.read("#{FIXTURE_DIR}/template.rb") }
-  let(:dest_content)     { File.read("#{FIXTURE_DIR}/destination.rb") }
+RSpec.describe Kettle::Jem::SourceMerger do
+  let(:template_content) { File.read("spec/fixtures/rakefile_nocov/template.rb") }
+  let(:dest_content) { File.read("spec/fixtures/rakefile_nocov/destination.rb") }
 
   def rakefile_merge(src, dest)
     described_class.apply(strategy: :merge, src: src, dest: dest, path: "Rakefile")
