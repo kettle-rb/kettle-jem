@@ -55,10 +55,10 @@ RSpec.describe "CONTRIBUTING.md list duplication bug" do
       src,
       dest,
       backend: :markly,
-      preference: {default: :template, markdown_list: :destination},
+      preference: :template,
       add_template_only_nodes: true,
       match_refiner: Kettle::Jem::Tasks::TemplateTask::MARKDOWN_PARAGRAPH_MATCH_REFINER,
-      node_typing: Kettle::Jem::Tasks::TemplateTask::MARKDOWN_LIST_NODE_TYPING,
+      inner_merge_lists: true,
     ).merge
   end
 

@@ -28,24 +28,16 @@ module Kettle
         MARKDOWN_MATCH_STOPWORDS = %w[
           about after all and are before false for from hard into must not only or the this true use when with
         ].to_set.freeze
-        # Minimum Jaccard-style token overlap ratio to fuzzy-match two list nodes.
+        # Minimum Jaccard-style token overlap ratio to fuzzy-match two list nodes via
+        # the match refiner. Once matched, inner_merge_lists handles item-level merging.
         MARKDOWN_LIST_MATCH_THRESHOLD = 0.4
-        # Tags ordered/unordered list nodes with the :markdown_list merge type so the
-        # per-type preference hash can use :destination for matched lists (preserving
-        # project-specific customisations) while keeping :template for everything else.
-        MARKDOWN_LIST_NODE_TYPING = {
-          list: ->(node) {
-            Ast::Merge::NodeTyping.with_merge_type(node, :markdown_list)
-          },
-        }.freeze
         # Fuzzy match refiner for unmatched Markdown block nodes.
         #
         # Handles two categories of unmatched nodes:
-        #   • paragraphs – uses position-aware content similarity (existing logic)
-        #   • lists      – uses significant-token overlap to prevent the
-        #                  "growing list" bug where adjacent ordered lists are merged
-        #                  by the CommonMark parser into a single larger list, causing
-        #                  the template list to be re-added on every run
+        #   • paragraphs – uses position-aware content similarity
+        #   • lists      – uses significant-token overlap so that lists with similar
+        #                  content (but different item counts or minor wording changes)
+        #                  are paired and handed off to ListMerger for item-level merge
         MARKDOWN_PARAGRAPH_MATCH_REFINER = lambda do |template_nodes, dest_nodes, _context|
           template_paragraphs = template_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
           dest_paragraphs = dest_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
@@ -311,20 +303,20 @@ module Kettle
               # Markdown files (not README/CHANGELOG, which have dedicated steps):
               # use SmartMerger with template preference. Fuzzy paragraph
               # matching helps near-matching unmatched paragraphs align so they
-              # are not emitted separately as destination-only and template-only
-              # blocks.  Fuzzy list matching prevents the "growing list" bug:
-              # adjacent ordered lists are merged by the CommonMark parser into
-              # a single larger list, so without fuzzy matching the template list
-              # would be re-added on every run.  Matched lists use destination
-              # preference to preserve project-specific customisations.
+              # are not emitted separately. Fuzzy list matching pairs lists with
+              # similar content across minor wording differences; inner_merge_lists
+              # then merges those paired lists at the individual item level, using
+              # destination preference per item (preserving project customisations)
+              # and preventing the "growing list" bug caused by the CommonMark parser
+              # silently merging adjacent ordered lists into one larger list.
               Markdown::Merge::SmartMerger.new(
                 content,
                 dest_content,
                 backend: :markly,
-                preference: {default: :template, markdown_list: :destination},
+                preference: :template,
                 add_template_only_nodes: true,
                 match_refiner: MARKDOWN_PARAGRAPH_MATCH_REFINER,
-                node_typing: MARKDOWN_LIST_NODE_TYPING,
+                inner_merge_lists: true,
               ).merge
             elsif file_type == :bash
               # Shell / bash files: bash-merge
