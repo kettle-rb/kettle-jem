@@ -262,9 +262,18 @@ module Kettle
 
           readme = File.read(readme_path)
           gemspec = File.read(gemspec_path)
+
+          # Use project_emoji from config as the authoritative source.
+          # This prevents the template's family emoji from ever overwriting a
+          # project's chosen emoji — the config value always wins.
+          # Fall back to README H1 extraction only if config has no value set.
+          config_emoji = helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s
+          config_emoji = nil if config_emoji.to_s.strip.empty?
+
           synced_readme, synced_gemspec, chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.synchronize(
             readme_content: readme,
             gemspec_content: gemspec,
+            grapheme: config_emoji,
           )
           return unless chosen_grapheme
 
@@ -943,6 +952,19 @@ module Kettle
             Kettle::Dev.debug_error(e, __method__)
             $stderr.puts("[kettle-jem] WARNING: Token configuration failed: #{e.message}")
             $stderr.puts("[kettle-jem] Templates will be written with unresolved tokens.")
+          end
+
+          # Require project_emoji to be set before processing any templates.
+          # Without it the {KJ|PROJECT_EMOJI} token is unresolved, which corrupts
+          # README H1 and gemspec summary/description on every downstream gem.
+          project_emoji = helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s
+          unless project_emoji && !project_emoji.to_s.strip.empty?
+            task_abort(
+              "Missing required config: project_emoji\n" \
+              "Please add a `project_emoji:` key to .kettle-jem.yml with your gem's " \
+              "identifying emoji (e.g. 🪙). " \
+              "ENV override: KJ_PROJECT_EMOJI",
+            )
           end
 
           removed_appraisals = []

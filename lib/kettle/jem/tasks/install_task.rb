@@ -92,20 +92,29 @@ module Kettle
             gemspecs = Dir.glob(File.join(project_root, "*.gemspec"))
             if File.file?(readme_path) && !gemspecs.empty?
               gemspec_path = gemspecs.first
-              readme = File.read(readme_path)
-              first_h1_idx = readme.lines.index { |ln| ln =~ /^#\s+/ }
-              chosen_grapheme = nil
-              if first_h1_idx
+
+              # Use project_emoji from .kettle-jem.yml as the authoritative source.
+              # This prevents the template family emoji from overwriting per-project choices.
+              config_emoji = (helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s).to_s.strip
+              chosen_grapheme = config_emoji.empty? ? nil : config_emoji
+
+              # Fall back to README H1 extraction when config has no value yet
+              # (e.g. during initial install before .kettle-jem.yml is populated).
+              if chosen_grapheme.nil?
+                readme = File.read(readme_path)
                 chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.extract_readme_h1_grapheme(readme)
               end
 
-              # If no grapheme found in README H1, either use a default in force mode, or ask the user.
+              # If still no grapheme: in force mode abort with a clear message;
+              # in interactive mode ask the user.
               if chosen_grapheme.nil? || chosen_grapheme.empty?
                 if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
-                  # Non-interactive install: default to pizza slice to match template style.
-                  chosen_grapheme = "🍕"
+                  raise Kettle::Dev::Error,
+                    "project_emoji is not set in .kettle-jem.yml and no emoji was found in README H1. " \
+                    "Please add a `project_emoji:` key to .kettle-jem.yml (e.g. 🪙). " \
+                    "ENV override: KJ_PROJECT_EMOJI"
                 else
-                  puts "No grapheme found after README H1. Enter a grapheme (emoji/symbol) to use for README, summary, and description:"
+                  puts "No grapheme found in README H1 or project_emoji config. Enter a grapheme (emoji/symbol) to use for README, summary, and description:"
                   print("Grapheme: ")
                   ans = Kettle::Dev::InputAdapter.gets&.strip.to_s
                   chosen_grapheme = ans[/\A\X/u].to_s

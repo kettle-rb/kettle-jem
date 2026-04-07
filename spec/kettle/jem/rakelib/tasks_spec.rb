@@ -17,6 +17,10 @@ RSpec.describe "rake kettle:jem:template" do # rubocop:disable RSpec/DescribeCla
   context "when invoked in a temporary project" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
 
+    before do
+      stub_env("KJ_PROJECT_EMOJI" => "🔧")
+    end
+
     def write_gemspec(dir, name: "demo", min_ruby: ">= 3.1")
       File.write(File.join(dir, "#{name}.gemspec"), <<~G)
         Gem::Specification.new do |spec|

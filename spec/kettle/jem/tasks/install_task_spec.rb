@@ -885,7 +885,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
             spec.homepage = "https://github.com/acme/demo"
           end
         G
-        # README with repeated spaces in H1 tail and body
+        # README with repeated spaces in H1 tail and body (no leading emoji)
         original = <<~MD
           # Title   with   multiple   spaces
 
@@ -897,11 +897,10 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           project_root: project_root,
           modified_by_template?: false,
           template_results: {},
+          kettle_config: {"project_emoji" => "🍕"},
         )
 
-        # Provide a grapheme non-interactively to avoid prompt unless force is set.
-        # With force=true, InputAdapter.gets is not called, so do not stub it in this case.
-
+        # Use project_emoji from config (via mock); force=true skips interactive prompt.
         stub_env(
           "allowed" => "true",
           "force" => "true",

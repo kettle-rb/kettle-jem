@@ -29,8 +29,8 @@ Gem::Specification.new do |spec|
   spec.authors = ["{KJ|AUTHOR:NAME}"]
   spec.email = ["{KJ|AUTHOR:EMAIL}"]
 
-  spec.summary = "🍲 "
-  spec.description = "🍲 "
+  spec.summary = "{KJ|PROJECT_EMOJI} "
+  spec.description = "{KJ|PROJECT_EMOJI} "
   spec.homepage = "https://github.com/{KJ|GH_ORG}/{KJ|GEM_NAME}"
   spec.licenses = ["MIT"]
   spec.required_ruby_version = ">= 2.3.0"

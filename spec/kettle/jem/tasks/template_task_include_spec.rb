@@ -7,6 +7,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     before do
       stub_env("allowed" => "true")
       stub_env("FUNDING_ORG" => "false")
+      stub_env("KJ_PROJECT_EMOJI" => "🔧")
     end
 
     it "excludes .github/workflows/discord-notifier.yml by default and includes when include matches" do

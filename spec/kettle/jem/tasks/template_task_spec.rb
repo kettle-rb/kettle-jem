@@ -20,6 +20,14 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     helpers.send(:class_variable_set, :@@kettle_config, nil)
   end
 
+  # Provide a default project_emoji so tests that don't write project_emoji into
+  # their mock .kettle-jem.yml still pass the new required-emoji check.
+  # Individual examples that specifically test missing/invalid project_emoji can
+  # override this stub or clear KJ_PROJECT_EMOJI.
+  before do
+    stub_env("KJ_PROJECT_EMOJI" => "🔧")
+  end
+
   describe "run/install behaviors" do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
 
@@ -1188,6 +1196,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 preference: template
                 add_template_only_nodes: true
                 freeze_token: kettle-jem
+              project_emoji: "🚀"
               tokens:
                 forge:
                   gh_user: ""
@@ -2354,6 +2363,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.homepage = "https://github.com/acme/demo"
               end
             GEMSPEC
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              project_emoji: "🎉"
+            YAML
 
             allow(helpers).to receive_messages(
               project_root: project_root,
@@ -3609,6 +3622,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
 
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              project_emoji: "🎉"
+            YAML
+
             allow(helpers).to receive_messages(
               project_root: project_root,
               template_root: File.join(gem_root, "template"),
@@ -3680,6 +3697,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.homepage = "https://github.com/acme/demo"
               end
             GEMSPEC
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              project_emoji: "🎉"
+            YAML
 
             allow(helpers).to receive_messages(
               project_root: project_root,

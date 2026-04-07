@@ -569,6 +569,7 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
         GEMSPEC
 
         stub_env("KJ_FUNDING_KOFI" => "SelftestSafe")
+        stub_env("KJ_PROJECT_EMOJI" => "🔧")
 
         allow(helpers).to receive_messages(
           template_root: template_root,
@@ -618,6 +619,7 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
           template_root: template_root,
           ask: true,
         )
+        stub_env("KJ_PROJECT_EMOJI" => "🔧")
         expect(Kettle::Dev::InputAdapter).not_to receive(:gets)
 
         expect { described_class.run_template(helpers, dest_dir, output_dir) }.not_to raise_error

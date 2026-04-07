@@ -397,6 +397,12 @@ module Kettle
         # an empty string otherwise.
         replacements["KJ|COPYRIGHT_PREFIX"] = polyform_licenses?(licenses) ? "Required Notice: " : ""
 
+        # {KJ|PROJECT_EMOJI} — the gem's identifying emoji, required.
+        # Resolves from ENV["KJ_PROJECT_EMOJI"] then project_emoji: in .kettle-jem.yml.
+        # When absent, the token is left unresolved so the post-write scanner aborts.
+        project_emoji_value = preferred_token_value(nil, kettle_config["project_emoji"], env_key: "KJ_PROJECT_EMOJI")
+        replacements["KJ|PROJECT_EMOJI"] = project_emoji_value if present_string?(project_emoji_value)
+
         @@token_replacements = replacements
       end
 
