@@ -59,6 +59,8 @@ module Kettle
       def merge(template_content:, destination_content:, preset: nil)
         return template_content if destination_content.nil? || destination_content.strip.empty?
 
+        validate_fenced_code_blocks!(destination_content, label: "destination README")
+
         recipe = preset || Kettle::Jem.recipe(:readme)
         Ast::Merge::Recipe::Runner.new(recipe).run_content(
           template_content: template_content,
@@ -295,6 +297,48 @@ module Kettle
         end
       rescue StandardError
         statement
+      end
+
+      # Validate that all fenced code blocks in content are properly closed.
+      #
+      # Unclosed fences cause the Markdown AST parser to swallow all subsequent
+      # headings into the code block, which makes section-boundary computation
+      # wrong and leads to content duplication during merge.
+      #
+      # @param content [String] Markdown content to validate
+      # @param label [String] Human-readable label for error messages
+      # @raise [Kettle::Dev::Error] if an unclosed fenced code block is found
+      def validate_fenced_code_blocks!(content, label: "Markdown content")
+        in_fence = false
+        fence_marker = nil
+        fence_line = nil
+
+        content.each_line.with_index(1) do |line, lineno|
+          stripped = line.lstrip
+
+          if in_fence
+            if stripped.match?(/\A#{Regexp.escape(fence_marker)}\s*\z/)
+              in_fence = false
+              fence_marker = nil
+              fence_line = nil
+            end
+            next
+          end
+
+          match = stripped.match(/\A(`{3,}|~{3,})/)
+          if match
+            in_fence = true
+            fence_marker = match[1]
+            fence_line = lineno
+          end
+        end
+
+        return unless in_fence
+
+        raise Kettle::Dev::Error,
+          "[kettle-jem] Unclosed fenced code block in #{label} " \
+          "(opened at line #{fence_line} with #{fence_marker.inspect}). " \
+          "Close it with a matching #{fence_marker} before running kettle-jem."
       end
 
       def normalize_heading_base(text)

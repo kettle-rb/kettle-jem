@@ -250,4 +250,50 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       expect(result).not_to include("New Title\n=========")
     end
   end
+
+  describe ".validate_fenced_code_blocks!" do
+    it "does not raise for properly closed fences" do
+      content = "# Title\n\n```ruby\nputs 'hi'\n```\n\n````markdown\n## Example\n````\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.not_to raise_error
+    end
+
+    it "does not raise for content with no fences" do
+      content = "# Title\n\nJust text.\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.not_to raise_error
+    end
+
+    it "raises for an unclosed backtick fence" do
+      content = "# Title\n\n```ruby\nputs 'hi'\n\n## Next Section\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.to raise_error(
+        Kettle::Dev::Error, /Unclosed fenced code block.*line 3.*```/
+      )
+    end
+
+    it "raises for an unclosed quad-backtick fence" do
+      content = "# Title\n\n````markdown\n## Example\n\n## Another\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.to raise_error(
+        Kettle::Dev::Error, /Unclosed fenced code block.*line 3.*````/
+      )
+    end
+
+    it "raises for an unclosed tilde fence" do
+      content = "# Title\n\n~~~\ncode\n\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.to raise_error(
+        Kettle::Dev::Error, /Unclosed fenced code block.*line 3.*~~~/
+      )
+    end
+
+    it "does not raise when a longer fence closes a shorter one" do
+      # A closing fence must match the exact opening marker
+      content = "# Title\n\n````markdown\n## Example\n````\n"
+      expect { described_class.validate_fenced_code_blocks!(content) }.not_to raise_error
+    end
+
+    it "includes the label in the error message" do
+      content = "```\nunclosed\n"
+      expect { described_class.validate_fenced_code_blocks!(content, label: "my file") }.to raise_error(
+        Kettle::Dev::Error, /my file/
+      )
+    end
+  end
 end
