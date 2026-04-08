@@ -41,7 +41,7 @@ belong, and project-specific additions are never clobbered.
 - **Token substitution** — `{KJ|TOKEN}` patterns resolved from config, ENV, or auto-derived from gemspec
 - **Freeze blocks** — protect any section from template overwrites with `# kettle-jem:freeze` / `# kettle-jem:unfreeze`
 - **Per-file strategies** — `merge`, `accept_template`, `keep_destination`, or `raw_copy`
-- **Multi-phase pipeline** — 8 ordered phases from config sync through license management
+- **Multi-phase pipeline** — 11 ordered phases (service_actor-based) from config sync through duplicate checking
 - **SHA-pinned GitHub Actions** — template `uses:` always wins, propagating immutable SHAs
 - **Convergence in one pass** — a single `rake kettle:jem:install` applies all changes; a second run produces zero diff
 - **Selftest divergence check** — CI verifies that project drift stays within a configurable threshold
@@ -321,7 +321,7 @@ Kettle::Jem selects the merge engine by file type:
 ```bash
 gem install kettle-jem
 cd my-gem
-kettle-jem setup
+kettle-jem
 ```
 
 The setup CLI runs a two-phase bootstrap:
@@ -337,7 +337,7 @@ After initial setup, re-run the template process to pull in updates:
 bundle exec rake kettle:jem:install
 ```
 
-This applies all 8 phases:
+This applies all 11 phases:
 
 | Phase | Description                          | Files Affected                        |
 |-------|--------------------------------------|---------------------------------------|
@@ -348,10 +348,14 @@ This applies all 8 phases:
 | 4     | Modular gemfiles                     | `gemfiles/modular/`                   |
 | 5     | Spec helper                          | `spec/spec_helper.rb`                 |
 | 6     | Environment templates                | `.env.local.example`                  |
-| 7     | All remaining files                  | gemspec, README, LICENSE, Rakefile, … |
+| 7     | Remaining files                      | gemspec, README, LICENSE, Rakefile, … |
+| 8     | Git hooks                            | `.git-hooks/`                         |
+| 9     | License files                        | `LICENSE*`                            |
+| 10    | Duplicate check                      | _(validation only)_                   |
 
-Each phase commits independently (when phased commits are enabled), making
-`git log` show exactly what changed in each step.
+Each phase is implemented as a composable [service_actor](https://github.com/sunny/actor)
+actor, enabling per-phase statistics (📄 templates, 🆕 created, 📋 pre-existing,
+🟰 identical, ✏️ changed) and future slice-based workflows.
 
 ### Checking Divergence
 
@@ -362,6 +366,13 @@ bundle exec rake kettle:jem:selftest
 ```
 
 This re-applies the template in a temporary checkout and measures the diff.
+Output is condensed to two summary lines after the template run:
+
+```
+[selftest] 📄  Report - tmp/template_test/report/summary.md
+[selftest] ✅  Score: 100.0% · Divergence: 0.0% · Threshold: fail when divergence reaches 5.0%
+```
+
 If divergence exceeds `min_divergence_threshold` (default 5%), the check fails.
 
 ### Workflow-Specific Options
@@ -409,9 +420,11 @@ Rake task arguments) and CLI flags passed to `kettle-jem setup`.
 
 | Variable | CLI Flag | Default | Description |
 |----------|----------|---------|-------------|
-| `allowed` | `--allowed=VAL` | `false` | Set to `true`/`1`/`yes` to permit destructive install operations. |
-| `force` | `--force` | `false` | Skip interactive prompts; automatically accept changes. |
-| `KETTLE_JEM_QUIET` | `--quiet` | `false` | Suppress non-essential CLI output. Phase summary lines (emoji-prefixed) are always shown; per-file messages, skipping notices, and the post-install walkthrough are suppressed. Verbose detail is still written to the per-run report file. |
+| `allowed` | `--allowed=VAL` | `true` | Set to `false`/`0`/`no` to require manual review of env file changes before continuing. |
+| `force` | `--force` | `true` | Skip interactive prompts; automatically accept changes. This is the default. Legacy flag kept for backward compatibility. |
+| — | `--interactive` | _(off)_ | Enable interactive prompts (opt-in). Overrides the default non-interactive / force behavior. |
+| `KETTLE_JEM_QUIET` | `--quiet` | `true` | Suppress non-essential CLI output. Phase summary lines (emoji-prefixed) are always shown; per-file messages, skipping notices, and the post-install walkthrough are suppressed. Verbose detail is still written to the per-run report file. This is the default. Legacy flag kept for backward compatibility. |
+| `KETTLE_JEM_VERBOSE` | `--verbose` | `false` | Show detailed output including per-file messages and setup progress. Overrides the default quiet behavior. |
 | `only` | `--only=VAL` | _(all)_ | Comma-separated glob patterns — only template files matching at least one pattern are processed. |
 | `include` | `--include=VAL` | _(all)_ | Comma-separated glob patterns — additional files to include beyond the default set. |
 | `hook_templates` | `--hook_templates=VAL` | _(prompt)_ | Git hook install location: `l`/`local`, `g`/`global`, or `n`/`none`. Also via `KETTLE_DEV_HOOK_TEMPLATES`. |
@@ -450,19 +463,20 @@ a key is missing. They are also used as runtime overrides.
 #### Rake Task Examples
 
 ```bash
-# Standard template update (interactive)
-bundle exec rake kettle:jem:install allowed=true
+# Standard template update (quiet, non-interactive — the default)
+bundle exec rake kettle:jem:install
 
-# Non-interactive, all files
-bundle exec rake kettle:jem:install allowed=true force=true
+# Verbose output
+KETTLE_JEM_VERBOSE=true bundle exec rake kettle:jem:install
+
+# Interactive mode (prompts before each change)
+bundle exec rake kettle:jem:install force=false
 
 # Only workflow files, skip unparseable
-PARSE_ERROR_MODE=skip bundle exec rake kettle:jem:install \
-  allowed=true force=true only=".github/**"
+PARSE_ERROR_MODE=skip bundle exec rake kettle:jem:install only=".github/**"
 
 # Rescue on merge failure (don't halt)
-bundle exec rake kettle:jem:install \
-  allowed=true force=true FAILURE_MODE=rescue
+bundle exec rake kettle:jem:install FAILURE_MODE=rescue
 ```
 
 ## 🦷 FLOSS Funding
