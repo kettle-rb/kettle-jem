@@ -40,12 +40,31 @@ module Kettle
     #     destination_content: existing,
     #   )
     module MarkdownMerger
-      # Sections whose body content is preserved from the destination.
+      # Default sections whose body content is preserved from the destination.
       # Matched by normalized heading text (lowercase, alphanumeric + spaces).
-      PRESERVE_SECTIONS = %w[synopsis configuration basic\ usage].freeze
+      # Can be overridden via .kettle-jem.yml readme.preserve_sections.
+      DEFAULT_PRESERVE_SECTIONS = %w[synopsis configuration basic\ usage].freeze
+
+      # Legacy constant alias for specs/external callers.
+      PRESERVE_SECTIONS = DEFAULT_PRESERVE_SECTIONS
+
+      # Default glob patterns for headings that are always preserved.
+      # Can be extended via .kettle-jem.yml readme.preserve_patterns.
+      DEFAULT_PRESERVE_PATTERNS = ["note:*"].freeze
 
       # Prefix for "Note:" headings (any level) that are also preserved.
       NOTE_PREFIX = "note:"
+
+      # Built-in aliases: when a gem uses a non-standard heading name,
+      # these map the normalized destination heading to the canonical
+      # template heading so section preservation still matches.
+      # Keys and values are normalized (lowercase, stripped).
+      SECTION_ALIASES = {
+        "summary" => "synopsis",
+        "usage" => "basic usage",
+        "configuration options" => "configuration",
+        "setup" => "basic usage",
+      }.freeze
 
       module_function
 
@@ -56,7 +75,7 @@ module Kettle
       # @param destination_content [String, nil] Existing destination content
       # @param preset [Ast::Merge::Recipe::Config, nil] Optional executable recipe
       # @return [String] Merged content
-      def merge(template_content:, destination_content:, preset: nil)
+      def merge(template_content:, destination_content:, preset: nil, preserve_config: nil)
         return template_content if destination_content.nil? || destination_content.strip.empty?
 
         validate_fenced_code_blocks!(destination_content, label: "destination README")
@@ -66,6 +85,7 @@ module Kettle
           template_content: template_content,
           destination_content: destination_content,
           relative_path: "README.md",
+          context: {preserve_config: preserve_config || load_preserve_config},
         ).content
       end
 
@@ -79,18 +99,15 @@ module Kettle
       #
       # @param template [String] The resolved template content (base document)
       # @param destination [String] The original destination content
+      # @param preserve_config [Hash, nil] Optional config with :sections and :patterns
       # @return [String] Content with preserved sections restored from destination
-      def preserve_sections(template, destination)
+      def preserve_sections(template, destination, preserve_config: nil)
         dest_sections = parse_sections(destination)
         dest_lookup = build_section_lookup(dest_sections)
 
         src_sections = parse_sections(template)
-        preserve_targets = PRESERVE_SECTIONS.dup
-
-        # Also preserve any "Note:*" sections found in the template
-        src_sections[:sections].each do |sec|
-          preserve_targets << sec[:base] if note_heading?(sec[:base])
-        end
+        config = preserve_config || load_preserve_config
+        preserve_targets = resolve_preserve_targets(src_sections, dest_lookup, config)
 
         return template if src_sections[:sections].empty?
 
@@ -103,6 +120,8 @@ module Kettle
           next unless preserve_targets.include?(sec[:base])
 
           dest_entry = dest_lookup[sec[:base]]
+          # If no direct match, try alias mapping from destination
+          dest_entry ||= find_aliased_dest_entry(sec[:base], dest_lookup, config)
           next unless dest_entry
 
           # Build the replacement content: heading (from template) + body (from destination)
@@ -366,6 +385,97 @@ module Kettle
           parsed[:analysis].source_range(start_line, end_line)
         else
           (parsed[:lines][(section[:start] + 1)..body_end_index] || []).join("\n")
+        end
+      end
+
+      # Build the effective list of section base names to preserve,
+      # combining configured sections, aliases, and pattern matches.
+      #
+      # @param src_sections [Hash] Parsed template sections
+      # @param dest_lookup [Hash] Destination section lookup
+      # @param config [Hash] Preserve config with :sections and :patterns
+      # @return [Array<String>] Normalized base names to preserve
+      def resolve_preserve_targets(src_sections, dest_lookup, config)
+        explicit = Array(config[:sections]).map { |s| s.to_s.strip.downcase }
+        explicit = DEFAULT_PRESERVE_SECTIONS.dup if explicit.empty?
+
+        patterns = Array(config[:patterns]).map { |p| p.to_s.strip.downcase }
+        patterns = DEFAULT_PRESERVE_PATTERNS.dup if patterns.empty?
+
+        aliases = config[:aliases] || SECTION_ALIASES
+
+        targets = explicit.dup
+
+        # Add pattern-matched sections from the template
+        src_sections[:sections].each do |sec|
+          base = sec[:base]
+          targets << base if matches_preserve_pattern?(base, patterns)
+        end
+
+        # Also add any aliased names that map into our targets
+        aliases.each do |from, to|
+          targets << to if dest_lookup.key?(from) && targets.include?(to)
+        end
+
+        targets.uniq
+      end
+
+      # Find a destination entry via alias mapping when direct lookup fails.
+      # For example, if template has "Basic Usage" but destination has "Usage",
+      # the alias "usage" => "basic usage" lets us find the destination body.
+      #
+      # @param template_base [String] Normalized template section base name
+      # @param dest_lookup [Hash] Destination section lookup
+      # @param config [Hash] Preserve config
+      # @return [Hash, nil] The destination entry or nil
+      def find_aliased_dest_entry(template_base, dest_lookup, config)
+        aliases = config[:aliases] || SECTION_ALIASES
+
+        # Reverse lookup: find destination bases that alias TO the template_base
+        aliases.each do |from, to|
+          return dest_lookup[from] if to == template_base && dest_lookup.key?(from)
+        end
+
+        nil
+      end
+
+      # Check if a heading base name matches any of the given glob-style patterns.
+      #
+      # @param base [String] Normalized heading base name
+      # @param patterns [Array<String>] Glob patterns (e.g. "note:*", "setup*")
+      # @return [Boolean]
+      def matches_preserve_pattern?(base, patterns)
+        patterns.any? { |pat| File.fnmatch?(pat, base, File::FNM_PATHNAME) }
+      end
+
+      # Load preserve config from .kettle-jem.yml readme section.
+      # Falls back to empty hash (which triggers defaults in resolve_preserve_targets).
+      #
+      # @return [Hash] Config hash with symbolized keys :sections, :patterns, :aliases
+      def load_preserve_config
+        return {} unless defined?(Kettle::Jem::TemplateHelpers)
+
+        begin
+          helpers_mod = Kettle::Jem::TemplateHelpers
+          # TemplateHelpers.readme_config is available when kettle_config has been loaded
+          return {} unless helpers_mod.respond_to?(:readme_config)
+
+          rc = helpers_mod.readme_config
+          config = {}
+          config[:sections] = Array(rc["preserve_sections"]) if rc.key?("preserve_sections")
+          config[:patterns] = Array(rc["preserve_patterns"]) if rc.key?("preserve_patterns")
+
+          # Custom aliases from config (merge with built-in)
+          if rc.key?("section_aliases") && rc["section_aliases"].is_a?(Hash)
+            config[:aliases] = SECTION_ALIASES.merge(
+              rc["section_aliases"].transform_keys { |k| k.to_s.strip.downcase }
+                                   .transform_values { |v| v.to_s.strip.downcase },
+            )
+          end
+
+          config
+        rescue StandardError
+          {}
         end
       end
     end

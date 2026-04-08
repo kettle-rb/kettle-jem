@@ -296,4 +296,128 @@ RSpec.describe Kettle::Jem::MarkdownMerger do
       )
     end
   end
+
+  describe ".resolve_preserve_targets" do
+    let(:src_sections) { {sections: [{base: "synopsis"}, {base: "configuration"}, {base: "basic usage"}, {base: "installation"}]} }
+    let(:dest_lookup) { {"synopsis" => {body_branch: "s"}, "configuration" => {body_branch: "c"}, "basic usage" => {body_branch: "u"}} }
+
+    it "returns defaults when config is empty" do
+      targets = described_class.resolve_preserve_targets(src_sections, dest_lookup, {})
+      expect(targets).to include("synopsis", "configuration", "basic usage")
+      expect(targets).not_to include("installation")
+    end
+
+    it "uses explicit sections from config" do
+      targets = described_class.resolve_preserve_targets(src_sections, dest_lookup, {sections: %w[synopsis installation]})
+      expect(targets).to include("synopsis", "installation")
+      expect(targets).not_to include("configuration")
+    end
+
+    it "matches pattern-based sections" do
+      src = {sections: [{base: "synopsis"}, {base: "note: important"}, {base: "setup with rails"}]}
+      targets = described_class.resolve_preserve_targets(src, dest_lookup, {patterns: ["note:*", "setup*"]})
+      expect(targets).to include("note: important", "setup with rails")
+    end
+
+    it "resolves aliases from destination to canonical names" do
+      dest = {"usage" => {body_branch: "u"}, "synopsis" => {body_branch: "s"}}
+      targets = described_class.resolve_preserve_targets(src_sections, dest, {})
+      expect(targets).to include("basic usage")
+    end
+  end
+
+  describe ".find_aliased_dest_entry" do
+    it "finds destination entry via reverse alias lookup" do
+      dest_lookup = {"usage" => {body_branch: "dest usage content"}}
+      entry = described_class.find_aliased_dest_entry("basic usage", dest_lookup, {})
+      expect(entry).to eq({body_branch: "dest usage content"})
+    end
+
+    it "finds summary as alias for synopsis" do
+      dest_lookup = {"summary" => {body_branch: "dest summary"}}
+      entry = described_class.find_aliased_dest_entry("synopsis", dest_lookup, {})
+      expect(entry).to eq({body_branch: "dest summary"})
+    end
+
+    it "returns nil when no alias matches" do
+      dest_lookup = {"other" => {body_branch: "x"}}
+      entry = described_class.find_aliased_dest_entry("synopsis", dest_lookup, {})
+      expect(entry).to be_nil
+    end
+
+    it "uses custom aliases from config" do
+      dest_lookup = {"howto" => {body_branch: "howto content"}}
+      config = {aliases: {"howto" => "basic usage"}}
+      entry = described_class.find_aliased_dest_entry("basic usage", dest_lookup, config)
+      expect(entry).to eq({body_branch: "howto content"})
+    end
+  end
+
+  describe ".matches_preserve_pattern?" do
+    it "matches note:* pattern" do
+      expect(described_class.matches_preserve_pattern?("note: important", ["note:*"])).to be true
+    end
+
+    it "matches setup* pattern" do
+      expect(described_class.matches_preserve_pattern?("setup with rails", ["setup*"])).to be true
+    end
+
+    it "does not match unrelated headings" do
+      expect(described_class.matches_preserve_pattern?("installation", ["note:*", "setup*"])).to be false
+    end
+  end
+
+  describe "alias-based section preservation via .merge" do
+    it "preserves destination Usage body when template has Basic Usage" do
+      template = "# Title\n\n## Basic Usage\n\nTemplate usage.\n\n## Installation\n\nInstall.\n"
+      destination = "# Title\n\n## Usage\n\nMy custom usage instructions.\n\n## Installation\n\nOld.\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preserve_config: {},
+      )
+      expect(result).to include("My custom usage instructions.")
+      expect(result).not_to include("Template usage.")
+    end
+
+    it "preserves destination Summary body when template has Synopsis" do
+      template = "# Title\n\n## Synopsis\n\nTemplate synopsis.\n\n## Installation\n\nInstall.\n"
+      destination = "# Title\n\n## Summary\n\nMy custom summary.\n\n## Installation\n\nOld.\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preserve_config: {},
+      )
+      expect(result).to include("My custom summary.")
+      expect(result).not_to include("Template synopsis.")
+    end
+
+    it "preserves destination Configuration Options when template has Configuration" do
+      template = "# Title\n\n## Configuration\n\nDefault config.\n\n## Other\n\nStuff.\n"
+      destination = "# Title\n\n## Configuration Options\n\nCustom config.\n\n## Other\n\nOld.\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preserve_config: {},
+      )
+      expect(result).to include("Custom config.")
+      expect(result).not_to include("Default config.")
+    end
+
+    it "uses custom preserve_sections from config" do
+      template = "# Title\n\n## Custom Section\n\nTemplate custom.\n\n## Other\n\nStuff.\n"
+      destination = "# Title\n\n## Custom Section\n\nDest custom content.\n\n## Other\n\nOld.\n"
+
+      result = described_class.merge(
+        template_content: template,
+        destination_content: destination,
+        preserve_config: {sections: ["custom section"]},
+      )
+      expect(result).to include("Dest custom content.")
+      expect(result).not_to include("Template custom.")
+    end
+  end
 end
