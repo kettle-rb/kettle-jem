@@ -1,6 +1,5 @@
 # Shared development environment for kettle-jem.
 # Local overrides belong in .env.local (loaded via dotenvy through mise).
-
 [env]
 DEBUG = "false"
 FLOSS_CFG_FUND_DEBUG = "false"
@@ -25,8 +24,8 @@ OPENCOLLECTIVE_HANDLE = "kettle-rb"
 RUBOCOP_LTS_LOCAL = "false"
 TREE_SITTER_BASH_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-bash.so"
 TREE_SITTER_CSS_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-css.so"
-TREE_SITTER_JAVA_JARS_DIR = "/home/pboling/src/kettle-rb/ast-merge/vendor/tree_haver/vendor/jars"
 TREE_SITTER_JAVASCRIPT_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-javascript.so"
+TREE_SITTER_JAVA_JARS_DIR = "/home/pboling/src/kettle-rb/ast-merge/vendor/tree_haver/vendor/jars"
 TREE_SITTER_JSONC_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-jsonc.so"
 TREE_SITTER_JSON_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-json.so"
 TREE_SITTER_PYTHON_PATH = "/home/pboling/.local/lib/tree-sitter/libtree-sitter-python.so"
