@@ -1312,6 +1312,10 @@ module Kettle
           end
         end
 
+        # Post-merge transformations (harmonization, self-dependency removal) can
+        # re-introduce consecutive blank lines. Collapse to single as a final pass.
+        content = normalize_final_blank_lines(content) unless raw
+
         write_file(dest_path, content)
         begin
           # Ensure executable bit for git hook scripts when writing under .git-hooks
@@ -1413,6 +1417,30 @@ module Kettle
           Kettle::Dev.debug_error(e, __method__)
           content
         end
+      end
+
+      # Collapse runs of consecutive blank lines to at most one.
+      # Applied as a final pass before writing to ensure post-merge
+      # transformations (harmonization, self-dependency removal, etc.)
+      # don't leave double blank lines in the output.
+      # @param content [String]
+      # @param max_consecutive [Integer] maximum consecutive blank lines to allow
+      # @return [String]
+      def normalize_final_blank_lines(content, max_consecutive: 1)
+        return content if content.nil? || content.empty?
+
+        lines = content.split("\n", -1)
+        consecutive = 0
+        result = lines.each_with_object([]) do |line, acc|
+          if line.strip.empty?
+            consecutive += 1
+            acc << line if consecutive <= max_consecutive
+          else
+            consecutive = 0
+            acc << line
+          end
+        end
+        result.join("\n")
       end
 
       # Copy a directory tree, prompting before creating or overwriting.
