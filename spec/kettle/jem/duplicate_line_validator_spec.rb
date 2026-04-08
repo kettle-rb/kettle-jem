@@ -37,6 +37,27 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
+    it "exempts standard changelog release subheadings from duplicate detection" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "CHANGELOG.md")
+        content = <<~MD
+          ## [1.0.0] - 2026-01-01
+          ### Added
+          - Feature A
+          ### Fixed
+          - Bug B
+          ## [0.9.0] - 2025-12-01
+          ### Added
+          - Feature C
+          ### Fixed
+          - Bug D
+        MD
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
     it "respects custom min_chars" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "short.rb")

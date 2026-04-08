@@ -30,6 +30,19 @@ module Kettle
       # Default minimum non-whitespace characters for a line to be considered.
       DEFAULT_MIN_CHARS = 6
 
+      # Standard keepachangelog.com release subheadings that repeat in every
+      # release section.  These are always exempt from duplicate detection
+      # because changelogs grow indefinitely and would otherwise produce an
+      # ever-increasing number of false positives.
+      CHANGELOG_SUBHEADINGS = Set.new([
+        "### Added",
+        "### Changed",
+        "### Deprecated",
+        "### Removed",
+        "### Fixed",
+        "### Security",
+      ]).freeze
+
       # Scan a list of files for intra-file duplicate lines.
       #
       # Only lines with more than +min_chars+ non-whitespace characters are
@@ -59,6 +72,7 @@ module Kettle
             stripped = raw_line.strip
             # Only consider lines with enough non-whitespace substance
             next if stripped.gsub(/\s/, "").length <= min_chars
+            next if CHANGELOG_SUBHEADINGS.include?(stripped)
 
             line_map[stripped] << lineno
           end
