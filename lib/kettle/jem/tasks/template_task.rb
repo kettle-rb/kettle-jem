@@ -1046,6 +1046,18 @@ module Kettle
             end
           end
 
+          # Pre-run duplicate baseline: snapshot current state of template-managed
+          # files so we can compare after the run and detect regressions.
+          pre_dup_baseline_set = DuplicateLineValidator.baseline(
+            min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
+          )
+          pre_dup_files = DuplicateLineValidator.template_managed_files(project_root: project_root)
+          pre_dup_results = DuplicateLineValidator.subtract_baseline(
+            DuplicateLineValidator.scan(files: pre_dup_files, min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS),
+            baseline_set: pre_dup_baseline_set,
+          )
+          pre_dup_count = DuplicateLineValidator.warning_count(pre_dup_results)
+
           # 0) .kettle-jem.yml — keep existing config in sync with the template after
           # preflight has confirmed we have the required token values.
           out.phase("⚙️", "Config sync", detail: ".kettle-jem.yml")
@@ -1956,25 +1968,32 @@ module Kettle
             Kettle::Dev.debug_error(e, __method__)
           end
 
-          # Duplicate line validation — scan all written files for intra-file
-          # duplicate lines that may indicate merge corruption.
+          # Duplicate line validation — compare pre-run and post-run duplicate
+          # counts to detect regressions introduced by this template run.
           # Baseline subtraction: duplicates that already exist in the template
           # source files are expected and excluded from the report.
           begin
-            baseline_set = DuplicateLineValidator.baseline(
-              min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
-            )
             dup_results = DuplicateLineValidator.scan_template_results(
               template_results: helpers.template_results,
               min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
             )
-            dup_results = DuplicateLineValidator.subtract_baseline(dup_results, baseline_set: baseline_set)
+            dup_results = DuplicateLineValidator.subtract_baseline(dup_results, baseline_set: pre_dup_baseline_set)
             dup_count = DuplicateLineValidator.warning_count(dup_results)
+            dup_increased = dup_count > pre_dup_count
 
             if dup_results.empty?
               out.phase("🔎", "Duplicate check", detail: "clean")
             else
-              out.phase("🔎", "Duplicate check", detail: "#{dup_count} warning(s)")
+              emoji = dup_increased ? "❌" : "🔎"
+              delta = dup_count - pre_dup_count
+              delta_label = if delta > 0
+                "+#{delta} new"
+              elsif delta < 0
+                "#{delta} fixed"
+              else
+                "unchanged"
+              end
+              out.phase(emoji, "Duplicate check", detail: "#{dup_count} warning(s) (#{pre_dup_count} pre-existing, #{delta_label})")
               out.report_detail(DuplicateLineValidator.report_summary(dup_results, project_root: project_root))
 
               # Write JSON report alongside the markdown report
