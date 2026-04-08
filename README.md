@@ -411,6 +411,7 @@ Rake task arguments) and CLI flags passed to `kettle-jem setup`.
 |----------|----------|---------|-------------|
 | `allowed` | `--allowed=VAL` | `false` | Set to `true`/`1`/`yes` to permit destructive install operations. |
 | `force` | `--force` | `false` | Skip interactive prompts; automatically accept changes. |
+| `KETTLE_JEM_QUIET` | `--quiet` | `false` | Suppress non-essential CLI output. Phase summary lines (emoji-prefixed) are always shown; per-file messages, skipping notices, and the post-install walkthrough are suppressed. Verbose detail is still written to the per-run report file. |
 | `only` | `--only=VAL` | _(all)_ | Comma-separated glob patterns — only template files matching at least one pattern are processed. |
 | `include` | `--include=VAL` | _(all)_ | Comma-separated glob patterns — additional files to include beyond the default set. |
 | `hook_templates` | `--hook_templates=VAL` | _(prompt)_ | Git hook install location: `l`/`local`, `g`/`global`, or `n`/`none`. Also via `KETTLE_DEV_HOOK_TEMPLATES`. |

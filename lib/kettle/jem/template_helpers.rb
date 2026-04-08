@@ -899,7 +899,7 @@ module Kettle
       def ask(prompt, default)
         # Force mode: any prompt resolves to Yes when ENV["force"] is set truthy
         if force_mode?
-          puts "#{prompt} #{default ? "[Y/n]" : "[y/N]"}: Y (forced)"
+          puts "#{prompt} #{default ? "[Y/n]" : "[y/N]"}: Y (forced)" unless Kettle::Jem::Tasks::TemplateTask.quiet?
           return true
         end
         print("#{prompt} #{default ? "[Y/n]" : "[y/N]"}: ")
@@ -1154,7 +1154,7 @@ module Kettle
               end
               unless matched
                 record_template_result(dest_path, :skip)
-                puts "Skipping #{dest_path} (excluded by only filter)"
+                puts "Skipping #{dest_path} (excluded by only filter)" unless Kettle::Jem::Tasks::TemplateTask.quiet?
                 return
               end
             end
@@ -1172,13 +1172,13 @@ module Kettle
             verb = merge_op ? "Merge into" : "Replace"
             action = ask("#{verb} #{dest_path}?", true) ? :replace : :skip
           else
-            puts "Skipping #{dest_path} (overwrite not allowed)."
+            puts "Skipping #{dest_path} (overwrite not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
             action = :skip
           end
         elsif allow_create
           action = ask("Create #{dest_path}?", true) ? :create : :skip
         else
-          puts "Skipping #{dest_path} (create not allowed)."
+          puts "Skipping #{dest_path} (create not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
           action = :skip
         end
         if action == :skip
@@ -1235,7 +1235,7 @@ module Kettle
         end
         record_template_result(dest_path, dest_exists ? :replace : :create)
         wrote_verb = merge_op ? "Merged" : "Wrote"
-        puts "#{wrote_verb} #{dest_path}"
+        puts "#{wrote_verb} #{dest_path}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
       end
 
       # Merge gem dependency lines from a source Gemfile-like content into an existing
@@ -1432,10 +1432,10 @@ module Kettle
                 end
               end
             end
-            puts "Updated #{dest_dir}"
+            puts "Updated #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
             record_template_result(dest_dir, :dir_replace)
           else
-            puts "Skipped #{dest_dir}"
+            puts "Skipped #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
             record_template_result(dest_dir, :skip)
           end
         elsif ask("Create directory #{dest_dir}?", true)
@@ -1482,7 +1482,7 @@ module Kettle
               end
             end
           end
-          puts "Created #{dest_dir}"
+          puts "Created #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
           record_template_result(dest_dir, :dir_create)
         end
       end
@@ -1839,9 +1839,9 @@ module Kettle
         msgs = @@template_warnings.uniq
         return if msgs.empty?
 
-        puts
-        puts "Important warnings:"
-        msgs.each { |m| puts "  - #{m}" }
+        puts unless Kettle::Jem::Tasks::TemplateTask.quiet?
+        puts "Important warnings:" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+        msgs.each { |m| puts "  - #{m}" unless Kettle::Jem::Tasks::TemplateTask.quiet? }
       end
 
       def template_run_outcome

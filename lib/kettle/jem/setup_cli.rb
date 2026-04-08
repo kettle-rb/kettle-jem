@@ -196,6 +196,7 @@ module Kettle
           end
           opts.on("--quiet", "Run quieter setup commands and pass --quiet through to downstream steps") do
             @quiet = true
+            ENV["KETTLE_JEM_QUIET"] = "true"
             @passthrough << "--quiet"
           end
           opts.on("--hook_templates=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "hook_templates=#{v}" }

@@ -112,6 +112,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       )
 
       expect { cli.run! }.not_to output.to_stdout
+    ensure
+      ENV.delete("KETTLE_JEM_QUIET")
     end
 
     it "returns early when bootstrap writes the template config file" do
@@ -505,6 +507,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
       end.to output(/Usage: kettle-jem.*--quiet/m).to_stdout
+    ensure
+      ENV.delete("KETTLE_JEM_QUIET")
     end
 
     it "rescues parse errors, prints usage, and exits 2", :check_output do
@@ -527,6 +531,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       expect(cli.instance_variable_get(:@passthrough)).to include("--quiet")
       expect(cli.send(:quiet?)).to be(true)
+    ensure
+      ENV.delete("KETTLE_JEM_QUIET")
     end
   end
 
