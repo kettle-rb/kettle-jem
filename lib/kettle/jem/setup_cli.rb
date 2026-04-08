@@ -65,15 +65,8 @@ module Kettle
         end
         return if prereq_result == :bootstrap_only
 
-        ensure_bootstrap_modular_gemfiles!
-        debug_git_status("ensure_bootstrap_modular_gemfiles!")
-        ensure_bootstrap_eval_gemfile!
-        debug_git_status("ensure_bootstrap_eval_gemfile!")
-        # Update gemspec dev dependencies before running bin/setup so that
-        # bundle install can resolve kettle-dev ~> 2.0 even if the gemspec
-        # still carries an older constraint from a prior release cycle.
-        ensure_dev_deps!
-        debug_git_status("ensure_dev_deps! (bootstrap)")
+        run_preflight_templating!
+        debug_git_status("run_preflight_templating!")
         ensure_bin_setup!
         debug_git_status("ensure_bin_setup!")
         run_bin_setup!
@@ -88,20 +81,8 @@ module Kettle
         debug_git_status("ensure_project_files! (bundled)")
         load_bundled_runtime!
         debug_git_status("load_bundled_runtime!")
-        ensure_dev_deps!
-        debug_git_status("ensure_dev_deps!")
-        ensure_gemfile_from_example!
-        debug_git_status("ensure_gemfile_from_example!")
-        ensure_modular_gemfiles!
-        debug_git_status("ensure_modular_gemfiles!")
         ensure_rakefile!
         debug_git_status("ensure_rakefile!")
-        ensure_bin_setup!
-        debug_git_status("ensure_bin_setup! (bundled)")
-        run_bin_setup!
-        debug_git_status("run_bin_setup!")
-        run_bundle_binstubs!
-        debug_git_status("run_bundle_binstubs!")
         run_kettle_install!
         debug_git_status("run_kettle_install!")
         commit_bootstrap_changes!
@@ -123,6 +104,179 @@ module Kettle
         return if defined?(Kettle::Dev::ExitAdapter) && defined?(Kettle::Jem::TemplateHelpers)
 
         require "kettle/jem"
+      end
+
+      # ── Pre-flight templating ─────────────────────────────────────────
+      # Performs proper AST-based merging of files that only need pure-Ruby
+      # merge gems (prism-merge, psych-merge, etc.) BEFORE `bundle install`.
+      # This eliminates the bootstrap hacks that previously used regex/string
+      # manipulation to make the target's gemspec and Gemfile valid enough
+      # for bundler to resolve.
+      #
+      # All merge gems are available because they are runtime dependencies
+      # of kettle-jem itself (installed alongside the gem).
+
+      def run_preflight_templating!
+        helpers = Kettle::Jem::TemplateHelpers
+        meta = begin
+          helpers.gemspec_metadata(Dir.pwd)
+        rescue StandardError => e
+          debug("Could not read gemspec metadata for pre-flight: #{e.class}: #{e.message}")
+          {}
+        end
+
+        gem_name = meta[:gem_name] || gemspec_string_value("name")
+
+        configure_preflight_tokens!(helpers, meta)
+
+        preflight_merge_gemspec!(helpers, meta, gem_name)
+        preflight_merge_gemfile!(helpers, gem_name)
+        preflight_merge_modular_gemfiles!(helpers, gem_name)
+      end
+
+      def configure_preflight_tokens!(helpers, meta)
+        forge_org = meta[:forge_org] || meta[:gh_org]
+        return unless forge_org && meta[:gem_name]
+
+        funding_org = helpers.opencollective_disabled? ? nil : (meta[:funding_org] || forge_org)
+        configure_template_tokens!(
+          helpers: helpers,
+          forge_org: forge_org,
+          gem_name: meta[:gem_name],
+          namespace: meta[:namespace],
+          namespace_shield: meta[:namespace_shield],
+          gem_shield: meta[:gem_shield],
+          funding_org: funding_org,
+          min_ruby: meta[:min_ruby],
+        )
+      rescue StandardError => e
+        debug("Token configuration failed (pre-flight will use raw templates): #{e.class}: #{e.message}")
+      end
+
+      def preflight_merge_gemspec!(helpers, meta, gem_name)
+        source = installed_path("gem.gemspec")
+        return unless source && File.exist?(source)
+        return unless @gemspec_path && File.exist?(@gemspec_path)
+
+        template_content = helpers.read_template(source)
+
+        # Replace gemspec identity fields from destination metadata so the
+        # merged result keeps the target gem's name, authors, description, etc.
+        if meta && !meta.empty?
+          repl = {}
+          repl[:name] = gem_name.to_s if gem_name && !gem_name.to_s.empty?
+          repl[:authors] = Array(meta[:authors]).map(&:to_s) if meta[:authors]
+          repl[:email] = Array(meta[:email]).map(&:to_s) if meta[:email]
+          repl[:summary] = meta[:summary].to_s if meta[:summary] && !meta[:summary].to_s.strip.empty?
+          repl[:description] = meta[:description].to_s if meta[:description] && !meta[:description].to_s.strip.empty?
+          repl[:licenses] = helpers.resolved_licenses
+          repl[:required_ruby_version] = meta[:required_ruby_version].to_s if meta[:required_ruby_version]
+          repl[:require_paths] = Array(meta[:require_paths]).map(&:to_s) if meta[:require_paths]
+          repl[:bindir] = meta[:bindir].to_s if meta[:bindir]
+          repl[:executables] = Array(meta[:executables]).map(&:to_s) if meta[:executables]
+
+          template_content = Kettle::Jem::PrismGemspec.replace_gemspec_fields(template_content, repl)
+        end
+
+        # Remove self-dependency (the gem can't depend on itself)
+        if gem_name && !gem_name.to_s.empty?
+          template_content = Kettle::Jem::PrismGemspec.remove_spec_dependency(template_content, gem_name)
+        end
+
+        gemspec_context = if meta[:min_ruby] && meta[:entrypoint_require] && meta[:namespace]
+          {
+            min_ruby: meta[:min_ruby],
+            entrypoint_require: meta[:entrypoint_require],
+            namespace: meta[:namespace],
+          }
+        end
+
+        merged = helpers.apply_strategy(template_content, @gemspec_path, context: gemspec_context)
+        merged = template_content unless merged.is_a?(String) && !merged.empty?
+
+        existing = File.read(@gemspec_path)
+        if merged != existing
+          File.write(@gemspec_path, merged)
+          say("Pre-flight: merged #{@gemspec_path}.", verbose_only: true)
+        else
+          say("Pre-flight: gemspec already up to date.", verbose_only: true)
+        end
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        say("Pre-flight: gemspec merge failed, falling back to dev-dep sync.", verbose_only: true)
+        ensure_dev_deps!
+      end
+
+      def preflight_merge_gemfile!(helpers, gem_name)
+        source = installed_path("Gemfile")
+        return unless source && File.exist?(source)
+        return unless File.exist?("Gemfile")
+
+        template_content = helpers.read_template(source)
+        target_content = File.read("Gemfile")
+
+        merged = Kettle::Jem::PrismGemfile.merge_gem_calls(template_content, target_content)
+        merged = remove_scaffold_default_gems(merged)
+        merged = remove_conflicting_gems(merged)
+
+        if merged != target_content
+          File.write("Gemfile", ensure_trailing_newline(merged))
+          say("Pre-flight: merged Gemfile.", verbose_only: true)
+        else
+          say("Pre-flight: Gemfile already up to date.", verbose_only: true)
+        end
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        say("Pre-flight: Gemfile merge failed, falling back to bootstrap eval.", verbose_only: true)
+        ensure_bootstrap_eval_gemfile!
+      end
+
+      def preflight_merge_modular_gemfiles!(helpers, gem_name)
+        BOOTSTRAP_MODULAR_GEMFILES.each do |filename|
+          rel = File.join("gemfiles", "modular", filename)
+          source = installed_path(rel)
+          next unless source && File.exist?(source)
+
+          dest = File.join("gemfiles", "modular", filename)
+          FileUtils.mkdir_p(File.dirname(dest))
+
+          template_content = helpers.read_template(source)
+          template_content = strip_self_from_templating_local(template_content) if filename == "templating_local.gemfile"
+          template_content = strip_self_from_templating_gemfile(template_content) if filename == "templating.gemfile"
+
+          if File.exist?(dest) && !force?
+            existing = File.read(dest)
+            # Merge using prism-merge for proper AST-based merge
+            begin
+              merged = Kettle::Jem::SourceMerger.apply(
+                strategy: :merge,
+                src: template_content,
+                dest: existing,
+                path: rel,
+                force: force?,
+              )
+              merged = template_content unless merged.is_a?(String) && !merged.empty?
+            rescue StandardError
+              merged = template_content
+            end
+
+            # Always sanitize self-references from merge result
+            merged = strip_self_from_templating_local(merged) if filename == "templating_local.gemfile"
+            merged = strip_self_from_templating_gemfile(merged) if filename == "templating.gemfile"
+
+            if merged != existing
+              File.write(dest, ensure_trailing_newline(merged))
+              say("Pre-flight: merged #{dest}.", verbose_only: true)
+            end
+          else
+            File.write(dest, ensure_trailing_newline(template_content))
+            say("Pre-flight: wrote #{dest}.", verbose_only: true)
+          end
+        end
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        say("Pre-flight: modular gemfile merge failed, falling back to bootstrap copy.", verbose_only: true)
+        ensure_bootstrap_modular_gemfiles!
       end
 
       def debug(msg)

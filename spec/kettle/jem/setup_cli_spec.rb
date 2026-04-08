@@ -102,12 +102,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
         bundled_execution_context?: true,
         ensure_project_files!: nil,
         load_bundled_runtime!: nil,
-        ensure_dev_deps!: nil,
-        ensure_gemfile_from_example!: nil,
-        ensure_modular_gemfiles!: nil,
         ensure_rakefile!: nil,
-        run_bin_setup!: nil,
-        run_bundle_binstubs!: nil,
         run_kettle_install!: nil,
         commit_bootstrap_changes!: nil,
       )
@@ -160,9 +155,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli).not_to receive(:run_kettle_install!)
       expect(cli).not_to receive(:commit_bootstrap_changes!)
       expect(cli).not_to receive(:ensure_gemfile_from_example!)
-      expect(cli).to receive(:ensure_bootstrap_modular_gemfiles!).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_bootstrap_eval_gemfile!).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_dev_deps!).ordered.and_return(nil)
+      expect(cli).not_to receive(:ensure_dev_deps!)
+      expect(cli).to receive(:run_preflight_templating!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
       expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
@@ -185,15 +179,12 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       expect(cli).not_to receive(:prechecks!)
       expect(cli).not_to receive(:ensure_template_config_bootstrap!)
+      expect(cli).not_to receive(:ensure_dev_deps!)
+      expect(cli).not_to receive(:ensure_gemfile_from_example!)
+      expect(cli).not_to receive(:ensure_modular_gemfiles!)
       expect(cli).to receive(:ensure_project_files!).ordered.and_return(nil)
       expect(cli).to receive(:load_bundled_runtime!).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_dev_deps!).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_gemfile_from_example!).with(no_args).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_modular_gemfiles!).ordered.and_return(nil)
       expect(cli).to receive(:ensure_rakefile!).ordered.and_return(nil)
-      expect(cli).to receive(:ensure_bin_setup!).ordered.and_return(nil)
-      expect(cli).to receive(:run_bin_setup!).ordered.and_return(nil)
-      expect(cli).to receive(:run_bundle_binstubs!).ordered.and_return(nil)
       expect(cli).to receive(:run_kettle_install!).ordered.and_return(nil)
       expect(cli).to receive(:commit_bootstrap_changes!).ordered.and_return(nil)
 
@@ -836,7 +827,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
-    it "initializes @gemspec_path before ensure_dev_deps! runs in bundled mode" do
+    it "initializes @gemspec_path via ensure_project_files! in bundled mode" do
       File.write("Gemfile", "source 'https://gem.coop'\n")
       File.write("demo.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
@@ -852,23 +843,18 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(cli).to receive_messages(
         bundled_execution_context?: true,
         load_bundled_runtime!: nil,
-        ensure_gemfile_from_example!: nil,
-        ensure_modular_gemfiles!: nil,
         ensure_rakefile!: nil,
-        run_bin_setup!: nil,
-        run_bundle_binstubs!: nil,
         run_kettle_install!: nil,
         commit_bootstrap_changes!: nil,
       )
 
-      expect(cli).to receive(:ensure_dev_deps!) do
-        expect(cli.instance_variable_get(:@gemspec_path)).to eq("demo.gemspec")
-      end
+      expect(cli).to receive(:ensure_project_files!).and_call_original
 
       expect { cli.run! }.not_to raise_error
+      expect(cli.instance_variable_get(:@gemspec_path)).to eq("demo.gemspec")
     end
 
-    it "does not raise a nil-path TypeError when bundled ensure_dev_deps! reads the target gemspec" do
+    it "bundled phase runs without ensure_dev_deps! (handled by pre-flight)" do
       File.write("Gemfile", "source 'https://gem.coop'\n")
       File.write("demo.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
@@ -878,31 +864,17 @@ RSpec.describe Kettle::Jem::SetupCLI do
       RUBY
 
       cli = described_class.new([])
-      example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
-
-      allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
-        (rel == "gem.gemspec.example") ? example_path : orig.call(rel)
-      end
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
       allow(cli).to receive(:say)
       allow(cli).to receive_messages(
         load_bundled_runtime!: nil,
-        ensure_gemfile_from_example!: nil,
-        ensure_modular_gemfiles!: nil,
         ensure_rakefile!: nil,
-        run_bin_setup!: nil,
-        run_bundle_binstubs!: nil,
         run_kettle_install!: nil,
         commit_bootstrap_changes!: nil,
       )
 
-      expect(Kettle::Jem::PrismGemspec).to receive(:ensure_development_dependencies) do |target, wanted|
-        expect(target).to eq(File.read("demo.gemspec"))
-        expect(wanted).not_to be_empty
-        target
-      end
-
+      expect(cli).not_to receive(:ensure_dev_deps!)
       expect { cli.send(:run_bundled_phase!) }.not_to raise_error
     end
   end
@@ -1501,7 +1473,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@original_argv, [])
       allow(cli).to receive(:parse!)
       allow(cli).to receive(:bundled_execution_context?).and_return(false)
-      %i[prechecks! template_config_present? ensure_bootstrap_modular_gemfiles! ensure_bootstrap_eval_gemfile! ensure_dev_deps! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
+      %i[prechecks! template_config_present? run_preflight_templating! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! handoff_to_bundled_phase!].each do |m|
         allow(cli).to receive(:template_config_present?).and_return(true) if m == :template_config_present?
         expect(cli).to receive(m).ordered
       end
@@ -1516,7 +1488,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       call_order = []
       allow(cli).to receive(:bundled_execution_context?).and_return(true)
-      %i[ensure_project_files! load_bundled_runtime! ensure_dev_deps! ensure_gemfile_from_example! ensure_modular_gemfiles! ensure_rakefile! ensure_bin_setup! run_bin_setup! run_bundle_binstubs! run_kettle_install! commit_bootstrap_changes!].each do |m|
+      %i[ensure_project_files! load_bundled_runtime! ensure_rakefile! run_kettle_install! commit_bootstrap_changes!].each do |m|
         allow(cli).to receive(m) { call_order << m }
       end
 
