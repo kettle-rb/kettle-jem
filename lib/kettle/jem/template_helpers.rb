@@ -933,8 +933,18 @@ module Kettle
         normalized += "\n" unless normalized.empty? || normalized.end_with?("\n")
 
         # Absolute last-resort guardrail: never write unresolved {KJ|...} tokens to disk.
-        if normalized.match?(UNRESOLVED_TOKEN_RE)
-          tokens_found = normalized.scan(UNRESOLVED_TOKEN_RE).uniq.sort
+        # For markdown files, strip code spans and fenced code blocks before scanning
+        # so that tokens documented by name (e.g. `{KJ|GEM_MAJOR}` in a changelog)
+        # are not treated as unresolved placeholders.
+        scan_content = if actual.end_with?(".md", ".markdown")
+          normalized
+            .gsub(/^```.*?^```/m, "")        # fenced code blocks
+            .gsub(/`[^`\n]+`/, "")            # inline code spans
+        else
+          normalized
+        end
+        if scan_content.match?(UNRESOLVED_TOKEN_RE)
+          tokens_found = scan_content.scan(UNRESOLVED_TOKEN_RE).uniq.sort
           raise Kettle::Dev::Error,
             "FATAL: write_file refusing to write unresolved tokens to #{actual}. " \
             "Unresolved tokens: #{tokens_found.join(", ")}. " \
