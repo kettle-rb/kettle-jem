@@ -773,6 +773,27 @@ module Kettle
         preferred_token_value(derive_family_names(author_name), token_config.dig("author", "family_names"), env_key: "KJ_AUTHOR_FAMILY_NAMES")
       end
 
+      # Resolve a top-level config string with uniform ENV fallback.
+      # Precedence: config value (non-blank) > ENV > derived_value.
+      # Empty strings in config are treated as absent (fall through to ENV).
+      # This is for reading project config to drive behavior — not for token
+      # substitution (which uses preferred_token_value with ENV > config).
+      # @param config_key [String] top-level key in .kettle-jem.yml
+      # @param env_key [String] environment variable name (e.g. "KJ_PROJECT_EMOJI")
+      # @param derived_value [String, nil] auto-derived fallback (lowest priority)
+      # @return [String, nil] resolved value or nil if all sources are blank
+      def resolved_config_string(config_key, env_key:, derived_value: nil)
+        config_clean = kettle_config[config_key].to_s.strip
+        return config_clean if present_string?(config_clean) && !token_placeholder?(config_clean)
+
+        env_clean = ENV[env_key].to_s.strip
+        return env_clean if present_string?(env_clean) && !token_placeholder?(env_clean)
+
+        return derived_value.to_s.strip if present_string?(derived_value)
+
+        nil
+      end
+
       def derive_given_names(author_name)
         parts = author_name.to_s.strip.split(/\s+/)
         return if parts.size < 2

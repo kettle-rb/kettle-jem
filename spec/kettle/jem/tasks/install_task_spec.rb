@@ -14,6 +14,9 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
     allow(Rake::Task).to receive(:[]).with("kettle:jem:template").and_return(double(invoke: nil))
     # Bypass funding org requirement during these unit tests unless a test sets it explicitly
     stub_env("FUNDING_ORG" => "false")
+    # Clear any ambient KJ_PROJECT_EMOJI from mise.toml so tests that don't set
+    # project_emoji in config get the expected nil/empty behavior.
+    stub_env("KJ_PROJECT_EMOJI" => nil)
   end
 
   describe "::run" do

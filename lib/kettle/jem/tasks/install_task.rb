@@ -95,8 +95,8 @@ module Kettle
 
               # Use project_emoji from .kettle-jem.yml as the authoritative source.
               # This prevents the template family emoji from overwriting per-project choices.
-              config_emoji = (helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s).to_s.strip
-              chosen_grapheme = config_emoji.empty? ? nil : config_emoji
+              config_emoji = helpers.resolved_config_string("project_emoji", env_key: "KJ_PROJECT_EMOJI")
+              chosen_grapheme = helpers.present_string?(config_emoji) ? config_emoji : nil
 
               # Fall back to README H1 extraction when config has no value yet
               # (e.g. during initial install before .kettle-jem.yml is populated).

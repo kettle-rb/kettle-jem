@@ -294,8 +294,7 @@ module Kettle
           # This prevents the template's family emoji from ever overwriting a
           # project's chosen emoji — the config value always wins.
           # Fall back to README H1 extraction only if config has no value set.
-          config_emoji = helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s
-          config_emoji = nil if config_emoji.to_s.strip.empty?
+          config_emoji = helpers.resolved_config_string("project_emoji", env_key: "KJ_PROJECT_EMOJI")
 
           synced_readme, synced_gemspec, chosen_grapheme = Kettle::Jem::ReadmeGemspecSynchronizer.synchronize(
             readme_content: readme,
@@ -996,8 +995,8 @@ module Kettle
           # Require project_emoji to be set before processing any templates.
           # Without it the {KJ|PROJECT_EMOJI} token is unresolved, which corrupts
           # README H1 and gemspec summary/description on every downstream gem.
-          project_emoji = helpers.kettle_config["project_emoji"] || ENV["KJ_PROJECT_EMOJI"].to_s
-          unless project_emoji && !project_emoji.to_s.strip.empty?
+          project_emoji = helpers.resolved_config_string("project_emoji", env_key: "KJ_PROJECT_EMOJI")
+          unless helpers.present_string?(project_emoji)
             task_abort(
               "Missing required config: project_emoji\n" \
               "Please add a `project_emoji:` key to .kettle-jem.yml with your gem's " \
