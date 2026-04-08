@@ -46,6 +46,9 @@ module Kettle
             template_content: template_content,
             destination_content: dest_content,
           )
+          # Post-merge harmonization (DependencySectionPolicy) manipulates lines
+          # and can re-introduce consecutive blank lines. Normalize as a final pass.
+          harmonized_content = normalize_consecutive_blank_lines(harmonized_content)
           validate_merged_gemspec_content!(harmonized_content)
         rescue Kettle::Jem::Error
           raise
@@ -67,6 +70,28 @@ module Kettle
             entrypoint_require: entrypoint_require,
             namespace: namespace,
           )
+        end
+
+        private
+
+        # Collapse runs of consecutive blank lines down to at most one.
+        # Mirrors Ast::Merge::Recipe::Runner#normalize_consecutive_blank_lines_in_string
+        # but lives here so post-harmonization output is always clean.
+        def normalize_consecutive_blank_lines(content, max_consecutive: 1)
+          return content if content.nil? || content.empty?
+
+          lines = content.split("\n", -1)
+          consecutive = 0
+          result = lines.each_with_object([]) do |line, acc|
+            if line.strip.empty?
+              consecutive += 1
+              acc << line if consecutive <= max_consecutive
+            else
+              consecutive = 0
+              acc << line
+            end
+          end
+          result.join("\n")
         end
       end
     end

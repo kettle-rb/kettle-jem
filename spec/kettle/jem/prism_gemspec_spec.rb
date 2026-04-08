@@ -95,6 +95,42 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       expect(merged).to include('"sig/**/*.rbs"')
     end
 
+    it "normalizes consecutive blank lines after harmonization" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      # Destination has a double blank line after the NOTE block
+      dest = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+
+          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+          #       visibility and discoverability.
+
+
+          # Dev, Test, & Release Tasks
+          spec.add_development_dependency("rake", "~> 13.0")
+        end
+      RUBY
+
+      merged = described_class.merge(template, dest)
+
+      # Double blank lines must be collapsed to single after harmonization
+      merged.split("\n").each_cons(2) do |a, b|
+        expect([a.strip, b.strip]).not_to eq(["", ""]),
+          "Found consecutive blank lines in merged output:\n#{merged}"
+      end
+    end
+
     it "re-raises gemspec merge errors from the recipe runner instead of silently falling back" do
       template = "Gem::Specification.new do |spec|\n  spec.name = \"demo\"\nend\n"
       dest = "Gem::Specification.new do |spec|\n  spec.name = \"legacy\"\nend\n"
