@@ -862,8 +862,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       template_lookup = {template: true}
       destination_lookup = {destination: true}
 
-      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
-      allow(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).and_return(destination_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(template_content).and_return(template_lookup)
 
       default_sources = described_class.preferred_dependency_lookup_sources(
         template_content: template_content,
@@ -872,8 +872,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(default_sources).to eq([destination_lookup, template_lookup])
 
-      allow(described_class).to receive(:dependency_line_lookup).with(template_content).ordered.and_return(template_lookup)
-      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).ordered.and_return(destination_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(template_content).and_return(template_lookup)
+      allow(described_class).to receive(:dependency_line_lookup).with(destination_content).and_return(destination_lookup)
 
       template_preferred_sources = described_class.preferred_dependency_lookup_sources(
         template_content: template_content,
@@ -1038,17 +1038,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         lines,
         records[0],
         runtime_gems: runtime_gems,
-      ).ordered.and_return(0..0)
+      ).and_return(0..0)
       allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
         lines,
         records[1],
         runtime_gems: runtime_gems,
-      ).ordered.and_return(nil)
+      ).and_return(nil)
       allow(described_class).to receive(:duplicate_runtime_shadowed_development_dependency_range).with(
         lines,
         records[2],
         runtime_gems: runtime_gems,
-      ).ordered.and_return(4..5)
+      ).and_return(4..5)
 
       ranges = described_class.duplicate_runtime_shadowed_development_dependency_ranges(lines, records)
 
@@ -1196,10 +1196,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       }
 
       allow(described_class).to receive(:dependency_line_source).with("content").and_return(source)
-      allow(described_class).to receive(:dependency_scan_record).with("first\n", 0).ordered.and_return(first_payload)
-      allow(described_class).to receive(:dependency_scan_record).with("second", 1).ordered.and_return(second_payload)
-      allow(described_class).to receive(:dependency_scan_record).with("ignored\n", 2).ordered.and_return(nil)
-      allow(described_class).to receive(:dependency_scan_record).with("third\n", 3).ordered.and_return(third_payload)
+      allow(described_class).to receive(:dependency_scan_record).with("first\n", 0).and_return(first_payload)
+      allow(described_class).to receive(:dependency_scan_record).with("second", 1).and_return(second_payload)
+      allow(described_class).to receive(:dependency_scan_record).with("ignored\n", 2).and_return(nil)
+      allow(described_class).to receive(:dependency_scan_record).with("third\n", 3).and_return(third_payload)
 
       scan = described_class.dependency_scan("content")
 
@@ -1286,9 +1286,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         {method: "add_development_dependency", line_index: 7},
       ]
 
-      allow(described_class).to receive(:runtime_record_after_note?).with(records[0], note_index).ordered.and_return(true)
-      allow(described_class).to receive(:runtime_record_after_note?).with(records[1], note_index).ordered.and_return(true)
-      allow(described_class).to receive(:runtime_record_after_note?).with(records[2], note_index).ordered.and_return(false)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[0], note_index).and_return(true)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[1], note_index).and_return(true)
+      allow(described_class).to receive(:runtime_record_after_note?).with(records[2], note_index).and_return(false)
 
       result = described_class.runtime_records_after_note(lines, note_index, records: records)
 
@@ -1456,12 +1456,12 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         lines,
         records[1],
         note_end_index,
-      ).ordered.and_return([beta_block, after_beta])
+      ).and_return([beta_block, after_beta])
       allow(described_class).to receive(:extract_runtime_dependency_block_after_note).with(
         after_beta,
         records[0],
         note_end_index,
-      ).ordered.and_return([alpha_block, after_alpha])
+      ).and_return([alpha_block, after_alpha])
 
       moved_blocks, remaining_lines = described_class.extract_runtime_dependency_blocks_after_note(lines, records, note_end_index)
 
@@ -2566,11 +2566,11 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       )
       ignored_node = Object.new
 
-      allow(described_class).to receive(:gemspec_dependency_call?).with(dependency_node, "spec").ordered.and_return(true)
-      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:rake_arg).ordered.and_return("rake")
-      allow(described_class).to receive(:gemspec_dependency_call?).with(blank_node, "spec").ordered.and_return(true)
-      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:blank_arg).ordered.and_return(nil)
-      allow(described_class).to receive(:gemspec_dependency_call?).with(ignored_node, "spec").ordered.and_return(false)
+      allow(described_class).to receive(:gemspec_dependency_call?).with(dependency_node, "spec").and_return(true)
+      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:rake_arg).and_return("rake")
+      allow(described_class).to receive(:gemspec_dependency_call?).with(blank_node, "spec").and_return(true)
+      allow(Kettle::Jem::PrismUtils).to receive(:extract_literal_value).with(:blank_arg).and_return(nil)
+      allow(described_class).to receive(:gemspec_dependency_call?).with(ignored_node, "spec").and_return(false)
 
       expect(
         described_class.send(:dependency_node_records, [dependency_node, blank_node, ignored_node], "spec"),
@@ -2643,9 +2643,9 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       arguments_node = instance_double(Prism::ArgumentsNode, arguments: args)
       node = instance_double(Prism::CallNode, arguments: arguments_node)
 
-      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:gem_arg).ordered.and_return('"demo"')
-      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:constraint_arg).ordered.and_return('"~> 1.0"')
-      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:platform_arg).ordered.and_return("platforms: %i[mri]")
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:gem_arg).and_return('"demo"')
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:constraint_arg).and_return('"~> 1.0"')
+      allow(Kettle::Jem::PrismUtils).to receive(:normalize_argument).with(:platform_arg).and_return("platforms: %i[mri]")
 
       expect(described_class.send(:dependency_signature, node)).to eq('"demo", "~> 1.0", platforms: %i[mri]')
       expect(described_class.send(:dependency_signature, instance_double(Prism::CallNode, arguments: nil))).to eq("")
@@ -2668,17 +2668,17 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         "kettle-dev",
         desired.fetch("kettle-dev"),
         dependency_index,
-      ).ordered.and_return(runtime_action)
+      ).and_return(runtime_action)
       allow(described_class).to receive(:development_dependency_sync_action).with(
         "rake",
         desired.fetch("rake"),
         dependency_index,
-      ).ordered.and_return(replacement_action)
+      ).and_return(replacement_action)
       allow(described_class).to receive(:development_dependency_sync_action).with(
         "rspec",
         desired.fetch("rspec"),
         dependency_index,
-      ).ordered.and_return(insertion_action)
+      ).and_return(insertion_action)
 
       result = described_class.send(:development_dependency_sync_actions, desired, dependency_index)
 
@@ -2756,19 +2756,19 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[0],
         indent: "    ",
-      ).ordered.and_return(nil)
+      ).and_return(nil)
       allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[1],
         indent: "    ",
-      ).ordered.and_return(rspec_line)
+      ).and_return(rspec_line)
       allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[2],
         indent: "    ",
-      ).ordered.and_return(nil)
+      ).and_return(nil)
       allow(described_class).to receive(:development_dependency_missing_line).with(
         sync_actions[3],
         indent: "    ",
-      ).ordered.and_return(rubocop_line)
+      ).and_return(rubocop_line)
 
       result = described_class.send(:development_dependency_missing_lines, sync_actions, indent: "    ")
 
@@ -3273,15 +3273,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_one,
         content: content,
-      ).ordered.and_return(plan_one)
+      ).and_return(plan_one)
       allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_two,
         content: content,
-      ).ordered.and_return(nil)
+      ).and_return(nil)
       allow(described_class).to receive(:ast_development_dependency_replacement_plan).with(
         action_three,
         content: content,
-      ).ordered.and_return(plan_three)
+      ).and_return(plan_three)
 
       result = described_class.send(:ast_development_dependency_replacement_plans, sync_actions, content: content)
 
@@ -3418,7 +3418,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       insertion = {line_index: 1, insertion_text: missing_lines.join}
       forwarded = [:forwarded]
 
-      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(nil)
+      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).and_return(nil)
 
       no_op = described_class.send(
         :add_missing_development_dependency_plans,
@@ -3430,7 +3430,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect(no_op).to eq(plans)
 
-      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).ordered.and_return(
+      allow(described_class).to receive(:development_dependency_insertion_payload).with(lines, missing_lines).and_return(
         insertion,
       )
       allow(described_class).to receive(:add_missing_development_dependency_plan).with(
@@ -3439,7 +3439,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         lines: lines,
         insertion: insertion,
         missing_count: missing_lines.size,
-      ).ordered.and_return(forwarded)
+      ).and_return(forwarded)
 
       result = described_class.send(
         :add_missing_development_dependency_plans,
@@ -3744,10 +3744,10 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       fallback_snapshot = {sync_actions: [:fallback], missing_lines: []}
       ast_snapshot = {sync_actions: [:ast], missing_lines: []}
 
-      allow(described_class).to receive(:fallback_development_dependency_sync_snapshot).with(desired, lines).ordered.and_return(
+      allow(described_class).to receive(:fallback_development_dependency_sync_snapshot).with(desired, lines).and_return(
         fallback_snapshot,
       )
-      allow(described_class).to receive(:ast_development_dependency_sync_snapshot).with(desired, context).ordered.and_return(
+      allow(described_class).to receive(:ast_development_dependency_sync_snapshot).with(desired, context).and_return(
         ast_snapshot,
       )
 
