@@ -129,21 +129,19 @@ module Kettle
             actual = Ast::Merge::NodeTyping.unwrap(node)
             return node unless defined?(Prism)
 
-            if actual.is_a?(Prism::CallOperatorWriteNode)
-              receiver_name = extract_receiver_name(actual)
-              return [:spec_attr, actual.write_name] if receiver_name == "spec"
-              return node
-            end
+            # CallOperatorWriteNode (e.g. spec.rdoc_options += [...]):
+            # Fall through to default compute_node_signature which normalizes
+            # the gemspec block variable via GEMSPEC_VAR_PLACEHOLDER.
+            return node if actual.is_a?(Prism::CallOperatorWriteNode)
 
             return node unless actual.is_a?(Prism::CallNode)
 
             method_name = actual.name.to_s
             receiver_name = extract_receiver_name(actual)
 
-            # spec.foo = "value" assignments
-            if method_name.end_with?("=") && receiver_name == "spec"
-              return [:spec_attr, actual.name]
-            end
+            # Assignment-style calls (spec.name = "value"):
+            # Fall through to default which normalizes via GEMSPEC_VAR_PLACEHOLDER.
+            return node if method_name.end_with?("=") && actual.name != :[]=
 
             # spec.add_dependency and spec.add_development_dependency
             if %i[add_dependency add_development_dependency add_runtime_dependency].include?(actual.name)

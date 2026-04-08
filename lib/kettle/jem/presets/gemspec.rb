@@ -44,17 +44,19 @@ module Kettle
           #
           # @return [Hash] Node typing configuration
           def default_node_typing
+            spec_check = method(:gemspec_block_var_receiver?)
             {
               CallNode: ->(node) {
                 method_name = node.name.to_s
                 receiver = node.receiver
 
-                # Check if this is a spec.foo call
-                is_spec_call = receiver.respond_to?(:name) && receiver.name == :spec
+                # Check if this is a gemspec block variable call (any local var or bare name)
+                is_spec_call = spec_check.call(receiver)
 
                 unless is_spec_call
-                  # Check for spec_something receiver
-                  is_spec_call = receiver&.slice&.to_s&.start_with?("spec")
+                  # Check for chained receiver (e.g. spec.metadata[]=)
+                  is_spec_call = receiver.is_a?(Prism::CallNode) &&
+                    spec_check.call(receiver.receiver)
                 end
 
                 return node unless is_spec_call
@@ -65,9 +67,10 @@ module Kettle
               CallOperatorWriteNode: ->(node) {
                 receiver = node.receiver
 
-                is_spec_call = receiver.respond_to?(:name) && receiver.name == :spec
+                is_spec_call = spec_check.call(receiver)
                 unless is_spec_call
-                  is_spec_call = receiver&.slice&.to_s&.start_with?("spec")
+                  is_spec_call = receiver.is_a?(Prism::CallNode) &&
+                    spec_check.call(receiver.receiver)
                 end
 
                 return node unless is_spec_call
@@ -80,6 +83,26 @@ module Kettle
           end
 
           private
+
+          # Check if a receiver node is a gemspec block variable.
+          #
+          # @param receiver [Prism::Node, nil] The receiver node
+          # @return [Boolean] true if the receiver is a gemspec block variable
+          def gemspec_block_var_receiver?(receiver)
+            return false if receiver.nil?
+            return true if receiver.is_a?(Prism::LocalVariableReadNode)
+
+            # Outside a block, Prism parses bare names as CallNode.
+            # Check common gemspec block variable naming conventions.
+            if receiver.is_a?(Prism::CallNode) &&
+                receiver.receiver.nil? &&
+                receiver.arguments.nil?
+              name = receiver.name.to_s
+              return name == "spec" || name == "gem" || name == "s" || name.start_with?("spec")
+            end
+
+            false
+          end
 
           # Categorize a gemspec attribute by its method name.
           #

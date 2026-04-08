@@ -248,16 +248,16 @@ RSpec.describe Kettle::Jem::Signatures do
     context "with spec.name = assignment" do
       let(:node) { parse_call('spec.name = "test"') }
 
-      it "returns [:spec_attr, :name=] signature" do
-        expect(generator.call(node)).to eq([:spec_attr, :name=])
+      it "falls through to default signature computation" do
+        expect(generator.call(node)).to eq(node)
       end
     end
 
     context "with spec.rdoc_options += operator write" do
       let(:node) { parse_call('spec.rdoc_options += ["--quiet"]') }
 
-      it "returns [:spec_attr, :rdoc_options=] signature" do
-        expect(generator.call(node)).to eq([:spec_attr, :rdoc_options=])
+      it "falls through to default signature computation" do
+        expect(generator.call(node)).to eq(node)
       end
     end
 

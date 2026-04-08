@@ -485,4 +485,77 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(twice).to eq(once)
     end
   end
+
+  describe "block variable name mismatch" do
+    def merge_gemspec(src:, dest:)
+      Kettle::Jem::SourceMerger.apply(
+        strategy: :merge,
+        src: src,
+        dest: dest,
+        path: "example.gemspec",
+        file_type: :gemspec,
+      )
+    end
+
+    it "correctly merges template |spec| with destination |gem|" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+          spec.summary = "Template summary"
+          spec.add_dependency("foo", "~> 1.0")
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |gem|
+          gem.name = "example"
+          gem.version = "2.0.0"
+          gem.summary = "Dest summary"
+          gem.authors = ["Someone"]
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true), "Merged gemspec should be valid Ruby:\n#{merged}"
+
+      # With template-wins preference, template's variable name is used
+      # and all lines are normalized to the same variable
+      expect(merged).not_to match(/\bgem\./), "Merged output should not contain 'gem.' when template uses 'spec':\n#{merged}"
+      expect(merged).to include("spec.name")
+      expect(merged).to include("spec.version")
+      expect(merged).to include("spec.summary")
+      # Destination-only attributes preserved (renamed to template var)
+      expect(merged).to include("spec.authors")
+      # Template-only dependencies added
+      expect(merged).to include('spec.add_dependency("foo", "~> 1.0")')
+    end
+
+    it "correctly merges template |spec| with destination |s|" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "example"
+          spec.version = "1.0.0"
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |s|
+          s.name = "example"
+          s.version = "2.0.0"
+          s.homepage = "https://example.com"
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true), "Merged gemspec should be valid Ruby:\n#{merged}"
+      # Template wins → template's variable name is used
+      expect(merged).not_to match(/\bs\./), "Merged output should not contain 's.' when template uses 'spec':\n#{merged}"
+      expect(merged).to include("spec.name")
+      expect(merged).to include("spec.version")
+      expect(merged).to include("spec.homepage")
+    end
+  end
 end
