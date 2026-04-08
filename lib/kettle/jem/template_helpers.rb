@@ -211,6 +211,12 @@ module Kettle
         File.join(File.expand_path("../../..", __dir__), "template")
       end
 
+      # Root directory for partial fragments (workflow snippets, etc.) used
+      # during templating but NOT deployed to target gems.
+      def partials_root
+        File.join(File.expand_path("../../..", __dir__), "partials")
+      end
+
       # Configure token replacements for the current templating session.
       # Must be called once before any read_template calls (typically at the
       # start of TemplateTask.run or SetupCLI).

@@ -57,6 +57,10 @@ Gem::Specification.new do |spec|
     # Template scaffold for gem templating
     "template/**/*",
     "template/**/.*",
+    # Partial fragments (workflow snippets, etc.) used during templating
+    # but NOT deployed to target gems
+    "partials/**/*",
+    "partials/**/.*",
     # Signatures
     "sig/**/*.rbs",
   ]

@@ -11,7 +11,7 @@ module Kettle
     #
     # @example Apply all snippets to a custom workflow
     #   merger = WorkflowSnippetMerger.new(
-    #     snippet_root: helpers.template_root + "/.github/workflow-snippets",
+    #     snippet_root: helpers.partials_root + "/.github/workflow-snippets",
     #     destination_content: File.read("dynamoid/.github/workflows/ci.yml"),
     #   )
     #   result = merger.apply_all

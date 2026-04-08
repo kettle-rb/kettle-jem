@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Kettle::Jem::WorkflowSnippetMerger do
-  let(:snippet_root) { File.join(Kettle::Jem::TemplateHelpers.template_root, ".github", "workflow-snippets") }
+  let(:snippet_root) { File.join(Kettle::Jem::TemplateHelpers.partials_root, ".github", "workflow-snippets") }
 
   describe "#apply_all" do
     it "updates action SHA pins in destination workflow" do
