@@ -307,7 +307,12 @@ Kettle::Jem selects the merge engine by file type:
 | `*.sh`, `*.bash`, `.envrc` | Bash::Merge      | Block matching                          |
 | `.env*`                    | Dotenv::Merge    | KEY=value matching                      |
 | `*.rbs`                    | RBS::Merge       | Type signature matching                 |
-| Everything else            | Text::Merge      | Line-based fallback                     |
+| `.tool-versions`, `.gitignore` | Text::Merge  | Intentional line-based merge            |
+
+> **No silent fallback:** If a tree-sitter grammar is unavailable for a file
+> type that requires AST merging, kettle-jem will **fail** (default) or
+> **skip** the file — never silently degrade to text-based merging.
+> See `PARSE_ERROR_MODE` below.
 
 ## 🔧 Basic Usage
 
@@ -386,6 +391,77 @@ files:
     strategy: raw_copy          # binary file, no merging
   generated/report.md:
     strategy: keep_destination  # never touch this file
+```
+
+### Environment Variables & CLI Options
+
+Kettle::Jem behavior is controlled via environment variables (which double as
+Rake task arguments) and CLI flags passed to `kettle-jem setup`.
+
+#### Merge & Error Handling
+
+| Variable | CLI Flag | Default | Description |
+|----------|----------|---------|-------------|
+| `FAILURE_MODE` | `--failure-mode=VAL` | `error` | How general merge failures are handled. `error` raises and halts; `rescue` logs a warning and uses unmerged content. |
+| `PARSE_ERROR_MODE` | — | `fail` | How AST parser unavailability is handled. `fail` raises immediately (recommended); `skip` warns and preserves the destination file unchanged. **There is no text-merge fallback** — AST merge or nothing. |
+
+#### Task Control
+
+| Variable | CLI Flag | Default | Description |
+|----------|----------|---------|-------------|
+| `allowed` | `--allowed=VAL` | `false` | Set to `true`/`1`/`yes` to permit destructive install operations. |
+| `force` | `--force` | `false` | Skip interactive prompts; automatically accept changes. |
+| `only` | `--only=VAL` | _(all)_ | Comma-separated glob patterns — only template files matching at least one pattern are processed. |
+| `include` | `--include=VAL` | _(all)_ | Comma-separated glob patterns — additional files to include beyond the default set. |
+| `hook_templates` | `--hook_templates=VAL` | _(prompt)_ | Git hook install location: `l`/`local`, `g`/`global`, or `n`/`none`. Also via `KETTLE_DEV_HOOK_TEMPLATES`. |
+
+#### Config & Identity (KJ_ prefix)
+
+These seed `.kettle-jem.yml` values when the config is freshly created or when
+a key is missing. They are also used as runtime overrides.
+
+| Variable | Description |
+|----------|-------------|
+| `KJ_PROJECT_EMOJI` | Project identifying emoji (e.g. `🪙`). Required in config. |
+| `KJ_AUTHOR_NAME` | Gem author full name |
+| `KJ_AUTHOR_EMAIL` | Gem author email |
+| `KJ_AUTHOR_DOMAIN` | Author website domain (derived from email if unset) |
+| `KJ_AUTHOR_GIVEN_NAMES` | First/given names |
+| `KJ_AUTHOR_FAMILY_NAMES` | Last/family names |
+| `KJ_AUTHOR_ORCID` | ORCID identifier |
+| `KJ_GH_USER` | GitHub username |
+| `KJ_GL_USER` | GitLab username |
+| `KJ_CB_USER` | Codeberg username |
+| `KJ_SH_USER` | SourceHut username |
+
+#### Workspace & Funding
+
+| Variable | Description |
+|----------|-------------|
+| `KETTLE_RB_DEV` | Workspace root for local sibling gems. `true` = `~/src/kettle-rb`; a path = that path; unset/`false` = released gems. |
+| `KETTLE_DEV_DEBUG` | Set to `true` for verbose debug output. |
+| `FUNDING_ORG` | OpenCollective organization handle for FUNDING.yml. Auto-derived from git remote if unset. |
+| `OPENCOLLECTIVE_HANDLE` | Alternative to `FUNDING_ORG` for personal OpenCollective pages. |
+| `KJ_FUNDING_PATREON` | Patreon handle for FUNDING.yml |
+| `KJ_FUNDING_KOFI` | Ko-fi handle for FUNDING.yml |
+| `KJ_FUNDING_PAYPAL` | PayPal handle for FUNDING.yml |
+
+#### Rake Task Examples
+
+```bash
+# Standard template update (interactive)
+bundle exec rake kettle:jem:install allowed=true
+
+# Non-interactive, all files
+bundle exec rake kettle:jem:install allowed=true force=true
+
+# Only workflow files, skip unparseable
+PARSE_ERROR_MODE=skip bundle exec rake kettle:jem:install \
+  allowed=true force=true only=".github/**"
+
+# Rescue on merge failure (don't halt)
+bundle exec rake kettle:jem:install \
+  allowed=true force=true FAILURE_MODE=rescue
 ```
 
 ## 🦷 FLOSS Funding
