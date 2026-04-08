@@ -983,7 +983,7 @@ module Kettle
             status: :started,
           )
           Kettle::Jem::TemplatingReport.print(snapshot: templating_environment) unless quiet?
-          out.detail("[kettle-jem] Per-run report: #{templating_report_path}") if templating_report_path
+          out.phase("📄", "Report", detail: templating_report_path) if templating_report_path
 
           # Ensure git working tree is clean before making changes (when run standalone)
           helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")
@@ -2000,7 +2000,7 @@ module Kettle
               if templating_report_path
                 json_path = templating_report_path.sub(/\.md\z/, "-duplicates.json")
                 DuplicateLineValidator.write_json(dup_results, json_path)
-                out.detail("[kettle-jem] 📄  Duplicate line report: #{json_path}")
+                out.phase("📄", "Duplicate report", detail: json_path)
               end
             end
           rescue StandardError => e
