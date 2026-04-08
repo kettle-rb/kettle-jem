@@ -94,7 +94,6 @@ module Kettle
           [dest_dir, output_dir, report_dir, diffs_dir].each { |d| FileUtils.mkdir_p(d) }
 
           # ── Step 1: Copy gem into destination/ ────────────────────────────
-          puts "[selftest] Copying #{project_root} → #{dest_dir}"
           copy_gem_tree(project_root, dest_dir)
 
           # ── Step 2: Manifest A (before) ───────────────────────────────────
@@ -103,10 +102,8 @@ module Kettle
             File.join(report_dir, "before.json"),
             JSON.pretty_generate(before),
           )
-          puts "[selftest] Before manifest: #{before.size} files"
 
           # ── Step 3: Run the template task with output_dir ─────────────────
-          puts "[selftest] Running template task…"
           run_template(helpers, dest_dir, output_dir)
 
           # ── Step 4: Manifest B (after) ────────────────────────────────────
@@ -115,7 +112,6 @@ module Kettle
             File.join(report_dir, "after.json"),
             JSON.pretty_generate(after),
           )
-          puts "[selftest] After manifest: #{after.size} files"
 
           # ── Step 5: Compare ───────────────────────────────────────────
           comparison = manifest.compare(before, after)
@@ -159,12 +155,8 @@ module Kettle
 
           score, divergence = score_and_divergence(comparison)
 
-          puts
-          puts report
-          puts "[selftest] Report written to #{report_path}"
-          puts "[selftest] Score: #{score}%"
-          puts "[selftest] Divergence: #{divergence}%"
-          puts "[selftest] Threshold: #{threshold_label(threshold_mode, threshold)}"
+          puts "[selftest] 📄  Report - #{report_path}"
+          puts "[selftest] #{score >= 100.0 ? "✅" : "⚠️"}  Score: #{score}% · Divergence: #{divergence}% · Threshold: #{threshold_label(threshold_mode, threshold)}"
 
           if threshold_failed?(threshold_mode, threshold, score, divergence)
             raise Kettle::Dev::Error,
