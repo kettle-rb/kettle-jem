@@ -1206,6 +1206,12 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
+    before do
+      Kettle::Jem::TemplateHelpers.clear_tokens!
+      Kettle::Jem::TemplateHelpers.class_variable_set(:@@kettle_config, nil) if Kettle::Jem::TemplateHelpers.class_variable_defined?(:@@kettle_config)
+      Kettle::Jem::TemplateHelpers.class_variable_set(:@@manifestation, nil) if Kettle::Jem::TemplateHelpers.class_variable_defined?(:@@manifestation)
+    end
+
     after { Kettle::Jem::TemplateHelpers.clear_tokens! }
 
     # Write a minimal gemspec so configure_tokens! can derive gem_name/org/namespace.
@@ -1280,6 +1286,20 @@ RSpec.describe Kettle::Jem::SetupCLI do
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
       File.write(src, "# frozen_string_literal: true\nrequire \"bundler/gem_tasks\"\n")
       allow(cli).to receive(:installed_path).and_return(src)
+      # WHY THIS STUB IS HERE:
+      # ensure_rakefile! calls configure_template_tokens! internally, which
+      # resolves project_root via Rake.application.original_dir. In an RSpec
+      # process Rake is loaded, so original_dir returns the kettle-jem repo
+      # root (not the test's tmpdir). This means gemspec_metadata loads the
+      # real kettle-jem.gemspec. When Gem::Specification.load evaluates that
+      # gemspec after a prior test has already loaded it in the same process,
+      # Gem loader state can cause the load to silently fail, returning nil
+      # gem_name → "Gem name could not be derived" error.
+      #
+      # This test exercises merge-failure handling (error vs rescue mode),
+      # NOT token derivation. Stubbing configure_template_tokens! isolates
+      # the concern under test and eliminates the order-dependent failure.
+      allow(cli).to receive(:configure_template_tokens!)
       File.write("Rakefile", "existing content\n")
       stub_env("FAILURE_MODE" => "error")
       allow(Kettle::Jem::SourceMerger).to receive(:apply).and_raise(RuntimeError, "merge boom")
@@ -1295,6 +1315,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
       File.write(src, "# template content\n")
       allow(cli).to receive(:installed_path).and_return(src)
+      # See the "error mode" test above for full explanation of this stub.
+      allow(cli).to receive(:configure_template_tokens!)
       File.write("Rakefile", "existing content\n")
       stub_env("FAILURE_MODE" => "rescue")
       allow(Kettle::Jem::SourceMerger).to receive(:apply).and_raise(RuntimeError, "merge boom")
