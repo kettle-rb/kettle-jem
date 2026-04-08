@@ -76,6 +76,7 @@ module Kettle
     # Recipe-driven mergers
     autoload :MarkdownMerger, "kettle/jem/markdown_merger"
     autoload :ChangelogMerger, "kettle/jem/changelog_merger"
+    autoload :WorkflowSnippetMerger, "kettle/jem/workflow_snippet_merger"
     autoload :ReadmeGemspecSynchronizer, "kettle/jem/readme_gemspec_synchronizer"
     autoload :ReadmePostProcessor, "kettle/jem/readme_post_processor"
     autoload :LicenseTxtMigrator, "kettle/jem/license_txt_migrator"
