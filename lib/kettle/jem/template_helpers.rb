@@ -605,6 +605,86 @@ module Kettle
         [README_STATIC_TOP_LOGO_REFS, dynamic].reject(&:empty?).join("\n")
       end
 
+      # ──────────────────────────────────────────────
+      # Workflow configuration
+      # ──────────────────────────────────────────────
+
+      WORKFLOW_PRESETS = %w[modern framework legacy-compat].freeze
+      WORKFLOW_PRESET_DEFAULT = "modern"
+
+      # Return the raw `workflows:` section from .kettle-jem.yml.
+      # @return [Hash]
+      def workflows_config
+        raw = kettle_config["workflows"]
+        raw.is_a?(Hash) ? raw : {}
+      end
+
+      # Resolved workflow preset name.
+      # @return [String] one of WORKFLOW_PRESETS
+      def workflow_preset
+        raw = workflows_config["preset"].to_s.strip.downcase
+        return WORKFLOW_PRESET_DEFAULT if raw.empty?
+        return raw if WORKFLOW_PRESETS.include?(raw)
+
+        add_warning(
+          "Unknown workflows.preset '#{raw}'. Supported: #{WORKFLOW_PRESETS.join(", ")}. " \
+          "Falling back to #{WORKFLOW_PRESET_DEFAULT}.",
+        )
+        WORKFLOW_PRESET_DEFAULT
+      end
+
+      # Whether a framework matrix is configured and active.
+      # @return [Boolean]
+      def framework_matrix?
+        workflow_preset == "framework" && framework_matrix_config.any?
+      end
+
+      # Return the `workflows.framework_matrix` sub-hash, validated.
+      # @return [Hash] with keys: "dimension", "versions", "gemfile_pattern"
+      def framework_matrix_config
+        raw = workflows_config["framework_matrix"]
+        return {} unless raw.is_a?(Hash)
+
+        dimension = raw["dimension"].to_s.strip
+        versions = raw["versions"]
+        pattern = raw["gemfile_pattern"].to_s.strip
+
+        unless dimension.length > 0 && versions.is_a?(Array) && !versions.empty? && pattern.length > 0
+          return {}
+        end
+
+        {
+          "dimension" => dimension,
+          "versions" => versions.map { |v| v.to_s.strip }.reject(&:empty?),
+          "gemfile_pattern" => pattern,
+        }
+      end
+
+      # Expand the gemfile_pattern for a given framework version.
+      # Replaces {version} with the version string. When the pattern contains
+      # underscores around the placeholder, dots in the version are replaced
+      # with underscores (e.g. "rails_{version}" + "7.0" → "rails_7_0").
+      #
+      # @param pattern [String] gemfile pattern with {version} placeholder
+      # @param version [String] framework version string
+      # @return [String] expanded gemfile name
+      def expand_gemfile_pattern(pattern, version)
+        if pattern.include?("_{version}") || pattern.include?("{version}_")
+          pattern.gsub("{version}", version.tr(".", "_"))
+        else
+          pattern.gsub("{version}", version)
+        end
+      end
+
+      # Return the full list of framework gemfile names for the configured matrix.
+      # @return [Array<String>] gemfile names (without gemfiles/ prefix)
+      def framework_matrix_gemfiles
+        fmc = framework_matrix_config
+        return [] unless fmc.any?
+
+        fmc["versions"].map { |v| expand_gemfile_pattern(fmc["gemfile_pattern"], v) }
+      end
+
       # Return token config values that can be safely backfilled into
       # .kettle-jem.yml from the current process environment, intentionally
       # ignoring the existing config content.

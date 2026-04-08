@@ -467,4 +467,174 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(described_class.apply_strategy("template", dest_path)).to eq("merged")
     end
   end
+
+  describe ".workflows_config" do
+    it "returns empty hash when no workflows key" do
+      allow(described_class).to receive(:kettle_config).and_return({})
+      expect(described_class.workflows_config).to eq({})
+    end
+
+    it "returns empty hash when workflows is not a hash" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => "invalid"})
+      expect(described_class.workflows_config).to eq({})
+    end
+
+    it "returns the workflows hash when present" do
+      config = {"preset" => "framework"}
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => config})
+      expect(described_class.workflows_config).to eq(config)
+    end
+  end
+
+  describe ".workflow_preset" do
+    it "defaults to modern when absent" do
+      allow(described_class).to receive(:kettle_config).and_return({})
+      expect(described_class.workflow_preset).to eq("modern")
+    end
+
+    it "returns framework when set" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => {"preset" => "framework"}})
+      expect(described_class.workflow_preset).to eq("framework")
+    end
+
+    it "returns legacy-compat when set" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => {"preset" => "legacy-compat"}})
+      expect(described_class.workflow_preset).to eq("legacy-compat")
+    end
+
+    it "warns and falls back for unknown preset" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => {"preset" => "bogus"}})
+      expect(described_class.workflow_preset).to eq("modern")
+      expect(described_class.warnings).to include(a_string_matching(/Unknown workflows\.preset/))
+    end
+  end
+
+  describe ".framework_matrix?" do
+    it "returns false when preset is modern" do
+      allow(described_class).to receive(:kettle_config).and_return({})
+      expect(described_class.framework_matrix?).to be(false)
+    end
+
+    it "returns false when preset is framework but no matrix config" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => {"preset" => "framework"}})
+      expect(described_class.framework_matrix?).to be(false)
+    end
+
+    it "returns true when fully configured" do
+      config = {
+        "workflows" => {
+          "preset" => "framework",
+          "framework_matrix" => {
+            "dimension" => "activerecord",
+            "versions" => ["7.0", "7.1", "7.2"],
+            "gemfile_pattern" => "ar-{version}.x",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      expect(described_class.framework_matrix?).to be(true)
+    end
+  end
+
+  describe ".framework_matrix_config" do
+    it "returns empty hash when no framework_matrix key" do
+      allow(described_class).to receive(:kettle_config).and_return({"workflows" => {"preset" => "framework"}})
+      expect(described_class.framework_matrix_config).to eq({})
+    end
+
+    it "returns empty hash when dimension is missing" do
+      config = {
+        "workflows" => {
+          "framework_matrix" => {
+            "versions" => ["7.0"],
+            "gemfile_pattern" => "ar-{version}.x",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      expect(described_class.framework_matrix_config).to eq({})
+    end
+
+    it "returns empty hash when versions is empty" do
+      config = {
+        "workflows" => {
+          "framework_matrix" => {
+            "dimension" => "activerecord",
+            "versions" => [],
+            "gemfile_pattern" => "ar-{version}.x",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      expect(described_class.framework_matrix_config).to eq({})
+    end
+
+    it "returns validated config hash when fully configured" do
+      config = {
+        "workflows" => {
+          "framework_matrix" => {
+            "dimension" => "activerecord",
+            "versions" => ["7.0", "7.1", "7.2", "8.0"],
+            "gemfile_pattern" => "ar-{version}.x",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      result = described_class.framework_matrix_config
+      expect(result["dimension"]).to eq("activerecord")
+      expect(result["versions"]).to eq(["7.0", "7.1", "7.2", "8.0"])
+      expect(result["gemfile_pattern"]).to eq("ar-{version}.x")
+    end
+  end
+
+  describe ".expand_gemfile_pattern" do
+    it "replaces {version} with dots for dash-separated patterns" do
+      expect(described_class.expand_gemfile_pattern("ar-{version}.x", "7.0")).to eq("ar-7.0.x")
+    end
+
+    it "replaces dots with underscores when pattern has underscore around placeholder" do
+      expect(described_class.expand_gemfile_pattern("rails_{version}", "7.0")).to eq("rails_7_0")
+    end
+
+    it "keeps dots when no underscore context" do
+      expect(described_class.expand_gemfile_pattern("fw-{version}", "7.0")).to eq("fw-7.0")
+    end
+  end
+
+  describe ".framework_matrix_gemfiles" do
+    it "returns empty when no framework matrix" do
+      allow(described_class).to receive(:kettle_config).and_return({})
+      expect(described_class.framework_matrix_gemfiles).to eq([])
+    end
+
+    it "expands all versions with the pattern" do
+      config = {
+        "workflows" => {
+          "preset" => "framework",
+          "framework_matrix" => {
+            "dimension" => "activerecord",
+            "versions" => ["7.0", "7.1", "7.2", "8.0"],
+            "gemfile_pattern" => "ar-{version}.x",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      expect(described_class.framework_matrix_gemfiles).to eq(["ar-7.0.x", "ar-7.1.x", "ar-7.2.x", "ar-8.0.x"])
+    end
+
+    it "handles underscore-based patterns" do
+      config = {
+        "workflows" => {
+          "preset" => "framework",
+          "framework_matrix" => {
+            "dimension" => "rails",
+            "versions" => ["7.0", "7.1", "8.0"],
+            "gemfile_pattern" => "rails_{version}",
+          },
+        },
+      }
+      allow(described_class).to receive(:kettle_config).and_return(config)
+      expect(described_class.framework_matrix_gemfiles).to eq(["rails_7_0", "rails_7_1", "rails_8_0"])
+    end
+  end
 end
