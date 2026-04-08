@@ -1238,6 +1238,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "writes Rakefile from example and announces merge or creation", :check_output do
       write_minimal_gemspec!
+      # Point project_root at the tmpdir so configure_template_tokens!
+      # finds the minimal gemspec above instead of the real kettle-jem.gemspec
+      # (which can fail to load depending on Gem loader state / spec ordering).
+      Kettle::Jem::TemplateHelpers.class_variable_set(:@@project_root_override, Dir.pwd)
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       # create a temp source Rakefile.example to simulate installed gem asset
