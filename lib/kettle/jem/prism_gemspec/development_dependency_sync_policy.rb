@@ -21,6 +21,12 @@ module Kettle
           return bootstrap_development_dependency_seed_content(content, desired) if lines.empty?
 
           context = safe_gemspec_context(content)
+
+          # Rename the block variable in desired lines to match the target gemspec's
+          # block parameter. The desired lines come from the template (which uses "spec"),
+          # but the target may use a different name (e.g. "gem", "s").
+          desired = rename_desired_lines_to_target_var(desired, context) if context
+
           return ensure_development_dependencies_fallback(content, desired, lines: lines) unless context
 
           ensure_development_dependencies_ast(content, desired, context: context, lines: lines)
@@ -255,6 +261,15 @@ module Kettle
 
         def dependency_node_index(stmt_nodes, blk_param)
           DependencySectionPolicy.build_dependency_index(dependency_node_records(stmt_nodes, blk_param))
+        end
+
+        def rename_desired_lines_to_target_var(desired, context)
+          target_var = context[:blk_param]
+          return desired unless target_var && target_var != "spec"
+
+          desired.transform_values do |line|
+            line.to_s.gsub(/\bspec\./, "#{target_var}.")
+          end
         end
 
         def formatted_dependency_line(desired_line, indent: "  ")

@@ -16,7 +16,7 @@ module Kettle
       module DependencySectionPolicy
         module_function
 
-        GEMSPEC_DEPENDENCY_LINE_RE = /^(?<indent>\s*)spec\.(?<method>add_(?:development_|runtime_)?dependency)\s*\(?\s*(?<args>(?<quote>["'])(?<gem>[^"']+)\k<quote>.*?)(?:\s*\))?\s*(?<comment>#.*)?(?:\n|\z)/
+        GEMSPEC_DEPENDENCY_LINE_RE = /^(?<indent>\s*)\w+\.(?<method>add_(?:development_|runtime_)?dependency)\s*\(?\s*(?<args>(?<quote>["'])(?<gem>[^"']+)\k<quote>.*?)(?:\s*\))?\s*(?<comment>#.*)?(?:\n|\z)/
         GEMSPEC_NOTE_BLOCK_START_RE = /^\s*# NOTE: It is preferable to list development dependencies in the gemspec due to increased/
 
         def normalize(content:, template_content:, destination_content:, prefer_template: false)
