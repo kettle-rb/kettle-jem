@@ -157,7 +157,38 @@ module Kettle
             end
           end
 
-          # 2b) Clean up obsolete workflow files that were replaced by per-ruby workflows.
+          # 2b) Generate framework matrix workflow when configured.
+          if helpers.framework_matrix?
+            fw_template_src = File.join(template_root, ".github", "workflows", "framework-ci.yml.example")
+            if File.exist?(fw_template_src)
+              fw_dest = File.join(project_root, ".github", "workflows", "framework-ci.yml")
+              generator = Kettle::Jem::FrameworkWorkflowGenerator.new(
+                template_content: helpers.read_template(fw_template_src),
+                helpers: helpers,
+              )
+              generated = generator.generate
+              if generated
+                helpers.copy_file_with_prompt(fw_template_src, fw_dest, allow_create: true, allow_replace: true) do |_content|
+                  if File.exist?(fw_dest)
+                    begin
+                      Psych::Merge::SmartMerger.new(
+                        generated,
+                        File.read(fw_dest),
+                        **Kettle::Jem::Presets::Yaml.workflow_config.to_h,
+                      ).merge
+                    rescue StandardError => e
+                      Kettle::Dev.debug_error(e, __method__)
+                      generated
+                    end
+                  else
+                    generated
+                  end
+                end
+              end
+            end
+          end
+
+          # 2c) Clean up obsolete workflow files that were replaced by per-ruby workflows.
           #     These filenames no longer exist in the template and would remain as orphans.
           actual_root = helpers.output_dir || project_root
           Kettle::Jem::Tasks::TemplateTask::OBSOLETE_WORKFLOWS.each do |wf|
