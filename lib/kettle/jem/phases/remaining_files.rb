@@ -273,7 +273,7 @@ module Kettle
           changed_env_files << envrc_path if helpers.modified_by_template?(envrc_path)
           changed_env_files << envlocal_example_path if helpers.modified_by_template?(envlocal_example_path)
           if !changed_env_files.empty?
-            if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("allowed", "").to_s)
+            if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("allowed", "true").to_s)
               out.detail("Detected updates to #{changed_env_files.map { |p| File.basename(p) }.join(" and ")}. Proceeding because allowed=true.")
             else
               puts

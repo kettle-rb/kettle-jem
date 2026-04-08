@@ -187,7 +187,10 @@ module Kettle
       def parse!
         parser = OptionParser.new do |opts|
           opts.banner = "Usage: kettle-jem [options]"
-          opts.on("--allowed=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "allowed=#{v}" }
+          opts.on("--allowed=VAL", "Pass through to kettle:jem:install (default: true)") do |v|
+            ENV["allowed"] = v
+            @passthrough << "allowed=#{v}"
+          end
           opts.on("--interactive", "Enable interactive prompts (default is non-interactive / force)") do
             @force = false
             ENV["force"] = "false"

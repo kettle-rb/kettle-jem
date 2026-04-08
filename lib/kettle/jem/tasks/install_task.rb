@@ -325,7 +325,7 @@ module Kettle
           end
 
           if defined?(updated_envrc_by_install) && updated_envrc_by_install
-            allowed_truthy = ENV.fetch("allowed", "").to_s =~ Kettle::Dev::ENV_TRUE_RE
+            allowed_truthy = ENV.fetch("allowed", "true").to_s =~ Kettle::Dev::ENV_TRUE_RE
             if allowed_truthy
               puts "Proceeding after .envrc update because allowed=true." unless TemplateTask.quiet?
             else
