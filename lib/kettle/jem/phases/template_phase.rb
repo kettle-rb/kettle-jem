@@ -38,7 +38,6 @@ module Kettle
           self.phase_stats = PhaseStats.new
           phase_stats.snapshot_before!(context.helpers, context.project_root)
 
-          emit_phase_start
           perform
         rescue Kettle::Dev::Error
           raise # Re-raise intentional task aborts
@@ -47,7 +46,7 @@ module Kettle
           context.out.warning("#{phase_name} failed: #{e.class}: #{e.message}")
         ensure
           phase_stats.snapshot_after!(context.helpers)
-          emit_phase_complete
+          emit_phase_line
         end
 
         private
@@ -57,18 +56,19 @@ module Kettle
           raise NotImplementedError, "#{self.class}#perform must be implemented"
         end
 
-        # Emit the phase summary line before execution.
-        # This gives immediate CLI feedback that the phase is starting.
-        def emit_phase_start
+        # Emit the phase summary line with inline stats (after execution).
+        # Stats are appended in parentheses when files were processed.
+        def emit_phase_line
           detail = phase_detail
-          context.out.phase(phase_emoji, phase_name, detail: detail)
-        end
-
-        # Emit per-phase stats after execution (if any files were processed).
-        def emit_phase_complete
-          return unless phase_stats.any?
-
-          context.out.detail("  #{phase_stats}")
+          stats_str = phase_stats.to_s
+          full_detail = if detail && stats_str
+            "#{detail} (#{stats_str})"
+          elsif stats_str
+            "(#{stats_str})"
+          else
+            detail
+          end
+          context.out.phase(phase_emoji, phase_name, detail: full_detail)
         end
 
         # @return [String] emoji for this phase
