@@ -32,7 +32,7 @@ ARGV.each do |arg|
   end
 end
 
-project_root ||= Dir.pwd
+project_root = File.expand_path(project_root || Dir.pwd)
 
 dlv = Kettle::Jem::DuplicateLineValidator
 
