@@ -28,6 +28,24 @@ I've summarized my thoughts in [this blog post](https://dev.to/galtzo/hostile-ta
 
 ## 🌻 Synopsis
 
+Kettle::Jem is an AST-aware gem templating system that keeps hundreds of Ruby gems
+in sync with a shared template while preserving each project's customizations.
+Unlike line-based copy/merge tools, Kettle::Jem understands the *structure* of
+every file it touches — Ruby via Prism, YAML via Psych, Markdown via Markly,
+TOML via tree-sitter, and more — so template updates land precisely where they
+belong, and project-specific additions are never clobbered.
+
+### Key Features
+
+- **AST-aware merging** — 10 format-specific merge engines (prism, psych, markly, toml, json, jsonc, bash, dotenv, rbs, text)
+- **Token substitution** — `{KJ|TOKEN}` patterns resolved from config, ENV, or auto-derived from gemspec
+- **Freeze blocks** — protect any section from template overwrites with `# kettle-jem:freeze` / `# kettle-jem:unfreeze`
+- **Per-file strategies** — `merge`, `accept_template`, `keep_destination`, or `raw_copy`
+- **Multi-phase pipeline** — 8 ordered phases from config sync through license management
+- **SHA-pinned GitHub Actions** — template `uses:` always wins, propagating immutable SHAs
+- **Convergence in one pass** — a single `rake kettle:jem:install` applies all changes; a second run produces zero diff
+- **Selftest divergence check** — CI verifies that project drift stays within a configurable threshold
+
 ## 💡 Info you can shake a stick at
 
 | Tokens to Remember      | [![Gem name][⛳️name-img]][⛳️gem-name] [![Gem namespace][⛳️namespace-img]][⛳️gem-namespace]                                                                                                                                                                                                                                                                          |
@@ -142,7 +160,233 @@ NOTE: Be prepared to track down certs for signed gems and add them the same way 
 
 ## ⚙️ Configuration
 
+Each gem that uses Kettle::Jem has a `.kettle-jem.yml` file at its root. This file controls
+every aspect of how the template is applied.
+
+### Minimal Configuration
+
+```yaml
+project_emoji: "🔮"
+engines:
+  - ruby
+licenses:
+  - MIT
+tokens:
+  forge:
+    gh_user: "your-username"
+  author:
+    name: "Your Name"
+    email: "you@example.com"
+```
+
+### Full Configuration Reference
+
+```yaml
+# REQUIRED — unique emoji used in badges and gemspec summary
+project_emoji: "🔮"
+
+# Ruby engines to include in CI matrix (remove to skip)
+engines:
+  - ruby
+  - jruby
+  - truffleruby
+
+# SPDX license identifiers
+licenses:
+  - MIT
+
+# Logo layout in README header: org | project | org_and_project
+readme:
+  top_logo_mode: org
+
+# Bot accounts to exclude from contributor lists
+machine_users:
+  - dependabot
+
+# Maximum allowed divergence (%) for selftest CI check
+min_divergence_threshold: 5
+
+# Default merge behavior applied to all files
+defaults:
+  preference: "template"           # template | destination
+  add_template_only_nodes: true    # add nodes that only exist in template
+  freeze_token: "kettle-jem"       # marker for frozen sections
+
+# Token values for {KJ|TOKEN} substitution
+tokens:
+  forge:
+    gh_user: "github-username"
+    gl_user: "gitlab-username"
+    cb_user: "codeberg-username"
+  author:
+    name: "Full Name"
+    email: "you@example.com"
+    domain: "example.com"
+    orcid: "0000-0000-0000-0000"
+  funding:
+    patreon: "username"
+    kofi: "username"
+    polar: "username"
+    liberapay: "username"
+  social:
+    mastodon: "username"
+    bluesky: "user.bsky.social"
+    linktree: "username"
+    devto: "username"
+
+# Glob-based overrides (first match wins)
+patterns:
+  - path: "certs/**"
+    strategy: raw_copy
+
+# Per-file overrides
+files:
+  Rakefile:
+    strategy: merge
+    preference: destination        # preserve local tasks
+  AGENTS.md:
+    strategy: accept_template      # always use template version
+```
+
+### Strategies
+
+| Strategy           | Behavior                                                              |
+|--------------------|-----------------------------------------------------------------------|
+| `merge`            | Resolve tokens, then AST-merge template + destination (default)       |
+| `accept_template`  | Resolve tokens, overwrite destination with template result            |
+| `keep_destination`  | Skip entirely — no merge, no creation                                |
+| `raw_copy`         | Copy bytes as-is — no token resolution, no merge (for binary assets) |
+
+### Token Substitution
+
+Tokens use `{KJ|TOKEN}` syntax and are resolved in priority order:
+
+1. **ENV variables** (highest) — e.g., `KJ_AUTHOR_NAME`
+2. **`.kettle-jem.yml` `tokens:` section** — explicit values
+3. **Auto-derived from gemspec** (lowest) — author name, email, domain
+
+Common tokens:
+
+| Token                  | Source                            |
+|------------------------|-----------------------------------|
+| `{KJ\|GEM_NAME}`       | Gem name from gemspec             |
+| `{KJ\|NAMESPACE}`      | Ruby module namespace             |
+| `{KJ\|AUTHOR:NAME}`    | Author full name                  |
+| `{KJ\|AUTHOR:EMAIL}`   | Author email                      |
+| `{KJ\|GH:USER}`        | GitHub username                   |
+| `{KJ\|PROJECT_EMOJI}`  | Project emoji from config         |
+| `{KJ\|MIN_RUBY}`       | Minimum Ruby version              |
+| `{KJ\|FREEZE_TOKEN}`   | Freeze marker name                |
+
+### Freeze Blocks
+
+Protect sections in any file from template overwrites:
+
+```ruby
+# kettle-jem:freeze
+gem "my-local-fork", path: "../custom"
+# kettle-jem:unfreeze
+```
+
+Content between freeze/unfreeze markers is always preserved from the destination,
+regardless of what the template contains. Works in all supported formats (Ruby, YAML,
+Markdown, TOML, JSON, Bash, etc.).
+
+### Merge Engine Selection
+
+Kettle::Jem selects the merge engine by file type:
+
+| File Pattern                | Merge Engine     | Key Behaviors                           |
+|-----------------------------|------------------|-----------------------------------------|
+| `*.rb`, `Gemfile`, `*.gemspec`, `Rakefile`, `Appraisals` | Prism::Merge | Three-phase matching, gemspec var renaming |
+| `*.yml`, `*.yaml`          | Psych::Merge     | SHA-pinned `uses:`, per-key preferences |
+| `*.md`, `*.markdown`       | Markly::Merge    | Heading/list matching, inner list merge |
+| `*.toml`                   | Toml::Merge      | Sort keys, table matching               |
+| `*.json`                   | Json::Merge      | Key-based matching                      |
+| `*.jsonc`                  | Json::Merge      | With comment preservation               |
+| `*.sh`, `*.bash`, `.envrc` | Bash::Merge      | Block matching                          |
+| `.env*`                    | Dotenv::Merge    | KEY=value matching                      |
+| `*.rbs`                    | RBS::Merge       | Type signature matching                 |
+| Everything else            | Text::Merge      | Line-based fallback                     |
+
 ## 🔧 Basic Usage
+
+### Initial Setup
+
+```bash
+gem install kettle-jem
+cd my-gem
+kettle-jem setup
+```
+
+The setup CLI runs a two-phase bootstrap:
+
+1. **Bootstrap** — creates `.kettle-jem.yml`, installs modular gemfiles, ensures dev dependencies
+2. **Bundled** — loads the full runtime and runs `rake kettle:jem:install`
+
+### Applying Template Updates
+
+After initial setup, re-run the template process to pull in updates:
+
+```bash
+bundle exec rake kettle:jem:install
+```
+
+This applies all 8 phases:
+
+| Phase | Description                          | Files Affected                        |
+|-------|--------------------------------------|---------------------------------------|
+| 0     | Config sync                          | `.kettle-jem.yml`                     |
+| 1     | Dev container                        | `.devcontainer/`                      |
+| 2     | GitHub workflows                     | `.github/workflows/`, `FUNDING.yml`   |
+| 3     | Quality config                       | `.qlty/qlty.toml`                     |
+| 4     | Modular gemfiles                     | `gemfiles/modular/`                   |
+| 5     | Spec helper                          | `spec/spec_helper.rb`                 |
+| 6     | Environment templates                | `.env.local.example`                  |
+| 7     | All remaining files                  | gemspec, README, LICENSE, Rakefile, … |
+
+Each phase commits independently (when phased commits are enabled), making
+`git log` show exactly what changed in each step.
+
+### Checking Divergence
+
+CI can verify that a project hasn't drifted too far from the template:
+
+```bash
+bundle exec rake kettle:jem:selftest
+```
+
+This re-applies the template in a temporary checkout and measures the diff.
+If divergence exceeds `min_divergence_threshold` (default 5%), the check fails.
+
+### Workflow-Specific Options
+
+For GitHub Actions workflows, the template always wins for `uses:` lines
+(SHA-pinned action references) while destination wins for job configuration:
+
+```yaml
+# Template updates this SHA automatically:
+uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+# Your matrix customizations are preserved:
+matrix:
+  ruby: ["3.2", "3.3", "3.4"]
+```
+
+### Per-File Overrides
+
+Override merge behavior for specific files in `.kettle-jem.yml`:
+
+```yaml
+files:
+  Rakefile:
+    strategy: merge
+    preference: destination     # keep your custom tasks
+  certs/my.pem:
+    strategy: raw_copy          # binary file, no merging
+  generated/report.md:
+    strategy: keep_destination  # never touch this file
+```
 
 ## 🦷 FLOSS Funding
 
