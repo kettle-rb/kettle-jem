@@ -58,7 +58,7 @@ module Kettle
         # @param message [String] phase description
         # @param detail [String, nil] optional short detail (file count, etc.)
         def phase(emoji, message, detail: nil)
-          line = detail ? "[kettle-jem] #{emoji}  #{message} (#{detail})" : "[kettle-jem] #{emoji}  #{message}"
+          line = detail ? "[kettle-jem] #{emoji}  #{message} - #{detail}" : "[kettle-jem] #{emoji}  #{message}"
           @cli_io.puts(line)
           report_line(line)
           @phase_results << { emoji: emoji, message: message, detail: detail }
