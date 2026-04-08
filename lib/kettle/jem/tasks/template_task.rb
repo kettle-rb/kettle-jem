@@ -4,6 +4,8 @@ require "yaml"
 require "set"
 require "find"
 
+require_relative "../template_output"
+
 module Kettle
   module Jem
     module Tasks
@@ -307,7 +309,7 @@ module Kettle
           helpers.write_file(File.join(project_root, "#{gem_name}.gemspec"), synced_gemspec) if synced_gemspec != gemspec
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
-          puts "WARNING: Could not synchronize README H1 grapheme with gemspec metadata: #{e.class}: #{e.message}"
+          Kernel.warn("[kettle-jem] ⚠️  Could not synchronize README H1 grapheme with gemspec metadata: #{e.class}: #{e.message}")
         end
 
         # Merge template content with an existing destination file using the
@@ -521,6 +523,15 @@ module Kettle
         def parse_error_mode
           val = ENV.fetch("PARSE_ERROR_MODE", "fail").to_s.strip.downcase
           (val == "skip") ? :skip : :fail
+        end
+
+        # Whether quiet mode is active — suppresses all CLI output except phase summaries.
+        #
+        # Controlled by KETTLE_JEM_QUIET environment variable (set by --quiet CLI flag).
+        #
+        # @return [Boolean]
+        def quiet?
+          Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "false").to_s)
         end
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze
@@ -761,10 +772,12 @@ module Kettle
           end
 
           helpers.template_run_outcome = :bootstrap_only
-          bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
-          puts "[kettle-jem] Review the file(s) above, fill in any missing token values, then:"
-          puts "[kettle-jem]   mise trust -C #{project_root}"
-          puts "[kettle-jem] Commit the changes and re-run kettle-jem."
+          unless TemplateTask.quiet?
+            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
+            puts "[kettle-jem] Review the file(s) above, fill in any missing token values, then:"
+            puts "[kettle-jem]   mise trust -C #{project_root}"
+            puts "[kettle-jem] Commit the changes and re-run kettle-jem."
+          end
           :bootstrap_only
         end
 
@@ -955,6 +968,8 @@ module Kettle
           helpers.clear_warnings
           helpers.clear_template_run_outcome!
 
+          out = Kettle::Jem::TemplateOutput::Formatter.new(quiet: quiet?)
+
           project_root = helpers.project_root
           template_root = helpers.template_root
           run_started_at = helpers.template_run_timestamp
@@ -966,8 +981,8 @@ module Kettle
             run_started_at: run_started_at,
             status: :started,
           )
-          Kettle::Jem::TemplatingReport.print(snapshot: templating_environment)
-          puts "[kettle-jem] Per-run report: #{templating_report_path}" if templating_report_path
+          Kettle::Jem::TemplatingReport.print(snapshot: templating_environment) unless quiet?
+          out.detail("[kettle-jem] Per-run report: #{templating_report_path}") if templating_report_path
 
           # Ensure git working tree is clean before making changes (when run standalone)
           helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")
@@ -1032,6 +1047,7 @@ module Kettle
 
           # 0) .kettle-jem.yml — keep existing config in sync with the template after
           # preflight has confirmed we have the required token values.
+          out.phase("⚙️", "Config sync", detail: ".kettle-jem.yml")
           begin
             sync_existing_kettle_config!(
               helpers: helpers,
@@ -1066,6 +1082,7 @@ module Kettle
           )
 
           # 1) .devcontainer directory — per-file merging with format-appropriate merge gems
+          out.phase("📦", "Dev container", detail: ".devcontainer/")
           devcontainer_src_dir = File.join(template_root, ".devcontainer")
           if Dir.exist?(devcontainer_src_dir)
             require "find"
@@ -1126,6 +1143,7 @@ module Kettle
           end
 
           # 2) .github/**/*.yml with FUNDING.yml customizations
+          out.phase("🔄", "GitHub workflows", detail: ".github/")
           source_github_dir = File.join(template_root, ".github")
           if Dir.exist?(source_github_dir)
             # Build a unique set of logical .yml paths, preferring the .example variant when present
@@ -1179,12 +1197,12 @@ module Kettle
               next if file_strategy == :keep_destination
 
               if helpers.skip_for_disabled_opencollective?(rel)
-                puts "Skipping #{rel} (Open Collective disabled)"
+                out.report_detail("Skipping #{rel} (Open Collective disabled)")
                 next
               end
 
               if helpers.skip_for_disabled_engine?(rel)
-                puts "Skipping #{rel} (engine disabled)"
+                out.report_detail("Skipping #{rel} (engine disabled)")
                 next
               end
 
@@ -1273,13 +1291,14 @@ module Kettle
 
             if helpers.ask("Remove obsolete workflow #{wf}?", true)
               FileUtils.rm_f(wf_path)
-              puts "Removed obsolete workflow: .github/workflows/#{wf}"
+              out.detail("Removed obsolete workflow: .github/workflows/#{wf}")
             else
-              puts "Kept obsolete workflow: .github/workflows/#{wf}"
+              out.detail("Kept obsolete workflow: .github/workflows/#{wf}")
             end
           end
 
           # 3) .qlty/qlty.toml — merge with TOML-aware SmartMerger
+          out.phase("🔍", "Quality config", detail: ".qlty/qlty.toml")
           qlty_src = helpers.prefer_example(File.join(template_root, ".qlty/qlty.toml"))
           qlty_dest = File.join(project_root, ".qlty/qlty.toml")
           qlty_strategy = helpers.strategy_for(qlty_dest)
@@ -1319,6 +1338,7 @@ module Kettle
           end
 
           # 4) gemfiles/modular/* and nested directories (delegated for DRYness)
+          out.phase("💎", "Modular gemfiles", detail: "gemfiles/modular/")
           Kettle::Jem::ModularGemfiles.sync!(
             helpers: helpers,
             project_root: project_root,
@@ -1327,6 +1347,7 @@ module Kettle
           )
 
           # 5) spec/spec_helper.rb (no create)
+          out.phase("🧪", "Spec helper", detail: "spec/spec_helper.rb")
           dest_spec_helper = File.join(project_root, "spec/spec_helper.rb")
           if File.file?(dest_spec_helper)
             old = File.read(dest_spec_helper)
@@ -1336,15 +1357,16 @@ module Kettle
               if new_content != old
                 if helpers.ask("Update require \"kettle/dev\" in spec/spec_helper.rb to #{replacement}?", true)
                   helpers.write_file(dest_spec_helper, new_content)
-                  puts "Updated require in spec/spec_helper.rb"
+                  out.detail("Updated require in spec/spec_helper.rb")
                 else
-                  puts "Skipped modifying spec/spec_helper.rb"
+                  out.report_detail("Skipped modifying spec/spec_helper.rb")
                 end
               end
             end
           end
 
           # 6) .env.local.example: merge template env vars with existing destination using dotenv-merge
+          out.phase("🌍", "Environment templates", detail: ".env.local.example")
           begin
             envlocal_src = File.join(template_root, ".env.local.example")
             envlocal_dest = File.join(project_root, ".env.local.example")
@@ -1377,17 +1399,18 @@ module Kettle
             end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            puts "WARNING: Skipped .env.local example copy due to #{e.class}: #{e.message}"
+            out.warning("Skipped .env.local example copy due to #{e.class}: #{e.message}")
           end
 
           begin
             bootstrap_version_gem_touchpoints!(helpers: helpers, project_root: project_root, meta: meta)
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            puts "WARNING: Skipped version_gem bootstrap due to #{e.class}: #{e.message}"
+            out.warning("Skipped version_gem bootstrap due to #{e.class}: #{e.message}")
           end
 
           # 7a) Special-case: gemspec example must be renamed to destination gem's name
+          out.phase("📂", "Remaining files", detail: "gemspec, README, Rakefile, …")
           begin
             # Prefer the .example variant when present
             gemspec_template_src = helpers.prefer_example(File.join(template_root, "gem.gemspec"))
@@ -1541,7 +1564,7 @@ module Kettle
 
               # Skip opencollective-specific files when Open Collective is disabled
               if helpers.skip_for_disabled_opencollective?(rel)
-                puts "Skipping #{rel} (Open Collective disabled)"
+                out.report_detail("Skipping #{rel} (Open Collective disabled)")
                 next
               end
 
@@ -1555,7 +1578,7 @@ module Kettle
                   helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
                 rescue StandardError => e
                   Kettle::Dev.debug_error(e, __method__)
-                  puts "WARNING: Could not copy #{rel}: #{e.class}: #{e.message}"
+                  out.warning("Could not copy #{rel}: #{e.class}: #{e.message}")
                 end
                 next
               end
@@ -1632,7 +1655,7 @@ module Kettle
                 end
               rescue StandardError => e
                 Kettle::Dev.debug_error(e, __method__)
-                puts "WARNING: Could not template #{rel}: #{e.class}: #{e.message}"
+                out.warning("Could not template #{rel}: #{e.class}: #{e.message}")
               end
             end
           end
@@ -1648,7 +1671,7 @@ module Kettle
             changed_env_files << envlocal_example_path if helpers.modified_by_template?(envlocal_example_path)
             if !changed_env_files.empty?
               if /\A(1|true|y|yes)\z/i.match?(ENV.fetch("allowed", "").to_s)
-                puts "Detected updates to #{changed_env_files.map { |p| File.basename(p) }.join(" and ")}. Proceeding because allowed=true."
+                out.detail("Detected updates to #{changed_env_files.map { |p| File.basename(p) }.join(" and ")}. Proceeding because allowed=true.")
               else
                 puts
                 puts "IMPORTANT: The following environment-related files were created/updated:"
@@ -1669,10 +1692,11 @@ module Kettle
             # Do not swallow intentional task aborts
             raise if e.is_a?(Kettle::Dev::Error)
 
-            puts "WARNING: Could not determine env file changes: #{e.class}: #{e.message}"
+            out.warning("Could not determine env file changes: #{e.class}: #{e.message}")
           end
 
           # Handle .git-hooks files — per-file merging with format-appropriate merge gems
+          out.phase("🪝", "Git hooks", detail: ".git-hooks/")
           source_hooks_dir = File.join(template_root, ".git-hooks")
           if Dir.exist?(source_hooks_dir)
             # Honor ENV["only"]: skip entire .git-hooks handling unless patterns include .git-hooks
@@ -1713,23 +1737,25 @@ module Kettle
 
             # First: templates (.txt) — ask local/global/skip
             if File.file?(goalie_src) && File.file?(footer_src)
-              puts
-              puts "Git hooks templates found:"
-              puts "  - #{goalie_src}"
-              puts "  - #{footer_src}"
-              puts
-              puts "About these files:"
-              puts "- commit-subjects-goalie.txt:"
-              puts "  Lists commit subject prefixes to look for; if a commit subject starts with any listed prefix,"
-              puts "  kettle-commit-msg will append a footer to the commit message (when GIT_HOOK_FOOTER_APPEND=true)."
-              puts "  Defaults include release prep (🔖 Prepare release v) and checksum commits (🔒️ Checksums for v)."
-              puts "- footer-template.erb.txt:"
-              puts "  ERB template rendered to produce the footer. You can customize its contents and variables."
-              puts
-              puts "Where would you like to install these two templates?"
-              puts "  [l] Local to this project (#{File.join(project_root, ".git-hooks")})"
-              puts "  [g] Global for this user (#{File.join(ENV["HOME"], ".git-hooks")})"
-              puts "  [s] Skip copying"
+              unless quiet?
+                puts
+                puts "Git hooks templates found:"
+                puts "  - #{goalie_src}"
+                puts "  - #{footer_src}"
+                puts
+                puts "About these files:"
+                puts "- commit-subjects-goalie.txt:"
+                puts "  Lists commit subject prefixes to look for; if a commit subject starts with any listed prefix,"
+                puts "  kettle-commit-msg will append a footer to the commit message (when GIT_HOOK_FOOTER_APPEND=true)."
+                puts "  Defaults include release prep (🔖 Prepare release v) and checksum commits (🔒️ Checksums for v)."
+                puts "- footer-template.erb.txt:"
+                puts "  ERB template rendered to produce the footer. You can customize its contents and variables."
+                puts
+                puts "Where would you like to install these two templates?"
+                puts "  [l] Local to this project (#{File.join(project_root, ".git-hooks")})"
+                puts "  [g] Global for this user (#{File.join(ENV["HOME"], ".git-hooks")})"
+                puts "  [s] Skip copying"
+              end
               # Allow non-interactive selection via environment
               # Precedence: CLI switch (hook_templates) > KETTLE_DEV_HOOK_TEMPLATES > prompt
               force_mode = Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
@@ -1740,7 +1766,7 @@ module Kettle
               unless choice && !choice.empty?
                 if non_interactive_mode
                   choice = "l"
-                  puts "Choose (l/g/s) [l]: l (non-interactive)"
+                  out.detail("Choose (l/g/s) [l]: l (non-interactive)")
                 else
                   print("Choose (l/g/s) [l]: ")
                   choice = Kettle::Dev::InputAdapter.gets&.strip
@@ -1822,7 +1848,7 @@ module Kettle
                   Kettle::Dev.debug_error(e, __method__)
                 end
               else
-                puts "Skipping copy of .git-hooks templates."
+                out.detail("Skipping copy of .git-hooks templates.")
               end
             end
 
@@ -1830,7 +1856,7 @@ module Kettle
             begin
               FileUtils.mkdir_p(hook_dest_dir)
             rescue StandardError => e
-              puts "WARNING: Could not create #{hook_dest_dir}: #{e.class}: #{e.message}"
+              out.warning("Could not create #{hook_dest_dir}: #{e.class}: #{e.message}")
               hook_dest_dir = nil
             end
 
@@ -1880,6 +1906,7 @@ module Kettle
           end
 
           # Copy selected SPDX license files + LICENSE.md, then migrate old LICENSE.txt.
+          out.phase("📄", "License files")
           begin
             copy_selected_license_files!(
               helpers: helpers,
@@ -1895,7 +1922,7 @@ module Kettle
             collect_git_copyright!(helpers: helpers, project_root: project_root)
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            puts "WARNING: License file migration failed: #{e.class}: #{e.message}"
+            out.warning("License file migration failed: #{e.class}: #{e.message}")
           end
 
           # Scan all written files for unresolved {KJ|...} tokens and abort.
@@ -1928,8 +1955,9 @@ module Kettle
             Kettle::Dev.debug_error(e, __method__)
           end
 
-          helpers.print_warnings_summary
+          helpers.print_warnings_summary unless quiet?
           helpers.template_run_outcome = :complete
+          out.phase("✅", "Template complete")
 
           nil
         ensure
@@ -2016,10 +2044,10 @@ module Kettle
 
           section = "\n\n## Copyright Notice\n\n" + lines.join("\n") + "\n"
           File.write(actual_license_md_path, md_lines.join + section)
-          puts "Wrote #{lines.size} copyright line(s) to LICENSE.md."
+          puts "Wrote #{lines.size} copyright line(s) to LICENSE.md." unless TemplateTask.quiet?
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
-          puts "WARNING: Could not build copyright section: #{e.class}: #{e.message}"
+          Kernel.warn("[kettle-jem] ⚠️  Could not build copyright section: #{e.class}: #{e.message}")
         end
 
         def copy_selected_license_files!(helpers:, project_root:, template_root:)
@@ -2041,7 +2069,7 @@ module Kettle
             helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
-            puts "WARNING: Could not copy license file #{base}.md: #{e.class}: #{e.message}"
+            Kernel.warn("[kettle-jem] ⚠️  Could not copy license file #{base}.md: #{e.class}: #{e.message}")
           end
 
           # Write LICENSE.md from the template (expands {KJ|LICENSE_MD_CONTENT})
@@ -2085,10 +2113,10 @@ module Kettle
 
               begin
                 File.delete(path)
-                puts "Removed obsolete license file: #{base}.md (not in configured licenses)."
+                puts "Removed obsolete license file: #{base}.md (not in configured licenses)." unless TemplateTask.quiet?
               rescue StandardError => e
                 Kettle::Dev.debug_error(e, __method__)
-                puts "WARNING: Could not remove obsolete license file #{base}.md: #{e.class}: #{e.message}"
+                Kernel.warn("[kettle-jem] ⚠️  Could not remove obsolete license file #{base}.md: #{e.class}: #{e.message}")
               end
             end
         end
@@ -2115,7 +2143,7 @@ module Kettle
           migrator = Kettle::Jem::LicenseTxtMigrator.new(content)
 
           unless migrator.mit_license?
-            puts "LICENSE.txt does not appear to be an MIT license; leaving it in place."
+            puts "LICENSE.txt does not appear to be an MIT license; leaving it in place." unless TemplateTask.quiet?
             return
           end
 
@@ -2144,14 +2172,14 @@ module Kettle
             end
             section = "\n\n## Copyright Notice\n\n" + prefixed_lines.join("\n") + "\n"
             File.write(license_md_path, md_lines.join + section)
-            puts "Replaced fallback copyright with #{prefixed_lines.size} line(s) from LICENSE.txt in LICENSE.md."
+            puts "Replaced fallback copyright with #{prefixed_lines.size} line(s) from LICENSE.txt in LICENSE.md." unless TemplateTask.quiet?
           end
 
           File.delete(license_txt_path)
-          puts "Deleted LICENSE.txt (content migrated to LICENSE.md)."
+          puts "Deleted LICENSE.txt (content migrated to LICENSE.md)." unless TemplateTask.quiet?
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
-          puts "WARNING: Could not migrate LICENSE.txt: #{e.class}: #{e.message}"
+          Kernel.warn("[kettle-jem] ⚠️  Could not migrate LICENSE.txt: #{e.class}: #{e.message}")
         end
 
         def prune_workflow_matrix_by_appraisals(content, removed_appraisals)
