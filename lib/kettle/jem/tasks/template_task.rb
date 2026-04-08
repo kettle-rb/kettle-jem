@@ -429,16 +429,15 @@ module Kettle
           Kernel.warn("[kettle-jem] #{rel}: #{e.message}; destination is unparseable, using template content")
           SourceMerger.ensure_trailing_newline(content)
         rescue Ast::Merge::ParseError => e
-          # tree-sitter or other structural parser unavailable for this file type;
-          # fall back to line-based text merge so dest-only content is preserved.
-          Kernel.warn("[kettle-jem] #{rel}: #{e.message}; falling back to text merge")
-          result = Ast::Merge::Text::SmartMerger.new(
-            content,
-            dest_content,
-            preference: :template,
-            add_template_only_nodes: true,
-          ).merge
-          SourceMerger.ensure_trailing_newline((result.is_a?(String) && !result.empty?) ? result : content)
+          # AST parser unavailable for this file type — no silent fallback to text merge.
+          # Either skip the file (preserving destination) or abort the run.
+          if parse_error_mode == :skip
+            Kernel.warn("[kettle-jem] #{rel}: SKIPPED — #{e.message}")
+            SourceMerger.ensure_trailing_newline(dest_content)
+          else
+            raise Kettle::Dev::Error, "[kettle-jem] #{rel}: AST merge failed — #{e.message}. " \
+              "Set PARSE_ERROR_MODE=skip to skip files when parsers are unavailable."
+          end
         rescue StandardError => e
           if failure_mode == :rescue
             Kettle::Dev.debug_error(e, __method__)
@@ -508,6 +507,20 @@ module Kettle
         def failure_mode
           val = ENV.fetch("FAILURE_MODE", "error").to_s.strip.downcase
           (val == "rescue") ? :rescue : :error
+        end
+
+        # Determines behavior when an AST parser is unavailable for a file type.
+        #
+        # Controlled by the PARSE_ERROR_MODE environment variable:
+        #   - :fail (default) — raise Kettle::Dev::Error, halting the template task immediately
+        #   - :skip — warn and preserve the destination file content unchanged
+        #
+        # There is intentionally NO text-merge fallback. AST merge or nothing.
+        #
+        # @return [Symbol] :fail or :skip
+        def parse_error_mode
+          val = ENV.fetch("PARSE_ERROR_MODE", "fail").to_s.strip.downcase
+          (val == "skip") ? :skip : :fail
         end
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze
@@ -1095,14 +1108,14 @@ module Kettle
                     # Destination has syntax errors; cannot safely merge — use template content.
                     Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; destination is unparseable, using template content")
                   rescue Ast::Merge::ParseError => e
-                    # tree-sitter parser unavailable; fall back to line-based text merge
-                    Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; falling back to text merge")
-                    c = Ast::Merge::Text::SmartMerger.new(
-                      c,
-                      File.read(dest),
-                      preference: :template,
-                      add_template_only_nodes: true,
-                    ).merge
+                    # AST parser unavailable — no silent fallback to text merge.
+                    if parse_error_mode == :skip
+                      Kernel.warn("[kettle-jem] #{File.basename(dest)}: SKIPPED — #{e.message}")
+                      c = File.read(dest)
+                    else
+                      raise Kettle::Dev::Error, "[kettle-jem] #{File.basename(dest)}: AST merge failed — #{e.message}. " \
+                        "Set PARSE_ERROR_MODE=skip to skip files when parsers are unavailable."
+                    end
                   rescue StandardError => e
                     Kettle::Dev.debug_error(e, __method__)
                   end
