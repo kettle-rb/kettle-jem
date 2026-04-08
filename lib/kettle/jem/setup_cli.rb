@@ -188,13 +188,24 @@ module Kettle
         parser = OptionParser.new do |opts|
           opts.banner = "Usage: kettle-jem [options]"
           opts.on("--allowed=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "allowed=#{v}" }
-          opts.on("--force", "Pass through to kettle:jem:install") do
-            # Ensure in-process helpers (TemplateHelpers.ask) also see force mode
+          opts.on("--interactive", "Enable interactive prompts (default is non-interactive / force)") do
+            @force = false
+            ENV["force"] = "false"
+            @passthrough << "force=false"
+          end
+          opts.on("--verbose", "Show detailed output (default is quiet)") do
+            @verbose = true
+            @quiet = false
+            ENV["KETTLE_JEM_QUIET"] = "false"
+            ENV["KETTLE_JEM_VERBOSE"] = "true"
+          end
+          # Legacy flags kept as no-ops for backward compatibility
+          opts.on("--force", "No-op (force is now the default); use --interactive to opt out") do
             @force = true
             ENV["force"] = "true"
             @passthrough << "force=true"
           end
-          opts.on("--quiet", "Run quieter setup commands and pass --quiet through to downstream steps") do
+          opts.on("--quiet", "No-op (quiet is now the default); use --verbose to opt out") do
             @quiet = true
             ENV["KETTLE_JEM_QUIET"] = "true"
             @passthrough << "--quiet"
@@ -228,12 +239,24 @@ module Kettle
       end
 
       def quiet?
-        @quiet || Array(@passthrough).include?("--quiet") || Array(@original_argv).include?("--quiet")
+        return false if verbose?
+
+        # Default is quiet (true) unless --verbose was passed
+        quiet_explicit = @quiet
+        quiet_explicit = true if quiet_explicit.nil?
+        quiet_explicit || Array(@passthrough).include?("--quiet") || Array(@original_argv).include?("--quiet")
+      end
+
+      def verbose?
+        @verbose || Array(@passthrough).include?("--verbose") || Array(@original_argv).include?("--verbose")
       end
 
       def force?
+        # Default is force (true) unless --interactive was passed
         env_force = ENV["force"].to_s.strip
-        @force || env_force.casecmp("true").zero? || Array(@passthrough).include?("force=true") || Array(@original_argv).include?("--force")
+        return false if env_force.casecmp("false").zero?
+
+        @force.nil? ? true : @force || env_force.casecmp("true").zero? || Array(@passthrough).include?("force=true") || Array(@original_argv).include?("--force")
       end
 
       def abort!(msg)

@@ -108,7 +108,7 @@ module Kettle
               # If still no grapheme: in force mode abort with a clear message;
               # in interactive mode ask the user.
               if chosen_grapheme.nil? || chosen_grapheme.empty?
-                if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
+                if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "true").to_s)
                   raise Kettle::Dev::Error,
                     "project_emoji is not set in .kettle-jem.yml and no emoji was found in README H1. " \
                     "Please add a `project_emoji:` key to .kettle-jem.yml (e.g. 🪙). " \
@@ -233,7 +233,7 @@ module Kettle
                   end
                   print("Update #{File.basename(gemspec_path)} to use this homepage? [Y/n]: ")
                   do_update =
-                    if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
+                    if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "true").to_s)
                       true
                     else
                       ans = Kettle::Dev::InputAdapter.gets&.strip
@@ -368,7 +368,7 @@ module Kettle
               # Respect an explicit negative answer even when force=true
               add_it = if answer && answer =~ /\An(o)?\z/i
                 false
-              elsif Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "").to_s)
+              elsif Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "true").to_s)
                 true
               else
                 answer.nil? || answer.empty? || answer =~ /\Ay(es)?\z/i

@@ -1749,7 +1749,7 @@ module Kettle
         value
       end
 
-      def force_mode?(value = ENV.fetch("force", ""))
+      def force_mode?(value = ENV.fetch("force", "true"))
         %w[1 true y yes].include?(value.to_s.strip.downcase)
       end
 

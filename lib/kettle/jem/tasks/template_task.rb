@@ -529,11 +529,23 @@ module Kettle
 
         # Whether quiet mode is active — suppresses all CLI output except phase summaries.
         #
-        # Controlled by KETTLE_JEM_QUIET environment variable (set by --quiet CLI flag).
+        # Quiet is the default. Pass --verbose (sets KETTLE_JEM_VERBOSE=true) to
+        # get extra output.
         #
         # @return [Boolean]
         def quiet?
-          Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "false").to_s)
+          return false if verbose?
+
+          !Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "true").to_s) ? false : true
+        end
+
+        # Whether verbose mode is active — shows all CLI output.
+        #
+        # Controlled by KETTLE_JEM_VERBOSE environment variable (set by --verbose CLI flag).
+        #
+        # @return [Boolean]
+        def verbose?
+          Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_VERBOSE", "false").to_s)
         end
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze

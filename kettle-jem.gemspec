@@ -115,8 +115,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency("toml-rb", "~> 4.1")                              # ruby >= 2.3.0
 
   # Actor pattern for composable template phases
-  spec.add_dependency("service_actor", "~> 3.9")                         # ruby >= 3.0.0
-  spec.add_dependency("service_actor-promptable", "~> 1.0")              # ruby >= 2.6.0
+  spec.add_dependency("service_actor", "~> 3.9")                        # ruby >= 3.0.0
+  spec.add_dependency("service_actor-promptable", "~> 1.0")             # ruby >= 2.6.0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
