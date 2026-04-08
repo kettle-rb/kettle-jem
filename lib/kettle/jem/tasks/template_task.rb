@@ -5,6 +5,7 @@ require "set"
 require "find"
 
 require_relative "../template_output"
+require_relative "../duplicate_line_validator"
 
 module Kettle
   module Jem
@@ -1951,6 +1952,38 @@ module Kettle
             end
           rescue Kettle::Dev::Error
             raise # re-raise task_abort errors
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__)
+          end
+
+          # Duplicate line validation — scan all written files for intra-file
+          # duplicate lines that may indicate merge corruption.
+          # Baseline subtraction: duplicates that already exist in the template
+          # source files are expected and excluded from the report.
+          begin
+            baseline_set = DuplicateLineValidator.baseline(
+              min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
+            )
+            dup_results = DuplicateLineValidator.scan_template_results(
+              template_results: helpers.template_results,
+              min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
+            )
+            dup_results = DuplicateLineValidator.subtract_baseline(dup_results, baseline_set: baseline_set)
+            dup_count = DuplicateLineValidator.warning_count(dup_results)
+
+            if dup_results.empty?
+              out.phase("🔎", "Duplicate check", detail: "clean")
+            else
+              out.phase("🔎", "Duplicate check", detail: "#{dup_count} warning(s)")
+              out.report_detail(DuplicateLineValidator.report_summary(dup_results, project_root: project_root))
+
+              # Write JSON report alongside the markdown report
+              if templating_report_path
+                json_path = templating_report_path.sub(/\.md\z/, "-duplicates.json")
+                DuplicateLineValidator.write_json(dup_results, json_path)
+                out.detail("[kettle-jem] 📄  Duplicate line report: #{json_path}")
+              end
+            end
           rescue StandardError => e
             Kettle::Dev.debug_error(e, __method__)
           end

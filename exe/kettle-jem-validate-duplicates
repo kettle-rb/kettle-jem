@@ -1,0 +1,60 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Standalone duplicate-line scanner for kettle-jem templated files.
+#
+# Usage:
+#   exe/kettle-jem-validate-duplicates [PROJECT_ROOT] [--min-chars=N] [--json=PATH]
+#
+# Scans all template-managed file types under PROJECT_ROOT for intra-file
+# duplicate lines (lines with >N non-whitespace characters that appear more
+# than once in the same file). Outputs a warning count to STDOUT and writes
+# a JSON report.
+
+require_relative "../lib/kettle/jem/duplicate_line_validator"
+
+project_root = nil
+min_chars = Kettle::Jem::DuplicateLineValidator::DEFAULT_MIN_CHARS
+json_path = nil
+
+ARGV.each do |arg|
+  case arg
+  when /\A--min-chars=(\d+)\z/
+    min_chars = $1.to_i
+  when /\A--json=(.+)\z/
+    json_path = $1
+  when /\A-/
+    $stderr.puts "Unknown option: #{arg}"
+    $stderr.puts "Usage: #{$PROGRAM_NAME} [PROJECT_ROOT] [--min-chars=N] [--json=PATH]"
+    exit 1
+  else
+    project_root = arg
+  end
+end
+
+project_root ||= Dir.pwd
+
+dlv = Kettle::Jem::DuplicateLineValidator
+
+# Collect only template-managed files (files that match the template directory)
+files = dlv.template_managed_files(project_root: project_root)
+
+# Build baseline from the template directory — duplicates that exist in the
+# template source are expected and subtracted from the final report.
+baseline_set = dlv.baseline(min_chars: min_chars)
+
+results = dlv.scan(files: files, min_chars: min_chars)
+results = dlv.subtract_baseline(results, baseline_set: baseline_set)
+count = dlv.warning_count(results)
+
+if results.empty?
+  puts "[kettle-jem] ✅  No duplicate lines detected (min_chars=#{min_chars}, files=#{files.size}, baseline=#{baseline_set.size})"
+else
+  puts "[kettle-jem] ⚠️  #{count} duplicate line warning(s) across #{results.size} unique line(s) (files=#{files.size}, baseline=#{baseline_set.size})"
+
+  json_path ||= File.join(project_root, "tmp", "kettle-jem", "duplicate-lines-#{Time.now.utc.strftime("%Y%m%d-%H%M%S")}.json")
+  dlv.write_json(results, json_path)
+  puts "[kettle-jem] 📄  Report: #{json_path}"
+end
+
+exit(results.empty? ? 0 : 1)
