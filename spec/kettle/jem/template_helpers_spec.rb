@@ -225,7 +225,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
 
   describe ".copy_file_with_prompt prompt wording", :check_output do
     before do
-      stub_env("force" => "true")
+      stub_env("force" => "true", "KETTLE_JEM_QUIET" => "false", "KETTLE_JEM_VERBOSE" => "true")
     end
 
     it "says 'Merge into' when destination exists and a block is given" do

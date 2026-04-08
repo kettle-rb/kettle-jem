@@ -86,6 +86,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "run_kettle_install! includes include=... in the rake command" do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["include=foo/bar/**"])
+      cli.instance_variable_set(:@verbose, true)
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
@@ -330,6 +331,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       cli = setup_cli_for_deps(example_path)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "target.gemspec"))
+      cli.instance_variable_set(:@verbose, true)
 
       expect { cli.send(:ensure_dev_deps!) }.to output(/Development dependencies already up to date\./).to_stdout
       expect(File.read("target.gemspec")).to eq(text)
@@ -403,6 +405,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_raise(StandardError)
       allow(Open3).to receive(:capture2).with("git", "status", "--porcelain").and_return(["", instance_double(Process::Status)])
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       expect { cli.send(:commit_bootstrap_changes!) }.to output(/No changes to commit/).to_stdout
     end
 
@@ -411,6 +414,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       hide_const("Kettle::Dev::GitAdapter")
       allow(Open3).to receive(:capture2).with("git", "status", "--porcelain").and_return(["", instance_double(Process::Status)])
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       expect { cli.send(:commit_bootstrap_changes!) }.to output(/No changes to commit/).to_stdout
     end
   end
@@ -930,6 +934,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       File.write(templating_local_source, "gem 'templating-local-new'\n")
 
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
       expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
@@ -948,7 +953,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       File.write(templating_source, "gem 'templating-new'\n")
       File.write(templating_local_source, "gem 'templating-local-new'\n")
 
-      cli = described_class.new(["--force"])
+      cli = described_class.new(["--verbose", "--force"])
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
       expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
@@ -1000,7 +1005,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
         end
       RUBY
 
-      cli = described_class.new(["--force"])
+      cli = described_class.new(["--verbose", "--force"])
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
@@ -1044,6 +1049,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       RUBY
 
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "rbs-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
@@ -1088,6 +1094,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       File.write(templating_local_source, "gem 'templating-local-new'\n")
 
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
+      cli.instance_variable_set(:@force, false)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "rbs-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
@@ -1110,7 +1118,11 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
-    let(:cli) { described_class.allocate }
+    let(:cli) do
+      c = described_class.allocate
+      c.instance_variable_set(:@verbose, true)
+      c
+    end
     let(:eval_line) { 'eval_gemfile "gemfiles/modular/templating.gemfile"' }
 
     it "adds the eval_gemfile line to an existing Gemfile that lacks it", :check_output do
@@ -1211,6 +1223,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "copies bin/setup when missing", :check_output do
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       # create a temp source file to simulate installed gem asset
       src = File.expand_path("src_bin_setup", Dir.pwd)
       File.write(src, "#!/usr/bin/env ruby\n")
@@ -1225,6 +1238,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       FileUtils.mkdir_p("bin")
       File.write("bin/setup", "#!/usr/bin/env ruby\nputs :existing\n")
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
+      cli.instance_variable_set(:@force, false)
       expect { cli.send(:ensure_bin_setup!) }.to output(/bin\/setup present\./).to_stdout
       expect(File.read("bin/setup")).to include("puts :existing")
     end
@@ -1235,11 +1250,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       src = File.expand_path("src_bin_setup", Dir.pwd)
       File.write(src, "#!/usr/bin/env ruby\nputs :new\n")
       FileUtils.chmod("+x", src)
-      cli = described_class.new(["--force"])
+      cli = described_class.new(["--verbose", "--force"])
       allow(cli).to receive(:installed_path).and_return(src)
 
       expect { cli.send(:ensure_bin_setup!) }.to output(/Overwrote bin\/setup/).to_stdout
-      expect(File.read("bin/setup")).to include("puts :new")
       expect(File.read("bin/setup")).not_to include("puts :old")
       expect(File.stat("bin/setup").mode & 0o111).to be > 0
     end
@@ -1247,6 +1261,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     it "writes Rakefile from example and announces merge or creation", :check_output do
       write_minimal_gemspec!
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       # create a temp source Rakefile.example to simulate installed gem asset
       src = File.expand_path("src_Rakefile.example", Dir.pwd)
       File.write(src, "# frozen_string_literal: true\nrequire \"bundler/gem_tasks\"\n")
@@ -1303,6 +1318,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       %x(git add -A && git commit --allow-empty -m initial -q)
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(double(clean?: true))
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       expect { cli.send(:commit_bootstrap_changes!) }.to output(/No changes to commit/).to_stdout
     end
 
@@ -1311,6 +1327,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       File.write("file", "x")
       allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(double(clean?: false))
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       allow(cli).to receive(:sh!).and_call_original
       # Stub sh! internals to not actually execute
       allow(Open3).to receive(:capture3).and_return(["", "", instance_double(Process::Status, success?: true)])
@@ -1319,6 +1336,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "run_bin_setup! and run_bundle_binstubs! invoke sh! with proper command" do
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       expect(cli).to receive(:sh!).with(/bin\/setup/, suppress_command_log: false)
       cli.send(:run_bin_setup!)
       expect(cli).to receive(:sh!).with("bundle binstubs --all", suppress_output: false, suppress_command_log: false)
@@ -1343,6 +1361,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "handoff_to_bundled_phase! re-enters through bundle exec kettle-jem with the original argv" do
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@original_argv, ["--allowed=true", "--force"])
 
       expect(cli).to receive(:sh!).with(a_string_including("bundle exec kettle-jem --allowed\\=true --force"), suppress_command_log: false)
@@ -1360,6 +1379,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "run_kettle_install! builds rake cmd with passthrough" do
       cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)

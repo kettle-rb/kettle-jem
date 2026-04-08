@@ -428,6 +428,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
     it "prints mise trust notes when .envrc was modified by template", :check_output do
       Dir.mktmpdir do |project_root|
+        stub_env("KETTLE_JEM_QUIET" => "false", "KETTLE_JEM_VERBOSE" => "true")
         allow(helpers).to receive_messages(
           project_root: project_root,
           modified_by_template?: true,
@@ -442,6 +443,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
     it "recommends installing mise when it is not on PATH", :check_output do
       Dir.mktmpdir do |project_root|
+        stub_env("KETTLE_JEM_QUIET" => "false", "KETTLE_JEM_VERBOSE" => "true")
         allow(helpers).to receive_messages(
           project_root: project_root,
           modified_by_template?: true,
@@ -456,6 +458,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
     it "reports that PATH management is handled by mise when .envrc was not created by template" do
       Dir.mktmpdir do |project_root|
+        stub_env("KETTLE_JEM_QUIET" => "false", "KETTLE_JEM_VERBOSE" => "true")
         allow(helpers).to receive_messages(
           project_root: project_root,
           modified_by_template?: false,
@@ -606,7 +609,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(fake_git)
 
         # decline (no force, so input is read)
-        stub_env("force" => nil)
+        stub_env("force" => "false")
         allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("n\n")
         described_class.run
         expect(File.read(gemspec)).to include("http://example.com/demo")
@@ -817,7 +820,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
           template_results: {},
         )
         # No force set, so input is read and stubbed to 🚀
-        stub_env("force" => nil)
+        stub_env("force" => "false")
         allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("🚀\n")
         described_class.run
         readme = File.read(File.join(project_root, "README.md"))
