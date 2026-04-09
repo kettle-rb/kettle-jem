@@ -1760,7 +1760,12 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             )
 
             expect { described_class.run }.not_to raise_error
-            expect(File.read(dest_config)).to eq(existing_config)
+            # The checksum feature appends a `kettle-jem:` block after the
+            # existing config; verify the original content is preserved intact.
+            result = File.read(dest_config)
+            expect(result).to start_with(existing_config)
+            expect(result).to include("kettle-jem:")
+            expect(result).to include("checksums:")
           end
         end
       end

@@ -83,4 +83,16 @@ RSpec.configure do |config|
   # Include the stub so any spec that reaches ReleaseCLI.run_cmd!("bundle exec rake release") no-ops
   # it will skip when :real_rake_release is set
   config.include_context "with stubbed release rake"
+
+  # Reset class-variable state that can leak between examples when tests run
+  # in random order (e.g. @@kettle_config cached from real .kettle-jem.yml,
+  # @@project_root_override left dirty by a failed SelfTestTask example).
+  # Rescue MockExpectationError: some examples stub TemplateHelpers as a
+  # ClassDouble, in which case the real class variables need no cleanup.
+  config.after do
+    Kettle::Jem::TemplateHelpers.clear_kettle_config!
+    Kettle::Jem::TemplateHelpers.send(:class_variable_set, :@@project_root_override, nil)
+  rescue RSpec::Mocks::MockExpectationError
+    # TemplateHelpers is a class double in this example — no cleanup needed
+  end
 end
