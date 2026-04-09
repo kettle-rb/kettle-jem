@@ -683,7 +683,7 @@ Thanks for RTFM. ☺️
 [🖇buyme]: https://www.buymeacoffee.com/pboling
 [🖇paypal-img]: https://img.shields.io/badge/donate-paypal-a51611.svg?style=flat&logo=paypal
 [🖇paypal-bottom-img]: https://img.shields.io/badge/donate-paypal-a51611.svg?style=for-the-badge&logo=paypal&color=0A0A0A
-[🖇paypal]: https://www.paypal.com/paypalme/peterboling
+[🖇paypal]: https://www.paypal.com/paypalme/pboling
 [🖇floss-funding.dev]: https://floss-funding.dev
 [🖇floss-funding-gem]: https://github.com/galtzo-floss/floss_funding
 [✉️discord-invite]: https://discord.gg/3qme4XHNKN
@@ -712,8 +712,8 @@ Thanks for RTFM. ☺️
 [💖🐘ruby-mast-img]: https://img.shields.io/mastodon/follow/109447111526622197?domain=https://ruby.social&style=flat&logo=mastodon&label=Ruby%20@galtzo
 [💖🦋bluesky]: https://bsky.app/profile/galtzo.com
 [💖🦋bluesky-img]: https://img.shields.io/badge/@galtzo.com-0285FF?style=flat&logo=bluesky&logoColor=white
-[💖🌳linktree]: https://linktr.ee/galtzo
-[💖🌳linktree-img]: https://img.shields.io/badge/galtzo-purple?style=flat&logo=linktree
+[💖🌳linktree]: https://linktr.ee/pboling
+[💖🌳linktree-img]: https://img.shields.io/badge/pboling-purple?style=flat&logo=linktree
 [💖💁🏼‍♂️devto]: https://dev.to/galtzo
 [💖💁🏼‍♂️devto-img]: https://img.shields.io/badge/dev.to-0A0A0A?style=flat&logo=devdotto&logoColor=white
 [💖💁🏼‍♂️aboutme]: https://about.me/peter.boling

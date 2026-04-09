@@ -117,6 +117,10 @@ To run all tests
 bundle exec rake test
 ```
 
+```console
+K_SOUP_COV_MIN_HARD=false bundle exec kettle-test spec/path/to/spec.rb
+```
+
 ### Spec organization (required)
 
 - One spec file per class/module. For each class or module under `lib/`, keep all of its unit tests in a single spec file under `spec/` that mirrors the path and file name exactly: `lib/kettle/jem/my_class.rb` -> `spec/kettle/jem/my_class_spec.rb`.
@@ -124,7 +128,9 @@ bundle exec rake test
 
 ## Self-Test (Template Validation)
 
-kettle-jem includes a self-test rake task that validates the templating pipeline by running it against its own source tree. Since kettle-jem was originally set up by this very toolchain, re-running the template should produce output that closely matches the existing files.
+Run tests via `kettle-test` (provided by `kettle-test`). It runs RSpec, writes the full log to
+`tmp/kettle-test/rspec-TIMESTAMP.log`, and prints a compact highlight block with timing, seed,
+pass/fail count, failing example list, and SimpleCov coverage percentages.
 
 ### Running the self-test
 
@@ -167,7 +173,11 @@ By default the threshold is 0% (the task always passes). To enforce a minimum sc
 KJ_SELFTEST_THRESHOLD=80 bundle exec rake kettle:jem:selftest
 ```
 
-If the score falls below the threshold the task will raise an error.
+```console
+bundle exec kettle-test
+```
+
+For targeted runs, disable the hard coverage threshold to avoid false failures:
 
 ### When to use it
 
