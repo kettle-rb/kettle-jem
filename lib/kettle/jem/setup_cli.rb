@@ -356,17 +356,6 @@ module Kettle
             ENV["KETTLE_JEM_QUIET"] = "false"
             ENV["KETTLE_JEM_VERBOSE"] = "true"
           end
-          # Legacy flags kept as no-ops for backward compatibility
-          opts.on("--force", "No-op (force is now the default); use --interactive to opt out") do
-            @force = true
-            ENV["force"] = "true"
-            @passthrough << "force=true"
-          end
-          opts.on("--quiet", "No-op (quiet is now the default); use --verbose to opt out") do
-            @quiet = true
-            ENV["KETTLE_JEM_QUIET"] = "true"
-            @passthrough << "--quiet"
-          end
           opts.on("--hook_templates=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "hook_templates=#{v}" }
           opts.on("--only=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "only=#{v}" }
           opts.on("--include=VAL", "Pass through to kettle:jem:install") { |v| @passthrough << "include=#{v}" }

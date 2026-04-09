@@ -172,8 +172,6 @@ mise exec -C /path/to/project -- bundle exec rake kettle:jem:install force=false
 - **force=true** — non-interactive; use `--interactive` or `force=false` to opt out
 - **allowed=true** — env file changes auto-accepted; set `allowed=false` to require review
 
-The flags `--quiet` and `--force` are **backward-compatible no-ops** (they match the defaults). Use `--verbose` and `--interactive` to opt out of the defaults.
-
 ### Building & Installing Locally
 
 To test local code changes across sibling repos, rebuild and reinstall the gem:

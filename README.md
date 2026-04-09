@@ -421,9 +421,7 @@ Rake task arguments) and CLI flags passed to `kettle-jem setup`.
 | Variable | CLI Flag | Default | Description |
 |----------|----------|---------|-------------|
 | `allowed` | `--allowed=VAL` | `true` | Set to `false`/`0`/`no` to require manual review of env file changes before continuing. |
-| `force` | `--force` | `true` | Skip interactive prompts; automatically accept changes. This is the default. Legacy flag kept for backward compatibility. |
-| — | `--interactive` | _(off)_ | Enable interactive prompts (opt-in). Overrides the default non-interactive / force behavior. |
-| `KETTLE_JEM_QUIET` | `--quiet` | `true` | Suppress non-essential CLI output. Phase summary lines (emoji-prefixed) are always shown; per-file messages, skipping notices, and the post-install walkthrough are suppressed. Verbose detail is still written to the per-run report file. This is the default. Legacy flag kept for backward compatibility. |
+| — | `--interactive` | _(off)_ | Enable interactive prompts (opt-in). Overrides the default non-interactive behavior. |
 | `KETTLE_JEM_VERBOSE` | `--verbose` | `false` | Show detailed output including per-file messages and setup progress. Overrides the default quiet behavior. |
 | `only` | `--only=VAL` | _(all)_ | Comma-separated glob patterns — only template files matching at least one pattern are processed. |
 | `include` | `--include=VAL` | _(all)_ | Comma-separated glob patterns — additional files to include beyond the default set. |
