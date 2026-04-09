@@ -26,6 +26,26 @@ merge:
   # Custom signature generator for Rakefile matching
   signature_generator: signature_generator.rb
 
+steps:
+  - kind: ruby_script
+    name: remove_scaffold_bundler_gem_tasks
+    script: scaffold_bundler_gem_tasks.rb
+
+  - kind: ruby_script
+    name: remove_scaffold_rspec_setup
+    script: scaffold_rspec_setup.rb
+
+  - kind: ruby_script
+    name: remove_scaffold_rubocop_setup
+    script: scaffold_rubocop_setup.rb
+
+  - kind: ruby_script
+    name: remove_scaffold_default_task
+    script: scaffold_default_task.rb
+
+  - kind: smart_merge
+    name: merge_rakefile
+
 # Freeze token for preserving sections
 freeze_token: kettle-jem
 
