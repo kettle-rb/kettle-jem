@@ -184,7 +184,7 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
 
         expect(result).to eq(:unavailable),
           "PrepareTask.run must return :unavailable when gem_name cannot be derived; " \
-          "TemplateTask.run must then abort instead of writing files with raw tokens"
+            "TemplateTask.run must then abort instead of writing files with raw tokens"
       end
     end
   end
@@ -244,7 +244,7 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
 
         expect(helpers.tokens_configured?).to be(true),
           "PrepareTask.run must leave @@token_replacements configured so subsequent " \
-          "read_template calls resolve tokens correctly"
+            "read_template calls resolve tokens correctly"
 
         resolved = helpers.resolve_tokens("# Include dependencies from {KJ|GEM_NAME}.gemspec")
         expect(resolved).to include("demo"),

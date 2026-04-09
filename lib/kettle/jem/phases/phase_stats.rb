@@ -82,7 +82,7 @@ module Kettle
         #
         # @return [String, nil]
         def to_s
-          return nil if @templates.zero?
+          return if @templates.zero?
 
           parts = [
             "#{EMOJI[:templates]} #{@templates}",
@@ -106,7 +106,7 @@ module Kettle
         # @param project_root [String]
         # @return [Set<String>] absolute paths of modified files
         def git_modified_files(project_root)
-          output = `git -C #{Shellwords.escape(project_root)} diff --name-only 2>/dev/null`.strip
+          output = %x(git -C #{Shellwords.escape(project_root)} diff --name-only 2>/dev/null).strip
           output.split("\n").map { |rel| File.expand_path(rel, project_root) }.to_set
         rescue StandardError
           Set.new

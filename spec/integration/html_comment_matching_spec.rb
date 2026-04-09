@@ -50,7 +50,7 @@ RSpec.describe "HTML comment block matching via CompositeMatchRefiner" do
       result = do_merge(template, destination)
 
       # Each comment should appear at most once (fuzzy matched, not re-added)
-      template_doc_count = result.scan(/Template doc/).count
+      template_doc_count = result.scan("Template doc").count
       expect(template_doc_count).to eq(1),
         "Expected 1 'Template doc*' comment, got #{template_doc_count}.\n\nResult:\n#{result}"
 

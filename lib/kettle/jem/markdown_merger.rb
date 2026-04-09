@@ -356,8 +356,8 @@ module Kettle
 
         raise Kettle::Dev::Error,
           "[kettle-jem] Unclosed fenced code block in #{label} " \
-          "(opened at line #{fence_line} with #{fence_marker.inspect}). " \
-          "Close it with a matching #{fence_marker} before running kettle-jem."
+            "(opened at line #{fence_line} with #{fence_marker.inspect}). " \
+            "Close it with a matching #{fence_marker} before running kettle-jem."
       end
 
       def normalize_heading_base(text)

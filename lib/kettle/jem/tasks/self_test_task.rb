@@ -156,7 +156,7 @@ module Kettle
           score, divergence = score_and_divergence(comparison)
 
           puts "[selftest] 📄  Report - #{report_path}"
-          puts "[selftest] #{score >= 100.0 ? "✅" : "⚠️"}  Score: #{score}% · Divergence: #{divergence}% · Threshold: #{threshold_label(threshold_mode, threshold)}"
+          puts "[selftest] #{(score >= 100.0) ? "✅" : "⚠️"}  Score: #{score}% · Divergence: #{divergence}% · Threshold: #{threshold_label(threshold_mode, threshold)}"
 
           if threshold_failed?(threshold_mode, threshold, score, divergence)
             raise Kettle::Dev::Error,

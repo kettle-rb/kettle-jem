@@ -111,8 +111,8 @@ module Kettle
                 if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("force", "true").to_s)
                   raise Kettle::Dev::Error,
                     "project_emoji is not set in .kettle-jem.yml and no emoji was found in README H1. " \
-                    "Please add a `project_emoji:` key to .kettle-jem.yml (e.g. 🪙). " \
-                    "ENV override: KJ_PROJECT_EMOJI"
+                      "Please add a `project_emoji:` key to .kettle-jem.yml (e.g. 🪙). " \
+                      "ENV override: KJ_PROJECT_EMOJI"
                 else
                   puts "No grapheme found in README H1 or project_emoji config. Enter a grapheme (emoji/symbol) to use for README, summary, and description:"
                   print("Grapheme: ")

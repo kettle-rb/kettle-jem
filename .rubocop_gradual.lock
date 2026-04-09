@@ -1,0 +1,9 @@
+{
+  "lib/kettle/jem/template_helpers.rb:1789192408": [
+    [689, 9, 25, "Style/InvertibleUnlessCondition: Prefer `if fmc.none?` over `unless fmc.any?`.", 3897721172]
+  ],
+  "spec/integration/template_run_idempotency_spec.rb:960151093": [
+    [186, 5, 16, "RSpec/IncludeExamples: Prefer `it_behaves_like` over `include_examples`.", 2874877341],
+    [310, 5, 16, "RSpec/IncludeExamples: Prefer `it_behaves_like` over `include_examples`.", 2874877341]
+  ]
+}

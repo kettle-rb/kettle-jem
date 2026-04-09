@@ -20,20 +20,20 @@ module Kettle
     module TemplateOutput
       # Phase summary emoji mapping — thematically relevant to each phase's purpose.
       PHASE_EMOJI = {
-        config:       "⚙️",
+        config: "⚙️",
         devcontainer: "📦",
-        workflows:    "🔄",
-        quality:      "🔍",
-        gemfiles:     "💎",
-        spec:         "🧪",
-        env:          "🌍",
-        files:        "📂",
-        hooks:        "🪝",
-        license:      "📄",
-        complete:     "✅",
-        error:        "❌",
-        skip:         "⏭️",
-        warning:      "⚠️",
+        workflows: "🔄",
+        quality: "🔍",
+        gemfiles: "💎",
+        spec: "🧪",
+        env: "🌍",
+        files: "📂",
+        hooks: "🪝",
+        license: "📄",
+        complete: "✅",
+        error: "❌",
+        skip: "⏭️",
+        warning: "⚠️",
       }.freeze
 
       class Formatter
@@ -61,7 +61,7 @@ module Kettle
           line = detail ? "[kettle-jem] #{emoji}  #{message} - #{detail}" : "[kettle-jem] #{emoji}  #{message}"
           @cli_io.puts(line)
           report_line(line)
-          @phase_results << { emoji: emoji, message: message, detail: detail }
+          @phase_results << {emoji: emoji, message: message, detail: detail}
         end
 
         # Emit a detail line — shown on CLI only in non-quiet mode.
@@ -102,9 +102,7 @@ module Kettle
         # Attach a report IO after initialization (e.g., once report path is known).
         #
         # @param io [IO] writable IO for the report file
-        def report_io=(io)
-          @report_io = io
-        end
+        attr_writer :report_io
 
         # @return [Array<Hash>] collected phase results for summary
         attr_reader :phase_results

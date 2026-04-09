@@ -61,7 +61,7 @@ module Kettle
           # @return [Ast::Merge::MergerConfig] Config preset
           def workflow_config(freeze_token: nil)
             Ast::Merge::MergerConfig.new(
-              preference: { default: :destination, gha_action: :template },
+              preference: {default: :destination, gha_action: :template},
               add_template_only_nodes: true,
               freeze_token: freeze_token || default_freeze_token,
               node_typing: gha_uses_node_typing,
@@ -108,7 +108,7 @@ module Kettle
           def gha_uses_node_typing
             {
               MappingEntry: ->(node) {
-                node.key_name == "uses" ? Ast::Merge::NodeTyping.with_merge_type(node, :gha_action) : node
+                (node.key_name == "uses") ? Ast::Merge::NodeTyping.with_merge_type(node, :gha_action) : node
               },
             }
           end

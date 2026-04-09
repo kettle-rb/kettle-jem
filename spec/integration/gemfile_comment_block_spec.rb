@@ -121,7 +121,7 @@ RSpec.describe "Gemfile comment block and token resolution" do
       # that the upstream fix (return early when prerequisites != :ready) prevents.
       expect(result).to include("{KJ|GEM_NAME}"),
         "Without upstream token resolution, template preference leaks raw token — " \
-        "this is the failure mode the TemplateTask.run guard must prevent"
+          "this is the failure mode the TemplateTask.run guard must prevent"
     end
   end
 

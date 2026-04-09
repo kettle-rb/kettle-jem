@@ -216,7 +216,7 @@ module Kettle
 
         results.each do |content, entries|
           # Truncate very long lines for readability
-          display = content.length > 80 ? "#{content[0, 77]}..." : content
+          display = (content.length > 80) ? "#{content[0, 77]}..." : content
           # Escape pipes for markdown table
           display = display.gsub("|", "\\|")
 

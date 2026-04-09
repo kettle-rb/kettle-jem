@@ -28,7 +28,7 @@ module Kettle
       #
       # @return [String, nil] populated workflow YAML or nil
       def generate
-        return nil unless @helpers.framework_matrix?
+        return unless @helpers.framework_matrix?
 
         fmc = @helpers.framework_matrix_config
         dimension = fmc["dimension"]
@@ -36,17 +36,17 @@ module Kettle
         pattern = fmc["gemfile_pattern"]
 
         parsed = Psych.safe_load(@template, permitted_classes: [Symbol])
-        return nil unless parsed.is_a?(Hash)
+        return unless parsed.is_a?(Hash)
 
         # Update workflow name to include dimension
         parsed["name"] = "#{dimension.capitalize} CI"
 
         # Update the matrix
         jobs = parsed["jobs"]
-        return nil unless jobs.is_a?(Hash)
+        return unless jobs.is_a?(Hash)
 
         job = jobs.values.first
-        return nil unless job.is_a?(Hash)
+        return unless job.is_a?(Hash)
 
         strategy = job["strategy"] ||= {}
         matrix = strategy["matrix"] ||= {}

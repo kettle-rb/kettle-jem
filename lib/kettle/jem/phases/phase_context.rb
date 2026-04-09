@@ -9,10 +9,21 @@ module Kettle
       # to every phase actor. Provides access to helpers, output formatter,
       # project/template paths, and gem metadata extracted during preflight.
       class PhaseContext
-        attr_reader :helpers, :out, :project_root, :template_root,
-          :gem_name, :namespace, :namespace_shield, :gem_shield,
-          :forge_org, :funding_org, :min_ruby, :entrypoint_require,
-          :meta, :removed_appraisals, :parse_error_mode
+        attr_reader :helpers,
+          :out,
+          :project_root,
+          :template_root,
+          :gem_name,
+          :namespace,
+          :namespace_shield,
+          :gem_shield,
+          :forge_org,
+          :funding_org,
+          :min_ruby,
+          :entrypoint_require,
+          :meta,
+          :removed_appraisals,
+          :parse_error_mode
 
         # @param helpers [Module] TemplateHelpers module
         # @param out [TemplateOutput::Formatter] CLI/report output formatter

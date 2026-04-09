@@ -11,18 +11,18 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
     let(:note_block) do
       <<~COMMENT.chomp
-          # NOTE: It is preferable to list development dependencies in the gemspec due to increased
-          #       visibility and discoverability.
-          #       However, development dependencies in gemspec will install on
-          #       all versions of Ruby that will run in CI.
-          #       This gem, and its gemspec runtime dependencies, will install on Ruby down to 2.3.0.
-          #       This gem, and its gemspec development dependencies, will install on Ruby down to 2.3.0.
-          #       Thus, dev dependencies in gemspec must have
-          #
-          #       required_ruby_version ">= 2.3.0" (or lower)
-          #
-          #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
-          #       and preferably a modular one (see gemfiles/modular/*.gemfile).
+        # NOTE: It is preferable to list development dependencies in the gemspec due to increased
+        #       visibility and discoverability.
+        #       However, development dependencies in gemspec will install on
+        #       all versions of Ruby that will run in CI.
+        #       This gem, and its gemspec runtime dependencies, will install on Ruby down to 2.3.0.
+        #       This gem, and its gemspec development dependencies, will install on Ruby down to 2.3.0.
+        #       Thus, dev dependencies in gemspec must have
+        #
+        #       required_ruby_version ">= 2.3.0" (or lower)
+        #
+        #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
+        #       and preferably a modular one (see gemfiles/modular/*.gemfile).
       COMMENT
     end
 
@@ -82,7 +82,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       it "produces exactly one NOTE block via PrismGemspec.merge" do
         result = described_class.merge(
-          template_content, dest_content,
+          template_content,
+          dest_content,
           context: context,
         )
 
@@ -148,7 +149,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       it "does not accumulate NOTE blocks across successive merges" do
         # First merge
         first_result = described_class.merge(
-          template_content, dest_content,
+          template_content,
+          dest_content,
           context: context,
         )
         expect(first_result.scan("NOTE: It is preferable").count).to eq(1),
@@ -156,7 +158,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
         # Second merge (merged output becomes the new dest)
         second_result = described_class.merge(
-          template_content, first_result,
+          template_content,
+          first_result,
           context: context,
         )
         expect(second_result.scan("NOTE: It is preferable").count).to eq(1),
@@ -164,7 +167,8 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
         # Third merge (belt and suspenders)
         third_result = described_class.merge(
-          template_content, second_result,
+          template_content,
+          second_result,
           context: context,
         )
         expect(third_result.scan("NOTE: It is preferable").count).to eq(1),

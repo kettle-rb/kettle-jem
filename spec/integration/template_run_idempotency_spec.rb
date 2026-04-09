@@ -92,7 +92,7 @@ RSpec.describe "template run idempotency", :e2e do
             changed_run2.each do |path, (before, after)|
               expect(after).to eq(before),
                 "File #{path} changed between run 1 and run 2:\n" \
-                "--- run 1\n#{before}\n+++ run 2\n#{after}"
+                  "--- run 1\n#{before}\n+++ run 2\n#{after}"
             end
           end
 
@@ -100,7 +100,7 @@ RSpec.describe "template run idempotency", :e2e do
             changed_run3.each do |path, (before, after)|
               expect(after).to eq(before),
                 "File #{path} changed between run 2 and run 3:\n" \
-                "--- run 2\n#{before}\n+++ run 3\n#{after}"
+                  "--- run 2\n#{before}\n+++ run 3\n#{after}"
             end
           end
         end

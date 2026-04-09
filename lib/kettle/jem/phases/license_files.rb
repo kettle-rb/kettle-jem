@@ -14,7 +14,7 @@ module Kettle
 
         def perform
           helpers = context.helpers
-          out = context.out
+          context.out
           Kettle::Jem::Tasks::TemplateTask.copy_selected_license_files!(
             helpers: helpers,
             project_root: context.project_root,

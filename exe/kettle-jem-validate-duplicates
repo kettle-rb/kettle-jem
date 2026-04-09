@@ -11,7 +11,7 @@
 # than once in the same file). Outputs a warning count to STDOUT and writes
 # a JSON report.
 
-require_relative "../lib/kettle/jem/duplicate_line_validator"
+require "kettle/jem/duplicate_line_validator"
 
 project_root = nil
 min_chars = Kettle::Jem::DuplicateLineValidator::DEFAULT_MIN_CHARS
@@ -26,7 +26,7 @@ ARGV.each do |arg|
   when /\A-/
     $stderr.puts "Unknown option: #{arg}"
     $stderr.puts "Usage: #{$PROGRAM_NAME} [PROJECT_ROOT] [--min-chars=N] [--json=PATH]"
-    exit 1
+    exit(1)
   else
     project_root = arg
   end

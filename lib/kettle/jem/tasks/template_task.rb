@@ -536,7 +536,7 @@ module Kettle
         def quiet?
           return false if verbose?
 
-          !Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "true").to_s) ? false : true
+          (!Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "true").to_s)) ? false : true
         end
 
         # Whether verbose mode is active — shows all CLI output.
@@ -1041,9 +1041,9 @@ module Kettle
           unless helpers.present_string?(project_emoji)
             task_abort(
               "Missing required config: project_emoji\n" \
-              "Please add a `project_emoji:` key to .kettle-jem.yml with your gem's " \
-              "identifying emoji (e.g. 🪙). " \
-              "ENV override: KJ_PROJECT_EMOJI",
+                "Please add a `project_emoji:` key to .kettle-jem.yml with your gem's " \
+                "identifying emoji (e.g. 🪙). " \
+                "ENV override: KJ_PROJECT_EMOJI",
             )
           end
 

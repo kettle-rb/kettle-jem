@@ -634,7 +634,7 @@ module Kettle
 
         add_warning(
           "Unknown workflows.preset '#{raw}'. Supported: #{WORKFLOW_PRESETS.join(", ")}. " \
-          "Falling back to #{WORKFLOW_PRESET_DEFAULT}.",
+            "Falling back to #{WORKFLOW_PRESET_DEFAULT}.",
         )
         WORKFLOW_PRESET_DEFAULT
       end
@@ -930,7 +930,7 @@ module Kettle
           if content.to_s.include?("{KJ|")
             raise Kettle::Dev::Error,
               "resolve_tokens called with unconfigured tokens on content containing {KJ|...} patterns. " \
-              "Call configure_tokens! first. Content preview: #{content[0, 120].inspect}"
+                "Call configure_tokens! first. Content preview: #{content[0, 120].inspect}"
           end
           return content
         end
@@ -1009,7 +1009,7 @@ module Kettle
       # @return [void]
       # Pattern that matches unresolved {KJ|...} token placeholders.
       # Used by write_file as the absolute last-resort guardrail.
-      UNRESOLVED_TOKEN_RE = /\{KJ\|[A-Z][A-Z0-9_:]*\}/.freeze
+      UNRESOLVED_TOKEN_RE = /\{KJ\|[A-Z][A-Z0-9_:]*\}/
 
       def write_file(dest_path, content)
         actual = output_path(dest_path)
@@ -1033,8 +1033,8 @@ module Kettle
           tokens_found = scan_content.scan(UNRESOLVED_TOKEN_RE).uniq.sort
           raise Kettle::Dev::Error,
             "FATAL: write_file refusing to write unresolved tokens to #{actual}. " \
-            "Unresolved tokens: #{tokens_found.join(", ")}. " \
-            "This means configure_tokens! was not called or token resolution was skipped."
+              "Unresolved tokens: #{tokens_found.join(", ")}. " \
+              "This means configure_tokens! was not called or token resolution was skipped."
         end
 
         File.open(actual, "w") { |f| f.write(normalized) }
