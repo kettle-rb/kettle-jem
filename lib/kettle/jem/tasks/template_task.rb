@@ -18,6 +18,17 @@ module Kettle
         MARKDOWN_HEADING_EXTENSIONS = %w[.md .markdown].freeze
         OBSOLETE_WORKFLOWS = %w[ancient.yml legacy.yml supported.yml unsupported.yml main.yml hoary.yml].freeze
 
+        # Matches a +spec.authors = [...]+ assignment on a single line.
+        # Capture group 1: everything up to and including the opening +[+
+        # (preserving indentation and the block-param variable name).
+        # Capture group 2: anything after the closing +]+ (e.g. a comment).
+        GEMSPEC_AUTHORS_RE = /^(\s*\w+\.authors\s*=\s*)\[.*?\](.*)/
+
+        # Extracts the human name from a bare copyright line:
+        #   "Copyright (c) 2024-2026 Jane Contributor" => "Jane Contributor"
+        # Years may be a single year, a hyphenated range, or a comma-separated list.
+        COPYRIGHT_NAME_RE = /\ACopyright \(c\) [\d,\s\-]+ (.+)\z/
+
         # Markdown basenames that live in template/ as *.md.example but are NOT
         # SPDX license files.  Used to distinguish license files from other
         # template-managed markdown documents when pruning obsolete licenses.
@@ -1164,6 +1175,10 @@ module Kettle
           lines = collector.copyright_lines
           return if lines.empty?
 
+          # Sync author names to gemspec before applying the PolyForm prefix so
+          # the names are extracted from bare "Copyright (c) YEARS NAME" strings.
+          sync_gemspec_authors!(helpers: helpers, project_root: project_root, copyright_lines: lines)
+
           prefix = helpers.polyform_licenses?(helpers.resolved_licenses) ? "Required Notice: " : ""
           lines = lines.map { |l| "#{prefix}#{l}" } if prefix != ""
 
@@ -1191,6 +1206,63 @@ module Kettle
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           Kernel.warn("[kettle-jem] ⚠️  Could not build copyright section: #{e.class}: #{e.message}")
+        end
+
+        # Overwrites +spec.authors+ in the project gemspec with the set of human
+        # contributors derived from git blame (the same set used to populate the
+        # LICENSE.md copyright section).
+        #
+        # Author names are extracted from bare copyright lines of the form:
+        #   "Copyright (c) YEARS NAME"
+        # where YEARS may be a single year, a range ("2024-2026"), or a
+        # comma-separated list.
+        #
+        # The gemspec line is expected to be a single-line array assignment, e.g.:
+        #   spec.authors = ["Peter H. Boling"]
+        # and is replaced with the full contributor list:
+        #   spec.authors = ["Alice Contributor", "Bob Contributor"]
+        #
+        # Skipped silently if no gemspec is found or the line is absent.
+        #
+        # @param helpers [TemplateHelpers]
+        # @param project_root [String] absolute path to destination project
+        # @param copyright_lines [Array<String>] bare copyright strings
+        #   (before any PolyForm "Required Notice: " prefix is applied)
+        def sync_gemspec_authors!(helpers:, project_root:, copyright_lines:)
+          authors = extract_author_names(copyright_lines)
+          return if authors.empty?
+
+          actual_root = helpers.output_dir || project_root
+          gemspec_path = Dir.glob(File.join(actual_root, "*.gemspec")).first
+          return unless gemspec_path && File.file?(gemspec_path)
+
+          content = File.read(gemspec_path)
+          array_literal = "[#{authors.map { |a| a.inspect }.join(", ")}]"
+          updated = content.gsub(GEMSPEC_AUTHORS_RE) do
+            "#{::Regexp.last_match(1)}#{array_literal}#{::Regexp.last_match(2)}"
+          end
+
+          if updated != content
+            File.write(gemspec_path, updated)
+            puts "Updated spec.authors with #{authors.size} contributor(s) in #{File.basename(gemspec_path)}." unless TemplateTask.quiet?
+          end
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          Kernel.warn("[kettle-jem] ⚠️  Could not sync gemspec authors: #{e.class}: #{e.message}")
+        end
+
+        # Extracts bare author names from copyright lines produced by
+        # {CopyrightCollector#copyright_lines}.
+        #
+        # @param copyright_lines [Array<String>] e.g. ["Copyright (c) 2024 Jane Doe"]
+        # @return [Array<String>] e.g. ["Jane Doe"]
+        def extract_author_names(copyright_lines)
+          Array(copyright_lines).filter_map do |line|
+            m = COPYRIGHT_NAME_RE.match(line.to_s.strip)
+            next unless m
+            name = m[1].strip
+            name unless name.empty?
+          end
         end
 
         def copy_selected_license_files!(helpers:, project_root:, template_root:)

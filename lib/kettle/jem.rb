@@ -71,6 +71,7 @@ module Kettle
     autoload :ConfigSeeder, "kettle/jem/config_seeder"
     autoload :TemplateHelpers, "kettle/jem/template_helpers"
     autoload :ModularGemfiles, "kettle/jem/modular_gemfiles"
+    autoload :GemRubyFloor, "kettle/jem/gem_ruby_floor"
     autoload :SetupCLI, "kettle/jem/setup_cli"
 
     # Recipe-driven mergers

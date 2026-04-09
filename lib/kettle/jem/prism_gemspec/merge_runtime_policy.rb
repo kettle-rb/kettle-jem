@@ -16,7 +16,7 @@ module Kettle
         # Merge template and destination gemspec content through the shared recipe
         # runner so smart-merge orchestration and post-merge harmonization live in
         # the recipe surface instead of SourceMerger hooks.
-        def merge(template_content, dest_content, preset: nil, min_ruby: nil, entrypoint_require: nil, namespace: nil, **options)
+        def merge(template_content, dest_content, preset: nil, min_ruby: nil, entrypoint_require: nil, namespace: nil, resolver: nil, **options)
           template_content ||= ""
           dest_content ||= ""
 
@@ -49,6 +49,8 @@ module Kettle
           # Post-merge harmonization (DependencySectionPolicy) manipulates lines
           # and can re-introduce consecutive blank lines. Normalize as a final pass.
           harmonized_content = normalize_consecutive_blank_lines(harmonized_content)
+          # Optionally align # ruby >= N.N trailing comments on all dep lines.
+          harmonized_content = align_dependency_ruby_comments(harmonized_content, resolver: resolver)
           validate_merged_gemspec_content!(harmonized_content)
         rescue Kettle::Jem::Error
           raise
@@ -92,6 +94,20 @@ module Kettle
             end
           end
           result.join("\n")
+        end
+
+        # Apply DependencyCommentAligner when a resolver is available.
+        # Silently skips if resolver is nil or if the aligner fails.
+        def align_dependency_ruby_comments(content, resolver:)
+          return content unless resolver
+
+          Kettle::Jem::GemRubyFloor::DependencyCommentAligner.align(
+            gemspec_content: content,
+            resolver: resolver,
+          )
+        rescue StandardError => e
+          debug_error(e, __method__)
+          content
         end
       end
     end

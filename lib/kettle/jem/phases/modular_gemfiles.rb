@@ -20,6 +20,19 @@ module Kettle
             min_ruby: context.min_ruby,
             gem_name: context.gem_name,
           )
+
+          resolver = build_resolver
+          Kettle::Jem::ModularGemfiles.sync_shunted_gemfile!(
+            helpers: context.helpers,
+            project_root: context.project_root,
+            resolver: resolver,
+          )
+        end
+
+        def build_resolver
+          Kettle::Jem::GemRubyFloor::Resolver.new
+        rescue StandardError
+          nil
         end
       end
     end
