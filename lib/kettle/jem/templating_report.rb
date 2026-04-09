@@ -121,7 +121,9 @@ module Kettle
         finished_at: nil,
         status: nil,
         warnings: [],
-        error: nil
+        error: nil,
+        template_diff: nil,
+        template_commit_sha: nil
       )
         snapshot ||= self.snapshot
         lines = []
@@ -140,7 +142,12 @@ module Kettle
           lines << "**kettle-jem**: #{version} (#{source_label(kettle_jem)})#{path}"
         end
 
+        lines << "**Template commit**: `#{template_commit_sha}`" if template_commit_sha
         lines << ""
+
+        if template_diff
+          lines << template_diff_section(template_diff)
+        end
 
         environment_section = markdown_section(snapshot: snapshot)
         lines << environment_section unless environment_section.empty?
@@ -175,7 +182,9 @@ module Kettle
         finished_at: nil,
         status: nil,
         warnings: [],
-        error: nil
+        error: nil,
+        template_diff: nil,
+        template_commit_sha: nil
       )
         snapshot ||= self.snapshot
         report_path ||= self.report_path(
@@ -196,6 +205,8 @@ module Kettle
             status: status,
             warnings: warnings,
             error: error,
+            template_diff: template_diff,
+            template_commit_sha: template_commit_sha,
           ),
         )
         report_path
@@ -233,6 +244,51 @@ module Kettle
         return "local path" if entry[:local_path]
 
         "installed gem"
+      end
+
+      # Render a Markdown section summarising template file changes since the last run.
+      #
+      # @param diff [Hash{Symbol => Array<String>}] result of TemplateChecksums.diff
+      # @return [String] Markdown section (may be empty string when there are no changes)
+      def template_diff_section(diff)
+        require_relative "template_checksums"
+
+        count = Kettle::Jem::TemplateChecksums.diff_count(diff)
+        lines = []
+        lines << "## Template File Changes"
+        lines << ""
+
+        if count.zero?
+          lines << "_No template files changed since last run._"
+          lines << ""
+          return lines.join("\n")
+        end
+
+        lines << Kettle::Jem::TemplateChecksums.summary(diff)
+        lines << ""
+
+        if diff[:added].any?
+          lines << "### Added (#{diff[:added].size})"
+          lines << ""
+          diff[:added].each { |f| lines << "- `#{f}`" }
+          lines << ""
+        end
+
+        if diff[:changed].any?
+          lines << "### Changed (#{diff[:changed].size})"
+          lines << ""
+          diff[:changed].each { |f| lines << "- `#{f}`" }
+          lines << ""
+        end
+
+        if diff[:removed].any?
+          lines << "### Removed (#{diff[:removed].size})"
+          lines << ""
+          diff[:removed].each { |f| lines << "- `#{f}`" }
+          lines << ""
+        end
+
+        lines.join("\n")
       end
     end
   end

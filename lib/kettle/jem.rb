@@ -66,6 +66,7 @@ module Kettle
     autoload :SourceMerger, "kettle/jem/source_merger"
     autoload :VersionGemBootstrap, "kettle/jem/version_gem_bootstrap"
     autoload :TemplatingReport, "kettle/jem/templating_report"
+    autoload :TemplateChecksums, "kettle/jem/template_checksums"
 
     # Templating and setup (moved from kettle-dev)
     autoload :ConfigSeeder, "kettle/jem/config_seeder"

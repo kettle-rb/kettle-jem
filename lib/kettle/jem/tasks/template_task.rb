@@ -5,6 +5,7 @@ require "set"
 require "find"
 
 require_relative "../template_output"
+require_relative "../template_checksums"
 require_relative "../duplicate_line_validator"
 require_relative "../phases"
 
@@ -488,7 +489,9 @@ module Kettle
           status: nil,
           warnings: [],
           error: nil,
-          report_path: nil
+          report_path: nil,
+          template_diff: nil,
+          template_commit_sha: nil
         )
           Kettle::Jem::TemplatingReport.write(
             project_root: project_root,
@@ -500,6 +503,8 @@ module Kettle
             status: status,
             warnings: warnings,
             error: error,
+            template_diff: template_diff,
+            template_commit_sha: template_commit_sha,
           )
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
@@ -512,6 +517,61 @@ module Kettle
           return outcome || :failed if error
 
           outcome || :complete
+        end
+
+        # Auto-commit all changes made by the template run.
+        #
+        # If the working tree is clean (no changes), returns nil.
+        # Otherwise stages everything, commits with a descriptive message, and
+        # returns the short SHA of the new commit.
+        #
+        # @param root    [String] project root
+        # @param helpers [Module] TemplateHelpers
+        # @param out     [TemplateOutput::Formatter]
+        # @return [String, nil] 7-char short SHA of the new commit, or nil if no commit was made
+        def make_template_commit!(root:, helpers:, out:)
+          ga = Kettle::Dev::GitAdapter.new
+          return if ga.clean?
+
+          version = helpers.kettle_jem_version
+          msg = "🎨 Apply kettle-jem template#{" v#{version}" if version}"
+
+          _, add_ok = ga.capture(["-C", root.to_s, "add", "-A"])
+          unless add_ok
+            out.warning("Could not stage files for template commit (git add -A failed)")
+            return
+          end
+
+          _, commit_ok = ga.capture(["-C", root.to_s, "commit", "-m", msg])
+          unless commit_ok
+            out.warning("Template commit failed (git commit returned non-zero)")
+            return
+          end
+
+          sha, sha_ok = ga.capture(["-C", root.to_s, "rev-parse", "--short", "HEAD"])
+          sha_ok ? sha.strip : nil
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__) if defined?(Kettle::Dev)
+          nil
+        end
+
+        # Build the detail string appended to the "Template complete" phase line.
+        #
+        # @param template_diff [Hash, nil] result of TemplateChecksums.diff, or nil if unavailable
+        # @param commit_sha    [String, nil] short SHA of the template commit, or nil if no commit
+        # @param verbose       [Boolean]
+        # @return [String, nil]
+        def build_complete_detail(template_diff:, commit_sha:, verbose:)
+          parts = []
+
+          if template_diff
+            count = Kettle::Jem::TemplateChecksums.diff_count(template_diff)
+            parts << Kettle::Jem::TemplateChecksums.summary(template_diff) if count.positive?
+          end
+
+          parts << "commit #{commit_sha}" if commit_sha
+
+          parts.empty? ? nil : parts.join(" | ")
         end
 
         # Determine the failure mode for merge operations.
@@ -995,6 +1055,11 @@ module Kettle
 
           out = Kettle::Jem::TemplateOutput::Formatter.new(quiet: quiet?)
 
+          # Initialized early so the ensure block can always reference them,
+          # even if an exception occurs before they are assigned below.
+          template_diff = nil
+          template_commit_sha = nil
+
           project_root = helpers.project_root
           template_root = helpers.template_root
           run_started_at = helpers.template_run_timestamp
@@ -1109,9 +1174,42 @@ module Kettle
             templating_report_path: templating_report_path,
           )
 
+          # --- Template checksum diff ---
+          # Compute current template checksums and compare with what was stored on
+          # the previous run.  Store the updated checksums into the destination's
+          # .kettle-jem.yml before committing so the commit includes them.
+          template_diff = begin
+            config_path = File.join(project_root, ".kettle-jem.yml")
+            current_sums = Kettle::Jem::TemplateChecksums.compute(template_root: template_root)
+            stored_sums = Kettle::Jem::TemplateChecksums.load_stored(config_path: config_path)
+            d = Kettle::Jem::TemplateChecksums.diff(current: current_sums, stored: stored_sums)
+            Kettle::Jem::TemplateChecksums.write_to_config(
+              config_path: config_path,
+              checksums:   current_sums,
+              version:     helpers.kettle_jem_version,
+            )
+            d
+          rescue StandardError => e
+            Kettle::Dev.debug_error(e, __method__) if defined?(Kettle::Dev)
+            nil
+          end
+
+          # --- Auto-commit template changes ---
+          template_commit_sha = make_template_commit!(root: project_root, helpers: helpers, out: out)
+
           helpers.print_warnings_summary unless quiet?
           helpers.template_run_outcome = :complete
-          out.phase("✅", "Template complete")
+
+          complete_detail = build_complete_detail(
+            template_diff: template_diff,
+            commit_sha: template_commit_sha,
+            verbose: verbose?,
+          )
+          out.phase("✅", "Template complete", detail: complete_detail)
+
+          if verbose? && template_diff
+            Kettle::Jem::TemplateChecksums.detail_lines(template_diff).each { |l| out.detail(l) }
+          end
 
           nil
         ensure
@@ -1127,6 +1225,8 @@ module Kettle
               status: templating_run_status(helpers, error),
               warnings: helpers.warnings,
               error: error,
+              template_diff: template_diff,
+              template_commit_sha: template_commit_sha,
             )
           end
         end
