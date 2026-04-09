@@ -129,9 +129,18 @@ module Kettle
 
         configure_preflight_tokens!(helpers, meta)
 
+        # Bug fix: bootstrap version.rb to the Version sub-module structure BEFORE
+        # merging the gemspec, so the gemspec's Module.new.tap version-loading
+        # pattern can resolve the constant immediately when bundler evaluates it.
+        preflight_version_gem_bootstrap!(helpers, meta)
         preflight_merge_gemspec!(helpers, meta, gem_name)
         preflight_merge_gemfile!(helpers, gem_name)
         preflight_merge_modular_gemfiles!(helpers, gem_name)
+        # Bug fix: ensure all modular gemfiles referenced by eval_gemfile in the
+        # (possibly just-merged) Gemfile exist on disk before bin/setup runs
+        # bundle install.  The heavy preflight already writes the full Gemfile
+        # template, but previously only templating.gemfile was created here.
+        preflight_ensure_eval_gemfile_stubs!(helpers)
       end
 
       def configure_preflight_tokens!(helpers, meta)
@@ -277,6 +286,58 @@ module Kettle
         Kettle::Dev.debug_error(e, __method__)
         say("Pre-flight: modular gemfile merge failed, falling back to bootstrap copy.", verbose_only: true)
         ensure_bootstrap_modular_gemfiles!
+      end
+
+      # Ensures version.rb uses the Version sub-module pattern expected by the
+      # gemspec template (Module.new.tap { Kernel.load(...) }::Ns::Version::VERSION).
+      # Must run before preflight_merge_gemspec! so bundler can evaluate the
+      # gemspec immediately after the merge without a NameError.
+      def preflight_version_gem_bootstrap!(helpers, meta)
+        return unless meta[:entrypoint_require] && meta[:namespace]
+
+        Kettle::Jem::VersionGemBootstrap.ensure_version_file!(
+          helpers: helpers,
+          project_root: Dir.pwd,
+          entrypoint_require: meta[:entrypoint_require],
+          namespace: meta[:namespace],
+          version: meta[:version],
+        )
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        say("Pre-flight: version_gem bootstrap skipped: #{e.class}: #{e.message}", verbose_only: true)
+      end
+
+      # After the Gemfile has been merged in preflight, ensure every path
+      # referenced by an eval_gemfile call actually exists on disk.  The old thin
+      # preflight only created templating.gemfile; the full Gemfile template also
+      # references debug, coverage, style, documentation, optional, and x_std_libs
+      # modular gemfiles.  Without this step, `bundle install` (run by bin/setup)
+      # fails immediately with ENOENT on the first missing modular gemfile.
+      #
+      # We write EMPTY stubs rather than copying raw template content because:
+      #   - raw template stubs contain unresolved {KJ|...} tokens that would cause
+      #     Gem::Requirement::BadRequirementError when bundler parses them
+      #   - some stubs (e.g. x_std_libs.gemfile) themselves eval_gemfile nested
+      #     sub-paths that also do not exist yet
+      # Empty stubs satisfy bundler's eval_gemfile requirement; the real content
+      # is written during the bundled phase by the full template run.
+      def preflight_ensure_eval_gemfile_stubs!(helpers)
+        gemfile_path = File.join(Dir.pwd, "Gemfile")
+        return unless File.exist?(gemfile_path)
+
+        gemfile_content = File.read(gemfile_path)
+        eval_paths = gemfile_content.scan(/^\s*eval_gemfile\s+["']([^"']+)["']/).flatten
+        eval_paths.each do |rel|
+          dest = File.join(Dir.pwd, rel)
+          next if File.exist?(dest)
+
+          FileUtils.mkdir_p(File.dirname(dest))
+          File.write(dest, "# frozen_string_literal: true\n# stub — populated by kettle-jem bundled phase\n")
+          say("Pre-flight: created stub #{rel}.", verbose_only: true)
+        end
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        say("Pre-flight: eval_gemfile stub creation failed: #{e.class}: #{e.message}", verbose_only: true)
       end
 
       def debug(msg)
