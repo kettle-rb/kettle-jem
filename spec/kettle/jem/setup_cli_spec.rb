@@ -94,7 +94,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
   describe "setup preflight" do
     it "suppresses startup and completion chatter when quiet is enabled", :check_output do
-      cli = described_class.new(["--quiet"])
+      cli = described_class.new([])
 
       allow(cli).to receive(:debug_bundler_env)
       allow(cli).to receive(:debug_git_status)
@@ -498,10 +498,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
   describe "#initialize and parse!" do
     it "collects passthrough options and remaining args; shows help and exits with 0", :check_output do
-      argv = ["--allowed=foo", "--force", "--quiet", "--hook_templates=bar", "--only=baz", "-h"]
+      argv = ["--allowed=foo", "--hook_templates=bar", "--only=baz", "-h"]
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
-      end.to output(/Usage: kettle-jem.*--quiet/m).to_stdout
+      end.to output(/Usage: kettle-jem.*--verbose/m).to_stdout
     ensure
       ENV.delete("KETTLE_JEM_QUIET")
     end
@@ -521,22 +521,16 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli.instance_variable_get(:@passthrough)).to include("foo=1", "bar")
     end
 
-    it "tracks --quiet for downstream setup commands and rake passthrough" do
-      cli = described_class.new(["--quiet"])
+    it "quiet is the default behavior (no flag needed)" do
+      cli = described_class.new([])
 
-      expect(cli.instance_variable_get(:@passthrough)).to include("--quiet")
       expect(cli.send(:quiet?)).to be(true)
-    ensure
-      ENV.delete("KETTLE_JEM_QUIET")
     end
   end
 
-  it "--force sets ENV['force']=true for in-process auto-yes prompts" do
-    # Normally we never modify ENV directly in specs, but
-    #   using --force has the effect of modifying ENV, so we need to stub it completely here.
-    stub_const("ENV", {})
-    _cli = described_class.new(["--force"]) # parse! runs in initialize
-    expect(ENV["force"]).to eq("true")
+  it "force is the default behavior (ENV['force'] not needed)" do
+    cli = described_class.new([])
+    expect(cli.send(:force?)).to be(true)
   end
 
   it "--failure-mode sets ENV['FAILURE_MODE'] and passes through to rake" do
@@ -915,7 +909,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "overwrites bootstrap modular gemfiles when --force is provided", :check_output do
+    it "overwrites bootstrap modular gemfiles when force is the default", :check_output do
       FileUtils.mkdir_p(File.join("gemfiles", "modular"))
       File.write(File.join("gemfiles", "modular", "templating.gemfile"), "gem 'templating-old'\n")
       File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
@@ -925,7 +919,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       File.write(templating_source, "gem 'templating-new'\n")
       File.write(templating_local_source, "gem 'templating-local-new'\n")
 
-      cli = described_class.new(["--verbose", "--force"])
+      cli = described_class.new(["--verbose"])
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
       expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
@@ -934,7 +928,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "refreshes bootstrap templating_local.gemfile from template on --force while stripping only the destination gem", :check_output do
+    it "refreshes bootstrap templating_local.gemfile from template on force (default) while stripping only the destination gem", :check_output do
       File.write("ast-merge.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
           spec.name = "ast-merge"
@@ -977,7 +971,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
         end
       RUBY
 
-      cli = described_class.new(["--verbose", "--force"])
+      cli = described_class.new(["--verbose"])
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
       stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
 
@@ -1222,13 +1216,13 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(File.read("bin/setup")).to include("puts :existing")
     end
 
-    it "overwrites an existing bin/setup when --force is provided", :check_output do
+    it "overwrites an existing bin/setup when force is the default", :check_output do
       FileUtils.mkdir_p("bin")
       File.write("bin/setup", "#!/usr/bin/env ruby\nputs :old\n")
       src = File.expand_path("src_bin_setup", Dir.pwd)
       File.write(src, "#!/usr/bin/env ruby\nputs :new\n")
       FileUtils.chmod("+x", src)
-      cli = described_class.new(["--verbose", "--force"])
+      cli = described_class.new(["--verbose"])
       allow(cli).to receive(:installed_path).and_return(src)
 
       expect { cli.send(:ensure_bin_setup!) }.to output(/Overwrote bin\/setup/).to_stdout

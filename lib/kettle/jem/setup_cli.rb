@@ -390,7 +390,7 @@ module Kettle
         # Default is quiet (true) unless --verbose was passed
         quiet_explicit = @quiet
         quiet_explicit = true if quiet_explicit.nil?
-        quiet_explicit || Array(@passthrough).include?("--quiet") || Array(@original_argv).include?("--quiet")
+        quiet_explicit
       end
 
       def verbose?
@@ -402,7 +402,7 @@ module Kettle
         env_force = ENV["force"].to_s.strip
         return false if env_force.casecmp("false").zero?
 
-        @force.nil? ? true : @force || env_force.casecmp("true").zero? || Array(@passthrough).include?("force=true") || Array(@original_argv).include?("--force")
+        @force.nil? ? true : @force || env_force.casecmp("true").zero? || Array(@passthrough).include?("force=true")
       end
 
       def abort!(msg)
