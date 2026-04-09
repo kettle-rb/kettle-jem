@@ -35,25 +35,25 @@ module Kettle
         RUBY_GTE_COMMENT_RE = /\s+#\s*ruby\s*>=\s*[\d.]+.*/
 
         # Regex for an entirely-commented line
-        COMMENTED_LINE_RE   = /\A\s*#/
+        COMMENTED_LINE_RE = /\A\s*#/
 
         # @param gemspec_content [String] full gemspec source
         # @param resolver [Resolver] used to resolve each gem's min Ruby
         # @return [String] updated gemspec content (same encoding / line endings)
         def align(gemspec_content:, resolver:)
-          lines   = gemspec_content.lines
+          lines = gemspec_content.lines
           records = collect_dep_records(lines, resolver)
           return gemspec_content if records.empty?
 
           # Compute alignment column from bare (comment-stripped) lines
           max_bare = records.map { |r| r[:bare_length] }.max
-          column   = max_bare + 2
+          column = max_bare + 2
 
           # Rewrite the matched lines
           records.each do |r|
             next unless r[:min_ruby]
 
-            bare    = r[:bare_line]
+            bare = r[:bare_line]
             padding = " " * [column - bare.length, 1].max
             lines[r[:index]] = "#{bare}#{padding}# ruby >= #{r[:min_ruby]}\n"
           end
@@ -97,10 +97,10 @@ module Kettle
         # or +nil+ when unresolvable.
         def resolve_min_ruby(gem_name, args_str, resolver)
           version = extract_first_version(args_str.to_s)
-          return nil unless version
+          return unless version
 
           result = resolver.min_ruby_version(gem_name, version)
-          return nil unless result
+          return unless result
 
           # Format as N.N (drop trailing .0 if patch is zero)
           seg = result.segments

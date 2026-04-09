@@ -272,7 +272,7 @@ module Kettle
       end
 
       # @api private
-      SHUNTED_GENERATED_OPEN  = "# <<kettle-jem:generated>> — do not edit below this line\n"
+      SHUNTED_GENERATED_OPEN = "# <<kettle-jem:generated>> — do not edit below this line\n"
       SHUNTED_GENERATED_CLOSE = "# <</kettle-jem:generated>>\n"
 
       # @api private
@@ -294,10 +294,10 @@ module Kettle
 
       # @api private
       def replace_generated_block(content, new_block)
-        open_re  = /^#{Regexp.escape(SHUNTED_GENERATED_OPEN.strip)}\n/
+        open_re = /^#{Regexp.escape(SHUNTED_GENERATED_OPEN.strip)}\n/
         close_re = /^#{Regexp.escape(SHUNTED_GENERATED_CLOSE.strip)}\n?/
 
-        open_idx  = content.index(open_re)
+        open_idx = content.index(open_re)
         close_idx = content.index(close_re)
 
         if open_idx && close_idx

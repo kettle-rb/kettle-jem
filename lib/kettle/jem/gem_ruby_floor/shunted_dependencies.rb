@@ -132,7 +132,7 @@ module Kettle
         private
 
         def extract_gemspec_min_ruby(spec)
-          return nil unless spec.required_ruby_version
+          return unless spec.required_ruby_version
 
           tuple = Gem::Requirement.parse(spec.required_ruby_version)
           tuple[1]

@@ -59,17 +59,17 @@ module Kettle
 
           # computed_floor > current_floor — a raise is needed
           previous_str = current_floor&.to_s
-          new_str      = computed_floor.to_s
+          new_str = computed_floor.to_s
 
           warn_floor_raised(previous_str, new_str, gemspec_path)
 
-          version_file   = nil
+          version_file = nil
           version_bumped = false
 
           unless dry_run
             update_gemspec_floor(gemspec_path, new_str)
 
-            version_file   = find_version_file(spec)
+            version_file = find_version_file(spec)
             version_bumped = bump_major_version(version_file) if version_file
           end
 
@@ -93,7 +93,7 @@ module Kettle
 
         def extract_required_ruby(spec)
           req = spec.required_ruby_version
-          return nil unless req
+          return unless req
 
           tuple = Gem::Requirement.parse(req)
           tuple[1]
@@ -106,14 +106,14 @@ module Kettle
             versions = resolver.fetch_versions(dep[:name])
             next if versions.empty?
 
-            req  = Gem::Requirement.new(dep[:requirements].to_s)
+            req = Gem::Requirement.new(dep[:requirements].to_s)
             best = versions.reverse_each.find { |v| req.satisfied_by?(Gem::Version.new(v["number"])) }
             next unless best
 
             {name: dep[:name], version: best["number"]}
           end
 
-          return nil if dep_hashes.empty?
+          return if dep_hashes.empty?
 
           Kettle::Jem::GemRubyFloor::GemspecFloor.compute(dep_hashes, resolver: resolver)
         end
@@ -133,18 +133,18 @@ module Kettle
           content = File.read(gemspec_path)
           updated = content.gsub(REQUIRED_RUBY_RE) do
             # Preserve operator (>= / ~>) that was already there
-            prefix   = ::Regexp.last_match(1)
-            old_ver  = ::Regexp.last_match(2)
-            suffix   = ::Regexp.last_match(3)
+            prefix = ::Regexp.last_match(1)
+            old_ver = ::Regexp.last_match(2)
+            suffix = ::Regexp.last_match(3)
             # Keep the operator but replace the version number
-            op       = old_ver.match(/\A([><=~!]+\s*)/) ? ::Regexp.last_match(1) : ">= "
+            op = (old_ver =~ /\A([><=~!]+\s*)/) ? ::Regexp.last_match(1) : ">= "
             "#{prefix}#{op}#{new_floor}#{suffix}"
           end
           File.write(gemspec_path, updated)
         end
 
         def find_version_file(spec)
-          return nil unless spec.name && !spec.name.empty?
+          return unless spec.name && !spec.name.empty?
 
           # Convention: lib/<gem_name_path>/version.rb
           name_path = spec.name.tr("-", "/")
@@ -160,11 +160,11 @@ module Kettle
           return false unless version_file && File.exist?(version_file)
 
           content = File.read(version_file)
-          bumped  = false
+          bumped = false
 
           updated = content.gsub(VERSION_CONST_RE) do
             prefix = ::Regexp.last_match(1)
-            major  = ::Regexp.last_match(2).to_i
+            major = ::Regexp.last_match(2).to_i
             suffix = ::Regexp.last_match(5)
             bumped = true
             "#{prefix}#{major + 1}.0.0#{suffix}"
