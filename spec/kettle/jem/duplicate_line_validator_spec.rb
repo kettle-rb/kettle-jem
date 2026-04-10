@@ -58,6 +58,68 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
+    it "ignores repeated eval_gemfile lines in Appraisals files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Appraisals")
+        content = <<~RUBY
+          appraise "current" do
+            eval_gemfile "modular/rspec.gemfile"
+          end
+
+          appraise "head" do
+            eval_gemfile "modular/rspec.gemfile"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "still reports repeated eval_gemfile lines outside Appraisals files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Gemfile")
+        content = <<~RUBY
+          eval_gemfile "modular/rspec.gemfile"
+          eval_gemfile "modular/rspec.gemfile"
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to have_key('eval_gemfile "modular/rspec.gemfile"')
+      end
+    end
+
+    it "ignores repeated fenced code block markers in markdown files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "README.md")
+        content = <<~MD
+          ```ruby
+          puts "one"
+          ```
+
+          ```ruby
+          puts "two"
+          ```
+        MD
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "still reports repeated fenced code block markers outside markdown files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "example.txt")
+        content = <<~TEXT
+          ```ruby
+          ```ruby
+        TEXT
+        File.write(path, content)
+        results = described_class.scan(files: [path], min_chars: 1)
+        expect(results).to have_key("```ruby")
+      end
+    end
+
     it "respects custom min_chars" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "short.rb")

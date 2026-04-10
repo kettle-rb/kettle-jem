@@ -43,6 +43,9 @@ module Kettle
         "### Security",
       ]).freeze
 
+      APPRAISALS_EVAL_GEMFILE_RE = /\Aeval_gemfile\s+["'].*["']\z/.freeze
+      MARKDOWN_FENCE_RE = /\A`{3,4}[A-Za-z0-9_+-]*\z/.freeze
+
       # Scan a list of files for intra-file duplicate lines.
       #
       # Only lines with more than +min_chars+ non-whitespace characters are
@@ -73,6 +76,7 @@ module Kettle
             # Only consider lines with enough non-whitespace substance
             next if stripped.gsub(/\s/, "").length <= min_chars
             next if CHANGELOG_SUBHEADINGS.include?(stripped)
+            next if ignored_duplicate_line?(path, stripped)
 
             line_map[stripped] << lineno
           end
@@ -90,6 +94,13 @@ module Kettle
         end
 
         duplicates
+      end
+
+      def ignored_duplicate_line?(path, stripped)
+        return true if File.basename(path.to_s) == "Appraisals" && APPRAISALS_EVAL_GEMFILE_RE.match?(stripped)
+        return true if File.extname(path.to_s) == ".md" && MARKDOWN_FENCE_RE.match?(stripped)
+
+        false
       end
 
       # Convenience wrapper: scan files from a template_results hash.
