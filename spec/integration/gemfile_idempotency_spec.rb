@@ -291,7 +291,7 @@ RSpec.describe "Gemfile parsing idempotency" do
 
         require File.expand_path("../../../nomono/lib/nomono/bundler", __dir__)
 
-        local_gems = %w[kettle-dev kettle-test kettle-soup-cover]
+        local_gems = %w[kettle-dev kettle-test kettle-soup-cover turbo_tests2]
       GEMFILE
 
       existing_destination = <<~GEMFILE
@@ -299,7 +299,7 @@ RSpec.describe "Gemfile parsing idempotency" do
 
         require File.expand_path("../../lib/nomono/bundler", __dir__)
 
-        local_gems = %w[kettle-dev kettle-test kettle-soup-cover]
+        local_gems = %w[kettle-dev kettle-test kettle-soup-cover turbo_tests2]
       GEMFILE
 
       result = Kettle::Jem::SourceMerger.apply(

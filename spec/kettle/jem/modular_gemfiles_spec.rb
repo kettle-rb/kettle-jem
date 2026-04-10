@@ -313,8 +313,8 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           RUBY
 
           File.write(File.join(src_dir, "coverage_local.gemfile"), <<~RUBY)
-            local_gems = %w[ast-merge kettle-test prism-merge]
-            # export VENDORED_GEMS=ast-merge,kettle-test,prism-merge
+            local_gems = %w[ast-merge kettle-test prism-merge turbo_tests2]
+            # export VENDORED_GEMS=ast-merge,kettle-test,prism-merge,turbo_tests2
             platform :mri do
               eval_nomono_gems(gems: local_gems)
             end
@@ -332,7 +332,8 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
           expect(result).to include("ast-merge")
           expect(result).to include("kettle-test")
           expect(result).to include("prism-merge")
-          expect(result).to include("# export VENDORED_GEMS=ast-merge,kettle-test,prism-merge")
+          expect(result).to include("turbo_tests2")
+          expect(result).to include("# export VENDORED_GEMS=ast-merge,kettle-test,prism-merge,turbo_tests2")
         end
       end
     end

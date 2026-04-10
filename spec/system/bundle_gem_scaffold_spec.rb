@@ -3,6 +3,7 @@
 require "json"
 require "open3"
 require "rbconfig"
+require "turbo_tests2/rspec/shared_contexts/simplecov_spawn"
 
 RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:exe_path) { File.expand_path("../../exe/kettle-jem", __dir__) }
@@ -12,17 +13,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:duplicates_report_path) { File.join(dummy_gem_dir, "tmp", "kettle-jem", "dup-check.json") }
   let(:max_duplicate_warnings) { 1 }
 
-  # Inject SimpleCov spawn shim into subprocesses when coverage is active.
-  around do |example|
-    if defined?(SimpleCov) && SimpleCov.running
-      original_rubyopt = ENV.fetch("RUBYOPT", nil)
-      ENV["RUBYOPT"] = "-r./.simplecov_spawn #{original_rubyopt}".strip
-      example.run
-      ENV["RUBYOPT"] = original_rubyopt
-    else
-      example.run
-    end
-  end
+  include_context "with simplecov spawn coverage"
 
   before do
     FileUtils.rm_rf(dummy_gem_dir)
