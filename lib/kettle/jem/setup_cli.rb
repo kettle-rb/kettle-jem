@@ -26,8 +26,6 @@ module Kettle
       BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE"
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
-      BOOTSTRAP_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
-      BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES = %w[templating.gemfile templating_local.gemfile].freeze
 
       # Gems added by `bundle gem` scaffold that are covered by the kettle-jem template.
       # These are removed from the Gemfile during templating because they are either:
@@ -136,11 +134,6 @@ module Kettle
         preflight_merge_gemspec!(helpers, meta, gem_name)
         preflight_merge_gemfile!(helpers, gem_name)
         preflight_merge_modular_gemfiles!(helpers, gem_name)
-        # Bug fix: ensure all modular gemfiles referenced by eval_gemfile in the
-        # (possibly just-merged) Gemfile exist on disk before bin/setup runs
-        # bundle install.  The heavy preflight already writes the full Gemfile
-        # template, but previously only templating.gemfile was created here.
-        preflight_ensure_eval_gemfile_stubs!(helpers)
       end
 
       def configure_preflight_tokens!(helpers, meta)
@@ -241,21 +234,27 @@ module Kettle
       end
 
       def preflight_merge_modular_gemfiles!(helpers, gem_name)
-        BOOTSTRAP_MODULAR_GEMFILES.each do |filename|
-          rel = File.join("gemfiles", "modular", filename)
-          source = installed_path(rel)
-          next unless source && File.exist?(source)
+        source_dir = installed_path(File.join("gemfiles", "modular"))
+        return unless source_dir && File.directory?(source_dir)
 
-          dest = File.join("gemfiles", "modular", filename)
+        # Walk every template file in the installed modular gemfiles tree.
+        # installed_path / prefer_example already resolves .example variants,
+        # so we glob for *.gemfile.example and strip the .example suffix to
+        # derive the destination path.
+        Dir.glob(File.join(source_dir, "**", "*.gemfile.example")).sort.each do |source|
+          rel_from_modular = source
+            .delete_prefix(source_dir + File::SEPARATOR)
+            .delete_suffix(".example")
+          rel = File.join("gemfiles", "modular", rel_from_modular)
+          dest = File.join(Dir.pwd, rel)
           FileUtils.mkdir_p(File.dirname(dest))
 
           template_content = helpers.read_template(source)
-          template_content = strip_self_from_templating_local(template_content) if filename == "templating_local.gemfile"
-          template_content = strip_self_from_templating_gemfile(template_content) if filename == "templating.gemfile"
+          template_content = strip_self_from_templating_local(template_content) if rel_from_modular == "templating_local.gemfile"
+          template_content = strip_self_from_templating_gemfile(template_content) if rel_from_modular == "templating.gemfile"
 
           if File.exist?(dest) && !force?
             existing = File.read(dest)
-            # Merge using prism-merge for proper AST-based merge
             begin
               merged = Kettle::Jem::SourceMerger.apply(
                 strategy: :merge,
@@ -269,23 +268,21 @@ module Kettle
               merged = template_content
             end
 
-            # Always sanitize self-references from merge result
-            merged = strip_self_from_templating_local(merged) if filename == "templating_local.gemfile"
-            merged = strip_self_from_templating_gemfile(merged) if filename == "templating.gemfile"
+            merged = strip_self_from_templating_local(merged) if rel_from_modular == "templating_local.gemfile"
+            merged = strip_self_from_templating_gemfile(merged) if rel_from_modular == "templating.gemfile"
 
             if merged != existing
               File.write(dest, ensure_trailing_newline(merged))
-              say("Pre-flight: merged #{dest}.", verbose_only: true)
+              say("Pre-flight: merged #{rel}.", verbose_only: true)
             end
           else
             File.write(dest, ensure_trailing_newline(template_content))
-            say("Pre-flight: wrote #{dest}.", verbose_only: true)
+            say("Pre-flight: wrote #{rel}.", verbose_only: true)
           end
         end
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
-        say("Pre-flight: modular gemfile merge failed, falling back to bootstrap copy.", verbose_only: true)
-        ensure_bootstrap_modular_gemfiles!
+        say("Pre-flight: modular gemfile merge failed: #{e.class}: #{e.message}", verbose_only: true)
       end
 
       # Ensures version.rb uses the Version sub-module pattern expected by the
@@ -305,39 +302,6 @@ module Kettle
       rescue StandardError => e
         Kettle::Dev.debug_error(e, __method__)
         say("Pre-flight: version_gem bootstrap skipped: #{e.class}: #{e.message}", verbose_only: true)
-      end
-
-      # After the Gemfile has been merged in preflight, ensure every path
-      # referenced by an eval_gemfile call actually exists on disk.  The old thin
-      # preflight only created templating.gemfile; the full Gemfile template also
-      # references debug, coverage, style, documentation, optional, and x_std_libs
-      # modular gemfiles.  Without this step, `bundle install` (run by bin/setup)
-      # fails immediately with ENOENT on the first missing modular gemfile.
-      #
-      # We write EMPTY stubs rather than copying raw template content because:
-      #   - raw template stubs contain unresolved {KJ|...} tokens that would cause
-      #     Gem::Requirement::BadRequirementError when bundler parses them
-      #   - some stubs (e.g. x_std_libs.gemfile) themselves eval_gemfile nested
-      #     sub-paths that also do not exist yet
-      # Empty stubs satisfy bundler's eval_gemfile requirement; the real content
-      # is written during the bundled phase by the full template run.
-      def preflight_ensure_eval_gemfile_stubs!(helpers)
-        gemfile_path = File.join(Dir.pwd, "Gemfile")
-        return unless File.exist?(gemfile_path)
-
-        gemfile_content = File.read(gemfile_path)
-        eval_paths = gemfile_content.scan(/^\s*eval_gemfile\s+["']([^"']+)["']/).flatten
-        eval_paths.each do |rel|
-          dest = File.join(Dir.pwd, rel)
-          next if File.exist?(dest)
-
-          FileUtils.mkdir_p(File.dirname(dest))
-          File.write(dest, "# frozen_string_literal: true\n# stub — populated by kettle-jem bundled phase\n")
-          say("Pre-flight: created stub #{rel}.", verbose_only: true)
-        end
-      rescue StandardError => e
-        Kettle::Dev.debug_error(e, __method__)
-        say("Pre-flight: eval_gemfile stub creation failed: #{e.class}: #{e.message}", verbose_only: true)
       end
 
       def debug(msg)
@@ -820,43 +784,6 @@ module Kettle
           match = line.strip.match(%r{\Aeval_gemfile\s+["']([^"']+)["']})
           match && !allowed_paths.include?(match[1])
         }.join
-      end
-
-      def ensure_bootstrap_modular_gemfiles!
-        BOOTSTRAP_MODULAR_GEMFILES.each do |filename|
-          rel = File.join("gemfiles", "modular", filename)
-          source = installed_path(rel)
-          abort!("Internal error: #{rel}.example not found within the installed gem.") unless source && File.exist?(source)
-
-          dest = File.join("gemfiles", "modular", filename)
-          existed_before = File.exist?(dest)
-
-          overwrite = existed_before && force? && BOOTSTRAP_FORCEABLE_MODULAR_GEMFILES.include?(filename)
-          if !existed_before || overwrite
-            FileUtils.mkdir_p(File.dirname(dest))
-            content = File.read(source)
-            content = strip_self_from_templating_local(content) if filename == "templating_local.gemfile"
-            content = strip_self_from_templating_gemfile(content) if filename == "templating.gemfile"
-            File.write(dest, content)
-            say(existed_before ? "Overwrote #{dest}." : "Copied #{dest}.", verbose_only: true)
-          elsif filename == "templating_local.gemfile"
-            # Always ensure the host gem is not a dependency of itself, even in existing files.
-            original = File.read(dest)
-            stripped = strip_self_from_templating_local(original)
-            if stripped != original
-              File.write(dest, stripped)
-              say("Removed self-gem from #{dest}.", verbose_only: true)
-            end
-          elsif filename == "templating.gemfile"
-            # Always ensure the host gem is not a dependency of itself, even in existing files.
-            original = File.read(dest)
-            stripped = strip_self_from_templating_gemfile(original)
-            if stripped != original
-              File.write(dest, stripped)
-              say("Removed self-gem from #{dest}.", verbose_only: true)
-            end
-          end
-        end
       end
 
       # Pure text-based removal of the host gem's own name from the templating_local gemfile
