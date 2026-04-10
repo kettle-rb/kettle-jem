@@ -675,6 +675,36 @@ module Kettle
           raise Kettle::Dev::Error, msg
         end
 
+        def refresh_mise_trust_if_needed!(helpers:, project_root:)
+          mise_path = File.join(project_root, "mise.toml")
+          return unless helpers.modified_by_template?(mise_path)
+
+          command = ["mise", "trust", "-C", project_root].freeze
+          command_text = command.join(" ")
+
+          unless helpers.force_mode?
+            approved = helpers.ask("Run `#{command_text}` now?", true)
+            unless approved
+              task_abort(
+                "Aborting: mise trust refresh required before continuing. " \
+                  "Run `#{command_text}` and re-run kettle-jem.",
+              )
+            end
+          end
+
+          success = system(*command, out: $stdout, err: $stderr)
+          return if success
+
+          task_abort("Aborting: `#{command_text}` failed after mise.toml changed.")
+        rescue StandardError => e
+          raise if e.is_a?(Kettle::Dev::Error)
+
+          task_abort(
+            "Aborting: unable to refresh mise trust after mise.toml changed. " \
+              "#{e.class}: #{e.message}",
+          )
+        end
+
         def token_options(meta, helpers)
           forge_org = meta[:forge_org] || meta[:gh_org]
           funding_org = helpers.opencollective_disabled? ? nil : meta[:funding_org] || forge_org

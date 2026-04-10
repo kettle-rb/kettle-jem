@@ -189,6 +189,104 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
     end
   end
 
+  describe "mise trust refresh" do
+    let(:project_root) { "/tmp/demo-project" }
+    let(:template_root) { "/tmp/demo-template" }
+    let(:meta) do
+      {
+        gh_org: "acme",
+        gem_name: "demo",
+        namespace: "Demo",
+        namespace_shield: "Demo",
+        gem_shield: "demo",
+        funding_org: "acme",
+        min_ruby: Gem::Version.new("3.1"),
+      }
+    end
+
+    before do
+      allow(helpers).to receive_messages(
+        project_root: project_root,
+        template_root: template_root,
+        clear_warnings: nil,
+        clear_template_run_outcome!: nil,
+        clear_kettle_config!: nil,
+        configure_tokens!: nil,
+      )
+      allow(Kettle::Jem::Tasks::TemplateTask).to receive(:ensure_kettle_config_bootstrap!).and_return(:ready)
+      allow(Kettle::Jem::Tasks::TemplateTask).to receive(:backfill_project_kettle_config_tokens!)
+      allow(Kettle::Jem::Tasks::TemplateTask).to receive(:validate_required_token_values!)
+    end
+
+    it "runs mise trust automatically when mise.toml changed in non-interactive mode" do
+      allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
+      allow(helpers).to receive(:force_mode?).and_return(true)
+      expect(helpers).not_to receive(:ask)
+      expect(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
+        .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
+        .and_return(true)
+
+      result = described_class.run(
+        helpers: helpers,
+        project_root: project_root,
+        template_root: template_root,
+        meta: meta,
+      )
+
+      expect(result).to eq(:ready)
+    end
+
+    it "prompts before running mise trust in interactive mode" do
+      allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
+      allow(helpers).to receive(:force_mode?).and_return(false)
+      expect(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(true)
+      expect(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
+        .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
+        .and_return(true)
+
+      result = described_class.run(
+        helpers: helpers,
+        project_root: project_root,
+        template_root: template_root,
+        meta: meta,
+      )
+
+      expect(result).to eq(:ready)
+    end
+
+    it "aborts when interactive mode declines the mise trust refresh" do
+      allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
+      allow(helpers).to receive(:force_mode?).and_return(false)
+      expect(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(false)
+      expect(Kettle::Jem::Tasks::TemplateTask).not_to receive(:system)
+
+      expect do
+        described_class.run(
+          helpers: helpers,
+          project_root: project_root,
+          template_root: template_root,
+          meta: meta,
+        )
+      end.to raise_error(Kettle::Dev::Error, /mise trust refresh required before continuing/)
+    end
+
+    it "continues without running mise trust when mise.toml was unchanged" do
+      allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(false)
+      expect(helpers).not_to receive(:force_mode?)
+      expect(helpers).not_to receive(:ask)
+      expect(Kettle::Jem::Tasks::TemplateTask).not_to receive(:system)
+
+      result = described_class.run(
+        helpers: helpers,
+        project_root: project_root,
+        template_root: template_root,
+        meta: meta,
+      )
+
+      expect(result).to eq(:ready)
+    end
+  end
+
   # Repro for Bug 2 (token leakage): seeded_kettle_config_content always clears
   # @@token_replacements in its ensure block.  TemplateTask.run calls configure_tokens!
   # again afterwards to restore them (line ~1007).  If that restoration call fails,

@@ -23,6 +23,10 @@ module Kettle
             template_root: template_root,
             token_options: options,
           )
+          Kettle::Jem::Tasks::TemplateTask.refresh_mise_trust_if_needed!(
+            helpers: helpers,
+            project_root: project_root,
+          )
           return bootstrap_result if bootstrap_result == :bootstrap_only
 
           Kettle::Jem::Tasks::TemplateTask.backfill_project_kettle_config_tokens!(
