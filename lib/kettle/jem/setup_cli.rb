@@ -253,10 +253,10 @@ module Kettle
           # strip_self_from_templating_local handles the %w[] array + VENDORED_GEMS
           # comment format unique to templating_local.gemfile.
           template_content = strip_self_from_templating_local(template_content) if rel_from_modular == "templating_local.gemfile"
-          # strip_self_from_templating_gemfile removes `gem "host-gem-name"` lines.
+          # strip_self_from_modular_gemfile removes `gem "host-gem-name"` lines.
           # Applied to ALL modular gemfiles because any of them may reference a gem
           # that is the host gem itself (e.g. coverage.gemfile contains kettle-soup-cover).
-          template_content = strip_self_from_templating_gemfile(template_content)
+          template_content = strip_self_from_modular_gemfile(template_content)
 
           if File.exist?(dest) && !force?
             existing = File.read(dest)
@@ -274,7 +274,7 @@ module Kettle
             end
 
             merged = strip_self_from_templating_local(merged) if rel_from_modular == "templating_local.gemfile"
-            merged = strip_self_from_templating_gemfile(merged)
+            merged = strip_self_from_modular_gemfile(merged)
 
             if merged != existing
               File.write(dest, ensure_trailing_newline(merged))
@@ -818,7 +818,7 @@ module Kettle
       # downstream consumers can pull the gem from RubyGems. When templating the host gem
       # itself that line must not exist (it conflicts with the gemspec PATH source).
       # No AST tools used here because this runs in the bootstrap phase.
-      def strip_self_from_templating_gemfile(content)
+      def strip_self_from_modular_gemfile(content)
         gem_name = gemspec_string_value("name")
         return content unless gem_name
 
