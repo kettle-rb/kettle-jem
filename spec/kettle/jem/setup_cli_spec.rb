@@ -11,6 +11,23 @@ RSpec.describe Kettle::Jem::SetupCLI do
     File.read(file)
   end
 
+  describe "skip-commit propagation" do
+    after { ENV.delete("KETTLE_JEM_SKIP_COMMIT") }
+
+    it "sets KETTLE_JEM_SKIP_COMMIT when --skip-commit is passed" do
+      described_class.new(["--skip-commit"])
+
+      expect(ENV["KETTLE_JEM_SKIP_COMMIT"]).to eq("true")
+    end
+
+    it "treats KETTLE_JEM_SKIP_COMMIT as authoritative process state" do
+      ENV["KETTLE_JEM_SKIP_COMMIT"] = "true"
+      cli = described_class.new([])
+
+      expect(cli.send(:skip_commit?)).to be(true)
+    end
+  end
+
   it "updates existing add_development_dependency lines that omit parentheses, without creating duplicates" do
     Dir.mktmpdir do |dir|
       Dir.chdir(dir) do
@@ -221,6 +238,26 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(parsed.dig("tokens", "author", "orcid")).to eq("0009-0008-8519-441X")
       expect(parsed.dig("tokens", "funding", "kofi")).to eq("pboling")
       expect(parsed.dig("tokens", "social", "mastodon")).to eq("galtzo")
+    end
+
+    it "resolves top-level bootstrap config placeholders from ENV" do
+      cli = described_class.allocate
+      content = <<~YAML
+        project_emoji: "{KJ|PROJECT_EMOJI}"
+        min_divergence_threshold: {KJ|MIN_DIVERGENCE_THRESHOLD}
+      YAML
+
+      stub_env(
+        "KJ_PROJECT_EMOJI" => "⭐️",
+        "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
+      )
+
+      seeded = cli.send(:seed_bootstrap_template_config, content)
+
+      expect(seeded).to include('project_emoji: "⭐️"')
+      expect(seeded).to include("min_divergence_threshold: 0")
+      expect(seeded).not_to include("{KJ|PROJECT_EMOJI}")
+      expect(seeded).not_to include("{KJ|MIN_DIVERGENCE_THRESHOLD}")
     end
 
     it "falls back to loadable gemspec metadata when author env vars are absent" do

@@ -405,8 +405,8 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect { described_class.run }.not_to raise_error
     end
 
-    it "raises when score is below threshold" do
-      stub_env("KJ_SELFTEST_THRESHOLD" => "90")
+    it "raises when divergence exceeds the env threshold" do
+      stub_env("KJ_MIN_DIVERGENCE_THRESHOLD" => "90")
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: %w[a.txt b.txt], added: [], removed: [],
       })
@@ -415,8 +415,8 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect { described_class.run }.to raise_error(Kettle::Dev::Error, /FAIL/)
     end
 
-    it "does not raise when score meets threshold" do
-      stub_env("KJ_SELFTEST_THRESHOLD" => "50")
+    it "does not raise when divergence matches the env threshold" do
+      stub_env("KJ_MIN_DIVERGENCE_THRESHOLD" => "50")
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
       })
@@ -425,7 +425,7 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect { described_class.run }.not_to raise_error
     end
 
-    it "raises when divergence meets the configured min_divergence_threshold" do
+    it "raises when divergence exceeds the configured min_divergence_threshold" do
       allow(helpers).to receive(:kettle_config).and_return({"min_divergence_threshold" => 40})
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],
@@ -435,8 +435,8 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect { described_class.run }.to raise_error(Kettle::Dev::Error, /divergence 50.0%/)
     end
 
-    it "lets KJ_SELFTEST_THRESHOLD override min_divergence_threshold" do
-      stub_env("KJ_SELFTEST_THRESHOLD" => "50")
+    it "lets KJ_MIN_DIVERGENCE_THRESHOLD override min_divergence_threshold" do
+      stub_env("KJ_MIN_DIVERGENCE_THRESHOLD" => "50")
       allow(helpers).to receive(:kettle_config).and_return({"min_divergence_threshold" => 40})
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: %w[a.txt], changed: %w[b.txt], added: [], removed: [],

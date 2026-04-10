@@ -5184,6 +5184,66 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
     end
+
+    it "repairs stale config token placeholders preserved by destination preference" do
+      Dir.mktmpdir do |template_root|
+        Dir.mktmpdir do |project_root|
+          template_config = <<~YAML
+            # Managed by kettle-jem
+            min_divergence_threshold: {KJ|MIN_DIVERGENCE_THRESHOLD}
+          YAML
+          File.write(File.join(template_root, ".kettle-jem.yml.example"), template_config)
+
+          dest_config = <<~YAML
+            # Existing config from buggy bootstrap
+            min_divergence_threshold: {KJ|MIN_DIVERGENCE_THRESHOLD}
+          YAML
+          File.write(File.join(project_root, ".kettle-jem.yml"), dest_config)
+
+          helpers.clear_tokens!
+          stub_env("KJ_MIN_DIVERGENCE_THRESHOLD" => "0")
+          helpers.configure_tokens!(
+            org: "test-org",
+            gem_name: "test-gem",
+            namespace: "Test::Gem",
+            namespace_shield: "Test%3A%3AGem",
+            gem_shield: "test-gem",
+            funding_org: "test-org",
+            include_config_tokens: false,
+          )
+
+          allow(helpers).to receive(:prefer_example) { |p| File.exist?(p + ".example") ? p + ".example" : p }
+          allow(helpers).to receive(:seed_gemspec_licenses_in_config_content) { |c| c }
+          allow(helpers).to receive_messages(
+            clear_kettle_config!: nil,
+            project_root: project_root,
+            record_template_result: nil,
+            ask: true,
+            force_mode?: false,
+          )
+
+          described_class.sync_existing_kettle_config!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: {
+              org: "test-org",
+              gem_name: "test-gem",
+              namespace: "Test::Gem",
+              namespace_shield: "Test%3A%3AGem",
+              gem_shield: "test-gem",
+              funding_org: "test-org",
+            },
+          )
+
+          result = File.read(File.join(project_root, ".kettle-jem.yml"))
+          expect(result).to include("min_divergence_threshold: 0")
+          expect(result).not_to include("{KJ|MIN_DIVERGENCE_THRESHOLD}")
+        ensure
+          helpers.clear_tokens!
+        end
+      end
+    end
   end
 
   describe "TemplateHelpers#resolve_tokens on destination content" do
@@ -5211,6 +5271,20 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       expect(result).to include("FOO = \"bar\"")
     ensure
       helpers.clear_tokens!
+    end
+  end
+
+  describe ".make_template_commit!" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+    let(:out) { instance_double(Kettle::Jem::TemplateOutput::Formatter, warning: nil) }
+
+    after { ENV.delete("KETTLE_JEM_SKIP_COMMIT") }
+
+    it "skips the template auto-commit when KETTLE_JEM_SKIP_COMMIT is true" do
+      ENV["KETTLE_JEM_SKIP_COMMIT"] = "true"
+
+      expect(Kettle::Dev::GitAdapter).not_to receive(:new)
+      expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
     end
   end
 

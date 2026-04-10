@@ -73,6 +73,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       --include=VAL           Include optional files by glob
       --failure-mode=VAL      Merge failure handling: error (default) or rescue
       --skip-commit           Skip git commit; also bypasses git repo and clean-tree checks.
+      --accept-config         Accept ENV-provided config and skip the bootstrap-only early exit.
 
     Environment:
       DEBUG=true              Print backtraces on errors

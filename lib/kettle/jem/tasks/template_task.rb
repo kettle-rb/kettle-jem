@@ -530,6 +530,8 @@ module Kettle
         # @param out     [TemplateOutput::Formatter]
         # @return [String, nil] 7-char short SHA of the new commit, or nil if no commit was made
         def make_template_commit!(root:, helpers:, out:)
+          return if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_SKIP_COMMIT", "false").to_s)
+
           ga = Kettle::Dev::GitAdapter.new
           return if ga.clean?
 
@@ -892,6 +894,11 @@ module Kettle
               rescue StandardError => e
                 Kettle::Dev.debug_error(e, __method__)
               end
+            end
+            begin
+              c = helpers.resolve_tokens(c)
+            rescue StandardError => e
+              Kettle::Dev.debug_error(e, __method__)
             end
             c
           end

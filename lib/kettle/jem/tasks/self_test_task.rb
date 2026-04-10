@@ -187,7 +187,7 @@ module Kettle
         def threshold_failed?(mode, threshold, score, divergence)
           case mode
           when :divergence
-            divergence >= threshold
+            divergence > threshold
           else
             false
           end
@@ -196,7 +196,7 @@ module Kettle
         def threshold_label(mode, threshold)
           case mode
           when :divergence
-            "fail when divergence reaches #{threshold}%"
+            "fail when divergence exceeds #{threshold}%"
           else
             "none"
           end
@@ -205,7 +205,7 @@ module Kettle
         def threshold_failure_message(mode, threshold, score, divergence)
           case mode
           when :divergence
-            "[selftest] FAIL — divergence #{divergence}% meets or exceeds threshold #{threshold}%"
+            "[selftest] FAIL — divergence #{divergence}% exceeds threshold #{threshold}%"
           else
             "[selftest] FAIL — threshold condition triggered"
           end

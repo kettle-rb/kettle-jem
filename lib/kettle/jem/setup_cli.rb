@@ -61,7 +61,7 @@ module Kettle
         else
           ensure_template_config_bootstrap!
         end
-        return if prereq_result == :bootstrap_only
+        return if prereq_result == :bootstrap_only && !accept_config?
 
         run_preflight_templating!
         debug_git_status("run_preflight_templating!")
@@ -395,6 +395,10 @@ module Kettle
           end
           opts.on("--skip-commit", "Skip git commit after templating (required for non-git directories)") do
             @skip_commit = true
+            ENV["KETTLE_JEM_SKIP_COMMIT"] = "true"
+          end
+          opts.on("--accept-config", "Accept ENV-provided config and skip the bootstrap-only early exit (use with ENV overrides)") do
+            @accept_config = true
           end
           opts.on("-h", "--help", "Show help") do
             puts opts
@@ -418,7 +422,13 @@ module Kettle
       end
 
       def skip_commit?
+        return true if Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_SKIP_COMMIT", "false").to_s)
+
         @skip_commit || false
+      end
+
+      def accept_config?
+        @accept_config || false
       end
 
       def quiet?
@@ -621,7 +631,10 @@ module Kettle
       end
 
       def seed_bootstrap_template_config(content)
-        Kettle::Jem::ConfigSeeder.seed_kettle_config_content(content, bootstrap_template_config_values)
+        seeded = Kettle::Jem::ConfigSeeder.seed_kettle_config_content(content, bootstrap_template_config_values)
+        doc = Token::Resolver::Document.new(seeded)
+        resolver = Token::Resolver::Resolve.new(on_missing: :remove)
+        resolver.resolve(doc, bootstrap_template_config_replacements)
       end
 
       def bootstrap_template_config_values
@@ -661,6 +674,13 @@ module Kettle
             "devto" => preferred_bootstrap_env("KJ_SOCIAL_DEVTO"),
           }.reject { |_, value| value.to_s.strip.empty? },
         }.reject { |_, values| values.empty? }
+      end
+
+      def bootstrap_template_config_replacements
+        {
+          "KJ|PROJECT_EMOJI" => preferred_bootstrap_env("KJ_PROJECT_EMOJI"),
+          "KJ|MIN_DIVERGENCE_THRESHOLD" => preferred_bootstrap_env("KJ_MIN_DIVERGENCE_THRESHOLD"),
+        }.reject { |_, value| value.to_s.strip.empty? }
       end
 
       def preferred_bootstrap_env(key)
@@ -1015,7 +1035,8 @@ module Kettle
 
       # 9. Invoke rake install task with passthrough
       def run_kettle_install!
-        cmd = ["bin/rake", "kettle:jem:install"] + Array(@passthrough)
+        rake_cmd = File.exist?("bin/rake") ? ["bin/rake"] : ["bundle", "exec", "rake"]
+        cmd = rake_cmd + ["kettle:jem:install"] + Array(@passthrough)
         sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
       end
 
