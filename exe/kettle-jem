@@ -72,6 +72,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       --only=VAL              Restrict install scope
       --include=VAL           Include optional files by glob
       --failure-mode=VAL      Merge failure handling: error (default) or rescue
+      --skip-commit           Skip git commit; also bypasses git repo and clean-tree checks.
 
     Environment:
       DEBUG=true              Print backtraces on errors

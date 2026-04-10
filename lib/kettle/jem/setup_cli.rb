@@ -393,6 +393,9 @@ module Kettle
             ENV["FAILURE_MODE"] = v
             @passthrough << "FAILURE_MODE=#{v}"
           end
+          opts.on("--skip-commit", "Skip git commit after templating (required for non-git directories)") do
+            @skip_commit = true
+          end
           opts.on("-h", "--help", "Show help") do
             puts opts
             exit_with_status(0)
@@ -412,6 +415,10 @@ module Kettle
         return if verbose_only && quiet?
 
         puts "[kettle-jem] #{msg}"
+      end
+
+      def skip_commit?
+        @skip_commit || false
       end
 
       def quiet?
@@ -505,6 +512,8 @@ module Kettle
       # the porcelain output so we can identify exactly which step
       # first dirties the working tree.
       def debug_git_status(step_label)
+        return if skip_commit?
+
         porcelain, _err, _st = Open3.capture3("git status --porcelain")
         if porcelain.strip.empty?
           debug("git status after #{step_label}: clean")
@@ -516,7 +525,10 @@ module Kettle
 
       # 1. Prechecks
       def prechecks!
-        abort!("Not inside a git repository (missing .git).") unless Dir.exist?(".git")
+        unless skip_commit?
+          abort!("Not inside a git repository (missing .git). Use --skip-commit to run without git.") unless Dir.exist?(".git")
+        end
+        return if skip_commit?
 
         # Ensure clean working tree — ALWAYS required, --force does NOT bypass this
         begin
@@ -966,6 +978,11 @@ module Kettle
 
       # 8. Commit template bootstrap changes if any
       def commit_bootstrap_changes!
+        if skip_commit?
+          say("Skipping git commit (--skip-commit).", verbose_only: true)
+          return
+        end
+
         # Re-lock Gemfile.lock so that any gemspec dependency changes
         # (e.g. version_gem added by ensure_dev_deps!) are reflected
         # in the lockfile BEFORE we commit.  Without this, the next
