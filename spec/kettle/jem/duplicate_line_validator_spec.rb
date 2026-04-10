@@ -82,7 +82,7 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "ignores consecutive eval_gemfile pairs in Appraisals files" do
+    it "ignores consecutive dependency pairs in Appraisals files (eval_gemfile + eval_gemfile)" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "Appraisals")
         content = <<~RUBY
@@ -96,6 +96,90 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
             eval_gemfile "modular/style.gemfile"
           end
         RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "ignores consecutive gem declaration pairs in Appraisals files (gem + gem)" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Appraisals")
+        content = <<~RUBY
+          appraise "ruby-3-3" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+            gem "mutex_m", "~> 0.2"
+          end
+
+          appraise "ruby-3-4" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+            gem "mutex_m", "~> 0.2"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "ignores eval_gemfile + gem mixed pairs in Appraisals files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Appraisals")
+        content = <<~RUBY
+          appraise "ruby-3-3" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+            gem "mutex_m", "~> 0.2"
+            gem "stringio", "~> 3.0"
+          end
+
+          appraise "ruby-3-4" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+            gem "mutex_m", "~> 0.2"
+            gem "stringio", "~> 3.0"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "ignores a comment line preceding a dep line in Appraisals files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Appraisals")
+        content = <<~RUBY
+          appraise "ruby-3-3" do
+            # runtime dependencies that we can't add to gemspec due to platform differences
+            eval_gemfile "modular/tree_sitter.gemfile"
+          end
+
+          appraise "ruby-3-4" do
+            # runtime dependencies that we can't add to gemspec due to platform differences
+            eval_gemfile "modular/tree_sitter.gemfile"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "suppresses markdown table header+separator pairs in .md files" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "README.md")
+        content = <<~MD
+          ## Configuration
+
+          | Variable | CLI Flag | Default | Description |
+          |----------|----------|---------|-------------|
+          | FOO      | --foo    | false   | enables foo |
+
+          ## Reference
+
+          | Variable | CLI Flag | Default | Description |
+          |----------|----------|---------|-------------|
+          | BAR      | --bar    | true    | enables bar |
+        MD
         File.write(path, content)
         results = described_class.scan(files: [path])
         expect(results).to be_empty
@@ -116,7 +200,7 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
         RUBY
         File.write(path, content)
         results = described_class.scan(files: [path])
-        # The chunk appraise/eval_gemfile is NOT suppressed because line1 is not an eval_gemfile call
+        # The chunk appraise/eval_gemfile is NOT suppressed: line1 is not a dep line
         expect(results).to have_key("appraise \"ruby-3-3\" do\neval_gemfile \"modular/x_std_libs/r3/libs.gemfile\"")
       end
     end
@@ -136,7 +220,115 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "ignores repeated fenced code block markers in markdown files" do
+    it "skips CODE_OF_CONDUCT.md entirely" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "CODE_OF_CONDUCT.md")
+        # Identical consecutive pairs that would otherwise trigger detection
+        content = <<~MD
+          This is our pledge to the community.
+          We will be inclusive and welcoming.
+          This is our pledge to the community.
+          We will be inclusive and welcoming.
+        MD
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "suppresses auto-generated coverage metric pairs in CHANGELOG.md" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "CHANGELOG.md")
+        content = <<~MD
+          ## [1.1.0] - 2026-06-01
+          - COVERAGE: 94.38% -- 4066/4308 lines in 26 files
+          - BRANCH COVERAGE: 78.77% -- 1673/2124 branches in 26 files
+          - 79.89% documented
+
+          ## [1.0.0] - 2026-01-01
+          - COVERAGE: 94.38% -- 4066/4308 lines in 26 files
+          - BRANCH COVERAGE: 78.77% -- 1673/2124 branches in 26 files
+          - 79.89% documented
+        MD
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "suppresses duplicate chunks inside markdown code fences" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "README.md")
+        content = <<~MD
+          ## Quick Start
+
+          ```ruby
+          require "my_gem"
+          result = do_something
+          ```
+
+          ## Advanced Usage
+
+          ```ruby
+          require "my_gem"
+          result = do_something
+          ```
+        MD
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "suppresses consecutive ENV assignment pairs in Rakefiles" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Rakefile")
+        content = <<~RUBY
+          task(:run_ffi_specs) do
+            ENV["K_SOUP_COV_MIN_HARD"] = "false"
+            ENV["MAX_ROWS"] = "0"
+            sh "bundle exec rspec spec/ffi"
+          end
+
+          task(:run_matrix_specs) do
+            ENV["K_SOUP_COV_MIN_HARD"] = "false"
+            ENV["MAX_ROWS"] = "0"
+            sh "bundle exec rspec spec/matrix"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "suppresses rescue LoadError + # :nocov: pairs in any file" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Rakefile")
+        content = <<~RUBY
+          begin
+            require "optional_gem"
+          rescue LoadError
+            # :nocov:
+            task(:optional_task) { warn "unavailable" }
+            # :nocov:
+          end
+
+          begin
+            require "another_gem"
+          rescue LoadError
+            # :nocov:
+            task(:another_task) { warn "unavailable" }
+            # :nocov:
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
+      end
+    end
+
+    it "does not flag fenced blocks with different inner content" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "README.md")
         content = <<~MD

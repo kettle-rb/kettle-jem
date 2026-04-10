@@ -30,10 +30,29 @@ module Kettle
       # Default minimum non-whitespace characters for a line to be considered.
       DEFAULT_MIN_CHARS = 6
 
-      # Matches an eval_gemfile call in an Appraisals file.  Multiple appraisal
-      # blocks legitimately share the same eval_gemfile lines and consecutive
-      # pairs of them are therefore not corruption signals.
-      APPRAISALS_EVAL_GEMFILE_RE = /\Aeval_gemfile\s+["'].*["']\z/.freeze
+      # Appraisals dependency declaration lines (eval_gemfile or gem).  Multiple
+      # appraisal blocks legitimately share the same dependency lines and
+      # consecutive pairs of them are therefore not corruption signals.
+      APPRAISALS_DEP_LINE_RE = /\A(?:eval_gemfile|gem)\s+["']/.freeze
+
+      # Auto-generated coverage metric lines produced by kettle-changelog.
+      # These repeat verbatim across CHANGELOG releases when coverage stays
+      # stable and are therefore not corruption signals.
+      CHANGELOG_METRIC_RE = /\A-\s+(?:(?:(?:line|branch)\s+)?coverage:|\d+\.\d+%\s+documented)/i.freeze
+
+      # Files excluded entirely from duplicate detection.
+      EXCLUDED_FILENAMES = Set.new(["CODE_OF_CONDUCT.md"]).freeze
+
+      # Consecutive ENV assignment lines in Rakefiles.  Each named SimpleCov
+      # task block sets the same ENV vars as part of its setup, so repeated
+      # pairs are structural and not a corruption signal.
+      RAKEFILE_ENV_ASSIGNMENT_RE = /\AENV\[["']/.freeze
+
+      # rescue LoadError followed by # :nocov: is a template pattern for
+      # optional gem loading blocks.  It repeats in every such block and is
+      # structural, not a corruption signal.
+      RESCUE_LOAD_ERROR_RE = /\Arescue\s+LoadError/.freeze
+      NOCOV_MARKER_RE = /\A# :nocov:\z/.freeze
 
       # Standard keepachangelog.com release subheadings that repeat in every
       # release section.  These are always exempt from duplicate detection
@@ -73,6 +92,7 @@ module Kettle
 
         files.each do |path|
           next unless File.file?(path)
+          next if EXCLUDED_FILENAMES.include?(File.basename(path.to_s))
 
           begin
             content = File.read(path)
@@ -80,13 +100,16 @@ module Kettle
             next
           end
 
+          fence_lines = (File.extname(path.to_s) == ".md") ? compute_fence_lines(content) : Set.new
+
           indexed = content.each_line.map.with_index(1) { |raw, n| [n, raw.strip] }
 
           chunk_map = Hash.new { |h, k| h[k] = [] }
-          indexed.each_cons(2) do |(lineno1, line1), (_lineno2, line2)|
+          indexed.each_cons(2) do |(lineno1, line1), (lineno2, line2)|
             next if line1.gsub(/\s/, "").length <= min_chars
             next if line2.gsub(/\s/, "").length <= min_chars
             next if CHANGELOG_SUBHEADINGS.include?(line1)
+            next if fence_lines.include?(lineno1) && fence_lines.include?(lineno2)
             next if ignored_duplicate_chunk?(path, line1, line2)
 
             chunk_map["#{line1}\n#{line2}"] << lineno1
@@ -110,20 +133,77 @@ module Kettle
       # detection.
       #
       # Built-in exclusions:
-      # - Consecutive +eval_gemfile+ pairs in Appraisals files — different
-      #   appraisal blocks legitimately share the same gemfile includes, so
-      #   repeated pairs are structural, not a corruption signal.
+      # - Consecutive dependency declaration lines (+eval_gemfile+ or +gem+) in
+      #   Appraisals files — different appraisal blocks legitimately share the
+      #   same gemfile and gem lines, so repeated pairs are structural.
+      # - Auto-generated coverage metric lines in CHANGELOG.md — both lines of
+      #   the pair must match {CHANGELOG_METRIC_RE}.
+      # - Consecutive +ENV+ assignment lines in Rakefiles — each named task
+      #   block sets the same ENV vars as setup boilerplate.
+      # - +rescue LoadError+ followed by +# :nocov:+ — template pattern for
+      #   optional gem loading blocks that repeats in any Ruby file.
       #
       # @param path [String] path of the file being scanned
       # @param line1 [String] first stripped line of the chunk
       # @param line2 [String] second stripped line of the chunk
       # @return [Boolean]
       def ignored_duplicate_chunk?(path, line1, line2)
-        if File.basename(path.to_s) == "Appraisals"
-          return true if APPRAISALS_EVAL_GEMFILE_RE.match?(line1) && APPRAISALS_EVAL_GEMFILE_RE.match?(line2)
+        basename = File.basename(path.to_s)
+
+        if basename == "Appraisals"
+          return true if APPRAISALS_DEP_LINE_RE.match?(line1) && APPRAISALS_DEP_LINE_RE.match?(line2)
+          # Comment line immediately before a dep declaration repeats in every
+          # appraisal block that uses the same gemfile — structural, not corruption.
+          return true if line1.start_with?("#") && APPRAISALS_DEP_LINE_RE.match?(line2)
+        end
+
+        if basename == "CHANGELOG.md"
+          return true if CHANGELOG_METRIC_RE.match?(line1) && CHANGELOG_METRIC_RE.match?(line2)
+        end
+
+        if basename == "Rakefile"
+          return true if RAKEFILE_ENV_ASSIGNMENT_RE.match?(line1) && RAKEFILE_ENV_ASSIGNMENT_RE.match?(line2)
+        end
+
+        return true if RESCUE_LOAD_ERROR_RE.match?(line1) && NOCOV_MARKER_RE.match?(line2)
+
+        # Markdown table rows: header + separator (or any two | ... | rows) repeat
+        # across multiple documentation tables with the same column structure.
+        if File.extname(path.to_s) == ".md"
+          return true if line1.start_with?("|") && line2.start_with?("|")
         end
 
         false
+      end
+
+      # Compute the set of 1-based line numbers that fall inside fenced code
+      # blocks in a markdown file (including the opening and closing fence lines
+      # themselves).  Used by {scan} to suppress duplicate-chunk detection for
+      # content that is intentionally repeated across code examples.
+      #
+      # Handles both backtick (```) and tilde (~~~) fences of any width ≥ 3.
+      #
+      # @param content [String] full file content
+      # @return [Set<Integer>] line numbers inside code fences
+      def compute_fence_lines(content)
+        in_fence = false
+        fence_marker = nil
+        fence_lines = Set.new
+        content.each_line.with_index(1) do |raw, lineno|
+          stripped = raw.strip
+          if in_fence
+            fence_lines.add(lineno)
+            if stripped.match?(/\A#{Regexp.escape(fence_marker)}\s*\z/)
+              in_fence = false
+              fence_marker = nil
+            end
+          elsif (m = stripped.match(/\A(`{3,}|~{3,})/))
+            fence_marker = m[1]
+            in_fence = true
+            fence_lines.add(lineno)
+          end
+        end
+        fence_lines
       end
 
       # Convenience wrapper: scan files from a template_results hash.
