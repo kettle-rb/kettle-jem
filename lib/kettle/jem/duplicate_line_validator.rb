@@ -30,6 +30,11 @@ module Kettle
       # Default minimum non-whitespace characters for a line to be considered.
       DEFAULT_MIN_CHARS = 6
 
+      # Matches an eval_gemfile call in an Appraisals file.  Multiple appraisal
+      # blocks legitimately share the same eval_gemfile lines and consecutive
+      # pairs of them are therefore not corruption signals.
+      APPRAISALS_EVAL_GEMFILE_RE = /\Aeval_gemfile\s+["'].*["']\z/.freeze
+
       # Standard keepachangelog.com release subheadings that repeat in every
       # release section.  These are always exempt from duplicate detection
       # because changelogs grow indefinitely and would otherwise produce an
@@ -43,20 +48,26 @@ module Kettle
         "### Security",
       ]).freeze
 
-      APPRAISALS_EVAL_GEMFILE_RE = /\Aeval_gemfile\s+["'].*["']\z/.freeze
-      MARKDOWN_FENCE_RE = /\A`{3,4}[A-Za-z0-9_+-]*\z/.freeze
-
-      # Scan a list of files for intra-file duplicate lines.
+      # Scan a list of files for intra-file duplicate consecutive-line pairs.
       #
-      # Only lines with more than +min_chars+ non-whitespace characters are
-      # considered. Results are keyed by the stripped line content; each entry
-      # lists every file+line-number pair where that content appears more than
-      # once in the same file.
+      # A sliding 2-line window moves through each file. Any pair of adjacent
+      # lines (a "chunk") that appears at two or more distinct positions within
+      # the same file is reported. Both lines of the pair must individually
+      # exceed +min_chars+ non-whitespace characters to be considered.
+      #
+      # Keying on 2-line chunks instead of single lines dramatically reduces
+      # false positives: a single word like "end" or a YAML key appearing
+      # multiple times is not flagged unless its *successor* line also repeats
+      # in the same context — a far stronger signal of actual corruption.
+      #
+      # Results are keyed by the chunk content ("line1\nline2"); each entry
+      # lists every file + start-line pair where that chunk recurs.
       #
       # @param files [Array<String>] absolute paths to scan
       # @param min_chars [Integer] minimum non-whitespace character count
-      # @return [Hash{String => Array<Hash>}] keyed by line content;
-      #   values are arrays of `{ file:, lines: [Integer] }` hashes
+      # @return [Hash{String => Array<Hash>}] keyed by chunk content;
+      #   values are arrays of `{ file:, lines: [Integer] }` hashes where
+      #   +lines+ are the start line numbers of each repeated chunk occurrence
       def scan(files:, min_chars: DEFAULT_MIN_CHARS)
         duplicates = {}
 
@@ -69,26 +80,25 @@ module Kettle
             next
           end
 
-          # Build a map of line content → [line_numbers]
-          line_map = Hash.new { |h, k| h[k] = [] }
-          content.each_line.with_index(1) do |raw_line, lineno|
-            stripped = raw_line.strip
-            # Only consider lines with enough non-whitespace substance
-            next if stripped.gsub(/\s/, "").length <= min_chars
-            next if CHANGELOG_SUBHEADINGS.include?(stripped)
-            next if ignored_duplicate_line?(path, stripped)
+          indexed = content.each_line.map.with_index(1) { |raw, n| [n, raw.strip] }
 
-            line_map[stripped] << lineno
+          chunk_map = Hash.new { |h, k| h[k] = [] }
+          indexed.each_cons(2) do |(lineno1, line1), (_lineno2, line2)|
+            next if line1.gsub(/\s/, "").length <= min_chars
+            next if line2.gsub(/\s/, "").length <= min_chars
+            next if CHANGELOG_SUBHEADINGS.include?(line1)
+            next if ignored_duplicate_chunk?(path, line1, line2)
+
+            chunk_map["#{line1}\n#{line2}"] << lineno1
           end
 
-          # Keep only lines that appear more than once in this file
-          line_map.each do |line_content, line_numbers|
-            next if line_numbers.size < 2
+          chunk_map.each do |chunk_content, start_lines|
+            next if start_lines.size < 2
 
-            duplicates[line_content] ||= []
-            duplicates[line_content] << {
+            duplicates[chunk_content] ||= []
+            duplicates[chunk_content] << {
               file: path,
-              lines: line_numbers,
+              lines: start_lines,
             }
           end
         end
@@ -96,9 +106,22 @@ module Kettle
         duplicates
       end
 
-      def ignored_duplicate_line?(path, stripped)
-        return true if File.basename(path.to_s) == "Appraisals" && APPRAISALS_EVAL_GEMFILE_RE.match?(stripped)
-        return true if File.extname(path.to_s) == ".md" && MARKDOWN_FENCE_RE.match?(stripped)
+      # Return +true+ to suppress a specific 2-line chunk from duplicate
+      # detection.
+      #
+      # Built-in exclusions:
+      # - Consecutive +eval_gemfile+ pairs in Appraisals files — different
+      #   appraisal blocks legitimately share the same gemfile includes, so
+      #   repeated pairs are structural, not a corruption signal.
+      #
+      # @param path [String] path of the file being scanned
+      # @param line1 [String] first stripped line of the chunk
+      # @param line2 [String] second stripped line of the chunk
+      # @return [Boolean]
+      def ignored_duplicate_chunk?(path, line1, line2)
+        if File.basename(path.to_s) == "Appraisals"
+          return true if APPRAISALS_EVAL_GEMFILE_RE.match?(line1) && APPRAISALS_EVAL_GEMFILE_RE.match?(line2)
+        end
 
         false
       end
@@ -222,12 +245,14 @@ module Kettle
         return "No duplicate lines detected.\n" if results.empty?
 
         lines = ["### Duplicate Line Report\n"]
-        lines << "| Line Content | File | Line Numbers |"
+        lines << "| Chunk (line1 ↵ line2) | File | Start Lines |"
         lines << "|---|---|---|"
 
         results.each do |content, entries|
+          # Render the 2-line chunk as a single readable string
+          display = content.gsub("\n", " ↵ ")
           # Truncate very long lines for readability
-          display = (content.length > 80) ? "#{content[0, 77]}..." : content
+          display = (display.length > 80) ? "#{display[0, 77]}..." : display
           # Escape pipes for markdown table
           display = display.gsub("|", "\\|")
 

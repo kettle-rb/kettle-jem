@@ -15,15 +15,39 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "detects duplicate lines in a single file" do
+    it "detects duplicate 2-line chunks in a single file" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "duped.rb")
-        File.write(path, "require \"foo\"\nrequire \"bar\"\nrequire \"foo\"\n")
+        # Lines 1-2 and 3-4 form the same chunk
+        content = <<~RUBY
+          require "foo"
+          require "bar"
+          require "foo"
+          require "bar"
+          require "baz"
+        RUBY
+        File.write(path, content)
         results = described_class.scan(files: [path])
-        expect(results).to have_key('require "foo"')
-        entry = results['require "foo"'].first
+        expect(results).to have_key("require \"foo\"\nrequire \"bar\"")
+        entry = results["require \"foo\"\nrequire \"bar\""].first
         expect(entry[:file]).to eq(path)
         expect(entry[:lines]).to eq([1, 3])
+      end
+    end
+
+    it "does not flag a line that repeats without a matching successor" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "solo.rb")
+        # "require foo" repeats but always with different successors
+        content = <<~RUBY
+          require "foo"
+          require "bar"
+          require "foo"
+          require "baz"
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        expect(results).to be_empty
       end
     end
 
@@ -58,16 +82,18 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "ignores repeated eval_gemfile lines in Appraisals files" do
+    it "ignores consecutive eval_gemfile pairs in Appraisals files" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "Appraisals")
         content = <<~RUBY
-          appraise "current" do
+          appraise "unlocked_deps" do
             eval_gemfile "modular/rspec.gemfile"
+            eval_gemfile "modular/style.gemfile"
           end
 
           appraise "head" do
             eval_gemfile "modular/rspec.gemfile"
+            eval_gemfile "modular/style.gemfile"
           end
         RUBY
         File.write(path, content)
@@ -76,16 +102,18 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "still reports repeated eval_gemfile lines outside Appraisals files" do
+    it "still flags a duplicate eval_gemfile pair in a non-Appraisals file" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "Gemfile")
         content = <<~RUBY
           eval_gemfile "modular/rspec.gemfile"
+          eval_gemfile "modular/style.gemfile"
           eval_gemfile "modular/rspec.gemfile"
+          eval_gemfile "modular/style.gemfile"
         RUBY
         File.write(path, content)
         results = described_class.scan(files: [path])
-        expect(results).to have_key('eval_gemfile "modular/rspec.gemfile"')
+        expect(results).to have_key("eval_gemfile \"modular/rspec.gemfile\"\neval_gemfile \"modular/style.gemfile\"")
       end
     end
 
@@ -107,25 +135,14 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
-    it "still reports repeated fenced code block markers outside markdown files" do
-      Dir.mktmpdir do |dir|
-        path = File.join(dir, "example.txt")
-        content = <<~TEXT
-          ```ruby
-          ```ruby
-        TEXT
-        File.write(path, content)
-        results = described_class.scan(files: [path], min_chars: 1)
-        expect(results).to have_key("```ruby")
-      end
-    end
-
     it "respects custom min_chars" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "short.rb")
-        File.write(path, "end\nend\n")
+        # Both lines must exceed min_chars to form a candidate chunk
+        content = "end\nend\nend\nend\n"
+        File.write(path, content)
         results = described_class.scan(files: [path], min_chars: 2)
-        expect(results).to have_key("end")
+        expect(results).to have_key("end\nend")
       end
     end
 
@@ -133,22 +150,34 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       Dir.mktmpdir do |dir|
         path1 = File.join(dir, "a.rb")
         path2 = File.join(dir, "b.rb")
-        File.write(path1, "require \"foo\"\nrequire \"foo\"\n")
-        File.write(path2, "require \"foo\"\nrequire \"foo\"\n")
+        chunk = "require \"foo\"\nrequire \"bar\"\n"
+        File.write(path1, chunk + chunk)
+        File.write(path2, chunk + chunk)
         results = described_class.scan(files: [path1, path2])
-        expect(results['require "foo"'].size).to eq(2)
-        files = results['require "foo"'].map { |e| e[:file] }
+        key = "require \"foo\"\nrequire \"bar\""
+        expect(results[key].size).to eq(2)
+        files = results[key].map { |e| e[:file] }
         expect(files).to contain_exactly(path1, path2)
       end
     end
 
-    it "handles triple duplicates in one file" do
+    it "handles triple chunk repetition in one file" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "triple.rb")
-        File.write(path, "gem \"parser\"\nother line\ngem \"parser\"\nmore stuff\ngem \"parser\"\n")
+        content = <<~RUBY
+          gem "parser"
+          gem "ast"
+          something_else_here
+          gem "parser"
+          gem "ast"
+          another_line_here
+          gem "parser"
+          gem "ast"
+        RUBY
+        File.write(path, content)
         results = described_class.scan(files: [path])
-        entry = results['gem "parser"'].first
-        expect(entry[:lines]).to eq([1, 3, 5])
+        entry = results["gem \"parser\"\ngem \"ast\""].first
+        expect(entry[:lines]).to eq([1, 4, 7])
       end
     end
 
@@ -163,8 +192,9 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       Dir.mktmpdir do |dir|
         written = File.join(dir, "written.rb")
         skipped = File.join(dir, "skipped.rb")
-        File.write(written, "gem \"foo\"\ngem \"foo\"\n")
-        File.write(skipped, "gem \"bar\"\ngem \"bar\"\n")
+        # Two consecutive identical pairs to trigger chunk detection
+        File.write(written, "gem \"foo\"\ngem \"bar\"\ngem \"foo\"\ngem \"bar\"\n")
+        File.write(skipped, "gem \"baz\"\ngem \"qux\"\ngem \"baz\"\ngem \"qux\"\n")
 
         template_results = {
           written => {action: :replace, timestamp: Time.now},
@@ -172,8 +202,8 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
         }
 
         results = described_class.scan_template_results(template_results: template_results)
-        expect(results).to have_key('gem "foo"')
-        expect(results).not_to have_key('gem "bar"')
+        expect(results).to have_key("gem \"foo\"\ngem \"bar\"")
+        expect(results).not_to have_key("gem \"baz\"\ngem \"qux\"")
       end
     end
   end
@@ -181,8 +211,8 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
   describe ".warning_count" do
     it "returns total count of duplicate entries" do
       results = {
-        "line_a" => [{file: "a.rb", lines: [1, 5]}, {file: "b.rb", lines: [2, 3]}],
-        "line_b" => [{file: "c.rb", lines: [10, 20]}],
+        "line_a\nline_b" => [{file: "a.rb", lines: [1, 5]}, {file: "b.rb", lines: [2, 3]}],
+        "line_c\nline_d" => [{file: "c.rb", lines: [10, 20]}],
       }
       expect(described_class.warning_count(results)).to eq(3)
     end
@@ -191,12 +221,12 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
   describe ".to_json" do
     it "produces valid JSON" do
       results = {
-        'gem "foo"' => [{file: "/a.rb", lines: [1, 3]}],
+        "gem \"foo\"\ngem \"bar\"" => [{file: "/a.rb", lines: [1, 3]}],
       }
       json = described_class.to_json(results)
       parsed = JSON.parse(json)
-      expect(parsed).to have_key('gem "foo"')
-      expect(parsed['gem "foo"'].first["lines"]).to eq([1, 3])
+      expect(parsed).to have_key("gem \"foo\"\ngem \"bar\"")
+      expect(parsed["gem \"foo\"\ngem \"bar\""].first["lines"]).to eq([1, 3])
     end
   end
 
@@ -204,11 +234,11 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
     it "writes JSON to disk" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "report.json")
-        results = {"line" => [{file: "a.rb", lines: [1, 2]}]}
+        results = {"line_a\nline_b" => [{file: "a.rb", lines: [1, 2]}]}
         described_class.write_json(results, path)
         expect(File.exist?(path)).to be(true)
         parsed = JSON.parse(File.read(path))
-        expect(parsed).to have_key("line")
+        expect(parsed).to have_key("line_a\nline_b")
       end
     end
   end
@@ -220,26 +250,27 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
 
     it "returns markdown table when duplicates found" do
       results = {
-        'gem "foo"' => [{file: "/project/a.rb", lines: [1, 3]}],
+        "gem \"foo\"\ngem \"bar\"" => [{file: "/project/a.rb", lines: [1, 3]}],
       }
       summary = described_class.report_summary(results, project_root: "/project")
       expect(summary).to include("Duplicate Line Report")
       expect(summary).to include("a.rb")
       expect(summary).to include("1, 3")
+      expect(summary).to include("↵")
     end
   end
 
   describe ".baseline" do
-    it "returns a Set of line contents duplicated in the template directory" do
+    it "returns a Set of chunk contents duplicated in the template directory" do
       Dir.mktmpdir do |dir|
-        # Create a fake template directory with known duplicates
-        File.write(File.join(dir, "a.yml.example"), "key: value\nkey: value\nother: thing\n")
-        File.write(File.join(dir, "b.rb.example"), "unique_line_here\n")
+        # Two consecutive identical pairs trigger chunk detection
+        File.write(File.join(dir, "a.yml.example"), "key: value\nother: thing\nkey: value\nother: thing\n")
+        File.write(File.join(dir, "b.rb.example"), "unique_line_here\nanother_unique_line\n")
 
         result = described_class.baseline(template_dir: dir, min_chars: 6)
         expect(result).to be_a(Set)
-        expect(result).to include("key: value")
-        expect(result).not_to include("unique_line_here")
+        expect(result).to include("key: value\nother: thing")
+        expect(result).not_to include("unique_line_here\nanother_unique_line")
       end
     end
 
@@ -250,18 +281,18 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
   end
 
   describe ".subtract_baseline" do
-    it "removes entries whose line content appears in the baseline set" do
+    it "removes entries whose chunk content appears in the baseline set" do
       results = {
-        'gem "foo"' => [{file: "a.rb", lines: [1, 3]}],
-        'gem "bar"' => [{file: "b.rb", lines: [2, 4]}],
-        "unique_problem_line" => [{file: "c.rb", lines: [5, 10]}],
+        "gem \"foo\"\ngem \"bar\"" => [{file: "a.rb", lines: [1, 3]}],
+        "gem \"baz\"\ngem \"qux\"" => [{file: "b.rb", lines: [2, 4]}],
+        "unique_problem\nline_here_ok" => [{file: "c.rb", lines: [5, 10]}],
       }
-      baseline_set = Set.new(['gem "foo"', 'gem "bar"'])
+      baseline_set = Set.new(["gem \"foo\"\ngem \"bar\"", "gem \"baz\"\ngem \"qux\""])
 
       filtered = described_class.subtract_baseline(results, baseline_set: baseline_set)
-      expect(filtered).to have_key("unique_problem_line")
-      expect(filtered).not_to have_key('gem "foo"')
-      expect(filtered).not_to have_key('gem "bar"')
+      expect(filtered).to have_key("unique_problem\nline_here_ok")
+      expect(filtered).not_to have_key("gem \"foo\"\ngem \"bar\"")
+      expect(filtered).not_to have_key("gem \"baz\"\ngem \"qux\"")
     end
 
     it "returns all results when baseline is empty" do
