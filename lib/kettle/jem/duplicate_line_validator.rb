@@ -41,7 +41,12 @@ module Kettle
       CHANGELOG_METRIC_RE = /\A-\s+(?:(?:(?:line|branch)\s+)?coverage:|\d+\.\d+%\s+documented)/i.freeze
 
       # Files excluded entirely from duplicate detection.
-      EXCLUDED_FILENAMES = Set.new(["CODE_OF_CONDUCT.md"]).freeze
+      EXCLUDED_FILENAMES = Set.new(["CODE_OF_CONDUCT.md", ".gitlab-ci.yml"]).freeze
+
+      # YAML configuration keys that legitimately repeat inside .kettle-jem.yml
+      # files — multiple merge blocks can use identical strategy/recipe/option
+      # lines without indicating corruption.
+      KETTLE_JEM_CONFIG_RE = /\A(?:strategy|recipe|preference|add_missing|freeze_token|file_type|max_recursion_depth):\s/.freeze
 
       # Consecutive ENV assignment lines in Rakefiles.  Each named SimpleCov
       # task block sets the same ENV vars as part of its setup, so repeated
@@ -171,6 +176,10 @@ module Kettle
         # across multiple documentation tables with the same column structure.
         if File.extname(path.to_s) == ".md"
           return true if line1.start_with?("|") && line2.start_with?("|")
+        end
+
+        if basename == ".kettle-jem.yml"
+          return true if KETTLE_JEM_CONFIG_RE.match?(line1) && KETTLE_JEM_CONFIG_RE.match?(line2)
         end
 
         false
