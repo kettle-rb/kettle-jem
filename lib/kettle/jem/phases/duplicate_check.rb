@@ -20,6 +20,12 @@ module Kettle
         def emit_phase_start
         end
 
+        # DuplicateCheck prints its own final status after it knows the warning
+        # count and optional report path, so the generic TemplatePhase summary
+        # would only duplicate that output.
+        def emit_phase_line
+        end
+
         def perform
           helpers = context.helpers
           out = context.out
