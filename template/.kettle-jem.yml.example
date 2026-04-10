@@ -119,6 +119,9 @@ engines:
 #                     Examples:
 #                       "ar-{version}.x"      → gemfiles/ar-7.0.x
 #                       "rails_{version}"      → gemfiles/rails_7_0.gemfile
+#   Use this when you need a simple 2D matrix: Ruby × one framework gem/version axis.
+#   For deeper or more complex matrices that are better modeled as Appraisals entries,
+#   prefer kettle-jem-appraisals instead.
 #
 # workflows:
 #   preset: framework

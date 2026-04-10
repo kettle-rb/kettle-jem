@@ -248,6 +248,17 @@ files:
     strategy: accept_template      # always use template version
 ```
 
+### Framework Matrix vs. Appraisals
+
+`workflows.preset: framework` and `workflows.framework_matrix` are meant for a
+simple 2D matrix: **Ruby versions × one framework gem/version axis**. This is a
+good fit when you want kettle-jem to generate CI matrix entries and gemfile
+references directly without using `Appraisals`.
+
+If you need a deeper or more complex matrix, prefer
+**`kettle-jem-appraisals`**, which generates `Appraisals` entries and is the
+better fit for Appraisals-style combinations.
+
 ### Strategies
 
 | Strategy           | Behavior                                                              |

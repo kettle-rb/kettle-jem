@@ -9,6 +9,10 @@ module Kettle
     # `ruby × framework_version` matrix strategy, including the correct
     # gemfile references for each version.
     #
+    # This feature is intentionally limited to a basic 2D matrix for a single
+    # framework gem and its versions. For more complex, deeper matrices that
+    # are better represented as Appraisals entries, prefer kettle-jem-appraisals.
+    #
     # @example
     #   generator = FrameworkWorkflowGenerator.new(
     #     template_content: File.read("template/.github/workflows/framework-ci.yml.example"),

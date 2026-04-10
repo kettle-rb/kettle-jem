@@ -652,6 +652,10 @@ module Kettle
       end
 
       # Return the `workflows.framework_matrix` sub-hash, validated.
+      #
+      # This config powers kettle-jem's built-in simple 2D matrix support:
+      # Ruby versions × one framework dependency axis. If your test matrix is
+      # deeper or needs Appraisals-style combinations, use kettle-jem-appraisals.
       # @return [Hash] with keys: "dimension", "versions", "gemfile_pattern"
       def framework_matrix_config
         raw = workflows_config["framework_matrix"]
