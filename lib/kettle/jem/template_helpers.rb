@@ -409,6 +409,12 @@ module Kettle
         project_emoji_value = preferred_token_value(nil, kettle_config["project_emoji"], env_key: "KJ_PROJECT_EMOJI")
         replacements["KJ|PROJECT_EMOJI"] = project_emoji_value if present_string?(project_emoji_value)
 
+        # {KJ|MIN_DIVERGENCE_THRESHOLD} — optional divergence threshold for kettle:jem:selftest.
+        # Resolves from ENV["KJ_MIN_DIVERGENCE_THRESHOLD"] then min_divergence_threshold: in .kettle-jem.yml.
+        # When absent, the token resolves to empty string (no threshold enforced).
+        min_div_value = preferred_token_value(nil, kettle_config["min_divergence_threshold"], env_key: "KJ_MIN_DIVERGENCE_THRESHOLD")
+        replacements["KJ|MIN_DIVERGENCE_THRESHOLD"] = min_div_value.to_s
+
         @@token_replacements = replacements
       end
 

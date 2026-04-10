@@ -39,8 +39,8 @@ module Kettle
           tmp
         ].freeze
 
-        # Default minimum unchanged-score threshold (percentage of unchanged files).
-        # Override via ENV["KJ_SELFTEST_THRESHOLD"].
+        # Default minimum divergence threshold (percentage of files that would change).
+        # Override via ENV["KJ_MIN_DIVERGENCE_THRESHOLD"].
         DEFAULT_THRESHOLD = 0
 
         # Directory prefixes and exact filenames for files that are part of the
@@ -172,8 +172,8 @@ module Kettle
         end
 
         def self_test_threshold(helpers)
-          env_threshold = ENV["KJ_SELFTEST_THRESHOLD"].to_s.strip
-          return [:score, env_threshold.to_f] unless env_threshold.empty?
+          env_threshold = ENV["KJ_MIN_DIVERGENCE_THRESHOLD"].to_s.strip
+          return [:divergence, env_threshold.to_f] unless env_threshold.empty?
 
           configured_threshold = helpers.kettle_config["min_divergence_threshold"]
           return [:none, nil] if configured_threshold.nil? || configured_threshold.to_s.strip.empty?
@@ -186,8 +186,6 @@ module Kettle
 
         def threshold_failed?(mode, threshold, score, divergence)
           case mode
-          when :score
-            score < threshold
           when :divergence
             divergence >= threshold
           else
@@ -197,8 +195,6 @@ module Kettle
 
         def threshold_label(mode, threshold)
           case mode
-          when :score
-            "minimum unchanged score #{threshold}%"
           when :divergence
             "fail when divergence reaches #{threshold}%"
           else
@@ -208,8 +204,6 @@ module Kettle
 
         def threshold_failure_message(mode, threshold, score, divergence)
           case mode
-          when :score
-            "[selftest] FAIL — score #{score}% is below threshold #{threshold}%"
           when :divergence
             "[selftest] FAIL — divergence #{divergence}% meets or exceeds threshold #{threshold}%"
           else

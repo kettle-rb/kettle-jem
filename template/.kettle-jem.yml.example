@@ -211,7 +211,8 @@ machine_users:
 # divergence reaches or exceeds that percent. Leave blank to report only.
 # Divergence is currently measured as the percent of produced files that would
 # change or be added during templating (100 - unchanged-file score).
-min_divergence_threshold:
+# ENV override: KJ_MIN_DIVERGENCE_THRESHOLD
+min_divergence_threshold: {KJ|MIN_DIVERGENCE_THRESHOLD}
 
 # Default merge options
 defaults:
