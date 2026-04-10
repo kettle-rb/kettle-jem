@@ -102,6 +102,25 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       end
     end
 
+    it "flags a duplicated appraisal block in an Appraisals file (corruption signal)" do
+      Dir.mktmpdir do |dir|
+        path = File.join(dir, "Appraisals")
+        content = <<~RUBY
+          appraise "ruby-3-3" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+          end
+
+          appraise "ruby-3-3" do
+            eval_gemfile "modular/x_std_libs/r3/libs.gemfile"
+          end
+        RUBY
+        File.write(path, content)
+        results = described_class.scan(files: [path])
+        # The chunk appraise/eval_gemfile is NOT suppressed because line1 is not an eval_gemfile call
+        expect(results).to have_key("appraise \"ruby-3-3\" do\neval_gemfile \"modular/x_std_libs/r3/libs.gemfile\"")
+      end
+    end
+
     it "still flags a duplicate eval_gemfile pair in a non-Appraisals file" do
       Dir.mktmpdir do |dir|
         path = File.join(dir, "Gemfile")
