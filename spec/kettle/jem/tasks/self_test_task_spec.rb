@@ -383,6 +383,25 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect(File.read(diff_path)).to include("--- a/Gemfile")
     end
 
+    it "filters dynamic shunted.gemfile changes out of the changed-file list" do
+      allow(manifest).to receive_messages(generate: {}, compare: {
+        matched: [],
+        changed: %w[gemfiles/modular/shunted.gemfile Gemfile],
+        added: [],
+        removed: [],
+      })
+      captured_comparison = nil
+      allow(reporter).to receive(:summary) do |comparison, **|
+        captured_comparison = comparison
+        "# Report\n"
+      end
+      allow(reporter).to receive(:diff).and_return("")
+
+      expect { described_class.run }.not_to raise_error
+
+      expect(captured_comparison[:changed]).to eq(["Gemfile"])
+    end
+
     it "skips writing diff for empty diff output" do
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [], changed: %w[Gemfile], added: [], removed: [],

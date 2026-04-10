@@ -67,6 +67,10 @@ module Kettle
           tmp/kettle-jem/templating-report-
         ].freeze
 
+        SELFTEST_IGNORED_FILES = %w[
+          gemfiles/modular/shunted.gemfile
+        ].freeze
+
         APPRAISAL_GENERATED_GEMFILE_PATTERN = %r{\Agemfiles/[^/]+\.gemfile\z}
 
         module_function
@@ -115,8 +119,9 @@ module Kettle
 
           # ── Step 5: Compare ───────────────────────────────────────────
           comparison = manifest.compare(before, after)
+          comparison[:changed] = comparison[:changed].reject { |rel| ignored_selftest_artifact?(rel) }
           comparison[:added] = comparison[:added].reject do |rel|
-            generated_runtime_artifact?(rel) ||
+            ignored_selftest_artifact?(rel) ||
               force_copied_template_addition?(rel, output_dir: output_dir, helpers: helpers)
           end
 
@@ -124,7 +129,7 @@ module Kettle
           # Files under lib/, spec/, template/, exe/, sig/, etc. are part of
           # the gem source and are never produced by the template task.
           skipped, truly_removed = comparison[:removed].partition do |rel|
-            expected_non_templated_path?(rel, project_root: project_root)
+            ignored_selftest_artifact?(rel) || expected_non_templated_path?(rel, project_root: project_root)
           end
           comparison[:removed] = truly_removed
           comparison[:skipped] = skipped
@@ -330,6 +335,10 @@ module Kettle
 
         def generated_runtime_artifact?(relative_path)
           GENERATED_RUNTIME_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) }
+        end
+
+        def ignored_selftest_artifact?(relative_path)
+          generated_runtime_artifact?(relative_path) || SELFTEST_IGNORED_FILES.include?(relative_path)
         end
 
         # Files created during self-test force mode that are byte-for-byte copies
