@@ -146,7 +146,6 @@ RSpec.describe Kettle::Jem::SetupCLI do
         ensure_template_config_bootstrap!: :bootstrap_only,
       )
       expect(cli).not_to receive(:ensure_gemfile_from_example!)
-      expect(cli).not_to receive(:ensure_bootstrap_modular_gemfiles!)
       expect(cli).not_to receive(:handoff_to_bundled_phase!)
       expect(cli).not_to receive(:ensure_dev_deps!)
       expect(cli).not_to receive(:ensure_modular_gemfiles!)
@@ -910,62 +909,55 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
-  describe "#ensure_bootstrap_modular_gemfiles!" do
+  describe "#preflight_merge_modular_gemfiles!" do
     around do |ex|
       Dir.mktmpdir do |dir|
         Dir.chdir(dir) { ex.run }
       end
     end
 
-    def stub_bootstrap_modular_sources(cli, templating_source:, templating_local_source:)
+    def stub_preflight_modular_source_dir(cli, source_dir:)
       allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
-        case rel
-        when File.join("gemfiles", "modular", "templating.gemfile")
-          templating_source
-        when File.join("gemfiles", "modular", "templating_local.gemfile")
-          templating_local_source
-        else
-          orig.call(rel)
-        end
+        rel == File.join("gemfiles", "modular") ? source_dir : orig.call(rel)
       end
     end
 
     it "copies bootstrap modular gemfiles when missing", :check_output do
-      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
-      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
-      File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, "gem 'templating-local-new'\n")
+      source_dir = File.join(Dir.pwd, "template", "gemfiles", "modular")
+      FileUtils.mkdir_p(source_dir)
+      File.write(File.join(source_dir, "templating.gemfile.example"), "gem 'templating-new'\n")
+      File.write(File.join(source_dir, "templating_local.gemfile.example"), "gem 'templating-local-new'\n")
 
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
-      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+      stub_preflight_modular_source_dir(cli, source_dir: source_dir)
 
-      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Copied gemfiles\/modular\/templating\.gemfile\..*Copied gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
+      expect { cli.send(:preflight_merge_modular_gemfiles!, Kettle::Jem::TemplateHelpers, nil) }
+        .to output(/Pre-flight: wrote gemfiles\/modular\/templating\.gemfile\..*Pre-flight: wrote gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
       expect(File.read(File.join("gemfiles", "modular", "templating.gemfile"))).to eq("gem 'templating-new'\n")
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "overwrites bootstrap modular gemfiles when force is the default", :check_output do
+    it "rewrites modular gemfiles from template when force is the default", :check_output do
       FileUtils.mkdir_p(File.join("gemfiles", "modular"))
       File.write(File.join("gemfiles", "modular", "templating.gemfile"), "gem 'templating-old'\n")
       File.write(File.join("gemfiles", "modular", "templating_local.gemfile"), "gem 'templating-local-old'\n")
 
-      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
-      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
-      File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, "gem 'templating-local-new'\n")
+      source_dir = File.join(Dir.pwd, "template", "gemfiles", "modular")
+      FileUtils.mkdir_p(source_dir)
+      File.write(File.join(source_dir, "templating.gemfile.example"), "gem 'templating-new'\n")
+      File.write(File.join(source_dir, "templating_local.gemfile.example"), "gem 'templating-local-new'\n")
 
       cli = described_class.new(["--verbose"])
-      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+      stub_preflight_modular_source_dir(cli, source_dir: source_dir)
 
-      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Overwrote gemfiles\/modular\/templating\.gemfile\..*Overwrote gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
+      expect { cli.send(:preflight_merge_modular_gemfiles!, Kettle::Jem::TemplateHelpers, nil) }
+        .to output(/Pre-flight: wrote gemfiles\/modular\/templating\.gemfile\..*Pre-flight: wrote gemfiles\/modular\/templating_local\.gemfile\./m).to_stdout
       expect(File.read(File.join("gemfiles", "modular", "templating.gemfile"))).to eq("gem 'templating-new'\n")
       expect(File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))).to eq("gem 'templating-local-new'\n")
     end
 
-    it "refreshes bootstrap templating_local.gemfile from template on force (default) while stripping only the destination gem", :check_output do
+    it "refreshes templating_local.gemfile from template on force while stripping only the destination gem", :check_output do
       File.write("ast-merge.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
           spec.name = "ast-merge"
@@ -988,10 +980,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
         end
       RUBY
 
-      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
-      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
-      File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, <<~RUBY)
+      source_dir = File.join(Dir.pwd, "template", "gemfiles", "modular")
+      FileUtils.mkdir_p(source_dir)
+      File.write(File.join(source_dir, "templating.gemfile.example"), "gem 'templating-new'\n")
+      File.write(File.join(source_dir, "templating_local.gemfile.example"), <<~RUBY)
         require "nomono/bundler"
 
         local_gems = %w[
@@ -1010,10 +1002,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       cli = described_class.new(["--verbose"])
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "ast-merge.gemspec"))
-      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+      stub_preflight_modular_source_dir(cli, source_dir: source_dir)
 
-      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Overwrote gemfiles\/modular\/templating_local\.gemfile\./).to_stdout
+      expect { cli.send(:preflight_merge_modular_gemfiles!, Kettle::Jem::TemplateHelpers, "ast-merge") }
+        .to output(/Pre-flight: wrote gemfiles\/modular\/templating_local\.gemfile\./).to_stdout
 
       result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
       expect(result).to include('require "nomono/bundler"')
@@ -1032,10 +1024,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
         end
       RUBY
 
-      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
-      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
-      File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, <<~RUBY)
+      source_dir = File.join(Dir.pwd, "template", "gemfiles", "modular")
+      FileUtils.mkdir_p(source_dir)
+      File.write(File.join(source_dir, "templating.gemfile.example"), "gem 'templating-new'\n")
+      File.write(File.join(source_dir, "templating_local.gemfile.example"), <<~RUBY)
         require "nomono/bundler"
 
         local_gems = %w[
@@ -1054,10 +1046,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "rbs-merge.gemspec"))
-      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+      stub_preflight_modular_source_dir(cli, source_dir: source_dir)
 
-      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Copied gemfiles\/modular\/templating_local\.gemfile/).to_stdout
+      expect { cli.send(:preflight_merge_modular_gemfiles!, Kettle::Jem::TemplateHelpers, "rbs-merge") }
+        .to output(/Pre-flight: wrote gemfiles\/modular\/templating_local\.gemfile/).to_stdout
 
       result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
       expect(result).to include("tree_haver")
@@ -1067,7 +1059,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(result).not_to include("rbs-merge")
     end
 
-    it "strips the host gem's name from an existing templating_local.gemfile that already has it", :check_output do
+    it "strips the host gem's name from an existing templating_local.gemfile during merge", :check_output do
       File.write("rbs-merge.gemspec", <<~RUBY)
         Gem::Specification.new do |spec|
           spec.name = "rbs-merge"
@@ -1091,19 +1083,20 @@ RSpec.describe Kettle::Jem::SetupCLI do
         end
       RUBY
 
-      templating_source = File.expand_path("src_templating.gemfile", Dir.pwd)
-      templating_local_source = File.expand_path("src_templating_local.gemfile", Dir.pwd)
-      File.write(templating_source, "gem 'templating-new'\n")
-      File.write(templating_local_source, "gem 'templating-local-new'\n")
+      source_dir = File.join(Dir.pwd, "template", "gemfiles", "modular")
+      FileUtils.mkdir_p(source_dir)
+      File.write(File.join(source_dir, "templating.gemfile.example"), "gem 'templating-new'\n")
+      File.write(File.join(source_dir, "templating_local.gemfile.example"), "gem 'templating-local-new'\n")
 
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@force, false)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "rbs-merge.gemspec"))
-      stub_bootstrap_modular_sources(cli, templating_source: templating_source, templating_local_source: templating_local_source)
+      stub_preflight_modular_source_dir(cli, source_dir: source_dir)
+      allow(Kettle::Jem::SourceMerger).to receive(:apply).and_return(File.read(File.join("gemfiles", "modular", "templating_local.gemfile")))
 
-      expect { cli.send(:ensure_bootstrap_modular_gemfiles!) }
-        .to output(/Removed self-gem from gemfiles\/modular\/templating_local\.gemfile/).to_stdout
+      expect { cli.send(:preflight_merge_modular_gemfiles!, Kettle::Jem::TemplateHelpers, "rbs-merge") }
+        .to output(/Pre-flight: wrote gemfiles\/modular\/templating\.gemfile\..*Pre-flight: merged gemfiles\/modular\/templating_local\.gemfile/m).to_stdout
 
       result = File.read(File.join("gemfiles", "modular", "templating_local.gemfile"))
       expect(result).to include("tree_haver")
@@ -1410,7 +1403,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
 
@@ -1419,7 +1412,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli.instance_variable_set(:@quiet, true)
       cli.instance_variable_set(:@passthrough, ["--quiet", "only=hooks"])
 
-      expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install --quiet only\\=hooks"), suppress_command_log: true)
+      expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install --quiet only\\=hooks"), suppress_command_log: true)
       cli.send(:run_kettle_install!)
     end
   end

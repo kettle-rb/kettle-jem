@@ -3408,6 +3408,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               File.write(File.join(hooks_src, "footer-template.erb.txt"), "y")
               File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
               allow(helpers).to receive_messages(project_root: project_root, template_root: gem_root, ensure_clean_git!: nil, ask: true)
+              stub_env("force" => "false")
               allow(Kettle::Dev::InputAdapter).to receive(:gets).and_return("s\n")
               described_class.run
               expect(File).not_to exist(File.join(project_root, ".git-hooks", "commit-subjects-goalie.txt"))
