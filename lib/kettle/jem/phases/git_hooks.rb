@@ -91,7 +91,6 @@ module Kettle
             unless choice && !choice.empty?
               if non_interactive_mode
                 choice = "l"
-                out.detail("Choose (l/g/s) [l]: l (non-interactive)")
               else
                 print("Choose (l/g/s) [l]: ")
                 choice = Kettle::Dev::InputAdapter.gets&.strip
