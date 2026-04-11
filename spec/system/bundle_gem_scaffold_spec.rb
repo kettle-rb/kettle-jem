@@ -7,6 +7,12 @@ require "turbo_tests2/rspec/shared_contexts/simplecov_spawn"
 
 RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:exe_path) { File.expand_path("../../exe/kettle-jem", __dir__) }
+  let(:kettle_jem_env) do
+    {
+      "KJ_PROJECT_EMOJI" => "⭐️",
+      "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
+    }
+  end
   let(:duplicates_exe_path) { File.expand_path("../../exe/kettle-jem-validate-duplicates", __dir__) }
   let(:sandbox_root) { File.expand_path("../../../tmp/sandbox", __dir__) }
   let(:dummy_gem_dir) { File.join(sandbox_root, "dummy-gem") }
@@ -25,18 +31,14 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     FileUtils.rm_rf(dummy_gem_dir)
   end
 
-  let(:kettle_jem_env) do
-    {
-      "KJ_PROJECT_EMOJI" => "⭐️",
-      "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
-    }
-  end
-
   it "templates the scaffolded gem and stays within the expected duplicate warning threshold" do
     # Run kettle-jem --skip-commit (CLI handles bin/setup and all preflight internally)
     stdout, stderr, status = Open3.capture3(
       kettle_jem_env,
-      RbConfig.ruby, exe_path, "--skip-commit", "--accept-config",
+      RbConfig.ruby,
+      exe_path,
+      "--skip-commit",
+      "--accept-config",
       chdir: dummy_gem_dir,
     )
     expect(status.success?).to be(true),
@@ -45,7 +47,10 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     # Duplicate validation: selftest relies on tracked files and is not valid
     # for this skip-commit scenario where templated files remain untracked.
     dup_out, dup_err, dup_status = Open3.capture3(
-      RbConfig.ruby, duplicates_exe_path, dummy_gem_dir, "--json=#{duplicates_report_path}",
+      RbConfig.ruby,
+      duplicates_exe_path,
+      dummy_gem_dir,
+      "--json=#{duplicates_report_path}",
       chdir: dummy_gem_dir,
     )
     warning_count =

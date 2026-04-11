@@ -33,12 +33,12 @@ module Kettle
       # Appraisals dependency declaration lines (eval_gemfile or gem).  Multiple
       # appraisal blocks legitimately share the same dependency lines and
       # consecutive pairs of them are therefore not corruption signals.
-      APPRAISALS_DEP_LINE_RE = /\A(?:eval_gemfile|gem)\s+["']/.freeze
+      APPRAISALS_DEP_LINE_RE = /\A(?:eval_gemfile|gem)\s+["']/
 
       # Auto-generated coverage metric lines produced by kettle-changelog.
       # These repeat verbatim across CHANGELOG releases when coverage stays
       # stable and are therefore not corruption signals.
-      CHANGELOG_METRIC_RE = /\A-\s+(?:(?:(?:line|branch)\s+)?coverage:|\d+\.\d+%\s+documented)/i.freeze
+      CHANGELOG_METRIC_RE = /\A-\s+(?:(?:(?:line|branch)\s+)?coverage:|\d+\.\d+%\s+documented)/i
 
       # Files excluded entirely from duplicate detection.
       EXCLUDED_FILENAMES = Set.new(["CODE_OF_CONDUCT.md", ".gitlab-ci.yml"]).freeze
@@ -46,18 +46,18 @@ module Kettle
       # YAML configuration keys that legitimately repeat inside .kettle-jem.yml
       # files — multiple merge blocks can use identical strategy/recipe/option
       # lines without indicating corruption.
-      KETTLE_JEM_CONFIG_RE = /\A(?:strategy|recipe|preference|add_missing|freeze_token|file_type|max_recursion_depth):\s/.freeze
+      KETTLE_JEM_CONFIG_RE = /\A(?:strategy|recipe|preference|add_missing|freeze_token|file_type|max_recursion_depth):\s/
 
       # Consecutive ENV assignment lines in Rakefiles.  Each named SimpleCov
       # task block sets the same ENV vars as part of its setup, so repeated
       # pairs are structural and not a corruption signal.
-      RAKEFILE_ENV_ASSIGNMENT_RE = /\AENV\[["']/.freeze
+      RAKEFILE_ENV_ASSIGNMENT_RE = /\AENV\[["']/
 
       # rescue LoadError followed by # :nocov: is a template pattern for
       # optional gem loading blocks.  It repeats in every such block and is
       # structural, not a corruption signal.
-      RESCUE_LOAD_ERROR_RE = /\Arescue\s+LoadError/.freeze
-      NOCOV_MARKER_RE = /\A# :nocov:\z/.freeze
+      RESCUE_LOAD_ERROR_RE = /\Arescue\s+LoadError/
+      NOCOV_MARKER_RE = /\A# :nocov:\z/
 
       # Standard keepachangelog.com release subheadings that repeat in every
       # release section.  These are always exempt from duplicate detection

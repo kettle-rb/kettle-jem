@@ -918,7 +918,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     def stub_preflight_modular_source_dir(cli, source_dir:)
       allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
-        rel == File.join("gemfiles", "modular") ? source_dir : orig.call(rel)
+        (rel == File.join("gemfiles", "modular")) ? source_dir : orig.call(rel)
       end
     end
 
