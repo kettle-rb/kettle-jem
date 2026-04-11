@@ -232,7 +232,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               name: "{KJ|AUTHOR:NAME}"                 # Full display name. Example: Ada Lovelace. ENV: KJ_AUTHOR_NAME. Auto-seeded from gemspec authors.first
               given_names: "{KJ|AUTHOR:GIVEN_NAMES}"   # Given/personal names only. Example: Ada. ENV: KJ_AUTHOR_GIVEN_NAMES. Auto-seeded when AUTHOR:NAME can be split
               family_names: "{KJ|AUTHOR:FAMILY_NAMES}" # Family/surname only. Example: Lovelace. ENV: KJ_AUTHOR_FAMILY_NAMES. Auto-seeded when AUTHOR:NAME can be split
-              email: "floss@glatzo.com"                # Primary public email address. Example: floss@galtzo.com. ENV: KJ_AUTHOR_EMAIL. Auto-seeded from gemspec email.first
+              email: "floss@galtzo.com"                # Primary public email address. Example: floss@galtzo.com. ENV: KJ_AUTHOR_EMAIL. Auto-seeded from gemspec email.first
               domain: "galtzo.com"                     # Bare domain only, no scheme, no email. Example: galtzo.com. ENV: KJ_AUTHOR_DOMAIN. Auto-seeded from AUTHOR:EMAIL
               orcid: "0009-0008-8519-441X"             # ORCID identifier only, not the full URL. Example: 0000-0001-2345-6789. ENV: KJ_AUTHOR_ORCID
             funding:
@@ -307,7 +307,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             stub_env(
               "KJ_GH_USER" => "pboling",
               "KJ_AUTHOR_NAME" => "Peter H. Boling",
-              "KJ_AUTHOR_EMAIL" => "floss@glatzo.com",
+              "KJ_AUTHOR_EMAIL" => "floss@galtzo.com",
               "KJ_AUTHOR_ORCID" => "0009-0008-8519-441X",
               "KJ_FUNDING_KOFI" => "pboling",
               "KJ_SOCIAL_MASTODON" => "galtzo",
@@ -345,7 +345,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
             expect(parsed.dig("tokens", "forge", "gh_user")).to eq("pboling")
             expect(parsed.dig("tokens", "author", "name")).to eq("Peter H. Boling")
-            expect(parsed.dig("tokens", "author", "email")).to eq("floss@glatzo.com")
+            expect(parsed.dig("tokens", "author", "email")).to eq("floss@galtzo.com")
             expect(parsed.dig("tokens", "author", "orcid")).to eq("0009-0008-8519-441X")
             expect(parsed.dig("tokens", "funding", "kofi")).to eq("pboling")
             expect(parsed.dig("tokens", "social", "mastodon")).to eq("galtzo")
