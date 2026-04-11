@@ -11,7 +11,7 @@
 # than once in the same file). Outputs a warning count to STDOUT and writes
 # a JSON report.
 
-require "kettle/jem/duplicate_line_validator"
+require "kettle/jem"
 
 project_root = nil
 min_chars = Kettle::Jem::DuplicateLineValidator::DEFAULT_MIN_CHARS

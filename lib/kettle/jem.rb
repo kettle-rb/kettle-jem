@@ -67,6 +67,7 @@ module Kettle
     autoload :VersionGemBootstrap, "kettle/jem/version_gem_bootstrap"
     autoload :TemplatingReport, "kettle/jem/templating_report"
     autoload :TemplateChecksums, "kettle/jem/template_checksums"
+    autoload :DuplicateLineValidator, "kettle/jem/duplicate_line_validator"
 
     # Templating and setup (moved from kettle-dev)
     autoload :ConfigSeeder, "kettle/jem/config_seeder"

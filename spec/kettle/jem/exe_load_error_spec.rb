@@ -2,12 +2,16 @@
 
 require "open3"
 require "rbconfig"
+require "fileutils"
+require "tmpdir"
 
 require "spec_helper"
 
 RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/DescribeClass
   let(:exe_path) { File.expand_path("../../../exe/kettle-jem", __dir__) }
   let(:exe_content) { File.read(exe_path) }
+  let(:duplicates_exe_path) { File.expand_path("../../../exe/kettle-jem-validate-duplicates", __dir__) }
+  let(:duplicates_exe_content) { File.read(duplicates_exe_path) }
 
   it "loads the full runtime from the gem itself via require" do
     expect(exe_content).to include('require "kettle/jem"')
@@ -16,6 +20,11 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
   it "does not depend on separately requiring setup_cli or version in the exe" do
     expect(exe_content).not_to include('require_relative "../lib/kettle/jem/setup_cli"')
     expect(exe_content).not_to include('require_relative "../lib/kettle/jem/version"')
+  end
+
+  it "loads the duplicate validator exe through the full runtime" do
+    expect(duplicates_exe_content).to include('require "kettle/jem"')
+    expect(duplicates_exe_content).not_to include('require "kettle/jem/duplicate_line_validator"')
   end
 
   it "can seed bootstrap config after loading the full runtime" do
@@ -66,5 +75,49 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
 
     expect(status.success?).to be(true), "stdout=#{stdout.inspect}\nstderr=#{stderr.inspect}"
     expect(stderr).to eq("")
+  end
+
+  it "can serialize duplicate reports through the duplicate validator exe" do
+    tmp_root = File.expand_path("../../../tmp", __dir__)
+    FileUtils.mkdir_p(tmp_root)
+
+    Dir.mktmpdir("duplicate-validator-", tmp_root) do |dir|
+      config_path = File.join(dir, ".kettle-jem.yml")
+      changelog_path = File.join(dir, "CHANGELOG.md")
+      report_path = File.join(dir, "tmp", "kettle-jem", "duplicates.json")
+
+      File.write(config_path, <<~YAML)
+        merge:
+          markdown:
+            strategy: linewise
+            recipe: changelog
+          markdown_again:
+            strategy: linewise
+            recipe: changelog
+      YAML
+
+      File.write(changelog_path, <<~MD)
+        Intro line
+        Another intro line
+        Intro line
+        Another intro line
+      MD
+
+      stdout, stderr, status = Open3.capture3(
+        RbConfig.ruby,
+        duplicates_exe_path,
+        dir,
+        "--json=#{report_path}",
+      )
+
+      expect(status.success?).to be(false), "stdout=#{stdout.inspect}\nstderr=#{stderr.inspect}"
+      expect(stderr).to eq("")
+      expect(stdout).to include("duplicate line warning")
+      expect(File).to exist(report_path)
+
+      report = JSON.parse(File.read(report_path))
+      expect(report.values.flatten).not_to be_empty
+      expect(report.values.flatten.first.fetch("file")).to eq(Kettle::Jem.display_path(changelog_path))
+    end
   end
 end
