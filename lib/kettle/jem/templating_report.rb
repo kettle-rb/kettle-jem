@@ -73,9 +73,9 @@ module Kettle
         File.expand_path(path)
       end
 
-      def print(snapshot: nil, io: $stdout)
+      def print(snapshot: nil, io: $stdout, project_root: nil)
         snapshot ||= self.snapshot
-        lines = console_lines(snapshot: snapshot)
+        lines = console_lines(snapshot: snapshot, project_root: project_root)
         return if lines.empty?
 
         io.puts
@@ -83,7 +83,7 @@ module Kettle
         io.puts
       end
 
-      def console_lines(snapshot: nil)
+      def console_lines(snapshot: nil, project_root: nil)
         snapshot ||= self.snapshot
         merge_gems = snapshot.fetch(:merge_gems, [])
         return [] if merge_gems.empty?
@@ -102,6 +102,10 @@ module Kettle
           source = source_label(entry)
           path = entry[:path] ? " — #{entry[:path]}" : ""
           lines << "  - #{entry[:name]} #{version} (#{source})#{path}"
+        end
+
+        local_workspace_warning_lines(snapshot: snapshot, project_root: project_root).each do |line|
+          lines << "  #{line}"
         end
 
         lines
@@ -141,6 +145,10 @@ module Kettle
           path = kettle_jem[:path] ? " `#{kettle_jem[:path]}`" : ""
           lines << "**kettle-jem**: #{version} (#{source_label(kettle_jem)})#{path}"
         end
+
+        local_warning = local_workspace_warning(snapshot: snapshot, project_root: project_root)
+        lines << ""
+        lines << local_warning_section(local_warning) if local_warning
 
         lines << "**Template commit**: `#{template_commit_sha}`" if template_commit_sha
         lines << ""
@@ -244,6 +252,55 @@ module Kettle
         return "local path" if entry[:local_path]
 
         "installed gem"
+      end
+
+      def local_workspace_warning_lines(snapshot:, project_root:)
+        warning = local_workspace_warning(snapshot: snapshot, project_root: project_root)
+        return [] unless warning
+
+        [
+          "WARNING: #{warning}",
+          "Hint: set KETTLE_RB_DEV=true (or configure it in .env.local) to use sibling workspace gems.",
+        ]
+      end
+
+      def local_warning_section(warning)
+        <<~MARKDOWN.chomp
+          ## Local Workspace Warning
+
+          #{warning}
+
+          Set `KETTLE_RB_DEV=true` (or configure it in `.env.local`) to use sibling workspace gems instead of the installed release.
+        MARKDOWN
+      end
+
+      def local_workspace_warning(snapshot:, project_root:)
+        return if project_root.to_s.strip.empty?
+
+        kettle_jem = snapshot[:kettle_jem]
+        return unless kettle_jem&.fetch(:loaded, false)
+        return if kettle_jem[:local_path]
+
+        workspace_root = sibling_workspace_root(project_root)
+        return unless workspace_root
+
+        local_checkout = File.join(workspace_root, "kettle-jem")
+        return unless File.directory?(local_checkout)
+
+        loaded_path = canonical_path(kettle_jem[:path].to_s)
+        checkout_path = canonical_path(local_checkout)
+        return if loaded_path == checkout_path
+
+        env_value = ENV.fetch("KETTLE_RB_DEV", "<unset>")
+        "Detected sibling workspace checkout at `#{local_checkout}`, but this run is using installed `kettle-jem` " \
+          "(KETTLE_RB_DEV=#{env_value.inspect})."
+      end
+
+      def sibling_workspace_root(project_root)
+        candidate = canonical_path(File.expand_path("..", project_root))
+        return unless File.directory?(File.join(candidate, "nomono"))
+
+        candidate
       end
 
       # Render a Markdown section summarising template file changes since the last run.

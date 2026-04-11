@@ -1075,7 +1075,7 @@ module Kettle
             run_started_at: run_started_at,
             status: :started,
           )
-          Kettle::Jem::TemplatingReport.print(snapshot: templating_environment) unless quiet?
+          Kettle::Jem::TemplatingReport.print(snapshot: templating_environment, project_root: project_root) unless quiet?
           out.phase("📄", "Report", detail: templating_report_path) if templating_report_path
 
           # Ensure git working tree is clean before making changes (when run standalone)

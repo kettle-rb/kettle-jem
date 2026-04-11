@@ -57,6 +57,44 @@ RSpec.describe Kettle::Jem::TemplatingReport do
     end
   end
 
+  describe ".console_lines" do
+    it "warns when a sibling workspace checkout exists but installed kettle-jem is in use" do
+      hide_env("KETTLE_RB_DEV")
+
+      Dir.mktmpdir do |workspace_root|
+        FileUtils.mkdir_p(File.join(workspace_root, "nomono"))
+        FileUtils.mkdir_p(File.join(workspace_root, "kettle-jem"))
+        project_root = File.join(workspace_root, "yard-timekeeper")
+        FileUtils.mkdir_p(project_root)
+
+        snapshot = {
+          kettle_jem: {
+            name: "kettle-jem",
+            version: "1.0.0",
+            path: "/gems/kettle-jem-1.0.0",
+            local_path: false,
+            loaded: true,
+          },
+          merge_gems: [
+            {
+              name: "ast-merge",
+              version: "4.0.6",
+              path: "/gems/ast-merge-4.0.6",
+              local_path: false,
+              loaded: true,
+            },
+          ],
+        }
+
+        result = described_class.console_lines(snapshot: snapshot, project_root: project_root)
+
+        expect(result.join("\n")).to include("WARNING: Detected sibling workspace checkout")
+        expect(result.join("\n")).to include("KETTLE_RB_DEV=\"<unset>\"")
+        expect(result.join("\n")).to include("Hint: set KETTLE_RB_DEV=true")
+      end
+    end
+  end
+
   describe ".report_path" do
     it "places per-run reports under tmp/kettle-jem for the active output root" do
       started_at = Time.utc(2026, 3, 16, 12, 34, 56)
@@ -121,6 +159,43 @@ RSpec.describe Kettle::Jem::TemplatingReport do
         expect(content).to include("## Merge Gem Environment")
         expect(content).to include("- Heads up")
         expect(content).to include("RuntimeError: boom")
+      end
+    end
+
+    it "includes a local workspace warning when installed kettle-jem is used inside a sibling workspace" do
+      hide_env("KETTLE_RB_DEV")
+
+      Dir.mktmpdir do |workspace_root|
+        FileUtils.mkdir_p(File.join(workspace_root, "nomono"))
+        FileUtils.mkdir_p(File.join(workspace_root, "kettle-jem"))
+        project_root = File.join(workspace_root, "yard-timekeeper")
+        FileUtils.mkdir_p(project_root)
+
+        snapshot = {
+          kettle_jem: {
+            name: "kettle-jem",
+            version: "1.0.0",
+            path: "/gems/kettle-jem-1.0.0",
+            local_path: false,
+            loaded: true,
+          },
+          merge_gems: [
+            {
+              name: "ast-merge",
+              version: "4.0.6",
+              path: "/gems/ast-merge-4.0.6",
+              local_path: false,
+              loaded: true,
+            },
+          ],
+        }
+
+        report_path = described_class.write(project_root: project_root, snapshot: snapshot, status: :complete)
+        content = File.read(report_path)
+
+        expect(content).to include("## Local Workspace Warning")
+        expect(content).to include("Detected sibling workspace checkout")
+        expect(content).to include("Set `KETTLE_RB_DEV=true`")
       end
     end
   end
