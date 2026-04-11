@@ -44,21 +44,17 @@ module Kettle
         MARKDOWN_MATCH_STOPWORDS = %w[
           about after all and are before false for from hard into must not only or the this true use when with
         ].to_set.freeze
-        # Minimum Jaccard-style token overlap ratio to fuzzy-match two list nodes via
-        # the match refiner. Once matched, inner_merge_lists handles item-level merging.
-        MARKDOWN_LIST_MATCH_THRESHOLD = 0.4
+        # Minimum list-refiner score to fuzzy-match two markdown lists before handing
+        # them to inner_merge_lists for item-level deduplication and repair.
+        MARKDOWN_LIST_MATCH_THRESHOLD = 0.45
         # Fuzzy match refiner for unmatched Markdown block nodes.
         #
-        # Handles two categories of unmatched nodes:
-        #   • paragraphs – uses position-aware content similarity
-        #   • lists      – uses significant-token overlap so that lists with similar
-        #                  content (but different item counts or minor wording changes)
-        #                  are paired and handed off to ListMerger for item-level merge
+        # Handles unmatched paragraphs with position-aware content similarity. List
+        # matching is delegated to Markdown::Merge::ListMatchRefiner so the same
+        # fuzzy list-repair logic is shared with markdown-merge itself.
         MARKDOWN_PARAGRAPH_MATCH_REFINER = lambda do |template_nodes, dest_nodes, _context|
           template_paragraphs = template_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
           dest_paragraphs = dest_nodes.select { |node| TemplateTask.markdown_paragraph_node?(node) }
-          template_lists = template_nodes.select { |node| TemplateTask.markdown_list_node?(node) }
-          dest_lists = dest_nodes.select { |node| TemplateTask.markdown_list_node?(node) }
 
           candidates = []
 
@@ -88,22 +84,6 @@ module Kettle
             end
           end
 
-          unless template_lists.empty? || dest_lists.empty?
-            template_lists.each do |template_node|
-              dest_lists.each do |dest_node|
-                score = TemplateTask.markdown_list_match_score(template_node, dest_node)
-                next if score < MARKDOWN_LIST_MATCH_THRESHOLD
-
-                candidates << Ast::Merge::MatchRefinerBase::MatchResult.new(
-                  template_node: template_node,
-                  dest_node: dest_node,
-                  score: score,
-                  metadata: {},
-                )
-              end
-            end
-          end
-
           used_template = Set.new
           used_dest = Set.new
           candidates.sort_by { |match| -match.score }.each_with_object([]) do |match, matches|
@@ -113,6 +93,11 @@ module Kettle
             used_template << match.template_node
             used_dest << match.dest_node
           end
+        end
+        MARKDOWN_LIST_REFINER = lambda do |template_nodes, dest_nodes, context|
+          Markdown::Merge::ListMatchRefiner.new(
+            threshold: MARKDOWN_LIST_MATCH_THRESHOLD,
+          ).call(template_nodes, dest_nodes, context)
         end
 
         # HTML comment block refiner — matches `<!-- ... -->` blocks that differ
@@ -139,6 +124,7 @@ module Kettle
         # HTML comment refiner processes any remaining unmatched :html_block nodes.
         MARKDOWN_MATCH_REFINER = Ast::Merge::CompositeMatchRefiner.new(
           MARKDOWN_PARAGRAPH_MATCH_REFINER,
+          MARKDOWN_LIST_REFINER,
           MARKDOWN_HTML_COMMENT_REFINER,
         )
 
@@ -262,25 +248,6 @@ module Kettle
           node.type.to_sym == :paragraph
         rescue StandardError
           false
-        end
-
-        def markdown_list_node?(node)
-          return false unless node.respond_to?(:type)
-
-          node.type.to_sym == :list
-        rescue StandardError
-          false
-        end
-
-        # Compute a similarity score for two list nodes based on Jaccard-style
-        # overlap of their significant tokens.  Returns 0.0..1.0.
-        def markdown_list_match_score(template_node, dest_node)
-          template_tokens = markdown_significant_tokens(template_node&.text)
-          dest_tokens = markdown_significant_tokens(dest_node&.text)
-          return 0.0 if template_tokens.empty? || dest_tokens.empty?
-
-          overlap = (template_tokens & dest_tokens).size
-          overlap.to_f / [template_tokens.size, dest_tokens.size].max
         end
 
         def normalize_markdown_match_text(text)
