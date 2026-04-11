@@ -183,7 +183,7 @@ tokens:
 
 ```yaml
 # REQUIRED — unique emoji used in badges and gemspec summary
-project_emoji: "🔮"
+project_emoji: "🔮"               # ENV override: KJ_PROJECT_EMOJI
 
 # Ruby engines to include in CI matrix (remove to skip)
 engines:
@@ -204,7 +204,7 @@ machine_users:
   - dependabot
 
 # Maximum allowed divergence (%) for selftest CI check
-min_divergence_threshold: 5
+min_divergence_threshold: 5       # ENV override: KJ_MIN_DIVERGENCE_THRESHOLD
 
 # Default merge behavior applied to all files
 defaults:
@@ -215,24 +215,30 @@ defaults:
 # Token values for {KJ|TOKEN} substitution
 tokens:
   forge:
-    gh_user: "github-username"
-    gl_user: "gitlab-username"
-    cb_user: "codeberg-username"
+    gh_user: "github-username"    # ENV override: KJ_GH_USER
+    gl_user: "gitlab-username"    # ENV override: KJ_GL_USER
+    cb_user: "codeberg-username"  # ENV override: KJ_CB_USER
+    sh_user: "sourcehut-user"     # ENV override: KJ_SH_USER
   author:
-    name: "Full Name"
-    email: "you@example.com"
-    domain: "example.com"
-    orcid: "0000-0000-0000-0000"
+    name: "Full Name"             # ENV override: KJ_AUTHOR_NAME
+    given_names: "Full"           # ENV override: KJ_AUTHOR_GIVEN_NAMES
+    family_names: "Name"          # ENV override: KJ_AUTHOR_FAMILY_NAMES
+    email: "you@example.com"      # ENV override: KJ_AUTHOR_EMAIL
+    domain: "example.com"         # ENV override: KJ_AUTHOR_DOMAIN
+    orcid: "0000-0000-0000-0000"  # ENV override: KJ_AUTHOR_ORCID
   funding:
-    patreon: "username"
-    kofi: "username"
-    polar: "username"
-    liberapay: "username"
+    patreon: "username"           # ENV override: KJ_FUNDING_PATREON
+    kofi: "username"              # ENV override: KJ_FUNDING_KOFI
+    paypal: "username"            # ENV override: KJ_FUNDING_PAYPAL
+    buymeacoffee: "username"      # ENV override: KJ_FUNDING_BUYMEACOFFEE
+    polar: "username"             # ENV override: KJ_FUNDING_POLAR
+    liberapay: "username"         # ENV override: KJ_FUNDING_LIBERAPAY
+    issuehunt: "username"         # ENV override: KJ_FUNDING_ISSUEHUNT
   social:
-    mastodon: "username"
-    bluesky: "user.bsky.social"
-    linktree: "username"
-    devto: "username"
+    mastodon: "username"          # ENV override: KJ_SOCIAL_MASTODON
+    bluesky: "user.bsky.social"   # ENV override: KJ_SOCIAL_BLUESKY
+    linktree: "username"          # ENV override: KJ_SOCIAL_LINKTREE
+    devto: "username"             # ENV override: KJ_SOCIAL_DEVTO
 
 # Glob-based overrides (first match wins)
 patterns:
@@ -440,12 +446,13 @@ Rake task arguments) and CLI flags passed to `kettle-jem setup`.
 
 #### Config & Identity (KJ_ prefix)
 
-These seed `.kettle-jem.yml` values when the config is freshly created or when
-a key is missing. They are also used as runtime overrides.
+These map directly to `.kettle-jem.yml` keys, seed freshly created configs,
+fill missing keys during config sync, and act as runtime overrides.
 
 | Variable | Description |
 |----------|-------------|
 | `KJ_PROJECT_EMOJI` | Project identifying emoji (e.g. `🪙`). Required in config. |
+| `KJ_MIN_DIVERGENCE_THRESHOLD` | Selftest divergence threshold for `min_divergence_threshold`. |
 | `KJ_AUTHOR_NAME` | Gem author full name |
 | `KJ_AUTHOR_EMAIL` | Gem author email |
 | `KJ_AUTHOR_DOMAIN` | Author website domain (derived from email if unset) |
@@ -468,6 +475,14 @@ a key is missing. They are also used as runtime overrides.
 | `KJ_FUNDING_PATREON` | Patreon handle for FUNDING.yml |
 | `KJ_FUNDING_KOFI` | Ko-fi handle for FUNDING.yml |
 | `KJ_FUNDING_PAYPAL` | PayPal handle for FUNDING.yml |
+| `KJ_FUNDING_BUYMEACOFFEE` | Buy Me a Coffee handle for funding links |
+| `KJ_FUNDING_POLAR` | Polar handle for funding links |
+| `KJ_FUNDING_LIBERAPAY` | Liberapay handle for funding links |
+| `KJ_FUNDING_ISSUEHUNT` | IssueHunt handle for funding links |
+| `KJ_SOCIAL_MASTODON` | Mastodon handle for social/profile links |
+| `KJ_SOCIAL_BLUESKY` | Bluesky handle for social/profile links |
+| `KJ_SOCIAL_LINKTREE` | Linktree handle for social/profile links |
+| `KJ_SOCIAL_DEVTO` | DEV Community handle for social/profile links |
 
 #### Rake Task Examples
 

@@ -65,8 +65,13 @@ module Kettle
       # Multi-separator token config: {KJ|SECTION:NAME}
       TOKEN_CONFIG = Token::Resolver::Config.new(separators: ["|", ":"]).freeze
 
-      # ENV variable names for forge user tokens.
-      # Each maps a forge prefix to its ENV key.
+      # ENV variable names for `tokens.forge.*` config leaves.
+      #
+      # Mapping:
+      # - `tokens.forge.gh_user` -> `KJ_GH_USER`
+      # - `tokens.forge.gl_user` -> `KJ_GL_USER`
+      # - `tokens.forge.cb_user` -> `KJ_CB_USER`
+      # - `tokens.forge.sh_user` -> `KJ_SH_USER`
       FORGE_USER_ENV_KEYS = {
         "GH" => "KJ_GH_USER",
         "GL" => "KJ_GL_USER",
@@ -74,7 +79,15 @@ module Kettle
         "SH" => "KJ_SH_USER",
       }.freeze
 
-      # ENV variable names for author identity tokens.
+      # ENV variable names for `tokens.author.*` config leaves.
+      #
+      # Mapping:
+      # - `tokens.author.name` -> `KJ_AUTHOR_NAME`
+      # - `tokens.author.given_names` -> `KJ_AUTHOR_GIVEN_NAMES`
+      # - `tokens.author.family_names` -> `KJ_AUTHOR_FAMILY_NAMES`
+      # - `tokens.author.email` -> `KJ_AUTHOR_EMAIL`
+      # - `tokens.author.orcid` -> `KJ_AUTHOR_ORCID`
+      # - `tokens.author.domain` -> `KJ_AUTHOR_DOMAIN`
       AUTHOR_ENV_KEYS = {
         "NAME" => "KJ_AUTHOR_NAME",
         "GIVEN_NAMES" => "KJ_AUTHOR_GIVEN_NAMES",
@@ -84,7 +97,16 @@ module Kettle
         "DOMAIN" => "KJ_AUTHOR_DOMAIN",
       }.freeze
 
-      # ENV variable names for funding platform tokens.
+      # ENV variable names for `tokens.funding.*` config leaves.
+      #
+      # Mapping:
+      # - `tokens.funding.patreon` -> `KJ_FUNDING_PATREON`
+      # - `tokens.funding.kofi` -> `KJ_FUNDING_KOFI`
+      # - `tokens.funding.paypal` -> `KJ_FUNDING_PAYPAL`
+      # - `tokens.funding.buymeacoffee` -> `KJ_FUNDING_BUYMEACOFFEE`
+      # - `tokens.funding.polar` -> `KJ_FUNDING_POLAR`
+      # - `tokens.funding.liberapay` -> `KJ_FUNDING_LIBERAPAY`
+      # - `tokens.funding.issuehunt` -> `KJ_FUNDING_ISSUEHUNT`
       FUNDING_ENV_KEYS = {
         "PATREON" => "KJ_FUNDING_PATREON",
         "KOFI" => "KJ_FUNDING_KOFI",
@@ -95,7 +117,13 @@ module Kettle
         "ISSUEHUNT" => "KJ_FUNDING_ISSUEHUNT",
       }.freeze
 
-      # ENV variable names for social/community platform tokens.
+      # ENV variable names for `tokens.social.*` config leaves.
+      #
+      # Mapping:
+      # - `tokens.social.mastodon` -> `KJ_SOCIAL_MASTODON`
+      # - `tokens.social.bluesky` -> `KJ_SOCIAL_BLUESKY`
+      # - `tokens.social.linktree` -> `KJ_SOCIAL_LINKTREE`
+      # - `tokens.social.devto` -> `KJ_SOCIAL_DEVTO`
       SOCIAL_ENV_KEYS = {
         "MASTODON" => "KJ_SOCIAL_MASTODON",
         "BLUESKY" => "KJ_SOCIAL_BLUESKY",
@@ -223,6 +251,14 @@ module Kettle
       #
       # All {KJ|...} tokens are resolved here — there are no "special" tokens
       # that belong to a specific flow.
+      #
+      # Config-backed values with direct ENV overrides:
+      # - `project_emoji` -> `KJ_PROJECT_EMOJI`
+      # - `min_divergence_threshold` -> `KJ_MIN_DIVERGENCE_THRESHOLD`
+      # - `tokens.forge.*` -> {FORGE_USER_ENV_KEYS}
+      # - `tokens.author.*` -> {AUTHOR_ENV_KEYS}
+      # - `tokens.funding.*` -> {FUNDING_ENV_KEYS}
+      # - `tokens.social.*` -> {SOCIAL_ENV_KEYS}
       #
       # @param org [String]
       # @param gem_name [String]
@@ -418,6 +454,13 @@ module Kettle
         @@token_replacements = replacements
       end
 
+      # Return the raw `tokens:` hash from `.kettle-jem.yml`.
+      #
+      # This method returns only explicit config values. ENV overrides are layered
+      # in later via {#preferred_token_value} using {FORGE_USER_ENV_KEYS},
+      # {AUTHOR_ENV_KEYS}, {FUNDING_ENV_KEYS}, and {SOCIAL_ENV_KEYS}.
+      #
+      # @return [Hash<String, Hash<String, String>>]
       def token_config_values
         config = kettle_config
         raw = config.is_a?(Hash) ? config["tokens"] : nil
@@ -707,6 +750,13 @@ module Kettle
       #
       # This is used by TemplateTask preflight to persist concrete values into an
       # existing project config before unresolved-token validation runs.
+      #
+      # ENV-backed leaves:
+      # - `tokens.forge.gh_user` / `gl_user` / `cb_user` / `sh_user`
+      # - `tokens.author.name` / `given_names` / `family_names` / `email` / `domain` / `orcid`
+      # - `tokens.funding.patreon` / `kofi` / `paypal` / `buymeacoffee` / `polar` / `liberapay` / `issuehunt`
+      # - `tokens.social.mastodon` / `bluesky` / `linktree` / `devto`
+      #
       # @return [Hash<String, Hash<String, String>>]
       def derived_token_config_values
         forge = {
@@ -824,6 +874,21 @@ module Kettle
         Kettle::Jem::Version::VERSION
       end
 
+      # Resolve a config/token value with the standard precedence used for
+      # ENV-backed `.kettle-jem.yml` settings.
+      #
+      # Precedence:
+      # 1. ENV (`env_key`)
+      # 2. explicit config value
+      # 3. derived fallback
+      #
+      # Empty strings and unresolved `{KJ|...}` placeholders are treated as
+      # absent and fall through to the next source.
+      #
+      # @param derived_value [String, nil]
+      # @param config_value [String, nil]
+      # @param env_key [String] environment variable name (for example `KJ_GH_USER`)
+      # @return [String, nil]
       def preferred_token_value(derived_value, config_value, env_key:)
         env_value = ENV[env_key]
         env_clean = env_value.to_s.strip
