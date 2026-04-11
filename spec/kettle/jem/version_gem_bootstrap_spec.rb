@@ -33,6 +33,22 @@ RSpec.describe Kettle::Jem::VersionGemBootstrap do
       end
     end
 
+    context "when templating version_gem itself from empty content" do
+      let(:namespace) { "VersionGem" }
+      let(:entrypoint_require) { "version_gem" }
+
+      it "suppresses the self-require" do
+        result = mod.manually_bootstrap_entrypoint_content(
+          "",
+          entrypoint_require: entrypoint_require,
+          namespace: namespace,
+        )
+        expect(result).not_to include("require \"version_gem\"")
+        expect(result).to include("require_relative \"version_gem/version\"")
+        expect(result).to include("VersionGem::Version.class_eval do")
+      end
+    end
+
     context "when content already has version_gem and require_relative" do
       let(:content) do
         <<~RUBY
@@ -82,6 +98,30 @@ RSpec.describe Kettle::Jem::VersionGemBootstrap do
         expect(result).to include("require \"version_gem\"")
         expect(result).to include("require_relative \"my_gem/version\"")
         expect(result).to include("MyGem::Version.class_eval do")
+      end
+    end
+
+    context "when templating version_gem itself and the entrypoint is missing requires" do
+      let(:namespace) { "VersionGem" }
+      let(:entrypoint_require) { "version_gem" }
+      let(:content) do
+        <<~RUBY
+          # frozen_string_literal: true
+
+          module VersionGem
+          end
+        RUBY
+      end
+
+      it "adds only the relative version require" do
+        result = mod.manually_bootstrap_entrypoint_content(
+          content,
+          entrypoint_require: entrypoint_require,
+          namespace: namespace,
+        )
+        expect(result).not_to include("require \"version_gem\"")
+        expect(result).to include("require_relative \"version_gem/version\"")
+        expect(result).to include("VersionGem::Version.class_eval do")
       end
     end
 
@@ -282,6 +322,29 @@ RSpec.describe Kettle::Jem::VersionGemBootstrap do
   end
 
   describe ".bootstrap_entrypoint_content" do
+    it "suppresses the self-require for version_gem in the merge path" do
+      content = <<~RUBY
+        # frozen_string_literal: true
+
+        require_relative "version_gem/version"
+
+        require_relative "version_gem/basic"
+
+        module VersionGem
+        end
+      RUBY
+
+      result = mod.bootstrap_entrypoint_content(
+        content,
+        entrypoint_require: "version_gem",
+        namespace: "VersionGem",
+      )
+
+      expect(result).not_to include('require "version_gem"')
+      expect(result).to include('require_relative "version_gem/version"')
+      expect(result).to include("VersionGem::Version.class_eval do")
+    end
+
     it "falls back to manually_bootstrap_entrypoint_content when normalize_entrypoint_content raises" do
       allow(mod).to receive(:normalize_entrypoint_content).and_raise(StandardError, "normalize error") # rubocop:disable RSpec/SubjectStub
       allow(mod).to receive(:manually_bootstrap_entrypoint_content).and_return("fallback content") # rubocop:disable RSpec/SubjectStub

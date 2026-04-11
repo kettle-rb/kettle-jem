@@ -71,7 +71,9 @@ module Kettle
 
         lines = current.lines
         insert_lines = []
-        insert_lines << "require \"version_gem\"\n" unless current.match?(/^\s*require\s+["']version_gem["']\s*$/)
+        if inject_version_gem_require?(entrypoint_require) && !current.match?(/^\s*require\s+["']version_gem["']\s*$/)
+          insert_lines << "require \"version_gem\"\n"
+        end
 
         relative_path = relative_version_require(entrypoint_require)
         require_relative_pattern = /^\s*require_relative\s+["']#{Regexp.escape(relative_path)}["']\s*$/
@@ -112,31 +114,35 @@ module Kettle
       end
 
       def render_entrypoint_merge_template(namespace:, require_relative_path:)
-        <<~RUBY
-          # frozen_string_literal: true
-
-          require "version_gem"
-          require_relative "#{require_relative_path}"
-
-          #{namespace}::Version.class_eval do
-            extend VersionGem::Basic
-          end
-        RUBY
+        build_entrypoint_template(
+          namespace: namespace,
+          require_relative_path: require_relative_path,
+          include_namespace_shell: false,
+        )
       end
 
       def render_entrypoint_file(namespace:, require_relative_path:)
-        <<~RUBY
-          # frozen_string_literal: true
+        build_entrypoint_template(
+          namespace: namespace,
+          require_relative_path: require_relative_path,
+          include_namespace_shell: true,
+        )
+      end
 
-          require "version_gem"
-          require_relative "#{require_relative_path}"
+      def build_entrypoint_template(namespace:, require_relative_path:, include_namespace_shell:)
+        require_lines = []
+        require_lines << 'require "version_gem"' if inject_version_gem_require?(File.dirname(require_relative_path))
+        require_lines << %(require_relative "#{require_relative_path}")
 
-          #{render_namespace_shell(namespace)}
-
+        sections = ["# frozen_string_literal: true", require_lines.join("\n")]
+        sections << render_namespace_shell(namespace) if include_namespace_shell
+        sections << <<~RUBY.chomp
           #{namespace}::Version.class_eval do
             extend VersionGem::Basic
           end
         RUBY
+
+        "#{sections.reject(&:empty?).join("\n\n")}\n"
       end
 
       def render_version_file(namespace:, version:)
@@ -177,6 +183,10 @@ module Kettle
 
       def relative_version_require(entrypoint_require)
         File.join(File.basename(entrypoint_require.to_s), "version")
+      end
+
+      def inject_version_gem_require?(entrypoint_require)
+        File.basename(entrypoint_require.to_s) != "version_gem"
       end
 
       def extract_version_string(content)
