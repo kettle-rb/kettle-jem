@@ -369,7 +369,7 @@ module Kettle
                 freeze_token: "kettle-jem",
               ).merge
             elsif file_type == :rbs
-              RBS::Merge::SmartMerger.new(
+              Rbs::Merge::SmartMerger.new(
                 content,
                 dest_content,
                 preference: :template,

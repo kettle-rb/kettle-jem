@@ -640,7 +640,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
 
     it "offers to remove .ruby-version, .ruby-gemset, and .tool-versions when mise.toml exists and removes them on accept", :check_output do
       Dir.mktmpdir do |project_root|
-        File.write(File.join(project_root, "mise.toml"), %Q{[tools]\nruby = "4.0.2"\n})
+        File.write(File.join(project_root, "mise.toml"), %([tools]\nruby = "4.0.2"\n))
         rv = File.join(project_root, ".ruby-version")
         rg = File.join(project_root, ".ruby-gemset")
         tv = File.join(project_root, ".tool-versions")

@@ -442,6 +442,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
+    before do
+      stub_env("KETTLE_JEM_SKIP_COMMIT" => nil)
+    end
+
     it "uses Open3 fallback when GitAdapter raises (rescue branch)", :check_output do
       %x(git init -q)
       # Simulate clean working tree via Open3 output empty
@@ -597,6 +601,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       Dir.mktmpdir do |dir|
         Dir.chdir(dir) { ex.run }
       end
+    end
+
+    before do
+      stub_env("KETTLE_JEM_SKIP_COMMIT" => nil)
     end
 
     it "aborts when git tree is dirty, even with force" do
@@ -804,7 +812,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     before do
       # Ensure no leftover env interferes with derivation logic
       # Never modify ENV directly in specs; use stub_env from rspec-stubbed_env
-      stub_env("OPENCOLLECTIVE_HANDLE" => nil)
+      stub_env("OPENCOLLECTIVE_HANDLE" => nil, "KETTLE_JEM_SKIP_COMMIT" => nil)
     end
 
     it "seeds FUNDING_ORG from git origin when not provided elsewhere", :check_output do
@@ -1351,6 +1359,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
       end
     end
 
+    before do
+      stub_env("KETTLE_JEM_SKIP_COMMIT" => nil)
+    end
+
     it "no-ops when clean", :check_output do
       %x(git init -q)
       %x(git add -A && git commit --allow-empty -m initial -q)
@@ -1557,9 +1569,11 @@ RSpec.describe Kettle::Jem::SetupCLI do
       stub_env("BUNDLE_GEMFILE" => "/tmp/Gemfile")
 
       expect(cli).not_to receive(:run_bundled_phase!)
-      expect(cli).to receive(:run_bootstrap_phase!).and_return(nil)
+      allow(cli).to receive(:run_bootstrap_phase!).and_return(nil)
 
       cli.run!
+
+      expect(cli).to have_received(:run_bootstrap_phase!)
     end
   end
 

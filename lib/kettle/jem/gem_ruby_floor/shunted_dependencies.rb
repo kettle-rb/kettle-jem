@@ -100,13 +100,14 @@ module Kettle
           min_ruby = extract_gemspec_min_ruby(spec)
 
           dev_deps = spec.development_dependencies.filter_map do |dep|
-            latest = latest_matching_version(dep.name, dep.requirements, resolver)
+            requirement = dep.respond_to?(:requirements) ? dep.requirements : dep.requirement
+            latest = latest_matching_version(dep.name, requirement, resolver)
             next unless latest
 
             {
               name: dep.name,
               version: latest,
-              constraint: dep.requirements.to_s,
+              constraint: requirement.to_s,
             }
           end
 
@@ -156,6 +157,8 @@ module Kettle
         rescue StandardError
           nil
         end
+
+        module_function :extract_gemspec_min_ruby, :latest_matching_version
       end
     end
   end

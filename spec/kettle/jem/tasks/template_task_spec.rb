@@ -164,6 +164,515 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
 
+    describe "markdown helper methods" do
+      let(:node_class) { Struct.new(:text, :type) }
+
+      describe "::raw_copy?" do
+        it "returns true only for files configured with the raw_copy strategy" do
+          allow(Kettle::Jem::TemplateHelpers).to receive(:config_for).with("certs/demo.pem").and_return({strategy: :raw_copy})
+          allow(Kettle::Jem::TemplateHelpers).to receive(:config_for).with("README.md").and_return({strategy: :merge})
+          allow(Kettle::Jem::TemplateHelpers).to receive(:config_for).with("lib/demo.rb").and_return(nil)
+
+          expect(described_class.raw_copy?("certs/demo.pem")).to be true
+          expect(described_class.raw_copy?("README.md")).to be false
+          expect(described_class.raw_copy?("lib/demo.rb")).to be false
+        end
+      end
+
+      describe "::normalize_markdown_spacing", :markly_merge do
+        it "returns the original content when markdown normalization raises" do
+          merger = class_double(Markdown::Merge::SmartMerger).as_stubbed_const
+          allow(merger).to receive(:new).and_raise(StandardError, "boom")
+          allow(Kettle::Dev).to receive(:debug_error)
+
+          expect(described_class.normalize_markdown_spacing("# Heading")).to eq("# Heading")
+        end
+      end
+
+      describe "::markdown_paragraph_match_acceptable?" do
+        it "rejects empty paragraphs" do
+          expect(described_class.send(:markdown_paragraph_match_acceptable?, node_class.new("", :paragraph), node_class.new("value", :paragraph))).to be false
+        end
+
+        it "rejects label-style paragraphs without overlapping significant tokens" do
+          template_node = node_class.new("Funding org:", :paragraph)
+          dest_node = node_class.new("Release mode:", :paragraph)
+
+          expect(described_class.send(:markdown_paragraph_match_acceptable?, template_node, dest_node)).to be false
+        end
+
+        it "accepts non-label paragraphs without requiring token overlap" do
+          template_node = node_class.new("Template paragraph text", :paragraph)
+          dest_node = node_class.new("Destination paragraph text", :paragraph)
+
+          expect(described_class.send(:markdown_paragraph_match_acceptable?, template_node, dest_node)).to be true
+        end
+      end
+
+      describe "::markdown_paragraph_match_score" do
+        it "returns zero for unacceptable label paragraphs" do
+          template_node = node_class.new("Funding org:", :paragraph)
+          dest_node = node_class.new("Release mode:", :paragraph)
+
+          score = described_class.send(
+            :markdown_paragraph_match_score,
+            template_node,
+            dest_node,
+            template_idx: 0,
+            dest_idx: 0,
+            total_template: 1,
+            total_dest: 1,
+          )
+
+          expect(score).to eq(0.0)
+        end
+
+        it "adds overlap bonus for compatible label paragraphs" do
+          template_node = node_class.new("Funding org:", :paragraph)
+          dest_node = node_class.new("Funding setup details", :paragraph)
+
+          base_score = described_class::MARKDOWN_PARAGRAPH_BASE_REFINER.send(
+            :compute_content_similarity,
+            template_node,
+            dest_node,
+            0,
+            0,
+            1,
+            1,
+          )
+          boosted_score = described_class.send(
+            :markdown_paragraph_match_score,
+            template_node,
+            dest_node,
+            template_idx: 0,
+            dest_idx: 0,
+            total_template: 1,
+            total_dest: 1,
+          )
+
+          expect(boosted_score).to be > base_score
+        end
+      end
+
+      describe "::markdown_paragraph_node?" do
+        it "returns false for objects without a type and for objects whose type lookup raises" do
+          bad_node = Object.new
+          raising_node = Object.new
+          def raising_node.type = raise("boom")
+
+          expect(described_class.send(:markdown_paragraph_node?, bad_node)).to be false
+          expect(described_class.send(:markdown_paragraph_node?, raising_node)).to be false
+        end
+      end
+
+      describe "MARKDOWN_PARAGRAPH_MATCH_REFINER" do
+        it "greedily matches only paragraph nodes above the threshold" do
+          template_node = node_class.new("Funding org:", :paragraph)
+          unmatched_template = node_class.new("Release mode:", :paragraph)
+          dest_node = node_class.new("Funding org:", :paragraph)
+          non_paragraph = node_class.new("ignored", :list)
+
+          matches = described_class::MARKDOWN_PARAGRAPH_MATCH_REFINER.call(
+            [template_node, unmatched_template, non_paragraph],
+            [dest_node, non_paragraph],
+            {},
+          )
+
+          expect(matches.length).to eq(1)
+          expect(matches.first.template_node.text).to eq("Funding org:")
+          expect(matches.first.dest_node.text).to eq("Funding org:")
+        end
+      end
+
+      describe "MARKDOWN_HTML_COMMENT_REFINER text extraction" do
+        it "supports direct, wrapped, and fallback html-block nodes" do
+          extractor = described_class::MARKDOWN_HTML_COMMENT_REFINER.text_extractor
+          direct_node = Struct.new(:string_content, :text).new("<!-- direct -->", "ignored")
+          wrapped_node = Struct.new(:node, :text).new(Struct.new(:string_content).new("<!-- wrapped -->"), "ignored")
+          fallback_node = Struct.new(:text).new("<!-- fallback -->")
+
+          expect(extractor.call(direct_node)).to eq("<!-- direct -->")
+          expect(extractor.call(wrapped_node)).to eq("<!-- wrapped -->")
+          expect(extractor.call(fallback_node)).to eq("<!-- fallback -->")
+        end
+      end
+    end
+
+    describe "TemplateTask helper behavior" do
+      describe "::sync_readme_gemspec_grapheme!" do
+        let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+        it "writes synchronized README and gemspec content when a grapheme is chosen" do
+          Dir.mktmpdir do |project_root|
+            File.write(File.join(project_root, "demo.gemspec"), "old gemspec\n")
+            File.write(File.join(project_root, "README.md"), "old readme\n")
+
+            allow(helpers).to receive_messages(output_dir: nil, resolved_config_string: "🔧", write_file: nil)
+            allow(Kettle::Jem::ReadmeGemspecSynchronizer).to receive(:synchronize)
+              .and_return(["new readme\n", "new gemspec\n", "🔧"])
+
+            described_class.send(:sync_readme_gemspec_grapheme!, helpers: helpers, project_root: project_root, gem_name: "demo")
+
+            expect(helpers).to have_received(:write_file).with(File.join(project_root, "README.md"), "new readme\n")
+            expect(helpers).to have_received(:write_file).with(File.join(project_root, "demo.gemspec"), "new gemspec\n")
+          end
+        end
+
+        it "does nothing when no grapheme is chosen or the files are missing" do
+          Dir.mktmpdir do |project_root|
+            allow(helpers).to receive_messages(output_dir: nil, resolved_config_string: nil, write_file: nil)
+            allow(Kettle::Jem::ReadmeGemspecSynchronizer).to receive(:synchronize).and_return(["same", "same", nil])
+
+            described_class.send(:sync_readme_gemspec_grapheme!, helpers: helpers, project_root: project_root, gem_name: "demo")
+
+            expect(helpers).not_to have_received(:write_file)
+          end
+        end
+
+        it "warns and preserves control flow when synchronization raises" do
+          Dir.mktmpdir do |project_root|
+            File.write(File.join(project_root, "demo.gemspec"), "old gemspec\n")
+            File.write(File.join(project_root, "README.md"), "old readme\n")
+
+            allow(helpers).to receive_messages(output_dir: nil, resolved_config_string: "🔧")
+            allow(Kettle::Jem::ReadmeGemspecSynchronizer).to receive(:synchronize).and_raise(StandardError, "kaboom")
+            allow(Kettle::Dev).to receive(:debug_error)
+            expect(Kernel).to receive(:warn).with(/Could not synchronize README H1 grapheme/)
+
+            described_class.send(:sync_readme_gemspec_grapheme!, helpers: helpers, project_root: project_root, gem_name: "demo")
+          end
+        end
+      end
+
+      describe "::merge_file_type_for" do
+        let(:helpers) { double("helpers") }
+        let(:dest) { "/tmp/demo.file" }
+
+        it "prefers configured file types and otherwise infers yaml markdown bash and text" do
+          allow(helpers).to receive(:configured_file_type_for).and_return(:dotenv, nil, nil, nil, nil)
+          allow(helpers).to receive(:ruby_template?).with(dest).and_return(false)
+
+          expect(described_class.send(:merge_file_type_for, ".env.local", dest, helpers)).to eq(:dotenv)
+          expect(described_class.send(:merge_file_type_for, "config.yml", dest, helpers)).to eq(:yaml)
+          expect(described_class.send(:merge_file_type_for, "README.md", dest, helpers)).to eq(:markdown)
+          expect(described_class.send(:merge_file_type_for, ".envrc", dest, helpers)).to eq(:bash)
+          expect(described_class.send(:merge_file_type_for, "notes.txt", dest, helpers)).to eq(:text)
+        end
+      end
+
+      describe "::merge_by_file_type" do
+        it "dispatches merge backends for bash dotenv json toml and rbs files" do
+          Dir.mktmpdir do |dir|
+            dest = File.join(dir, "target")
+            File.write(dest, "destination content")
+
+            cases = {
+              bash: [Bash::Merge::SmartMerger, "script.sh", {}],
+              dotenv: [Dotenv::Merge::SmartMerger, ".env.local", {freeze_token: "kettle-jem"}],
+              json: [Json::Merge::SmartMerger, "config.json", {freeze_token: "kettle-jem"}],
+              toml: [Toml::Merge::SmartMerger, "mise.toml", {freeze_token: "kettle-jem"}],
+              rbs: [Rbs::Merge::SmartMerger, "sig/demo.rbs", {freeze_token: "kettle-jem"}],
+            }
+
+            cases.each do |file_type, (klass, rel, extra_options)|
+              helpers = double("helpers", configured_file_type_for: file_type)
+              merger = double("#{klass}Result", merge: "#{file_type} merged")
+              allow(klass).to receive(:new).with(
+                "template content",
+                "destination content",
+                hash_including({preference: :template, add_template_only_nodes: true}.merge(extra_options)),
+              ).and_return(merger)
+
+              result = described_class.merge_by_file_type("template content", dest, rel, helpers)
+              expect(result).to eq("#{file_type} merged\n")
+              expect(klass).to have_received(:new).with(
+                "template content",
+                "destination content",
+                hash_including({preference: :template, add_template_only_nodes: true}.merge(extra_options)),
+              )
+            end
+          end
+        end
+
+        it "uses template content on destination parse errors and destination content when parse_error_mode is skip" do
+          Dir.mktmpdir do |dir|
+            dest = File.join(dir, "broken.yml")
+            File.write(dest, "destination content")
+            helpers = double("helpers", configured_file_type_for: :yaml)
+            allow(Kernel).to receive(:warn)
+
+            allow(Psych::Merge::SmartMerger).to receive(:new).and_raise(Ast::Merge::DestinationParseError.new("bad destination"))
+            expect(described_class.merge_by_file_type("template content", dest, "broken.yml", helpers)).to eq("template content\n")
+
+            stub_env("PARSE_ERROR_MODE" => "skip")
+            allow(Psych::Merge::SmartMerger).to receive(:new).and_raise(Ast::Merge::ParseError.new("parser missing"))
+            expect(described_class.merge_by_file_type("template content", dest, "broken.yml", helpers)).to eq("destination content\n")
+          end
+        end
+      end
+
+      describe "::write_templating_run_report" do
+        it "returns the report path when report writing fails" do
+          allow(Kettle::Jem::TemplatingReport).to receive(:write).and_raise(StandardError, "kaboom")
+          allow(Kettle::Dev).to receive(:debug_error)
+          allow(described_class).to receive(:warn)
+
+          result = described_class.send(
+            :write_templating_run_report,
+            project_root: "/tmp/project",
+            output_dir: "/tmp/project",
+            snapshot: {},
+            run_started_at: Time.now,
+            report_path: "/tmp/project/tmp/report.md",
+          )
+
+          expect(result).to eq("/tmp/project/tmp/report.md")
+          expect(described_class).to have_received(:warn).with(a_string_matching(/Could not write templating report/))
+        end
+      end
+
+      describe "::templating_run_status" do
+        let(:helpers) { double("helpers") }
+
+        it "falls back to failed or complete when the helper has no explicit outcome" do
+          allow(helpers).to receive(:template_run_outcome).and_return(nil, nil, :aborted)
+
+          expect(described_class.send(:templating_run_status, helpers, StandardError.new("boom"))).to eq(:failed)
+          expect(described_class.send(:templating_run_status, helpers, nil)).to eq(:complete)
+          expect(described_class.send(:templating_run_status, helpers, nil)).to eq(:aborted)
+        end
+      end
+
+      describe "::build_complete_detail" do
+        it "joins checksum summary and commit sha when present" do
+          allow(Kettle::Jem::TemplateChecksums).to receive(:diff_count).and_return(2, 0)
+          allow(Kettle::Jem::TemplateChecksums).to receive(:summary).and_return("2 changed")
+
+          expect(described_class.send(:build_complete_detail, template_diff: {foo: :bar}, commit_sha: "abc1234", verbose: false)).to eq("2 changed | commit abc1234")
+          expect(described_class.send(:build_complete_detail, template_diff: {foo: :bar}, commit_sha: nil, verbose: false)).to be_nil
+        end
+      end
+
+      describe ".make_template_commit!" do
+        let(:helpers) { double("helpers", kettle_jem_version: "1.0.0") }
+        let(:out) { instance_double(Kettle::Jem::TemplateOutput::Formatter, warning: nil) }
+        let(:git_adapter) { instance_double(Kettle::Dev::GitAdapter) }
+
+        before do
+          allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(git_adapter)
+        end
+
+        it "returns nil for a clean tree" do
+          allow(git_adapter).to receive(:clean?).and_return(true)
+          expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
+        end
+
+        it "warns when git add fails" do
+          allow(git_adapter).to receive_messages(clean?: false, capture: ["", false])
+
+          expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
+          expect(out).to have_received(:warning).with(a_string_matching(/git add -A failed/))
+        end
+
+        it "warns when git commit fails" do
+          allow(git_adapter).to receive(:clean?).and_return(false)
+          allow(git_adapter).to receive(:capture).and_return(["", true], ["", false])
+
+          expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
+          expect(out).to have_received(:warning).with(a_string_matching(/git commit returned non-zero/))
+        end
+
+        it "returns the new short sha on success" do
+          allow(git_adapter).to receive(:clean?).and_return(false)
+          allow(git_adapter).to receive(:capture).and_return(["", true], ["", true], ["deadbee\n", true])
+
+          expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to eq("deadbee")
+        end
+
+        it "returns nil when git adapter access raises unexpectedly" do
+          allow(git_adapter).to receive(:clean?).and_raise(StandardError, "boom")
+
+          allow(Kettle::Dev).to receive(:debug_error)
+          expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
+        end
+      end
+
+      describe "::refresh_mise_trust_if_needed!" do
+        let(:helpers) { double("helpers") }
+        let(:project_root) { "/tmp/demo" }
+        let(:mise_path) { File.join(project_root, "mise.toml") }
+
+        it "returns immediately when mise.toml was not modified by the template" do
+          allow(helpers).to receive(:modified_by_template?).with(mise_path).and_return(false)
+
+          expect(described_class.send(:refresh_mise_trust_if_needed!, helpers: helpers, project_root: project_root)).to be_nil
+        end
+
+        it "aborts when interactive approval is denied or the trust command fails" do
+          allow(helpers).to receive(:modified_by_template?).with(mise_path).and_return(true)
+          allow(helpers).to receive(:force_mode?).and_return(false, true)
+          allow(helpers).to receive(:ask).and_return(false)
+
+          expect {
+            described_class.send(:refresh_mise_trust_if_needed!, helpers: helpers, project_root: project_root)
+          }.to raise_error(Kettle::Dev::Error, /mise trust refresh required/)
+
+          allow(described_class).to receive(:system).and_return(false)
+          expect {
+            described_class.send(:refresh_mise_trust_if_needed!, helpers: helpers, project_root: project_root)
+          }.to raise_error(Kettle::Dev::Error, /failed after mise.toml changed/)
+        end
+
+        it "wraps unexpected errors from the trust refresh command" do
+          allow(helpers).to receive_messages(modified_by_template?: true, force_mode?: true)
+          allow(described_class).to receive(:system).and_raise(ArgumentError, "boom")
+
+          expect {
+            described_class.send(:refresh_mise_trust_if_needed!, helpers: helpers, project_root: project_root)
+          }.to raise_error(Kettle::Dev::Error, /unable to refresh mise trust/)
+        end
+      end
+
+      describe "token and backfill helpers" do
+        let(:helpers) { double("helpers") }
+
+        it "builds token options, validates prerequisites, and delegates kettle-config helpers" do
+          meta = {gh_org: "acme", gem_name: "demo", namespace: "Demo", namespace_shield: "DEMO", gem_shield: "demo", min_ruby: "3.2"}
+          allow(helpers).to receive(:opencollective_disabled?).and_return(true)
+          allow(Kettle::Jem::TemplateHelpers).to receive(:placeholder_or_blank_kettle_config_scalar?).with("{TOKEN}").and_return(true)
+          allow(Kettle::Jem::TemplateHelpers).to receive(:yaml_scalar_for_kettle_config_backfill).with("value", "raw").and_return('"value"')
+          allow(Kettle::Jem::TemplateHelpers).to receive(:merge_missing_kettle_config_token_values).with("content", {foo: "bar"}).and_return("merged")
+          allow(helpers).to receive(:backfill_kettle_config_token_lines).with("content", {foo: "bar"}).and_return(["updated", true])
+
+          options = described_class.send(:token_options, meta, helpers)
+          expect(options).to include(org: "acme", funding_org: nil, gem_name: "demo")
+          expect(described_class.send(:prerequisite_validation_available?, options)).to be true
+          expect(described_class.send(:prerequisite_validation_available?, options.merge(org: ""))).to be false
+          expect(described_class.send(:placeholder_or_blank_scalar?, "{TOKEN}")).to be true
+          expect(described_class.send(:yaml_scalar_for_backfill, "value", "raw")).to eq('"value"')
+          expect(described_class.send(:backfill_kettle_config_token_lines, "content", {foo: "bar"}, helpers: helpers)).to eq(["updated", true])
+          expect(described_class.send(:merge_missing_backfilled_token_values, "content", foo: "bar")).to eq("merged")
+        end
+
+        it "backfills project kettle config token values when content changes" do
+          Dir.mktmpdir do |project_root|
+            config_dest = File.join(project_root, ".kettle-jem.yml")
+            File.write(config_dest, "old: true\n")
+
+            allow(helpers).to receive(:derived_token_config_values).and_return({foo: "bar"})
+            allow(described_class).to receive_messages(
+              backfill_kettle_config_token_lines: ["updated: true\n", true],
+              merge_missing_backfilled_token_values: "merged: true",
+            )
+            allow(helpers).to receive_messages(record_template_result: nil, clear_kettle_config!: nil)
+
+            changed = described_class.send(:backfill_project_kettle_config_tokens!, helpers: helpers, project_root: project_root)
+
+            expect(changed).to be true
+            expect(File.read(config_dest)).to eq("merged: true\n")
+            expect(helpers).to have_received(:record_template_result).with(config_dest, :replace)
+            expect(helpers).to have_received(:clear_kettle_config!)
+          end
+        end
+      end
+
+      describe "::ensure_kettle_config_bootstrap!" do
+        let(:helpers) { double("helpers") }
+        let(:token_options) { {org: "acme", gem_name: "demo"} }
+
+        it "bootstraps config, mise, and env files for a fresh project" do
+          Dir.mktmpdir do |template_root|
+            Dir.mktmpdir do |project_root|
+              config_src = File.join(template_root, ".kettle-jem.yml.example")
+              mise_src = File.join(template_root, "mise.toml")
+              env_sh_src = File.join(template_root, ".config/mise/env.sh")
+              FileUtils.mkdir_p(File.dirname(env_sh_src))
+              File.write(config_src, "template: config\n")
+              File.write(mise_src, "[tools]\n")
+              File.write(env_sh_src, "export DEMO=1\n")
+
+              allow(helpers).to receive_messages(
+                prefer_example: config_src,
+                prefer_example_with_osc_check: mise_src,
+                write_file: nil,
+                record_template_result: nil,
+                clear_kettle_config!: nil,
+              )
+              allow(helpers).to receive(:tokens_configured?).and_return(false, true)
+              allow(helpers).to receive(:configure_tokens!)
+              allow(helpers).to receive(:template_run_outcome=).with(:bootstrap_only)
+              allow(helpers).to receive(:read_template).with(mise_src).and_return("[tools]\nruby = \"3.2\"\n")
+              allow(described_class).to receive_messages(
+                seeded_kettle_config_content: "seeded: true\n",
+                discovered_grammar_toml_fragment: "fragment",
+                quiet?: false,
+              )
+              merger = double("toml merger", merge: "merged mise\n")
+              allow(Toml::Merge::SmartMerger).to receive(:new).and_return(merger)
+
+              result = described_class.send(
+                :ensure_kettle_config_bootstrap!,
+                helpers: helpers,
+                project_root: project_root,
+                template_root: template_root,
+                token_options: token_options,
+              )
+
+              expect(result).to eq(:bootstrap_only)
+              expect(helpers).to have_received(:write_file).with(File.join(project_root, ".kettle-jem.yml"), "seeded: true\n")
+              expect(helpers).to have_received(:write_file).with(File.join(project_root, "mise.toml"), "merged mise\n")
+              expect(helpers).to have_received(:record_template_result).with(File.join(project_root, ".kettle-jem.yml"), :create)
+              expect(helpers).to have_received(:record_template_result).with(File.join(project_root, "mise.toml"), :create)
+              expect(helpers).to have_received(:record_template_result).with(File.join(project_root, ".config/mise/env.sh"), :create)
+            end
+          end
+        end
+
+        it "updates an existing mise.toml and returns :present when only infrastructure files change" do
+          Dir.mktmpdir do |template_root|
+            Dir.mktmpdir do |project_root|
+              config_src = File.join(template_root, ".kettle-jem.yml.example")
+              mise_src = File.join(template_root, "mise.toml")
+              config_dest = File.join(project_root, ".kettle-jem.yml")
+              mise_dest = File.join(project_root, "mise.toml")
+              File.write(config_src, "template: config\n")
+              File.write(mise_src, "[tools]\n")
+              File.write(config_dest, "existing: true\n")
+              File.write(mise_dest, "old mise\n")
+
+              allow(helpers).to receive_messages(
+                prefer_example: config_src,
+                prefer_example_with_osc_check: mise_src,
+                record_template_result: nil,
+                write_file: nil,
+              )
+              allow(helpers).to receive(:tokens_configured?).and_return(false, true)
+              allow(helpers).to receive(:configure_tokens!)
+              allow(helpers).to receive(:resolve_tokens).with("old mise\n").and_return("resolved mise\n")
+              allow(helpers).to receive(:read_template).with(mise_src).and_return("[tools]\nruby = \"3.2\"\n")
+              allow(described_class).to receive(:discovered_grammar_toml_fragment).and_return("fragment two")
+              allow(Toml::Merge::SmartMerger).to receive(:new).and_return(
+                double("first merge", merge: "merged once\n"),
+                double("second merge", merge: "merged twice\n"),
+              )
+
+              result = described_class.send(
+                :ensure_kettle_config_bootstrap!,
+                helpers: helpers,
+                project_root: project_root,
+                template_root: template_root,
+                token_options: token_options,
+              )
+
+              expect(result).to eq(:present)
+              expect(helpers).to have_received(:write_file).with(mise_dest, "merged twice\n")
+              expect(helpers).to have_received(:record_template_result).with(mise_dest, :replace)
+            end
+          end
+        end
+      end
+    end
+
     describe "mise.toml merging" do
       it "preserves destination values for shared keys while adding template-only keys", :toml_merge do
         template = <<~TOML
