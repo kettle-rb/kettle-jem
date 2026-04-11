@@ -157,49 +157,45 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it("rejects arbitrary files") { expect(described_class.send(:accept_template_path?, "bin/other")).to be false }
       end
 
-      describe "::tool_versions_file?" do
-        it("detects .tool-versions") { expect(described_class.send(:tool_versions_file?, ".tool-versions")).to be true }
-        it("rejects .ruby-version") { expect(described_class.send(:tool_versions_file?, ".ruby-version")).to be false }
-        it("rejects .yml") { expect(described_class.send(:tool_versions_file?, "config.yml")).to be false }
+      describe "::markdown_heading_file?" do
+        it("detects README.md") { expect(described_class.send(:markdown_heading_file?, "README.md")).to be true }
+        it("detects CONTRIBUTING.md") { expect(described_class.send(:markdown_heading_file?, "CONTRIBUTING.md")).to be true }
+        it("rejects .rb") { expect(described_class.send(:markdown_heading_file?, "lib/foo.rb")).to be false }
       end
     end
 
-    describe ".tool-versions merging" do
-      it "matches lines by tool name and template version wins" do
-        template = "ruby 4.0.0\nnodejs 20.0.0\n"
-        dest = "ruby 3.2.0\nnodejs 18.0.0\npython 3.11\n"
+    describe "mise.toml merging" do
+      it "preserves destination values for shared keys while adding template-only keys", :toml_merge do
+        template = <<~TOML
+          [tools]
+          ruby = "4.0.0"
+          node = "22"
 
-        merged = Ast::Merge::Text::SmartMerger.new(
+          [env]
+          DEBUG = "false"
+        TOML
+        dest = <<~TOML
+          [tools]
+          ruby = "3.2.0"
+
+          [env]
+          DEBUG = "true"
+          CUSTOM = "1"
+        TOML
+
+        merged = Toml::Merge::SmartMerger.new(
           template,
           dest,
-          preference: :template,
+          preference: :destination,
           add_template_only_nodes: true,
-          signature_generator: described_class::TOOL_VERSIONS_SIGNATURE_GENERATOR,
+          freeze_token: "kettle-jem",
         ).merge
 
-        # Template versions should win for shared tools
-        expect(merged).to include("ruby 4.0.0")
-        expect(merged).not_to include("ruby 3.2.0")
-        expect(merged).to include("nodejs 20.0.0")
-        expect(merged).not_to include("nodejs 18.0.0")
-        # Destination-only tool is preserved
-        expect(merged).to include("python 3.11")
-      end
-
-      it "adds template-only tools to destination" do
-        template = "ruby 4.0.0\ngolang 1.21\n"
-        dest = "ruby 3.2.0\n"
-
-        merged = Ast::Merge::Text::SmartMerger.new(
-          template,
-          dest,
-          preference: :template,
-          add_template_only_nodes: true,
-          signature_generator: described_class::TOOL_VERSIONS_SIGNATURE_GENERATOR,
-        ).merge
-
-        expect(merged).to include("ruby 4.0.0")
-        expect(merged).to include("golang 1.21")
+        expect(merged).to include('ruby = "3.2.0"')
+        expect(merged).not_to include('ruby = "4.0.0"')
+        expect(merged).to include('node = "22"')
+        expect(merged).to include('DEBUG = "true"')
+        expect(merged).to include('CUSTOM = "1"')
       end
     end
 
@@ -3061,51 +3057,31 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      context "when reviewing env file changes", :check_output do
-        it "proceeds when allowed=true" do
-          Dir.mktmpdir do |gem_root|
-            Dir.mktmpdir do |project_root|
-              template_root = File.join(gem_root, "template")
-              FileUtils.mkdir_p(template_root)
-              File.write(File.join(template_root, ".envrc"), "export A=1\n")
-              File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
-              allow(helpers).to receive(:modified_by_template?).and_return(true)
-              stub_env("allowed" => "true")
-              expect { described_class.run }.not_to raise_error
-            end
-          end
-        end
+      context "when prepare task aborts" do
+        it "surfaces mise trust guidance from prerequisite validation" do
+          Dir.mktmpdir do |project_root|
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
 
-        it "aborts with mise trust guidance when not allowed" do
-          Dir.mktmpdir do |gem_root|
-            Dir.mktmpdir do |project_root|
-              template_root = File.join(gem_root, "template")
-              FileUtils.mkdir_p(template_root)
-              File.write(File.join(template_root, ".envrc"), "export A=1\n")
-              File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
-              allow(helpers).to receive(:modified_by_template?).and_return(true)
-              stub_env("allowed" => "")
-              expect { described_class.run }
-                .to raise_error(Kettle::Dev::Error, /review of environment files required/)
-                .and output(/IMPORTANT: The following environment-related files were created\/updated:\n.*If mise prompts you to trust this repo, run:\n  mise trust/m).to_stdout
-            end
-          end
-        end
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: project_root,
+              ensure_clean_git!: nil,
+            )
+            allow(Kettle::Jem::Tasks::PrepareTask).to receive(:run)
+              .and_raise(Kettle::Dev::Error, "Aborting: mise trust refresh required before continuing.")
 
-        it "warns when check raises" do
-          Dir.mktmpdir do |gem_root|
-            Dir.mktmpdir do |project_root|
-              template_root = File.join(gem_root, "template")
-              FileUtils.mkdir_p(template_root)
-              File.write(File.join(template_root, ".envrc"), "export A=1\n")
-              File.write(File.join(project_root, "demo.gemspec"), "Gem::Specification.new{|s| s.name='demo'; s.homepage='https://github.com/acme/demo'}\n")
-              allow(helpers).to receive_messages(project_root: project_root, template_root: template_root, ensure_clean_git!: nil, ask: true)
-              allow(helpers).to receive(:modified_by_template?).and_raise(StandardError, "oops")
-              stub_env("allowed" => "true")
-              expect { described_class.run }.not_to raise_error
-            end
+            expect { described_class.run }
+              .to raise_error(Kettle::Dev::Error, /mise trust refresh required before continuing/)
           end
         end
       end

@@ -58,14 +58,15 @@ module Kettle
           Rake::Task["kettle:jem:template"].invoke
           return :bootstrap_only if helpers.template_run_outcome == :bootstrap_only
 
-          # .tool-versions cleanup offers
-          tool_versions_path = File.join(project_root, ".tool-versions")
-          if File.file?(tool_versions_path)
+          # mise.toml cleanup offers
+          mise_toml_path = File.join(project_root, "mise.toml")
+          if File.file?(mise_toml_path)
             rv = File.join(project_root, ".ruby-version")
             rg = File.join(project_root, ".ruby-gemset")
-            to_remove = [rv, rg].select { |p| File.exist?(p) }
+            tv = File.join(project_root, ".tool-versions")
+            to_remove = [rv, rg, tv].select { |p| File.exist?(p) }
             unless to_remove.empty?
-              if helpers.ask("Remove #{to_remove.map { |p| File.basename(p) }.join(" and ")} (managed by .tool-versions)?", true)
+              if helpers.ask("Remove #{to_remove.map { |p| File.basename(p) }.join(" and ")} (managed by mise.toml)?", true)
                 to_remove.each { |p| FileUtils.rm_f(p) }
                 puts "Removed #{to_remove.map { |p| File.basename(p) }.join(" and ")}" unless TemplateTask.quiet?
               end

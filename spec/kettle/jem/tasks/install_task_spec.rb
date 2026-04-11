@@ -638,13 +638,15 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
-    it "offers to remove .ruby-version and .ruby-gemset when .tool-versions exists and removes them on accept", :check_output do
+    it "offers to remove .ruby-version, .ruby-gemset, and .tool-versions when mise.toml exists and removes them on accept", :check_output do
       Dir.mktmpdir do |project_root|
-        File.write(File.join(project_root, ".tool-versions"), "ruby 3.3.0\n")
+        File.write(File.join(project_root, "mise.toml"), %Q{[tools]\nruby = "4.0.2"\n})
         rv = File.join(project_root, ".ruby-version")
         rg = File.join(project_root, ".ruby-gemset")
+        tv = File.join(project_root, ".tool-versions")
         File.write(rv, "3.3.0\n")
         File.write(rg, "gemset\n")
+        File.write(tv, "ruby 3.3.0\n")
 
         allow(helpers).to receive_messages(
           project_root: project_root,
@@ -656,6 +658,7 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
         described_class.run
         expect(File).not_to exist(rv)
         expect(File).not_to exist(rg)
+        expect(File).not_to exist(tv)
       end
     end
 
