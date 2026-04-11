@@ -122,7 +122,7 @@ module Kettle
           border = "=" * 72
           $stderr.puts border
           $stderr.puts "WARNING: REQUIRED_RUBY_VERSION RAISED"
-          $stderr.puts "  GEMSPEC : #{gemspec_path}"
+          $stderr.puts "  GEMSPEC : #{Kettle::Jem.display_path(gemspec_path)}"
           $stderr.puts "  PREVIOUS: #{previous || "(none)"}"
           $stderr.puts "  NEW     : #{new_floor}"
           $stderr.puts "  ACTION  : UPDATING GEMSPEC AND BUMPING MAJOR VERSION"

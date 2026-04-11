@@ -79,7 +79,7 @@ module Kettle
             if templating_report_path
               json_path = templating_report_path.sub(/\.md\z/, "-duplicates.json")
               Kettle::Jem::DuplicateLineValidator.write_json(dup_results, json_path)
-              out.phase("📄", "Duplicate report", detail: json_path)
+              out.phase("📄", "Duplicate report", detail: Kettle::Jem.display_path(json_path))
             end
           end
         end

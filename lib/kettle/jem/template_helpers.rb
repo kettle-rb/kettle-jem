@@ -1325,7 +1325,7 @@ module Kettle
               end
               unless matched
                 record_template_result(dest_path, :skip)
-                puts "Skipping #{dest_path} (excluded by only filter)" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+                puts "Skipping #{Kettle::Jem.display_path(dest_path)} (excluded by only filter)" unless Kettle::Jem::Tasks::TemplateTask.quiet?
                 return
               end
             end
@@ -1341,15 +1341,15 @@ module Kettle
         if dest_exists
           if allow_replace
             verb = merge_op ? "Merge into" : "Replace"
-            action = ask("#{verb} #{dest_path}?", true) ? :replace : :skip
+            action = ask("#{verb} #{Kettle::Jem.display_path(dest_path)}?", true) ? :replace : :skip
           else
-            puts "Skipping #{dest_path} (overwrite not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
+            puts "Skipping #{Kettle::Jem.display_path(dest_path)} (overwrite not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
             action = :skip
           end
         elsif allow_create
-          action = ask("Create #{dest_path}?", true) ? :create : :skip
+          action = ask("Create #{Kettle::Jem.display_path(dest_path)}?", true) ? :create : :skip
         else
-          puts "Skipping #{dest_path} (create not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
+          puts "Skipping #{Kettle::Jem.display_path(dest_path)} (create not allowed)." unless Kettle::Jem::Tasks::TemplateTask.quiet?
           action = :skip
         end
         if action == :skip
@@ -1410,7 +1410,7 @@ module Kettle
         end
         record_template_result(dest_path, dest_exists ? :replace : :create)
         wrote_verb = merge_op ? "Merged" : "Wrote"
-        puts "#{wrote_verb} #{dest_path}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+        puts "#{wrote_verb} #{Kettle::Jem.display_path(dest_path)}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
       end
 
       # Merge gem dependency lines from a source Gemfile-like content into an existing
@@ -1631,10 +1631,10 @@ module Kettle
                 end
               end
             end
-            puts "Updated #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+            puts "Updated #{Kettle::Jem.display_path(dest_dir)}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
             record_template_result(dest_dir, :dir_replace)
           else
-            puts "Skipped #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+            puts "Skipped #{Kettle::Jem.display_path(dest_dir)}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
             record_template_result(dest_dir, :skip)
           end
         elsif ask("Create directory #{dest_dir}?", true)
@@ -1681,7 +1681,7 @@ module Kettle
               end
             end
           end
-          puts "Created #{dest_dir}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
+          puts "Created #{Kettle::Jem.display_path(dest_dir)}" unless Kettle::Jem::Tasks::TemplateTask.quiet?
           record_template_result(dest_dir, :dir_create)
         end
       end

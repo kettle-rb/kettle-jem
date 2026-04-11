@@ -818,15 +818,15 @@ module Kettle
           # mise.toml and .config/mise/env.sh don't need user review and
           # shouldn't block the rest of the template phases.
           unless config_bootstrapped
-            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
+            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{Kettle::Jem.display_path(f)}." }
             return :present
           end
 
           helpers.template_run_outcome = :bootstrap_only
           unless TemplateTask.quiet?
-            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{f}." }
+            bootstrapped_files.each { |f| puts "[kettle-jem] Wrote #{Kettle::Jem.display_path(f)}." }
             puts "[kettle-jem] Review the file(s) above, fill in any missing token values, then:"
-            puts "[kettle-jem]   mise trust -C #{project_root}"
+            puts "[kettle-jem]   mise trust -C #{Kettle::Jem.display_path(project_root)}"
             puts "[kettle-jem] Commit the changes and re-run kettle-jem."
           end
           :bootstrap_only
@@ -1043,7 +1043,7 @@ module Kettle
             status: :started,
           )
           Kettle::Jem::TemplatingReport.print(snapshot: templating_environment, project_root: project_root) unless quiet?
-          out.phase("📄", "Report", detail: templating_report_path) if templating_report_path
+          out.phase("📄", "Report", detail: Kettle::Jem.display_path(templating_report_path)) if templating_report_path
 
           # Ensure git working tree is clean before making changes (when run standalone)
           helpers.ensure_clean_git!(root: project_root, task_label: "kettle:jem:template")

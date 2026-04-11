@@ -100,6 +100,21 @@ module Kettle
     end
 
     class << self
+      VAR_HOME_PREFIX = %r{\A/var/home(?=/|\z)}
+      VAR_HOME_TEXT = %r{/var/home(?=/|\z)}
+
+      def display_path(path)
+        return path if path.nil?
+
+        path.to_s.sub(VAR_HOME_PREFIX, "/home")
+      end
+
+      def display_text(text)
+        return text if text.nil?
+
+        text.to_s.gsub(VAR_HOME_TEXT, "/home")
+      end
+
       # Load a recipe by name.
       #
       # @param name [Symbol, String] Recipe name (e.g., :gemfile, :gemspec)

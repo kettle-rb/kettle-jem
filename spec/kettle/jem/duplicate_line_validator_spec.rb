@@ -439,6 +439,17 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       expect(parsed).to have_key("gem \"foo\"\ngem \"bar\"")
       expect(parsed["gem \"foo\"\ngem \"bar\""].first["lines"]).to eq([1, 3])
     end
+
+    it "normalizes /var/home file paths for emitted reports" do
+      result = described_class.to_json(
+        "dup" => [
+          {file: "/var/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md", lines: [10, 20]},
+        ],
+      )
+
+      expect(result).to include('"/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md"')
+      expect(result).not_to include('"/var/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md"')
+    end
   end
 
   describe ".write_json" do
@@ -468,6 +479,19 @@ RSpec.describe Kettle::Jem::DuplicateLineValidator do
       expect(summary).to include("a.rb")
       expect(summary).to include("1, 3")
       expect(summary).to include("↵")
+    end
+
+    it "normalizes /var/home paths before rendering markdown" do
+      result = described_class.report_summary(
+        {
+          "alpha\nbeta" => [
+            {file: "/var/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md", lines: [782, 785]},
+          ],
+        },
+      )
+
+      expect(result).to include("/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md")
+      expect(result).not_to include("/var/home/pboling/src/kettle-rb/tree_haver/CHANGELOG.md")
     end
   end
 

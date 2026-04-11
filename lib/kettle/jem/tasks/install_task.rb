@@ -143,7 +143,7 @@ module Kettle
             if gemspecs.empty?
               unless TemplateTask.quiet?
                 puts
-                puts "No .gemspec found in #{project_root}; skipping homepage check."
+                puts "No .gemspec found in #{Kettle::Jem.display_path(project_root)}; skipping homepage check."
               end
             else
               gemspec_path = gemspecs.first
@@ -363,7 +363,7 @@ module Kettle
             has_env_local = gitignore_current.lines.any? { |l| l.strip == ".env.local" }
             unless has_env_local
               puts
-              puts "Would you like to add '.env.local' to #{gitignore_path}?"
+              puts "Would you like to add '.env.local' to #{Kettle::Jem.display_path(gitignore_path)}?"
               print("Add to .gitignore now [Y/n]: ")
               answer = Kettle::Dev::InputAdapter.gets&.strip
               # Respect an explicit negative answer even when force=true
@@ -384,7 +384,7 @@ module Kettle
                   end
                   f.write(".env.local\n")
                 end
-                puts "Added .env.local to #{gitignore_path}" unless TemplateTask.quiet?
+                puts "Added .env.local to #{Kettle::Jem.display_path(gitignore_path)}" unless TemplateTask.quiet?
               else
                 puts "Skipping modification of .gitignore. Remember to add .env.local to avoid committing it." unless TemplateTask.quiet?
               end

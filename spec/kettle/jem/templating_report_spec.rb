@@ -93,6 +93,33 @@ RSpec.describe Kettle::Jem::TemplatingReport do
         expect(result.join("\n")).to include("Hint: set KETTLE_RB_DEV=true")
       end
     end
+
+    it "normalizes displayed workspace and gem paths" do
+      snapshot = {
+        workspace_root: "/var/home/pboling/src/kettle-rb",
+        kettle_jem: {
+          name: "kettle-jem",
+          version: "1.0.0",
+          path: "/var/home/pboling/src/kettle-rb/kettle-jem",
+          local_path: true,
+          loaded: true,
+        },
+        merge_gems: [
+          {
+            name: "ast-merge",
+            version: "4.0.6",
+            path: "/var/home/pboling/src/kettle-rb/ast-merge",
+            local_path: true,
+            loaded: true,
+          },
+        ],
+      }
+
+      result = described_class.console_lines(snapshot: snapshot)
+
+      expect(result.join("\n")).to include("/home/pboling/src/kettle-rb")
+      expect(result.join("\n")).not_to include("/var/home/pboling/src/kettle-rb")
+    end
   end
 
   describe ".report_path" do
@@ -160,6 +187,38 @@ RSpec.describe Kettle::Jem::TemplatingReport do
         expect(content).to include("- Heads up")
         expect(content).to include("RuntimeError: boom")
       end
+    end
+
+    it "normalizes rendered project and gem paths" do
+      snapshot = {
+        kettle_jem: {
+          name: "kettle-jem",
+          version: "1.0.0",
+          path: "/var/home/pboling/src/kettle-rb/kettle-jem",
+          local_path: true,
+          loaded: true,
+        },
+        workspace_root: "/var/home/pboling/src/kettle-rb",
+        merge_gems: [
+          {
+            name: "ast-merge",
+            version: "4.0.6",
+            path: "/var/home/pboling/src/kettle-rb/ast-merge",
+            local_path: true,
+            loaded: true,
+          },
+        ],
+      }
+
+      content = described_class.render_markdown(
+        project_root: "/var/home/pboling/src/kettle-rb/tree_haver",
+        output_dir: "/var/home/pboling/src/kettle-rb/tree_haver/out",
+        snapshot: snapshot,
+        status: :complete,
+      )
+
+      expect(content).to include("/home/pboling/src/kettle-rb/tree_haver")
+      expect(content).not_to include("/var/home/pboling/src/kettle-rb/tree_haver")
     end
 
     it "includes a local workspace warning when installed kettle-jem is used inside a sibling workspace" do

@@ -241,7 +241,7 @@ module Kettle
 
         gemspec_path = Dir.glob(File.join(project_root, "*.gemspec")).first
         unless gemspec_path
-          helpers.add_warning("sync_shunted_gemfile!: no gemspec found in #{project_root}; skipping")
+          helpers.add_warning("sync_shunted_gemfile!: no gemspec found in #{Kettle::Jem.display_path(project_root)}; skipping")
           return
         end
 

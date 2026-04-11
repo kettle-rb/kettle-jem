@@ -95,12 +95,12 @@ module Kettle
         lines << header
 
         workspace_root = snapshot[:workspace_root]
-        lines << "  workspace root: #{workspace_root}" if workspace_root
+        lines << "  workspace root: #{Kettle::Jem.display_path(workspace_root)}" if workspace_root
 
         merge_gems.each do |entry|
           version = entry[:version] || "not loaded"
           source = source_label(entry)
-          path = entry[:path] ? " — #{entry[:path]}" : ""
+          path = entry[:path] ? " — #{Kettle::Jem.display_path(entry[:path])}" : ""
           lines << "  - #{entry[:name]} #{version} (#{source})#{path}"
         end
 
@@ -136,13 +136,13 @@ module Kettle
         lines << "**Started**: #{run_started_at.iso8601}"
         lines << "**Finished**: #{finished_at.iso8601}" if finished_at
         lines << "**Status**: `#{status}`" if status
-        lines << "**Project root**: `#{project_root}`"
-        lines << "**Output dir**: `#{output_dir}`" if output_dir
+        lines << "**Project root**: `#{Kettle::Jem.display_path(project_root)}`"
+        lines << "**Output dir**: `#{Kettle::Jem.display_path(output_dir)}`" if output_dir
 
         kettle_jem = snapshot[:kettle_jem]
         if kettle_jem
           version = kettle_jem[:version] || "unknown"
-          path = kettle_jem[:path] ? " `#{kettle_jem[:path]}`" : ""
+          path = kettle_jem[:path] ? " `#{Kettle::Jem.display_path(kettle_jem[:path])}`" : ""
           lines << "**kettle-jem**: #{version} (#{source_label(kettle_jem)})#{path}"
         end
 
@@ -231,7 +231,7 @@ module Kettle
 
         workspace_root = snapshot[:workspace_root]
         if workspace_root
-          lines << "**Workspace root**: `#{workspace_root}`"
+          lines << "**Workspace root**: `#{Kettle::Jem.display_path(workspace_root)}`"
           lines << ""
         end
 
@@ -239,7 +239,7 @@ module Kettle
         lines << "|-----|---------|--------|------|"
         merge_gems.each do |entry|
           version = entry[:version] || "_not loaded_"
-          path = entry[:path] ? "`#{entry[:path]}`" : ""
+          path = entry[:path] ? "`#{Kettle::Jem.display_path(entry[:path])}`" : ""
           lines << "| #{entry[:name]} | #{version} | #{source_label(entry)} | #{path} |"
         end
         lines << ""
@@ -292,7 +292,7 @@ module Kettle
         return if loaded_path == checkout_path
 
         env_value = ENV.fetch("KETTLE_RB_DEV", "<unset>")
-        "Detected sibling workspace checkout at `#{local_checkout}`, but this run is using installed `kettle-jem` " \
+        "Detected sibling workspace checkout at `#{Kettle::Jem.display_path(local_checkout)}`, but this run is using installed `kettle-jem` " \
           "(KETTLE_RB_DEV=#{env_value.inspect})."
       end
 

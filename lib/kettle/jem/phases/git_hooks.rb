@@ -77,8 +77,8 @@ module Kettle
               puts "  ERB template rendered to produce the footer. You can customize its contents and variables."
               puts
               puts "Where would you like to install these two templates?"
-              puts "  [l] Local to this project (#{File.join(project_root, ".git-hooks")})"
-              puts "  [g] Global for this user (#{File.join(ENV["HOME"], ".git-hooks")})"
+              puts "  [l] Local to this project (#{Kettle::Jem.display_path(File.join(project_root, ".git-hooks"))})"
+              puts "  [g] Global for this user (#{Kettle::Jem.display_path(File.join(ENV["HOME"], ".git-hooks"))})"
               puts "  [s] Skip copying"
             end
             # Allow non-interactive selection via environment
@@ -123,7 +123,7 @@ module Kettle
           begin
             FileUtils.mkdir_p(hook_dest_dir)
           rescue StandardError => e
-            context.out.warning("Could not create #{hook_dest_dir}: #{e.class}: #{e.message}")
+            context.out.warning("Could not create #{Kettle::Jem.display_path(hook_dest_dir)}: #{e.class}: #{e.message}")
             hook_dest_dir = nil
           end
 

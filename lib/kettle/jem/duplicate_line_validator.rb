@@ -310,7 +310,7 @@ module Kettle
       # @return [String] JSON string
       def to_json(results)
         JSON.pretty_generate(results.transform_values do |entries|
-          entries.map { |e| {file: e[:file], lines: e[:lines]} }
+          entries.map { |e| {file: Kettle::Jem.display_path(e[:file]), lines: e[:lines]} }
         end)
       end
 
@@ -346,8 +346,11 @@ module Kettle
           display = display.gsub("|", "\\|")
 
           entries.each do |entry|
-            file = entry[:file]
-            file = file.sub(%r{^#{Regexp.escape(project_root)}/?}, "") if project_root
+            file = Kettle::Jem.display_path(entry[:file])
+            if project_root
+              display_root = Kettle::Jem.display_path(project_root)
+              file = file.sub(%r{^#{Regexp.escape(display_root)}/?}, "")
+            end
             lines << "| `#{display}` | #{file} | #{entry[:lines].join(", ")} |"
           end
         end
