@@ -307,18 +307,18 @@ Markdown, TOML, JSON, Bash, etc.).
 
 Kettle::Jem selects the merge engine by file type:
 
-| File Pattern                | Merge Engine     | Key Behaviors                           |
-|-----------------------------|------------------|-----------------------------------------|
-| `*.rb`, `Gemfile`, `*.gemspec`, `Rakefile`, `Appraisals` | Prism::Merge | Three-phase matching, gemspec var renaming |
-| `*.yml`, `*.yaml`          | Psych::Merge     | SHA-pinned `uses:`, per-key preferences |
-| `*.md`, `*.markdown`       | Markly::Merge    | Heading/list matching, inner list merge |
-| `*.toml`                   | Toml::Merge      | Sort keys, table matching               |
-| `*.json`                   | Json::Merge      | Key-based matching                      |
-| `*.jsonc`                  | Json::Merge      | With comment preservation               |
-| `*.sh`, `*.bash`, `.envrc` | Bash::Merge      | Block matching                          |
-| `.env*`                    | Dotenv::Merge    | KEY=value matching                      |
-| `*.rbs`                    | RBS::Merge       | Type signature matching                 |
-| `.tool-versions`, `.gitignore` | Text::Merge  | Intentional line-based merge            |
+| File Pattern                                             | Merge Engine  | Key Behaviors                              |
+|----------------------------------------------------------|---------------|--------------------------------------------|
+| `*.rb`, `Gemfile`, `*.gemspec`, `Rakefile`, `Appraisals` | Prism::Merge  | Three-phase matching, gemspec var renaming |
+| `*.yml`, `*.yaml`                                        | Psych::Merge  | SHA-pinned `uses:`, per-key preferences    |
+| `*.md`, `*.markdown`                                     | Markly::Merge | Heading/list matching, inner list merge    |
+| `*.toml`                                                 | Toml::Merge   | Sort keys, table matching                  |
+| `*.json`                                                 | Json::Merge   | Key-based matching                         |
+| `*.jsonc`                                                | Json::Merge   | With comment preservation                  |
+| `*.sh`, `*.bash`, `.envrc`                               | Bash::Merge   | Block matching                             |
+| `.env*`                                                  | Dotenv::Merge | KEY=value matching                         |
+| `*.rbs`                                                  | RBS::Merge    | Type signature matching                    |
+| `.gitignore`                                             | Text::Merge   | Intentional line-based merge               |
 
 > **No silent fallback:** If a tree-sitter grammar is unavailable for a file
 > type that requires AST merging, kettle-jem will **fail** (default) or
