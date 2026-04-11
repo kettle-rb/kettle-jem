@@ -1,0 +1,2697 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::MarkdownMerger
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::MarkdownMerger";
+  relpath = '../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../_index.html">Index (M)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span>
+     &raquo; 
+    <span class="title">MarkdownMerger</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::MarkdownMerger
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/markdown_merger.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Merges README.md files using markly-merge with section-level<br />
+destination preservation.</p>
+
+<p>The template provides structure and heading text. Certain section<br />
+bodies are preserved from the destination:</p>
+<ul>
+  <li>“Synopsis”</li>
+  <li>“Configuration”</li>
+  <li>“Basic Usage”</li>
+  <li>Any “Note:*” section at any heading level</li>
+</ul>
+
+<p>H1 handling is conditional: preserve the destination heading only when<br />
+its semantic text differs from the template. When the only difference is<br />
+a decorative leading adornment (emoji, keycap, etc.), the template H1<br />
+wins so heading emojis can be refreshed.</p>
+
+<p>=== Migration note (Phase 6 — AST over regex)</p>
+
+<p>Section preservation uses PartialTemplateMerger (PTM) from markly-merge<br />
+with swapped template/destination roles:</p>
+
+<ul>
+  <li>PTM +destination:+ = the running document (starts as the token-resolved template)</li>
+  <li>PTM +template:+ = the extracted section content from the original destination</li>
+  <li>PTM +replace_mode: true+ stamps the destination’s section over the template’s</li>
+</ul>
+
+<p>This is conceptually inverted (the “template” argument holds destination content),<br />
+but mechanically correct: PTM locates a section in its +destination:+ argument and<br />
+replaces it with its +template:+ argument.</p>
+
+<p>H1 preservation remains line-based because an H1 section spans the entire document<br />
+in Markdown heading-level semantics, making PTM section replacement unsuitable.<br />
+This is an accepted narrow text operation per the migration plan.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+  <div class="examples">
+    <h4 class="tag_title">Examples:</h4>
+    
+      
+      <pre class="example code"><code><span class='id identifier rubyid_merged'>merged</span> <span class='op'>=</span> <span class='const'>MarkdownMerger</span><span class='period'>.</span><span class='id identifier rubyid_merge'><span class='object_link'><a href="#merge-class_method" title="Kettle::Jem::MarkdownMerger.merge (method)">merge</a></span></span><span class='lparen'>(</span>
+  <span class='label'>template_content:</span> <span class='id identifier rubyid_resolved'>resolved</span><span class='comma'>,</span>
+  <span class='label'>destination_content:</span> <span class='id identifier rubyid_existing'>existing</span><span class='comma'>,</span>
+<span class='rparen'>)</span></code></pre>
+    
+  </div>
+
+
+</div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="DEFAULT_PRESERVE_SECTIONS-constant" class="">DEFAULT_PRESERVE_SECTIONS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Default sections whose body content is preserved from the destination.<br />
+Matched by normalized heading text (lowercase, alphanumeric + spaces).<br />
+Can be overridden via .kettle-jem.yml readme.preserve_sections.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='qwords_beg'>%w[</span><span class='tstring_content'>synopsis</span><span class='words_sep'> </span><span class='tstring_content'>configuration</span><span class='words_sep'> </span><span class='tstring_content'>basic\ usage</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+        <dt id="PRESERVE_SECTIONS-constant" class="">PRESERVE_SECTIONS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Legacy constant alias for specs/external callers.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='const'><span class='object_link'><a href="#DEFAULT_PRESERVE_SECTIONS-constant" title="Kettle::Jem::MarkdownMerger::DEFAULT_PRESERVE_SECTIONS (constant)">DEFAULT_PRESERVE_SECTIONS</a></span></span></pre></dd>
+      
+        <dt id="DEFAULT_PRESERVE_PATTERNS-constant" class="">DEFAULT_PRESERVE_PATTERNS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Default glob patterns for headings that are always preserved.<br />
+Can be extended via .kettle-jem.yml readme.preserve_patterns.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>note:*</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+        <dt id="NOTE_PREFIX-constant" class="">NOTE_PREFIX =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Prefix for “Note:” headings (any level) that are also preserved.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>note:</span><span class='tstring_end'>&quot;</span></span></pre></dd>
+      
+        <dt id="SECTION_ALIASES-constant" class="">SECTION_ALIASES =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Built-in aliases: when a gem uses a non-standard heading name,<br />
+these map the normalized destination heading to the canonical<br />
+template heading so section preservation still matches.<br />
+Keys and values are normalized (lowercase, stripped).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='lbrace'>{</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>summary</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>synopsis</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>usage</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>basic usage</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>configuration options</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>configuration</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>setup</span><span class='tstring_end'>&quot;</span></span> <span class='op'>=&gt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>basic usage</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+<span class='rbrace'>}</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#branch_end-class_method" title="branch_end (class method)">.<strong>branch_end</strong>(sections, idx, total_lines)  &#x21d2; Integer </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Compute the inclusive end line index for a section’s branch (everything until the next heading of same or higher level).</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_anchor_pattern-class_method" title="build_anchor_pattern (class method)">.<strong>build_anchor_pattern</strong>(text)  &#x21d2; Regexp </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Build an anchor pattern for matching a heading by its exact rendered text.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_heading_section-class_method" title="build_heading_section (class method)">.<strong>build_heading_section</strong>(statement, analysis)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_section_lookup-class_method" title="build_section_lookup (class method)">.<strong>build_section_lookup</strong>(parsed)  &#x21d2; Hash{String =&gt; Hash} </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Build a lookup table from destination sections.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#find_aliased_dest_entry-class_method" title="find_aliased_dest_entry (class method)">.<strong>find_aliased_dest_entry</strong>(template_base, dest_lookup, config)  &#x21d2; Hash<sup>?</sup> </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Find a destination entry via alias mapping when direct lookup fails.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#heading_sections_from_analysis-class_method" title="heading_sections_from_analysis (class method)">.<strong>heading_sections_from_analysis</strong>(analysis)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#heading_statement%3F-class_method" title="heading_statement? (class method)">.<strong>heading_statement?</strong>(statement)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#load_preserve_config-class_method" title="load_preserve_config (class method)">.<strong>load_preserve_config</strong>  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Load preserve config from .kettle-jem.yml readme section.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#markdown_analysis-class_method" title="markdown_analysis (class method)">.<strong>markdown_analysis</strong>(md)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#matches_preserve_pattern%3F-class_method" title="matches_preserve_pattern? (class method)">.<strong>matches_preserve_pattern?</strong>(base, patterns)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Check if a heading base name matches any of the given glob-style patterns.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge-class_method" title="merge (class method)">.<strong>merge</strong>(template_content:, destination_content:, preset: nil, preserve_config: nil)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Merge README content by using the template as-is and replacing designated sections with their destination counterparts.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize_heading_base-class_method" title="normalize_heading_base (class method)">.<strong>normalize_heading_base</strong>(text)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#note_heading%3F-class_method" title="note_heading? (class method)">.<strong>note_heading?</strong>(base)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#parse_sections-class_method" title="parse_sections (class method)">.<strong>parse_sections</strong>(md)  &#x21d2; Hash </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Parse Markdown into a sections structure.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#preserve_h1-class_method" title="preserve_h1 (class method)">.<strong>preserve_h1</strong>(merged, destination)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Preserve the destination H1 only when its semantic text differs from the merged/template H1.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#preserve_sections-class_method" title="preserve_sections (class method)">.<strong>preserve_sections</strong>(template, destination, preserve_config: nil)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Replace designated sections in the template with their destination counterparts using PartialTemplateMerger in replace_mode.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#resolve_preserve_targets-class_method" title="resolve_preserve_targets (class method)">.<strong>resolve_preserve_targets</strong>(src_sections, dest_lookup, config)  &#x21d2; Array&lt;String&gt; </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Build the effective list of section base names to preserve, combining configured sections, aliases, and pattern matches.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#section_body_branch-class_method" title="section_body_branch (class method)">.<strong>section_body_branch</strong>(parsed, section, body_end_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#semantic_heading_text-class_method" title="semantic_heading_text (class method)">.<strong>semantic_heading_text</strong>(text)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#strip_leading_heading_adornment-class_method" title="strip_leading_heading_adornment (class method)">.<strong>strip_leading_heading_adornment</strong>(text)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unwrap_markdown_statement-class_method" title="unwrap_markdown_statement (class method)">.<strong>unwrap_markdown_statement</strong>(statement)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#validate_fenced_code_blocks!-class_method" title="validate_fenced_code_blocks! (class method)">.<strong>validate_fenced_code_blocks!</strong>(content, label: &quot;Markdown content&quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Validate that all fenced code blocks in content are properly closed.</p>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="branch_end-class_method">
+  
+    .<strong>branch_end</strong>(sections, idx, total_lines)  &#x21d2; <tt>Integer</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Compute the inclusive end line index for a section’s branch<br />
+(everything until the next heading of same or higher level).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>sections</span>
+      
+      
+        <span class='type'>(<tt>Array&lt;Hash&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>All parsed sections</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>idx</span>
+      
+      
+        <span class='type'>(<tt>Integer</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Index of the section</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>total_lines</span>
+      
+      
+        <span class='type'>(<tt>Integer</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Total line count</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Integer</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Inclusive end line index</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+254
+255
+256
+257
+258
+259
+260
+261
+262</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 254</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_branch_end'>branch_end</span><span class='lparen'>(</span><span class='id identifier rubyid_sections'>sections</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='comma'>,</span> <span class='id identifier rubyid_total_lines'>total_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_current'>current</span> <span class='op'>=</span> <span class='id identifier rubyid_sections'>sections</span><span class='lbracket'>[</span><span class='id identifier rubyid_idx'>idx</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_j'>j</span> <span class='op'>=</span> <span class='id identifier rubyid_idx'>idx</span> <span class='op'>+</span> <span class='int'>1</span>
+  <span class='kw'>while</span> <span class='id identifier rubyid_j'>j</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_sections'>sections</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_sections'>sections</span><span class='lbracket'>[</span><span class='id identifier rubyid_j'>j</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:start</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span> <span class='kw'>if</span> <span class='id identifier rubyid_sections'>sections</span><span class='lbracket'>[</span><span class='id identifier rubyid_j'>j</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span> <span class='op'>&lt;=</span> <span class='id identifier rubyid_current'>current</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_j'>j</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_total_lines'>total_lines</span> <span class='op'>-</span> <span class='int'>1</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="build_anchor_pattern-class_method">
+  
+    .<strong>build_anchor_pattern</strong>(text)  &#x21d2; <tt>Regexp</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Build an anchor pattern for matching a heading by its exact rendered text.</p>
+
+<p>Markly heading nodes expose text with a trailing newline, so the pattern<br />
+uses +\s*\z+ to absorb any trailing whitespace.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>text</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Heading text content without the leading markdown hashes</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Regexp</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Pattern that matches the heading content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+195
+196
+197</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 195</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_anchor_pattern'>build_anchor_pattern</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\A\s*</span><span class='embexpr_beg'>#{</span><span class='const'>Regexp</span><span class='period'>.</span><span class='id identifier rubyid_escape'>escape</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_content'>\s*\z</span><span class='regexp_end'>/i</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="build_heading_section-class_method">
+  
+    .<strong>build_heading_section</strong>(statement, analysis)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+289
+290
+291
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 289</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_heading_section'>build_heading_section</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='comma'>,</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_node'>node</span> <span class='op'>=</span> <span class='id identifier rubyid_unwrap_markdown_statement'>unwrap_markdown_statement</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_position'>position</span> <span class='op'>=</span> <span class='id identifier rubyid_node'>node</span><span class='op'>&amp;.</span><span class='id identifier rubyid_source_position'>source_position</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_node'>node</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_position'>position</span>
+
+  <span class='id identifier rubyid_heading_source'>heading_source</span> <span class='op'>=</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_sub'>sub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\n\z</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_heading_text'>heading_text</span> <span class='op'>=</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_to_plaintext'>to_plaintext</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_sub'>sub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\n+\z</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>start:</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span><span class='comma'>,</span>
+    <span class='label'>start_line:</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>end_line:</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>level:</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_header_level'>header_level</span><span class='comma'>,</span>
+    <span class='label'>heading:</span> <span class='id identifier rubyid_heading_source'>heading_source</span><span class='comma'>,</span>
+    <span class='label'>heading_text:</span> <span class='id identifier rubyid_heading_text'>heading_text</span><span class='comma'>,</span>
+    <span class='label'>source:</span> <span class='id identifier rubyid_heading_source'>heading_source</span><span class='comma'>,</span>
+    <span class='label'>base:</span> <span class='id identifier rubyid_normalize_heading_base'>normalize_heading_base</span><span class='lparen'>(</span><span class='id identifier rubyid_heading_text'>heading_text</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span>
+  <span class='kw'>nil</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="build_section_lookup-class_method">
+  
+    .<strong>build_section_lookup</strong>(parsed)  &#x21d2; <tt>Hash{String =&gt; Hash}</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Build a lookup table from destination sections.<br />
+First occurrence of each base wins.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>parsed</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Output of parse_sections</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash{String =&gt; Hash}</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>base =&gt; { body_branch:, level: }</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+230
+231
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 230</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_section_lookup'>build_section_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_parsed'>parsed</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lookup'>lookup</span> <span class='op'>=</span> <span class='lbrace'>{</span><span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_lookup'>lookup</span> <span class='kw'>unless</span> <span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span>
+
+  <span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_each_with_index'>each_with_index</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_s'>s</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='op'>|</span>
+    <span class='kw'>next</span> <span class='kw'>if</span> <span class='id identifier rubyid_lookup'>lookup</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='id identifier rubyid_s'>s</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+
+    <span class='id identifier rubyid_be'>be</span> <span class='op'>=</span> <span class='id identifier rubyid_branch_end'>branch_end</span><span class='lparen'>(</span><span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='comma'>,</span> <span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:line_count</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_lookup'>lookup</span><span class='lbracket'>[</span><span class='id identifier rubyid_s'>s</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='lbrace'>{</span>
+      <span class='label'>body_branch:</span> <span class='id identifier rubyid_section_body_branch'>section_body_branch</span><span class='lparen'>(</span><span class='id identifier rubyid_parsed'>parsed</span><span class='comma'>,</span> <span class='id identifier rubyid_s'>s</span><span class='comma'>,</span> <span class='id identifier rubyid_be'>be</span><span class='rparen'>)</span><span class='comma'>,</span>
+      <span class='label'>level:</span> <span class='id identifier rubyid_s'>s</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_lookup'>lookup</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="find_aliased_dest_entry-class_method">
+  
+    .<strong>find_aliased_dest_entry</strong>(template_base, dest_lookup, config)  &#x21d2; <tt>Hash</tt><sup>?</sup> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Find a destination entry via alias mapping when direct lookup fails.<br />
+For example, if template has “Basic Usage” but destination has “Usage”,<br />
+the alias “usage” =&gt; “basic usage” lets us find the destination body.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template_base</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Normalized template section base name</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>dest_lookup</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Destination section lookup</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>config</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Preserve config</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The destination entry or nil</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+431
+432
+433
+434
+435
+436
+437
+438
+439
+440</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 431</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_find_aliased_dest_entry'>find_aliased_dest_entry</span><span class='lparen'>(</span><span class='id identifier rubyid_template_base'>template_base</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='comma'>,</span> <span class='id identifier rubyid_config'>config</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_aliases'>aliases</span> <span class='op'>=</span> <span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:aliases</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='const'><span class='object_link'><a href="#SECTION_ALIASES-constant" title="Kettle::Jem::MarkdownMerger::SECTION_ALIASES (constant)">SECTION_ALIASES</a></span></span>
+
+  <span class='comment'># Reverse lookup: find destination bases that alias TO the template_base
+</span>  <span class='id identifier rubyid_aliases'>aliases</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_from'>from</span><span class='comma'>,</span> <span class='id identifier rubyid_to'>to</span><span class='op'>|</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='lbracket'>[</span><span class='id identifier rubyid_from'>from</span><span class='rbracket'>]</span> <span class='kw'>if</span> <span class='id identifier rubyid_to'>to</span> <span class='op'>==</span> <span class='id identifier rubyid_template_base'>template_base</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='id identifier rubyid_from'>from</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='kw'>nil</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="heading_sections_from_analysis-class_method">
+  
+    .<strong>heading_sections_from_analysis</strong>(analysis)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+271
+272
+273
+274
+275
+276
+277</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 271</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_heading_sections_from_analysis'>heading_sections_from_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_statements'>statements</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_filter_map'>filter_map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_statement'>statement</span><span class='op'>|</span>
+    <span class='kw'>next</span> <span class='kw'>unless</span> <span class='id identifier rubyid_heading_statement?'>heading_statement?</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+
+    <span class='id identifier rubyid_build_heading_section'>build_heading_section</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='comma'>,</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="heading_statement?-class_method">
+  
+    .<strong>heading_statement?</strong>(statement)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+279
+280
+281
+282
+283
+284
+285
+286
+287</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 279</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_heading_statement?'>heading_statement?</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merge_type'>merge_type</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_statement'>statement</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:merge_type</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_statement'>statement</span><span class='period'>.</span><span class='id identifier rubyid_merge_type'>merge_type</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_unwrap_markdown_statement'>unwrap_markdown_statement</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span><span class='op'>&amp;.</span><span class='id identifier rubyid_type'>type</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_merge_type'>merge_type</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>heading</span><span class='tstring_end'>&quot;</span></span> <span class='op'>||</span> <span class='id identifier rubyid_merge_type'>merge_type</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>header</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="load_preserve_config-class_method">
+  
+    .<strong>load_preserve_config</strong>  &#x21d2; <tt>Hash</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Load preserve config from .kettle-jem.yml readme section.<br />
+Falls back to empty hash (which triggers defaults in resolve_preserve_targets).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Config hash with symbolized keys :sections, :patterns, :aliases</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+455
+456
+457
+458
+459
+460
+461
+462
+463
+464
+465
+466
+467
+468
+469
+470
+471
+472
+473
+474
+475
+476
+477
+478
+479
+480</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 455</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_load_preserve_config'>load_preserve_config</span>
+  <span class='kw'>return</span> <span class='lbrace'>{</span><span class='rbrace'>}</span> <span class='kw'>unless</span> <span class='kw'>defined?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="TemplateHelpers.html" title="Kettle::Jem::TemplateHelpers (module)">TemplateHelpers</a></span></span><span class='rparen'>)</span>
+
+  <span class='kw'>begin</span>
+    <span class='id identifier rubyid_helpers_mod'>helpers_mod</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="TemplateHelpers.html" title="Kettle::Jem::TemplateHelpers (module)">TemplateHelpers</a></span></span>
+    <span class='comment'># TemplateHelpers.readme_config is available when kettle_config has been loaded
+</span>    <span class='kw'>return</span> <span class='lbrace'>{</span><span class='rbrace'>}</span> <span class='kw'>unless</span> <span class='id identifier rubyid_helpers_mod'>helpers_mod</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:readme_config</span><span class='rparen'>)</span>
+
+    <span class='id identifier rubyid_rc'>rc</span> <span class='op'>=</span> <span class='id identifier rubyid_helpers_mod'>helpers_mod</span><span class='period'>.</span><span class='id identifier rubyid_readme_config'>readme_config</span>
+    <span class='id identifier rubyid_config'>config</span> <span class='op'>=</span> <span class='lbrace'>{</span><span class='rbrace'>}</span>
+    <span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_rc'>rc</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>preserve_sections</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='kw'>if</span> <span class='id identifier rubyid_rc'>rc</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>preserve_sections</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:patterns</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_rc'>rc</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>preserve_patterns</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='kw'>if</span> <span class='id identifier rubyid_rc'>rc</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>preserve_patterns</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+    <span class='comment'># Custom aliases from config (merge with built-in)
+</span>    <span class='kw'>if</span> <span class='id identifier rubyid_rc'>rc</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>section_aliases</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_rc'>rc</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>section_aliases</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Hash</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:aliases</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#SECTION_ALIASES-constant" title="Kettle::Jem::MarkdownMerger::SECTION_ALIASES (constant)">SECTION_ALIASES</a></span></span><span class='period'>.</span><span class='id identifier rubyid_merge'><span class='object_link'><a href="#merge-class_method" title="Kettle::Jem::MarkdownMerger.merge (method)">merge</a></span></span><span class='lparen'>(</span>
+        <span class='id identifier rubyid_rc'>rc</span><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>section_aliases</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_transform_keys'>transform_keys</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_k'>k</span><span class='op'>|</span> <span class='id identifier rubyid_k'>k</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span> <span class='rbrace'>}</span>
+                             <span class='period'>.</span><span class='id identifier rubyid_transform_values'>transform_values</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_v'>v</span><span class='op'>|</span> <span class='id identifier rubyid_v'>v</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span> <span class='rbrace'>}</span><span class='comma'>,</span>
+      <span class='rparen'>)</span>
+    <span class='kw'>end</span>
+
+    <span class='id identifier rubyid_config'>config</span>
+  <span class='kw'>rescue</span> <span class='const'>StandardError</span>
+    <span class='lbrace'>{</span><span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="markdown_analysis-class_method">
+  
+    .<strong>markdown_analysis</strong>(md)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+264
+265
+266
+267
+268
+269</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 264</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_markdown_analysis'>markdown_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_md'>md</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>=</span> <span class='const'>Markly</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>FileAnalysis</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='id identifier rubyid_md'>md</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='kw'>if</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_valid?'>valid?</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span>
+  <span class='kw'>nil</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="matches_preserve_pattern?-class_method">
+  
+    .<strong>matches_preserve_pattern?</strong>(base, patterns)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Check if a heading base name matches any of the given glob-style patterns.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>base</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Normalized heading base name</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>patterns</span>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Glob patterns (e.g. “note:<em>”, “setup</em>”)</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+447
+448
+449</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 447</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_matches_preserve_pattern?'>matches_preserve_pattern?</span><span class='lparen'>(</span><span class='id identifier rubyid_base'>base</span><span class='comma'>,</span> <span class='id identifier rubyid_patterns'>patterns</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_patterns'>patterns</span><span class='period'>.</span><span class='id identifier rubyid_any?'>any?</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_pat'>pat</span><span class='op'>|</span> <span class='const'>File</span><span class='period'>.</span><span class='id identifier rubyid_fnmatch?'>fnmatch?</span><span class='lparen'>(</span><span class='id identifier rubyid_pat'>pat</span><span class='comma'>,</span> <span class='id identifier rubyid_base'>base</span><span class='comma'>,</span> <span class='const'>File</span><span class='op'>::</span><span class='const'>FNM_PATHNAME</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge-class_method">
+  
+    .<strong>merge</strong>(template_content:, destination_content:, preset: nil, preserve_config: nil)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Merge README content by using the template as-is and replacing<br />
+designated sections with their destination counterparts.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Template content (after token replacement)</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>destination_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Existing destination content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>preset</span>
+      
+      
+        <span class='type'>(<tt>Ast::Merge::Recipe::Config</tt>, <tt>nil</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>nil</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'><p>Optional executable recipe</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Merged content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 78</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span><span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>destination_content:</span><span class='comma'>,</span> <span class='label'>preset:</span> <span class='kw'>nil</span><span class='comma'>,</span> <span class='label'>preserve_config:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_template_content'>template_content</span> <span class='kw'>if</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_validate_fenced_code_blocks!'>validate_fenced_code_blocks!</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>label:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>destination README</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_recipe'>recipe</span> <span class='op'>=</span> <span class='id identifier rubyid_preset'>preset</span> <span class='op'>||</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='period'>.</span><span class='id identifier rubyid_recipe'><span class='object_link'><a href="../Jem.html#recipe-class_method" title="Kettle::Jem.recipe (method)">recipe</a></span></span><span class='lparen'>(</span><span class='symbol'>:readme</span><span class='rparen'>)</span>
+  <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>Recipe</span><span class='op'>::</span><span class='const'>Runner</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='id identifier rubyid_recipe'>recipe</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_run_content'>run_content</span><span class='lparen'>(</span>
+    <span class='label'>template_content:</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>destination_content:</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='label'>relative_path:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>README.md</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+    <span class='label'>context:</span> <span class='lbrace'>{</span><span class='label'>preserve_config:</span> <span class='id identifier rubyid_preserve_config'>preserve_config</span> <span class='op'>||</span> <span class='id identifier rubyid_load_preserve_config'>load_preserve_config</span><span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize_heading_base-class_method">
+  
+    .<strong>normalize_heading_base</strong>(text)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+363
+364
+365</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 363</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize_heading_base'>normalize_heading_base</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_strip_leading_heading_adornment'><span class='object_link'><a href="../../top-level-namespace.html#strip_leading_heading_adornment-instance_method" title="#strip_leading_heading_adornment (method)">strip_leading_heading_adornment</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="note_heading?-class_method">
+  
+    .<strong>note_heading?</strong>(base)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+371
+372
+373</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 371</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_note_heading?'>note_heading?</span><span class='lparen'>(</span><span class='id identifier rubyid_base'>base</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_base'>base</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="#NOTE_PREFIX-constant" title="Kettle::Jem::MarkdownMerger::NOTE_PREFIX (constant)">NOTE_PREFIX</a></span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="parse_sections-class_method">
+  
+    .<strong>parse_sections</strong>(md)  &#x21d2; <tt>Hash</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Parse Markdown into a sections structure.<br />
+Uses markly-merge analysis so only real top-level heading statements are<br />
+considered; headings inside fenced code blocks are naturally excluded.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>md</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Markdown content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>{ lines:, sections:, line_count: }</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+214
+215
+216
+217
+218
+219
+220
+221
+222
+223</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 214</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_parse_sections'>parse_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_md'>md</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='lbrace'>{</span><span class='label'>lines:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>sections:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>line_count:</span> <span class='int'>0</span><span class='rbrace'>}</span> <span class='kw'>unless</span> <span class='id identifier rubyid_md'>md</span>
+
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_md'>md</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_line_count'>line_count</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>=</span> <span class='id identifier rubyid_markdown_analysis'>markdown_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_md'>md</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sections'>sections</span> <span class='op'>=</span> <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>?</span> <span class='id identifier rubyid_heading_sections_from_analysis'>heading_sections_from_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span> <span class='op'>:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+
+  <span class='lbrace'>{</span><span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='label'>sections:</span> <span class='id identifier rubyid_sections'>sections</span><span class='comma'>,</span> <span class='label'>line_count:</span> <span class='id identifier rubyid_line_count'>line_count</span><span class='comma'>,</span> <span class='label'>analysis:</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="preserve_h1-class_method">
+  
+    .<strong>preserve_h1</strong>(merged, destination)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Preserve the destination H1 only when its semantic text differs from<br />
+the merged/template H1.</p>
+
+<p>This remains line-based because an H1 heading section encompasses the<br />
+entire Markdown document (no same-or-higher-level heading follows), so<br />
+PTM section replacement cannot be used for a single-line H1 swap.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>merged</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Current merged content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>destination</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Original destination content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Content with H1 restored from destination</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 158</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_preserve_h1'>preserve_h1</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span> <span class='id identifier rubyid_destination'>destination</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_h1'>destination_h1</span> <span class='op'>=</span> <span class='id identifier rubyid_parse_sections'>parse_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_destination'>destination</span><span class='rparen'>)</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_find'>find</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_section'>section</span><span class='op'>|</span> <span class='id identifier rubyid_section'>section</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='int'>1</span> <span class='rbrace'>}</span>
+  <span class='id identifier rubyid_merged_h1'>merged_h1</span> <span class='op'>=</span> <span class='id identifier rubyid_parse_sections'>parse_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='rparen'>)</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_find'>find</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_section'>section</span><span class='op'>|</span> <span class='id identifier rubyid_section'>section</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='int'>1</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_merged'>merged</span> <span class='kw'>unless</span> <span class='id identifier rubyid_destination_h1'>destination_h1</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_merged_h1'>merged_h1</span>
+
+  <span class='id identifier rubyid_replacement'>replacement</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_h1'>destination_h1</span><span class='lbracket'>[</span><span class='symbol'>:source</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_merged'>merged</span> <span class='kw'>if</span> <span class='id identifier rubyid_replacement'>replacement</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>||</span> <span class='id identifier rubyid_replacement'>replacement</span> <span class='op'>==</span> <span class='id identifier rubyid_merged_h1'>merged_h1</span><span class='lbracket'>[</span><span class='symbol'>:source</span><span class='rbracket'>]</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_merged'>merged</span> <span class='kw'>if</span> <span class='id identifier rubyid_semantic_heading_text'>semantic_heading_text</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_h1'>destination_h1</span><span class='lbracket'>[</span><span class='symbol'>:heading_text</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='op'>==</span> <span class='id identifier rubyid_semantic_heading_text'>semantic_heading_text</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_h1'>merged_h1</span><span class='lbracket'>[</span><span class='symbol'>:heading_text</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+
+  <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>StructuralEdit</span><span class='op'>::</span><span class='const'>PlanSet</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span>
+    <span class='label'>source:</span> <span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span>
+    <span class='label'>plans:</span> <span class='lbracket'>[</span>
+      <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>StructuralEdit</span><span class='op'>::</span><span class='const'>SplicePlan</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span>
+        <span class='label'>source:</span> <span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span>
+        <span class='label'>replacement:</span> <span class='id identifier rubyid_replacement'>replacement</span><span class='comma'>,</span>
+        <span class='label'>replace_start_line:</span> <span class='id identifier rubyid_merged_h1'>merged_h1</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+        <span class='label'>replace_end_line:</span> <span class='id identifier rubyid_merged_h1'>merged_h1</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+        <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+          <span class='label'>source:</span> <span class='symbol'>:kettle_jem_markdown_merger</span><span class='comma'>,</span>
+          <span class='label'>edit:</span> <span class='symbol'>:preserve_h1</span><span class='comma'>,</span>
+        <span class='rbrace'>}</span><span class='comma'>,</span>
+      <span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+      <span class='label'>source:</span> <span class='symbol'>:kettle_jem_markdown_merger</span><span class='comma'>,</span>
+      <span class='label'>edit:</span> <span class='symbol'>:preserve_h1</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_merged_content'>merged_content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="preserve_sections-class_method">
+  
+    .<strong>preserve_sections</strong>(template, destination, preserve_config: nil)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Replace designated sections in the template with their destination<br />
+counterparts using PartialTemplateMerger in replace_mode.</p>
+
+<p>For each preserved section found in both template and destination,<br />
+PTM is invoked with roles swapped:<br />
+  PTM destination: = running document (template being modified)<br />
+  PTM template:    = section content extracted from original destination</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The resolved template content (base document)</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>destination</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The original destination content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>preserve_config</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>, <tt>nil</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>nil</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'><p>Optional config with :sections and :patterns</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Content with preserved sections restored from destination</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 104</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_preserve_sections'>preserve_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_template'>template</span><span class='comma'>,</span> <span class='id identifier rubyid_destination'>destination</span><span class='comma'>,</span> <span class='label'>preserve_config:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dest_sections'>dest_sections</span> <span class='op'>=</span> <span class='id identifier rubyid_parse_sections'>parse_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_destination'>destination</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dest_lookup'>dest_lookup</span> <span class='op'>=</span> <span class='id identifier rubyid_build_section_lookup'>build_section_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_dest_sections'>dest_sections</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_src_sections'>src_sections</span> <span class='op'>=</span> <span class='id identifier rubyid_parse_sections'>parse_sections</span><span class='lparen'>(</span><span class='id identifier rubyid_template'>template</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_config'>config</span> <span class='op'>=</span> <span class='id identifier rubyid_preserve_config'>preserve_config</span> <span class='op'>||</span> <span class='id identifier rubyid_load_preserve_config'>load_preserve_config</span>
+  <span class='id identifier rubyid_preserve_targets'>preserve_targets</span> <span class='op'>=</span> <span class='id identifier rubyid_resolve_preserve_targets'>resolve_preserve_targets</span><span class='lparen'>(</span><span class='id identifier rubyid_src_sections'>src_sections</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='comma'>,</span> <span class='id identifier rubyid_config'>config</span><span class='rparen'>)</span>
+
+  <span class='kw'>return</span> <span class='id identifier rubyid_template'>template</span> <span class='kw'>if</span> <span class='id identifier rubyid_src_sections'>src_sections</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_running'>running</span> <span class='op'>=</span> <span class='id identifier rubyid_template'>template</span>
+
+  <span class='comment'># Process each section that should be preserved from destination.
+</span>  <span class='comment'># Order doesn&#39;t matter because each PTM call re-parses the running
+</span>  <span class='comment'># document and targets by heading text, not by line index.
+</span>  <span class='id identifier rubyid_src_sections'>src_sections</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_sec'>sec</span><span class='op'>|</span>
+    <span class='kw'>next</span> <span class='kw'>unless</span> <span class='id identifier rubyid_preserve_targets'>preserve_targets</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+
+    <span class='id identifier rubyid_dest_entry'>dest_entry</span> <span class='op'>=</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='lbracket'>[</span><span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span><span class='rbracket'>]</span>
+    <span class='comment'># If no direct match, try alias mapping from destination
+</span>    <span class='id identifier rubyid_dest_entry'>dest_entry</span> <span class='op'>||=</span> <span class='id identifier rubyid_find_aliased_dest_entry'>find_aliased_dest_entry</span><span class='lparen'>(</span><span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='comma'>,</span> <span class='id identifier rubyid_config'>config</span><span class='rparen'>)</span>
+    <span class='kw'>next</span> <span class='kw'>unless</span> <span class='id identifier rubyid_dest_entry'>dest_entry</span>
+
+    <span class='comment'># Build the replacement content: heading (from template) + body (from destination)
+</span>    <span class='id identifier rubyid_replacement_content'>replacement_content</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:heading</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_entry'>dest_entry</span><span class='lbracket'>[</span><span class='symbol'>:body_branch</span><span class='rbracket'>]</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+    <span class='comment'># Use PTM with replace_mode to swap the template&#39;s section with destination&#39;s.
+</span>    <span class='comment'># Roles are inverted: PTM &quot;template:&quot; holds the destination content to inject,
+</span>    <span class='comment'># and PTM &quot;destination:&quot; holds the running document being modified.
+</span>    <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='const'>Markly</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>PartialTemplateMerger</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span>
+      <span class='label'>template:</span> <span class='id identifier rubyid_replacement_content'>replacement_content</span><span class='comma'>,</span>
+      <span class='label'>destination:</span> <span class='id identifier rubyid_running'>running</span><span class='comma'>,</span>
+      <span class='label'>anchor:</span> <span class='lbrace'>{</span><span class='label'>type:</span> <span class='symbol'>:heading</span><span class='comma'>,</span> <span class='label'>text:</span> <span class='id identifier rubyid_build_anchor_pattern'>build_anchor_pattern</span><span class='lparen'>(</span><span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:heading_text</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='rbrace'>}</span><span class='comma'>,</span>
+      <span class='label'>replace_mode:</span> <span class='kw'>true</span><span class='comma'>,</span>
+      <span class='label'>when_missing:</span> <span class='symbol'>:skip</span><span class='comma'>,</span>
+      <span class='label'>backend:</span> <span class='symbol'>:markly</span><span class='comma'>,</span>
+    <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_merge'>merge</span>
+
+    <span class='id identifier rubyid_running'>running</span> <span class='op'>=</span> <span class='id identifier rubyid_result'>result</span><span class='period'>.</span><span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_result'>result</span><span class='period'>.</span><span class='id identifier rubyid_changed'>changed</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_running'>running</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="resolve_preserve_targets-class_method">
+  
+    .<strong>resolve_preserve_targets</strong>(src_sections, dest_lookup, config)  &#x21d2; <tt>Array&lt;String&gt;</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Build the effective list of section base names to preserve,<br />
+combining configured sections, aliases, and pattern matches.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>src_sections</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Parsed template sections</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>dest_lookup</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Destination section lookup</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>config</span>
+      
+      
+        <span class='type'>(<tt>Hash</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Preserve config with :sections and :patterns</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Normalized base names to preserve</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+398
+399
+400
+401
+402
+403
+404
+405
+406
+407
+408
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 398</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_resolve_preserve_targets'>resolve_preserve_targets</span><span class='lparen'>(</span><span class='id identifier rubyid_src_sections'>src_sections</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='comma'>,</span> <span class='id identifier rubyid_config'>config</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_explicit'>explicit</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_map'>map</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_s'>s</span><span class='op'>|</span> <span class='id identifier rubyid_s'>s</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span> <span class='rbrace'>}</span>
+  <span class='id identifier rubyid_explicit'>explicit</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#DEFAULT_PRESERVE_SECTIONS-constant" title="Kettle::Jem::MarkdownMerger::DEFAULT_PRESERVE_SECTIONS (constant)">DEFAULT_PRESERVE_SECTIONS</a></span></span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span> <span class='kw'>if</span> <span class='id identifier rubyid_explicit'>explicit</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_patterns'>patterns</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:patterns</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_map'>map</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_p'>p</span><span class='op'>|</span> <span class='id identifier rubyid_p'>p</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span> <span class='rbrace'>}</span>
+  <span class='id identifier rubyid_patterns'>patterns</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#DEFAULT_PRESERVE_PATTERNS-constant" title="Kettle::Jem::MarkdownMerger::DEFAULT_PRESERVE_PATTERNS (constant)">DEFAULT_PRESERVE_PATTERNS</a></span></span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span> <span class='kw'>if</span> <span class='id identifier rubyid_patterns'>patterns</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_aliases'>aliases</span> <span class='op'>=</span> <span class='id identifier rubyid_config'>config</span><span class='lbracket'>[</span><span class='symbol'>:aliases</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='const'><span class='object_link'><a href="#SECTION_ALIASES-constant" title="Kettle::Jem::MarkdownMerger::SECTION_ALIASES (constant)">SECTION_ALIASES</a></span></span>
+
+  <span class='id identifier rubyid_targets'>targets</span> <span class='op'>=</span> <span class='id identifier rubyid_explicit'>explicit</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+
+  <span class='comment'># Add pattern-matched sections from the template
+</span>  <span class='id identifier rubyid_src_sections'>src_sections</span><span class='lbracket'>[</span><span class='symbol'>:sections</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_sec'>sec</span><span class='op'>|</span>
+    <span class='id identifier rubyid_base'>base</span> <span class='op'>=</span> <span class='id identifier rubyid_sec'>sec</span><span class='lbracket'>[</span><span class='symbol'>:base</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_targets'>targets</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_base'>base</span> <span class='kw'>if</span> <span class='id identifier rubyid_matches_preserve_pattern?'>matches_preserve_pattern?</span><span class='lparen'>(</span><span class='id identifier rubyid_base'>base</span><span class='comma'>,</span> <span class='id identifier rubyid_patterns'>patterns</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='comment'># Also add any aliased names that map into our targets
+</span>  <span class='id identifier rubyid_aliases'>aliases</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_from'>from</span><span class='comma'>,</span> <span class='id identifier rubyid_to'>to</span><span class='op'>|</span>
+    <span class='id identifier rubyid_targets'>targets</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_to'>to</span> <span class='kw'>if</span> <span class='id identifier rubyid_dest_lookup'>dest_lookup</span><span class='period'>.</span><span class='id identifier rubyid_key?'>key?</span><span class='lparen'>(</span><span class='id identifier rubyid_from'>from</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_targets'>targets</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_to'>to</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_targets'>targets</span><span class='period'>.</span><span class='id identifier rubyid_uniq'>uniq</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="section_body_branch-class_method">
+  
+    .<strong>section_body_branch</strong>(parsed, section, body_end_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+379
+380
+381
+382
+383
+384
+385
+386
+387
+388
+389</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 379</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_section_body_branch'>section_body_branch</span><span class='lparen'>(</span><span class='id identifier rubyid_parsed'>parsed</span><span class='comma'>,</span> <span class='id identifier rubyid_section'>section</span><span class='comma'>,</span> <span class='id identifier rubyid_body_end_index'>body_end_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_start_line'>start_line</span> <span class='op'>=</span> <span class='id identifier rubyid_section'>section</span><span class='lbracket'>[</span><span class='symbol'>:start</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>2</span>
+  <span class='id identifier rubyid_end_line'>end_line</span> <span class='op'>=</span> <span class='id identifier rubyid_body_end_index'>body_end_index</span> <span class='op'>+</span> <span class='int'>1</span>
+  <span class='kw'>return</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>if</span> <span class='id identifier rubyid_end_line'>end_line</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_start_line'>start_line</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:analysis</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:analysis</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_start_line'>start_line</span><span class='comma'>,</span> <span class='id identifier rubyid_end_line'>end_line</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='lparen'>(</span><span class='id identifier rubyid_parsed'>parsed</span><span class='lbracket'>[</span><span class='symbol'>:lines</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='lparen'>(</span><span class='id identifier rubyid_section'>section</span><span class='lbracket'>[</span><span class='symbol'>:start</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>1</span><span class='rparen'>)</span><span class='op'>..</span><span class='id identifier rubyid_body_end_index'>body_end_index</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="semantic_heading_text-class_method">
+  
+    .<strong>semantic_heading_text</strong>(text)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+367
+368
+369</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 367</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_semantic_heading_text'>semantic_heading_text</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_strip_leading_heading_adornment'><span class='object_link'><a href="../../top-level-namespace.html#strip_leading_heading_adornment-instance_method" title="#strip_leading_heading_adornment (method)">strip_leading_heading_adornment</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>[^\p{Alnum}\s]</span><span class='regexp_end'>/u</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_squeeze'>squeeze</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'> </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="strip_leading_heading_adornment-class_method">
+  
+    .<strong>strip_leading_heading_adornment</strong>(text)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+375
+376
+377</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 375</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_strip_leading_heading_adornment'><span class='object_link'><a href="../../top-level-namespace.html#strip_leading_heading_adornment-instance_method" title="#strip_leading_heading_adornment (method)">strip_leading_heading_adornment</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_text'>text</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_sub'>sub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\A(?:\d\uFE0F?\u20E3|[^[:alnum:][:space:]])+[ \t]*</span><span class='regexp_end'>/u</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unwrap_markdown_statement-class_method">
+  
+    .<strong>unwrap_markdown_statement</strong>(statement)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+311
+312
+313
+314
+315
+316
+317
+318
+319</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 311</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unwrap_markdown_statement'>unwrap_markdown_statement</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='kw'>defined?</span><span class='lparen'>(</span><span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>NodeTyping</span><span class='rparen'>)</span>
+    <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>NodeTyping</span><span class='period'>.</span><span class='id identifier rubyid_unwrap'>unwrap</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_statement'>statement</span>
+  <span class='kw'>end</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span>
+  <span class='id identifier rubyid_statement'>statement</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="validate_fenced_code_blocks!-class_method">
+  
+    .<strong>validate_fenced_code_blocks!</strong>(content, label: &quot;Markdown content&quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Validate that all fenced code blocks in content are properly closed.</p>
+
+<p>Unclosed fences cause the Markdown AST parser to swallow all subsequent<br />
+headings into the code block, which makes section-boundary computation<br />
+wrong and leads to content duplication during merge.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Markdown content to validate</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>label</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>&quot;Markdown content&quot;</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'><p>Human-readable label for error messages</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Raises:</p>
+<ul class="raise">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Kettle::Dev::Error</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>if an unclosed fenced code block is found</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341
+342
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/markdown_merger.rb', line 330</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_validate_fenced_code_blocks!'>validate_fenced_code_blocks!</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>label:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Markdown content</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>=</span> <span class='kw'>false</span>
+  <span class='id identifier rubyid_fence_marker'>fence_marker</span> <span class='op'>=</span> <span class='kw'>nil</span>
+  <span class='id identifier rubyid_fence_line'>fence_line</span> <span class='op'>=</span> <span class='kw'>nil</span>
+
+  <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_each_line'>each_line</span><span class='period'>.</span><span class='id identifier rubyid_with_index'>with_index</span><span class='lparen'>(</span><span class='int'>1</span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_line'>line</span><span class='comma'>,</span> <span class='id identifier rubyid_lineno'>lineno</span><span class='op'>|</span>
+    <span class='id identifier rubyid_stripped'>stripped</span> <span class='op'>=</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_lstrip'>lstrip</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_in_fence'>in_fence</span>
+      <span class='kw'>if</span> <span class='id identifier rubyid_stripped'>stripped</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\A</span><span class='embexpr_beg'>#{</span><span class='const'>Regexp</span><span class='period'>.</span><span class='id identifier rubyid_escape'>escape</span><span class='lparen'>(</span><span class='id identifier rubyid_fence_marker'>fence_marker</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_content'>\s*\z</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+        <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>=</span> <span class='kw'>false</span>
+        <span class='id identifier rubyid_fence_marker'>fence_marker</span> <span class='op'>=</span> <span class='kw'>nil</span>
+        <span class='id identifier rubyid_fence_line'>fence_line</span> <span class='op'>=</span> <span class='kw'>nil</span>
+      <span class='kw'>end</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_stripped'>stripped</span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\A(`{3,}|~{3,})</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_match'>match</span>
+      <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>=</span> <span class='kw'>true</span>
+      <span class='id identifier rubyid_fence_marker'>fence_marker</span> <span class='op'>=</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='int'>1</span><span class='rbracket'>]</span>
+      <span class='id identifier rubyid_fence_line'>fence_line</span> <span class='op'>=</span> <span class='id identifier rubyid_lineno'>lineno</span>
+    <span class='kw'>end</span>
+  <span class='kw'>end</span>
+
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_in_fence'>in_fence</span>
+
+  <span class='id identifier rubyid_raise'>raise</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='op'>::</span><span class='const'>Error</span><span class='comma'>,</span>
+    <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>[kettle-jem] Unclosed fenced code block in </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_label'>label</span><span class='embexpr_end'>}</span><span class='tstring_content'> </span><span class='tstring_end'>&quot;</span></span> \
+      <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>(opened at line </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_fence_line'>fence_line</span><span class='embexpr_end'>}</span><span class='tstring_content'> with </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_fence_marker'>fence_marker</span><span class='period'>.</span><span class='id identifier rubyid_inspect'>inspect</span><span class='embexpr_end'>}</span><span class='tstring_content'>). </span><span class='tstring_end'>&quot;</span></span> \
+      <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Close it with a matching </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_fence_marker'>fence_marker</span><span class='embexpr_end'>}</span><span class='tstring_content'> before running kettle-jem.</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:03 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

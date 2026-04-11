@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::GemRubyFloor
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::GemRubyFloor";
+  relpath = '../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../_index.html">Index (G)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span>
+     &raquo; 
+    <span class="title">GemRubyFloor</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::GemRubyFloor
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/gem_ruby_floor.rb<span class="defines">,<br />
+  lib/kettle/jem/gem_ruby_floor/resolver.rb,<br /> lib/kettle/jem/gem_ruby_floor/gemspec_floor.rb,<br /> lib/kettle/jem/gem_ruby_floor/gemspec_aligner.rb,<br /> lib/kettle/jem/gem_ruby_floor/shunted_dependencies.rb,<br /> lib/kettle/jem/gem_ruby_floor/dependency_comment_aligner.rb</span>
+</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Utilities for determining the minimum Ruby version floor required by a gem<br />
+or a set of gems, based on their +required_ruby_version+ metadata published<br />
+on RubyGems.org.</p>
+
+<p>This module is extracted here (in +kettle-jem+) so that both<br />
++kettle-jem-appraisals+ and the gemspec harmonization pipeline can share<br />
+the same floor-detection logic without duplication.</p>
+
+<p>== Sub-modules</p>
+
+<ul>
+  <li><span class='object_link'><a href="GemRubyFloor/Resolver.html" title="Kettle::Jem::GemRubyFloor::Resolver (class)">Resolver</a></span>       — thin RubyGems API client (HTTP, cached per instance)</li>
+  <li><span class='object_link'><a href="GemRubyFloor/GemspecFloor.html" title="Kettle::Jem::GemRubyFloor::GemspecFloor (module)">GemspecFloor</a></span>   — computes the max min-ruby across a set of runtime deps</li>
+  <li><span class='object_link'><a href="GemRubyFloor/ShuntedDependencies.html" title="Kettle::Jem::GemRubyFloor::ShuntedDependencies (module)">ShuntedDependencies</a></span> — classifies dev deps that must be moved to a modular gemfile</li>
+  <li><span class='object_link'><a href="GemRubyFloor/GemspecAligner.html" title="Kettle::Jem::GemRubyFloor::GemspecAligner (module)">GemspecAligner</a></span> — auto-aligns +required_ruby_version+ in a gemspec to the floor</li>
+  <li><span class='object_link'><a href="GemRubyFloor/DependencyCommentAligner.html" title="Kettle::Jem::GemRubyFloor::DependencyCommentAligner (module)">DependencyCommentAligner</a></span> — rewrites +# ruby &gt;= N.N+ trailing comments on dep lines</li>
+</ul>
+
+<p>== Key constant</p>
+
+<p><span class='object_link'><a href="#MINIMUM_RUBY_FLOOR-constant" title="Kettle::Jem::GemRubyFloor::MINIMUM_RUBY_FLOOR (constant)">MINIMUM_RUBY_FLOOR</a></span> — absolute minimum Ruby version supported by the<br />
++setup-ruby+ GitHub Action (+2.3+). Any computed floor below this value is<br />
+clamped upward to this constant.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><h2>Defined Under Namespace</h2>
+<p class="children">
+  
+    
+      <strong class="modules">Modules:</strong> <span class='object_link'><a href="GemRubyFloor/DependencyCommentAligner.html" title="Kettle::Jem::GemRubyFloor::DependencyCommentAligner (module)">DependencyCommentAligner</a></span>, <span class='object_link'><a href="GemRubyFloor/GemspecAligner.html" title="Kettle::Jem::GemRubyFloor::GemspecAligner (module)">GemspecAligner</a></span>, <span class='object_link'><a href="GemRubyFloor/GemspecFloor.html" title="Kettle::Jem::GemRubyFloor::GemspecFloor (module)">GemspecFloor</a></span>, <span class='object_link'><a href="GemRubyFloor/ShuntedDependencies.html" title="Kettle::Jem::GemRubyFloor::ShuntedDependencies (module)">ShuntedDependencies</a></span>
+    
+  
+    
+      <strong class="classes">Classes:</strong> <span class='object_link'><a href="GemRubyFloor/Resolver.html" title="Kettle::Jem::GemRubyFloor::Resolver (class)">Resolver</a></span>
+    
+  
+</p>
+
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="MINIMUM_RUBY_FLOOR-constant" class="">MINIMUM_RUBY_FLOOR =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Absolute minimum Ruby version supported by the +setup-ruby+ GitHub Action.<br />
+Any gem whose +required_ruby_version+ is lower than this still works in CI<br />
+because setup-ruby can never provision a Ruby older than 2.3.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Gem::Version</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='const'>Gem</span><span class='op'>::</span><span class='const'>Version</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>2.3</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:03 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::PrismGemfile
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::PrismGemfile";
+  relpath = '../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../_index.html">Index (P)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span>
+     &raquo; 
+    <span class="title">PrismGemfile</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::PrismGemfile
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/prism_gemfile.rb<span class="defines">,<br />
+  lib/kettle/jem/prism_gemfile/tombstone_policy.rb,<br /> lib/kettle/jem/prism_gemfile/merge_entry_policy.rb,<br /> lib/kettle/jem/prism_gemfile/removal_edit_policy.rb,<br /> lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb,<br /> lib/kettle/jem/prism_gemfile/local_override_policy.rb,<br /> lib/kettle/jem/prism_gemfile/merge_pipeline_policy.rb,<br /> lib/kettle/jem/prism_gemfile/tombstone_edit_policy.rb,<br /> lib/kettle/jem/prism_gemfile/dependency_removal_policy.rb,<br /> lib/kettle/jem/prism_gemfile/declaration_context_policy.rb</span>
+</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Prism helpers for Gemfile-like merging.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><h2>Defined Under Namespace</h2>
+<p class="children">
+  
+    
+      <strong class="modules">Modules:</strong> <span class='object_link'><a href="PrismGemfile/DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span>, <span class='object_link'><a href="PrismGemfile/DependencyRemovalPolicy.html" title="Kettle::Jem::PrismGemfile::DependencyRemovalPolicy (module)">DependencyRemovalPolicy</a></span>, <span class='object_link'><a href="PrismGemfile/LocalOverridePolicy.html" title="Kettle::Jem::PrismGemfile::LocalOverridePolicy (module)">LocalOverridePolicy</a></span>, <span class='object_link'><a href="PrismGemfile/MergeEntryPolicy.html" title="Kettle::Jem::PrismGemfile::MergeEntryPolicy (module)">MergeEntryPolicy</a></span>, <span class='object_link'><a href="PrismGemfile/MergePipelinePolicy.html" title="Kettle::Jem::PrismGemfile::MergePipelinePolicy (module)">MergePipelinePolicy</a></span>, <span class='object_link'><a href="PrismGemfile/MergeRuntimePolicy.html" title="Kettle::Jem::PrismGemfile::MergeRuntimePolicy (module)">MergeRuntimePolicy</a></span>, <span class='object_link'><a href="PrismGemfile/RemovalEditPolicy.html" title="Kettle::Jem::PrismGemfile::RemovalEditPolicy (module)">RemovalEditPolicy</a></span>, <span class='object_link'><a href="PrismGemfile/TombstoneEditPolicy.html" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy (module)">TombstoneEditPolicy</a></span>, <span class='object_link'><a href="PrismGemfile/TombstonePolicy.html" title="Kettle::Jem::PrismGemfile::TombstonePolicy (module)">TombstonePolicy</a></span>
+    
+  
+    
+  
+</p>
+
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="CONFLICTING_GEMS-constant" class="">CONFLICTING_GEMS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Gems that conflict with the kettle-jem template regardless of origin:</p>
+<ul>
+  <li>“appraisal”: old pattern; replaced by the appraisal2 hard-fork (same executable,<br />
+incompatible API). Must be removed from Gemfile and Appraisal.root.gemfile on merge.</li>
+</ul>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='qwords_beg'>%w[</span><span class='tstring_content'>appraisal</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge-class_method" title="merge (class method)">.<strong>merge</strong>(src_content, dest_content, merger_options: {}, filter_template: false, path: &quot;Gemfile&quot;, force: false, preset: nil, context: nil, **options)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge_bootstrap_local_gem_overrides-class_method" title="merge_bootstrap_local_gem_overrides (class method)">.<strong>merge_bootstrap_local_gem_overrides</strong>(source_content, destination_content, excluded_gems: [])  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge_gem_calls-class_method" title="merge_gem_calls (class method)">.<strong>merge_gem_calls</strong>(src_content, dest_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Merge top-level Gemfile declarations from src_content into dest_content.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge_local_gem_overrides-class_method" title="merge_local_gem_overrides (class method)">.<strong>merge_local_gem_overrides</strong>(content, destination_content, excluded_gems: [])  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize_leading_spacing_after_magic_comments-class_method" title="normalize_leading_spacing_after_magic_comments (class method)">.<strong>normalize_leading_spacing_after_magic_comments</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#remove_gem_dependency-class_method" title="remove_gem_dependency (class method)">.<strong>remove_gem_dependency</strong>(content, gem_name)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Remove gem calls that reference the given gem name (to prevent self-dependency).</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#truthy_option%3F-class_method" title="truthy_option? (class method)">.<strong>truthy_option?</strong>(value)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#validate_merged_result-class_method" title="validate_merged_result (class method)">.<strong>validate_merged_result</strong>(merged_content, template_content:, path:, force: false)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#validate_no_cross_nesting_duplicates-class_method" title="validate_no_cross_nesting_duplicates (class method)">.<strong>validate_no_cross_nesting_duplicates</strong>(merged_content, template_content, path: &quot;Gemfile&quot;)  &#x21d2; void </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Validate that the merged content does not contain the same gem nested inside block nodes with different signatures.</p>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="merge-class_method">
+  
+    .<strong>merge</strong>(src_content, dest_content, merger_options: {}, filter_template: false, path: &quot;Gemfile&quot;, force: false, preset: nil, context: nil, **options)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 26</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span><span class='id identifier rubyid_src_content'>src_content</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_content'>dest_content</span><span class='comma'>,</span> <span class='label'>merger_options:</span> <span class='lbrace'>{</span><span class='rbrace'>}</span><span class='comma'>,</span> <span class='label'>filter_template:</span> <span class='kw'>false</span><span class='comma'>,</span> <span class='label'>path:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemfile</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='label'>force:</span> <span class='kw'>false</span><span class='comma'>,</span> <span class='label'>preset:</span> <span class='kw'>nil</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='kw'>nil</span><span class='comma'>,</span> <span class='op'>**</span><span class='id identifier rubyid_options'>options</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_smart_merge_options'>smart_merge_options</span> <span class='op'>=</span> <span class='id identifier rubyid_merger_options'>merger_options</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_signature_for'>signature_for</span> <span class='op'>=</span> <span class='id identifier rubyid_smart_merge_options'>smart_merge_options</span><span class='period'>.</span><span class='id identifier rubyid_delete'>delete</span><span class='lparen'>(</span><span class='symbol'>:signature_generator</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="Signatures.html" title="Kettle::Jem::Signatures (module)">Signatures</a></span></span><span class='period'>.</span><span class='id identifier rubyid_gemfile'><span class='object_link'><a href="Signatures.html#gemfile-class_method" title="Kettle::Jem::Signatures.gemfile (method)">gemfile</a></span></span>
+
+  <span class='id identifier rubyid_merged'>merged</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="PrismGemfile/MergePipelinePolicy.html" title="Kettle::Jem::PrismGemfile::MergePipelinePolicy (module)">MergePipelinePolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_merge'><span class='object_link'><a href="PrismGemfile/MergePipelinePolicy.html#merge-class_method" title="Kettle::Jem::PrismGemfile::MergePipelinePolicy.merge (method)">merge</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_src_content'>src_content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_dest_content'>dest_content</span><span class='comma'>,</span>
+    <span class='label'>runtime:</span> <span class='const'><span class='object_link'><a href="PrismGemfile/MergeRuntimePolicy.html" title="Kettle::Jem::PrismGemfile::MergeRuntimePolicy (module)">MergeRuntimePolicy</a></span></span><span class='comma'>,</span>
+    <span class='label'>filter_template:</span> <span class='id identifier rubyid_filter_template'>filter_template</span><span class='comma'>,</span>
+    <span class='label'>signature_for:</span> <span class='id identifier rubyid_signature_for'>signature_for</span><span class='comma'>,</span>
+    <span class='label'>merge_body:</span> <span class='id identifier rubyid_lambda'>lambda</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='op'>|</span>
+      <span class='kw'>if</span> <span class='id identifier rubyid_preset'>preset</span>
+        <span class='id identifier rubyid_run_options'>run_options</span> <span class='op'>=</span> <span class='lbrace'>{</span>
+          <span class='label'>template_content:</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+          <span class='label'>destination_content:</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+          <span class='label'>relative_path:</span> <span class='id identifier rubyid_path'>path</span><span class='comma'>,</span>
+        <span class='rbrace'>}</span>
+        <span class='id identifier rubyid_run_options'>run_options</span><span class='lbracket'>[</span><span class='symbol'>:context</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='id identifier rubyid_context'>context</span> <span class='kw'>if</span> <span class='id identifier rubyid_context'>context</span>
+
+        <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>Recipe</span><span class='op'>::</span><span class='const'>Runner</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='id identifier rubyid_preset'>preset</span><span class='comma'>,</span> <span class='op'>**</span><span class='id identifier rubyid_options'>options</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_run_content'>run_content</span><span class='lparen'>(</span><span class='op'>**</span><span class='id identifier rubyid_run_options'>run_options</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_content'>content</span>
+      <span class='kw'>else</span>
+        <span class='const'>Prism</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>SmartMerger</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span>
+          <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+          <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+          <span class='op'>**</span><span class='id identifier rubyid_smart_merge_options'>smart_merge_options</span><span class='comma'>,</span>
+          <span class='label'>signature_generator:</span> <span class='id identifier rubyid_signature_for'>signature_for</span><span class='comma'>,</span>
+        <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_merge'>merge</span>
+      <span class='kw'>end</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_validated'>validated</span> <span class='op'>=</span> <span class='id identifier rubyid_validate_merged_result'>validate_merged_result</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span> <span class='label'>template_content:</span> <span class='id identifier rubyid_src_content'>src_content</span><span class='comma'>,</span> <span class='label'>path:</span> <span class='id identifier rubyid_path'>path</span><span class='comma'>,</span> <span class='label'>force:</span> <span class='id identifier rubyid_force'>force</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_normalize_leading_spacing_after_magic_comments'>normalize_leading_spacing_after_magic_comments</span><span class='lparen'>(</span><span class='id identifier rubyid_validated'>validated</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge_bootstrap_local_gem_overrides-class_method">
+  
+    .<strong>merge_bootstrap_local_gem_overrides</strong>(source_content, destination_content, excluded_gems: [])  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+99
+100
+101</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 99</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge_bootstrap_local_gem_overrides'>merge_bootstrap_local_gem_overrides</span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="PrismGemfile/LocalOverridePolicy.html" title="Kettle::Jem::PrismGemfile::LocalOverridePolicy (module)">LocalOverridePolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_merge_bootstrap'><span class='object_link'><a href="PrismGemfile/LocalOverridePolicy.html#merge_bootstrap-class_method" title="Kettle::Jem::PrismGemfile::LocalOverridePolicy.merge_bootstrap (method)">merge_bootstrap</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='id identifier rubyid_excluded_gems'>excluded_gems</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge_gem_calls-class_method">
+  
+    .<strong>merge_gem_calls</strong>(src_content, dest_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Merge top-level Gemfile declarations from src_content into dest_content.</p>
+<ul>
+  <li>Replaces dest <code>source</code> / <code>gemspec</code> calls with src’s when present.</li>
+  <li>Replaces or inserts non-comment <code>git_source</code> definitions.</li>
+  <li>Appends missing <code>gem</code> / <code>eval_gemfile</code> calls (by signature) from src to dest preserving dest content and newlines.<br />
+Uses Prism::Merge with pre-filtering to only merge top-level statements.</li>
+</ul>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 66</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge_gem_calls'>merge_gem_calls</span><span class='lparen'>(</span><span class='id identifier rubyid_src_content'>src_content</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_content'>dest_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_src_content'>src_content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_dest_content'>dest_content</span><span class='comma'>,</span>
+    <span class='label'>merger_options:</span> <span class='lbrace'>{</span>
+      <span class='label'>preference:</span> <span class='symbol'>:template</span><span class='comma'>,</span>
+      <span class='label'>add_template_only_nodes:</span> <span class='kw'>true</span><span class='comma'>,</span>
+      <span class='label'>signature_generator:</span> <span class='const'><span class='object_link'><a href="PrismGemfile/MergeEntryPolicy.html" title="Kettle::Jem::PrismGemfile::MergeEntryPolicy (module)">MergeEntryPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:signature_for</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+    <span class='label'>filter_template:</span> <span class='kw'>true</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge_local_gem_overrides-class_method">
+  
+    .<strong>merge_local_gem_overrides</strong>(content, destination_content, excluded_gems: [])  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+95
+96
+97</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 95</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge_local_gem_overrides'>merge_local_gem_overrides</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="PrismGemfile/LocalOverridePolicy.html" title="Kettle::Jem::PrismGemfile::LocalOverridePolicy (module)">LocalOverridePolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_merge'><span class='object_link'><a href="PrismGemfile/LocalOverridePolicy.html#merge-class_method" title="Kettle::Jem::PrismGemfile::LocalOverridePolicy.merge (method)">merge</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='id identifier rubyid_excluded_gems'>excluded_gems</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize_leading_spacing_after_magic_comments-class_method">
+  
+    .<strong>normalize_leading_spacing_after_magic_comments</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 141</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize_leading_spacing_after_magic_comments'>normalize_leading_spacing_after_magic_comments</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_header_magic_types'>header_magic_types</span> <span class='op'>=</span> <span class='const'>Prism</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>MagicCommentSupport</span><span class='period'>.</span><span class='id identifier rubyid_header_magic_comment_types_for_lines'>header_magic_comment_types_for_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_header_magic_types'>header_magic_types</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_header_end_index'>header_end_index</span> <span class='op'>=</span> <span class='id identifier rubyid_header_magic_types'>header_magic_types</span><span class='period'>.</span><span class='id identifier rubyid_keys'>keys</span><span class='period'>.</span><span class='id identifier rubyid_max'>max</span>
+  <span class='id identifier rubyid_tail'>tail</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_header_end_index'>header_end_index</span><span class='op'>..</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_first_nonempty_index'>first_nonempty_index</span> <span class='op'>=</span> <span class='id identifier rubyid_tail'>tail</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_line'>line</span><span class='op'>|</span> <span class='op'>!</span><span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_first_nonempty_index'>first_nonempty_index</span>
+
+  <span class='id identifier rubyid_normalized_tail'>normalized_tail</span> <span class='op'>=</span> <span class='id identifier rubyid_tail'>tail</span><span class='lbracket'>[</span><span class='id identifier rubyid_first_nonempty_index'>first_nonempty_index</span><span class='op'>..</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_normalized'>normalized</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_first'>first</span><span class='lparen'>(</span><span class='id identifier rubyid_header_end_index'>header_end_index</span><span class='rparen'>)</span> <span class='op'>+</span> <span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='id identifier rubyid_normalized_tail'>normalized_tail</span>
+  <span class='id identifier rubyid_normalized'>normalized</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="remove_gem_dependency-class_method">
+  
+    .<strong>remove_gem_dependency</strong>(content, gem_name)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Remove gem calls that reference the given gem name (to prevent self-dependency).<br />
+Recursively walks the AST to find gem calls inside platform/group/if/else blocks.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Gemfile-like content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>gem_name</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>the gem name to remove</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>modified content with self-referential gem calls removed</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 84</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_remove_gem_dependency'>remove_gem_dependency</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_gem_name'>gem_name</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="PrismGemfile/DependencyRemovalPolicy.html" title="Kettle::Jem::PrismGemfile::DependencyRemovalPolicy (module)">DependencyRemovalPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_remove_gem_dependency'><span class='object_link'><a href="PrismGemfile/DependencyRemovalPolicy.html#remove_gem_dependency-class_method" title="Kettle::Jem::PrismGemfile::DependencyRemovalPolicy.remove_gem_dependency (method)">remove_gem_dependency</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_gem_name'>gem_name</span><span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='kw'>if</span> <span class='kw'>defined?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:debug_error</span><span class='rparen'>)</span>
+    <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='period'>.</span><span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='const'>Kernel</span><span class='period'>.</span><span class='id identifier rubyid_warn'>warn</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>[</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid___method__'>__method__</span><span class='embexpr_end'>}</span><span class='tstring_content'>] </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_class'>class</span><span class='embexpr_end'>}</span><span class='tstring_content'>: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="truthy_option?-class_method">
+  
+    .<strong>truthy_option?</strong>(value)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+135
+136
+137
+138
+139</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 135</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_truthy_option?'>truthy_option?</span><span class='lparen'>(</span><span class='id identifier rubyid_value'>value</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_value'>value</span> <span class='kw'>if</span> <span class='id identifier rubyid_value'>value</span> <span class='op'>==</span> <span class='kw'>true</span> <span class='op'>||</span> <span class='id identifier rubyid_value'>value</span> <span class='op'>==</span> <span class='kw'>false</span>
+
+  <span class='qwords_beg'>%w[</span><span class='tstring_content'>1</span><span class='words_sep'> </span><span class='tstring_content'>true</span><span class='words_sep'> </span><span class='tstring_content'>y</span><span class='words_sep'> </span><span class='tstring_content'>yes</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_value'>value</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="validate_merged_result-class_method">
+  
+    .<strong>validate_merged_result</strong>(merged_content, template_content:, path:, force: false)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 124</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_validate_merged_result'>validate_merged_result</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_content'>merged_content</span><span class='comma'>,</span> <span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>path:</span><span class='comma'>,</span> <span class='label'>force:</span> <span class='kw'>false</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_validate_no_cross_nesting_duplicates'>validate_no_cross_nesting_duplicates</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_content'>merged_content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span> <span class='label'>path:</span> <span class='id identifier rubyid_path'>path</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merged_content'>merged_content</span>
+<span class='kw'>rescue</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="Error.html" title="Kettle::Jem::Error (class)">Error</a></span></span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_raise'>raise</span> <span class='kw'>unless</span> <span class='id identifier rubyid_truthy_option?'>truthy_option?</span><span class='lparen'>(</span><span class='id identifier rubyid_force'>force</span><span class='rparen'>)</span>
+
+  <span class='gvar'>$stderr</span><span class='period'>.</span><span class='id identifier rubyid_puts'>puts</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>[kettle-jem] WARNING: </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_e'>e</span><span class='period'>.</span><span class='id identifier rubyid_message'>message</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='gvar'>$stderr</span><span class='period'>.</span><span class='id identifier rubyid_puts'>puts</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>[kettle-jem] Falling back to template content for </span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_path'>path</span><span class='embexpr_end'>}</span><span class='tstring_content'> (--force)</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_template_content'>template_content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="validate_no_cross_nesting_duplicates-class_method">
+  
+    .<strong>validate_no_cross_nesting_duplicates</strong>(merged_content, template_content, path: &quot;Gemfile&quot;)  &#x21d2; <tt>void</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p class="note returns_void">This method returns an undefined value.</p><p>Validate that the merged content does not contain the same gem nested<br />
+inside block nodes with different signatures.</p>
+
+<p>When the merger encounters blocks with different signatures (e.g.,<br />
+<code>platform(:mri) do ... end</code> vs top-level, or <code>if ENV[...]</code> vs<br />
+<code>platform(:mri)</code>), it treats them as distinct nodes and keeps both.<br />
+If the same gem appears inside both, Bundler will reject the result:<br />
+“You cannot specify the same gem twice coming from different sources”.</p>
+
+<p>Mutually exclusive branches (if/else of the same conditional) are NOT<br />
+flagged — they share the same block signature since only one executes.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>merged_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The merged gemfile content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The template content (shown as reference in error)</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>path</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>&quot;Gemfile&quot;</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'><p>File path (for error messages)</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Raises:</p>
+<ul class="raise">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt><span class='object_link'><a href="Error.html" title="Kettle::Jem::Error (class)">Kettle::Jem::Error</a></span></tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>when a gem appears at different nesting levels</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+120
+121
+122</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile.rb', line 120</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_validate_no_cross_nesting_duplicates'>validate_no_cross_nesting_duplicates</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_content'>merged_content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span> <span class='label'>path:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Gemfile</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="PrismGemfile/DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_validate_no_cross_nesting_duplicates'><span class='object_link'><a href="PrismGemfile/DeclarationContextPolicy.html#validate_no_cross_nesting_duplicates-class_method" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy.validate_no_cross_nesting_duplicates (method)">validate_no_cross_nesting_duplicates</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_merged_content'>merged_content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span> <span class='label'>path:</span> <span class='id identifier rubyid_path'>path</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:03 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

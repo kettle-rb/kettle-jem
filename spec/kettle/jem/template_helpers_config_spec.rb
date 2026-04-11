@@ -180,8 +180,8 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
         expect(described_class.strategy_for(path)).to eq(:merge)
       end
 
-      it "returns :merge for .tool-versions" do
-        path = File.join(project_root, ".tool-versions")
+      it "returns :merge for mise.toml" do
+        path = File.join(project_root, "mise.toml")
         expect(described_class.strategy_for(path)).to eq(:merge)
       end
     end

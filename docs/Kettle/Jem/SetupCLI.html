@@ -6,7 +6,7 @@
 <title>
   Class: Kettle::Jem::SetupCLI
   
-    &mdash; Documentation by YARD 0.9.38
+    &mdash; Documentation by YARD 0.9.39
   
 </title>
 
@@ -118,6 +118,53 @@ key=value pairs (e.g., –force =&gt; force=true).</p>
   
 
 </div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="BUNDLED_GEMFILE_ENV-constant" class="">BUNDLED_GEMFILE_ENV =
+          
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>BUNDLE_GEMFILE</span><span class='tstring_end'>&quot;</span></span></pre></dd>
+      
+        <dt id="TEMPLATE_CONFIG_RELATIVE_PATH-constant" class="">TEMPLATE_CONFIG_RELATIVE_PATH =
+          
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>.kettle-jem.yml</span><span class='tstring_end'>&quot;</span></span></pre></dd>
+      
+        <dt id="BOOTSTRAP_GEMFILE_EVAL_PATHS-constant" class="">BOOTSTRAP_GEMFILE_EVAL_PATHS =
+          
+        </dt>
+        <dd><pre class="code"><span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>gemfiles/modular/templating.gemfile</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+        <dt id="SCAFFOLD_DEFAULT_GEMS-constant" class="">SCAFFOLD_DEFAULT_GEMS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Gems added by <code>bundle gem</code> scaffold that are covered by the kettle-jem template.<br />
+These are removed from the Gemfile during templating because they are either:</p>
+<ul>
+  <li>moved to the gemspec as development dependencies (rake, rspec)</li>
+  <li>managed by a modular gemfile (rubocop via style.gemfile/standard)<br />
+irb is intentionally excluded; it stays in the Gemfile via the template’s own declaration.</li>
+</ul>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='qwords_beg'>%w[</span><span class='tstring_content'>rake</span><span class='words_sep'> </span><span class='tstring_content'>rspec</span><span class='words_sep'> </span><span class='tstring_content'>rubocop</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+    </dl>
+  
+
 
 
 
@@ -180,6 +227,52 @@ key=value pairs (e.g., –force =&gt; force=true).</p>
 </li>
 
       
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#run_bootstrap_phase!-instance_method" title="#run_bootstrap_phase! (instance method)">#<strong>run_bootstrap_phase!</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#run_bundled_phase!-instance_method" title="#run_bundled_phase! (instance method)">#<strong>run_bundled_phase!</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
     </ul>
   
 
@@ -230,18 +323,20 @@ key=value pairs (e.g., –force =&gt; force=true).</p>
       <pre class="lines">
 
 
-21
-22
-23
-24
-25
-26</pre>
+38
+39
+40
+41
+42
+43
+44</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 21</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 38</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_initialize'>initialize</span><span class='lparen'>(</span><span class='id identifier rubyid_argv'>argv</span><span class='rparen'>)</span>
   <span class='ivar'>@argv</span> <span class='op'>=</span> <span class='id identifier rubyid_argv'>argv</span>
+  <span class='ivar'>@original_argv</span> <span class='op'>=</span> <span class='id identifier rubyid_argv'>argv</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
   <span class='ivar'>@passthrough</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
   <span class='ivar'>@options</span> <span class='op'>=</span> <span class='lbrace'>{</span><span class='rbrace'>}</span>
   <span class='id identifier rubyid_parse!'>parse!</span>
@@ -283,37 +378,135 @@ key=value pairs (e.g., –force =&gt; force=true).</p>
       <pre class="lines">
 
 
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43</pre>
+48
+49
+50
+51
+52
+53
+54</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 30</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 48</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_run!'>run!</span>
-  <span class='id identifier rubyid_say'>say</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Starting kettle-jem setup…</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_say'>say</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>Starting kettle-jem setup…</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='label'>verbose_only:</span> <span class='kw'>true</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_debug_bundler_env'>debug_bundler_env</span><span class='lparen'>(</span><span class='lbrace'>{</span><span class='rbrace'>}</span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>kettle-jem startup</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_run_bundled_phase!'>run_bundled_phase!</span> <span class='kw'>if</span> <span class='id identifier rubyid_bundled_execution_context?'>bundled_execution_context?</span>
+
+  <span class='id identifier rubyid_run_bootstrap_phase!'>run_bootstrap_phase!</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="run_bootstrap_phase!-instance_method">
+  
+    #<strong>run_bootstrap_phase!</strong>  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 56</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_run_bootstrap_phase!'>run_bootstrap_phase!</span>
   <span class='id identifier rubyid_prechecks!'>prechecks!</span>
-  <span class='id identifier rubyid_ensure_dev_deps!'>ensure_dev_deps!</span>
-  <span class='id identifier rubyid_ensure_gemfile_from_example!'>ensure_gemfile_from_example!</span>
-  <span class='id identifier rubyid_ensure_modular_gemfiles!'>ensure_modular_gemfiles!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>prechecks!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_prereq_result'>prereq_result</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_template_config_present?'>template_config_present?</span>
+    <span class='symbol'>:present</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_ensure_template_config_bootstrap!'>ensure_template_config_bootstrap!</span>
+  <span class='kw'>end</span>
+  <span class='kw'>return</span> <span class='kw'>if</span> <span class='id identifier rubyid_prereq_result'>prereq_result</span> <span class='op'>==</span> <span class='symbol'>:bootstrap_only</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_accept_config?'>accept_config?</span>
+
+  <span class='id identifier rubyid_run_preflight_templating!'>run_preflight_templating!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>run_preflight_templating!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
   <span class='id identifier rubyid_ensure_bin_setup!'>ensure_bin_setup!</span>
-  <span class='id identifier rubyid_ensure_rakefile!'>ensure_rakefile!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>ensure_bin_setup!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
   <span class='id identifier rubyid_run_bin_setup!'>run_bin_setup!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>run_bin_setup!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
   <span class='id identifier rubyid_run_bundle_binstubs!'>run_bundle_binstubs!</span>
-  <span class='id identifier rubyid_commit_bootstrap_changes!'>commit_bootstrap_changes!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>run_bundle_binstubs!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_handoff_to_bundled_phase!'>handoff_to_bundled_phase!</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="run_bundled_phase!-instance_method">
+  
+    #<strong>run_bundled_phase!</strong>  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/setup_cli.rb', line 77</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_run_bundled_phase!'>run_bundled_phase!</span>
+  <span class='id identifier rubyid_ensure_project_files!'>ensure_project_files!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>ensure_project_files! (bundled)</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_load_bundled_runtime!'>load_bundled_runtime!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>load_bundled_runtime!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_ensure_rakefile!'>ensure_rakefile!</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>ensure_rakefile!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
   <span class='id identifier rubyid_run_kettle_install!'>run_kettle_install!</span>
-  <span class='id identifier rubyid_say'>say</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>kettle-jem setup complete.</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_debug_git_status'>debug_git_status</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>run_kettle_install!</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_commit_bootstrap_changes!'>commit_bootstrap_changes!</span>
+  <span class='id identifier rubyid_say'>say</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>kettle-jem setup complete.</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='label'>verbose_only:</span> <span class='kw'>true</span><span class='rparen'>)</span>
 <span class='kw'>end</span></pre>
     </td>
   </tr>
@@ -325,9 +518,9 @@ key=value pairs (e.g., –force =&gt; force=true).</p>
 </div>
 
       <div id="footer">
-  Generated on Sun Mar  1 06:13:14 2026 by
+  Generated on Sat Apr 11 01:55:05 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
-  0.9.38 (ruby-4.0.1).
+  0.9.39 (ruby-4.0.2).
 </div>
 
     </div>

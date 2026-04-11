@@ -1,0 +1,2858 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::ChangelogMerger
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::ChangelogMerger";
+  relpath = '../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../_index.html">Index (C)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span>
+     &raquo; 
+    <span class="title">ChangelogMerger</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::ChangelogMerger
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/changelog_merger.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Merges CHANGELOG.md files following the Keep a Changelog convention.</p>
+
+<p>Strategy:</p>
+<ol>
+  <li>Template header (title, intro text) replaces destination header</li>
+  <li>Template’s canonical Unreleased section structure is used<br />
+(Added/Changed/Deprecated/Removed/Fixed/Security subheadings)</li>
+  <li>Destination’s existing Unreleased list items are preserved</li>
+  <li>Destination’s version history is fully preserved</li>
+</ol>
+
+<p>=== Migration note (Phase 6 — AST over regex)</p>
+
+<p>The Unreleased section replacement uses PartialTemplateMerger (PTM) from<br />
+markly-merge with +replace_mode: true+ for AST-aware section boundary<br />
+detection and source-preserving document splicing.</p>
+
+<p>The domain-specific +parse_items+ logic and +STD_HEADS+ canonical ordering<br />
+loop are retained because SmartMerger cannot express these semantics:</p>
+<ul>
+  <li>SmartMerger sorts matched nodes by destination index, not template index</li>
+  <li>Headings and lists are unpaired siblings in the Markdown AST</li>
+  <li>There is no +ordering: :template+ mode in FileAligner</li>
+</ul>
+
+<p>The header replacement (template header wins over destination header) and<br />
+release-header whitespace normalization remain as narrow line-based text<br />
+operations — accepted residual text handling per the migration plan.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+  <div class="examples">
+    <h4 class="tag_title">Examples:</h4>
+    
+      
+      <pre class="example code"><code><span class='id identifier rubyid_merged'>merged</span> <span class='op'>=</span> <span class='const'>ChangelogMerger</span><span class='period'>.</span><span class='id identifier rubyid_merge'><span class='object_link'><a href="#merge-class_method" title="Kettle::Jem::ChangelogMerger.merge (method)">merge</a></span></span><span class='lparen'>(</span>
+  <span class='label'>template_content:</span> <span class='id identifier rubyid_resolved_template'>resolved_template</span><span class='comma'>,</span>
+  <span class='label'>destination_content:</span> <span class='id identifier rubyid_existing_changelog'>existing_changelog</span><span class='comma'>,</span>
+<span class='rparen'>)</span></code></pre>
+    
+  </div>
+
+
+</div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="STD_HEADS-constant" class="">STD_HEADS =
+          <div class="docstring">
+  <div class="discussion">
+    <p>The six standard Keep-a-Changelog subheadings, in canonical order.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='lbracket'>[</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Added</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Changed</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Deprecated</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Removed</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Fixed</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### Security</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+<span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_freeze'>freeze</span></pre></dd>
+      
+        <dt id="UNRELEASED_PATTERN-constant" class="">UNRELEASED_PATTERN =
+          <div class="docstring">
+  <div class="discussion">
+    <p>Pattern matching the Unreleased heading in a CHANGELOG.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^##\s*\[\s*Unreleased\s*\]</span><span class='regexp_end'>/i</span></span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_canonical_unreleased-class_method" title="build_canonical_unreleased (class method)">.<strong>build_canonical_unreleased</strong>(heading, dest_items)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Build the canonical Unreleased section from template heading and destination list items in STD_HEADS order.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#bullet_line%3F-class_method" title="bullet_line? (class method)">.<strong>bullet_line?</strong>(line)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#changelog_analysis-class_method" title="changelog_analysis (class method)">.<strong>changelog_analysis</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#changelog_statement_entries-class_method" title="changelog_statement_entries (class method)">.<strong>changelog_statement_entries</strong>(analysis)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#collect_list_item_lines-class_method" title="collect_list_item_lines (class method)">.<strong>collect_list_item_lines</strong>(body_lines, start_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#extract_list_item_lines-class_method" title="extract_list_item_lines (class method)">.<strong>extract_list_item_lines</strong>(body_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#finalize_content-class_method" title="finalize_content (class method)">.<strong>finalize_content</strong>(text)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Normalize release headers and ensure a trailing newline.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#find_section_end-class_method" title="find_section_end (class method)">.<strong>find_section_end</strong>(lines, unrel_idx)  &#x21d2; Integer<sup>?</sup> </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Find the end index of the Unreleased section (exclusive).</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#heading_entry%3F-class_method" title="heading_entry? (class method)">.<strong>heading_entry?</strong>(entry)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#markdown_line_count-class_method" title="markdown_line_count (class method)">.<strong>markdown_line_count</strong>(source)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge-class_method" title="merge (class method)">.<strong>merge</strong>(template_content:, destination_content:, preset: nil)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Merge CHANGELOG content.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge_unreleased_content-class_method" title="merge_unreleased_content (class method)">.<strong>merge_unreleased_content</strong>(template_content, destination_content)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Build the merged content through the canonical Unreleased replacement pass while preserving destination version history and link references.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize_heading_text-class_method" title="normalize_heading_text (class method)">.<strong>normalize_heading_text</strong>(text)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize_release_headers-class_method" title="normalize_release_headers (class method)">.<strong>normalize_release_headers</strong>(text)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Collapse repeated whitespace in version-release header lines.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#parse_items-class_method" title="parse_items (class method)">.<strong>parse_items</strong>(body_lines, source: nil, **_options)  &#x21d2; Hash{String =&gt; Array&lt;String&gt;} </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Parse Unreleased body into map of subheading =&gt; list items.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#parse_items_from_lines-class_method" title="parse_items_from_lines (class method)">.<strong>parse_items_from_lines</strong>(body_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#parse_items_from_source-class_method" title="parse_items_from_source (class method)">.<strong>parse_items_from_source</strong>(source)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#replace_header-class_method" title="replace_header (class method)">.<strong>replace_header</strong>(merged, tpl_header_lines)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Replace the header (everything before the first ## heading) in merged content with the template’s header lines.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#replace_header_from_template-class_method" title="replace_header_from_template (class method)">.<strong>replace_header_from_template</strong>(merged, template_content)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Replace the rendered header with the template header when the template has an Unreleased section to anchor the split point.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#replace_unreleased_section-class_method" title="replace_unreleased_section (class method)">.<strong>replace_unreleased_section</strong>(destination, canonical_section, dest_unrel_idx)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Replace the Unreleased section in destination using PTM.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#source_to_lines-class_method" title="source_to_lines (class method)">.<strong>source_to_lines</strong>(source)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#template_header_lines-class_method" title="template_header_lines (class method)">.<strong>template_header_lines</strong>(template_content)  &#x21d2; Array&lt;String&gt;<sup>?</sup> </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Extract the template header lines (everything before the Unreleased section) for the header-replacement recipe step.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unreleased_body_context-class_method" title="unreleased_body_context (class method)">.<strong>unreleased_body_context</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unreleased_heading_entry%3F-class_method" title="unreleased_heading_entry? (class method)">.<strong>unreleased_heading_entry?</strong>(entry)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unreleased_section_end_line-class_method" title="unreleased_section_end_line (class method)">.<strong>unreleased_section_end_line</strong>(entries, unreleased_index, content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unreleased_subheading_entry%3F-class_method" title="unreleased_subheading_entry? (class method)">.<strong>unreleased_subheading_entry?</strong>(entry)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#unwrap_markdown_statement-class_method" title="unwrap_markdown_statement (class method)">.<strong>unwrap_markdown_statement</strong>(statement)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="build_canonical_unreleased-class_method">
+  
+    .<strong>build_canonical_unreleased</strong>(heading, dest_items)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Build the canonical Unreleased section from template heading and<br />
+destination list items in STD_HEADS order.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>heading</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The Unreleased heading line (from template)</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>dest_items</span>
+      
+      
+        <span class='type'>(<tt>Hash{String =&gt; Array&lt;String&gt;}</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Destination items by subheading</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The canonical Unreleased section content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164
+165
+166
+167</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 151</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_canonical_unreleased'>build_canonical_unreleased</span><span class='lparen'>(</span><span class='id identifier rubyid_heading'>heading</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_items'>dest_items</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_block'>block</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='id identifier rubyid_heading'>heading</span><span class='rbracket'>]</span>
+  <span class='const'><span class='object_link'><a href="#STD_HEADS-constant" title="Kettle::Jem::ChangelogMerger::STD_HEADS (constant)">STD_HEADS</a></span></span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_h'>h</span><span class='op'>|</span>
+    <span class='id identifier rubyid_block'>block</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span>
+    <span class='id identifier rubyid_block'>block</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_h'>h</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_dest_items'>dest_items</span><span class='lbracket'>[</span><span class='id identifier rubyid_h'>h</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_any?'>any?</span>
+      <span class='id identifier rubyid_items'>items</span> <span class='op'>=</span> <span class='id identifier rubyid_dest_items'>dest_items</span><span class='lbracket'>[</span><span class='id identifier rubyid_h'>h</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+      <span class='comment'># Strip trailing blank lines from items — our blank line before the
+</span>      <span class='comment'># next heading provides the inter-section spacing.
+</span>      <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_pop'>pop</span> <span class='kw'>while</span> <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_any?'>any?</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+      <span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_concat'>concat</span><span class='lparen'>(</span><span class='id identifier rubyid_items'>items</span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='kw'>end</span>
+  <span class='comment'># Trim trailing blank lines from the section
+</span>  <span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_pop'>pop</span> <span class='kw'>while</span> <span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_any?'>any?</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+  <span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="bullet_line?-class_method">
+  
+    .<strong>bullet_line?</strong>(line)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+380
+381
+382</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 380</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_bullet_line?'>bullet_line?</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(\s*)[-*]\s</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="changelog_analysis-class_method">
+  
+    .<strong>changelog_analysis</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+402
+403
+404
+405
+406
+407</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 402</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_changelog_analysis'>changelog_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>=</span> <span class='const'>Markly</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>FileAnalysis</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='kw'>if</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_valid?'>valid?</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span>
+  <span class='kw'>nil</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="changelog_statement_entries-class_method">
+  
+    .<strong>changelog_statement_entries</strong>(analysis)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+409
+410
+411
+412
+413
+414
+415
+416
+417
+418
+419
+420
+421
+422
+423
+424</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 409</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_changelog_statement_entries'>changelog_statement_entries</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_statements'>statements</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_filter_map'>filter_map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_statement'>statement</span><span class='op'>|</span>
+    <span class='id identifier rubyid_node'>node</span> <span class='op'>=</span> <span class='id identifier rubyid_unwrap_markdown_statement'>unwrap_markdown_statement</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_position'>position</span> <span class='op'>=</span> <span class='id identifier rubyid_node'>node</span><span class='op'>&amp;.</span><span class='id identifier rubyid_source_position'>source_position</span>
+    <span class='kw'>next</span> <span class='kw'>unless</span> <span class='id identifier rubyid_node'>node</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_position'>position</span>
+
+    <span class='lbrace'>{</span>
+      <span class='label'>merge_type:</span> <span class='id identifier rubyid_statement'>statement</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:merge_type</span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_statement'>statement</span><span class='period'>.</span><span class='id identifier rubyid_merge_type'>merge_type</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span> <span class='op'>:</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_type'>type</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='comma'>,</span>
+      <span class='label'>level:</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:header_level</span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_header_level'>header_level</span> <span class='op'>:</span> <span class='kw'>nil</span><span class='comma'>,</span>
+      <span class='label'>text:</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:to_plaintext</span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_to_plaintext'>to_plaintext</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_sub'>sub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\n+\z</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>:</span> <span class='kw'>nil</span><span class='comma'>,</span>
+      <span class='label'>source:</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_sub'>sub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\n\z</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='comma'>,</span>
+      <span class='label'>start_line:</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+      <span class='label'>end_line:</span> <span class='id identifier rubyid_position'>position</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="collect_list_item_lines-class_method">
+  
+    .<strong>collect_list_item_lines</strong>(body_lines, start_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+343
+344
+345
+346
+347
+348
+349
+350
+351
+352
+353
+354
+355
+356
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+368
+369
+370
+371
+372
+373
+374
+375
+376
+377
+378</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 343</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_collect_list_item_lines'>collect_list_item_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_start_index'>start_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_line'>line</span> <span class='op'>=</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_start_index'>start_index</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span>
+  <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(\s*)[-*]\s</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='lbracket'>[</span><span class='lbracket'>[</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span> <span class='kw'>unless</span> <span class='id identifier rubyid_match'>match</span>
+
+  <span class='id identifier rubyid_base_indent'>base_indent</span> <span class='op'>=</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='int'>1</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+  <span class='id identifier rubyid_item_lines'>item_lines</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_rstrip'>rstrip</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_i'>i</span> <span class='op'>=</span> <span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>+</span> <span class='int'>1</span>
+  <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>=</span> <span class='kw'>false</span>
+
+  <span class='kw'>while</span> <span class='id identifier rubyid_i'>i</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+    <span class='id identifier rubyid_line'>line</span> <span class='op'>=</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_i'>i</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span>
+
+    <span class='kw'>if</span> <span class='op'>!</span><span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_bullet_line?'>bullet_line?</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='rparen'>)</span>
+      <span class='kw'>break</span> <span class='kw'>if</span> <span class='id identifier rubyid_line'>line</span><span class='lbracket'>[</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^\s*</span><span class='regexp_end'>/</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span> <span class='op'>&lt;=</span> <span class='id identifier rubyid_base_indent'>base_indent</span>
+    <span class='kw'>end</span>
+    <span class='kw'>break</span> <span class='kw'>if</span> <span class='op'>!</span><span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^\s*```</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>=</span> <span class='op'>!</span><span class='id identifier rubyid_in_fence'>in_fence</span>
+      <span class='id identifier rubyid_item_lines'>item_lines</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_rstrip'>rstrip</span>
+      <span class='id identifier rubyid_i'>i</span> <span class='op'>+=</span> <span class='int'>1</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_in_fence'>in_fence</span> <span class='op'>||</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>||</span> <span class='id identifier rubyid_line'>line</span><span class='lbracket'>[</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^\s*</span><span class='regexp_end'>/</span></span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span> <span class='op'>&gt;</span> <span class='id identifier rubyid_base_indent'>base_indent</span>
+      <span class='id identifier rubyid_item_lines'>item_lines</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_rstrip'>rstrip</span>
+      <span class='id identifier rubyid_i'>i</span> <span class='op'>+=</span> <span class='int'>1</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='kw'>break</span>
+  <span class='kw'>end</span>
+
+  <span class='lbracket'>[</span><span class='id identifier rubyid_item_lines'>item_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_i'>i</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="extract_list_item_lines-class_method">
+  
+    .<strong>extract_list_item_lines</strong>(body_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339
+340
+341</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 326</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_extract_list_item_lines'>extract_list_item_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_i'>i</span> <span class='op'>=</span> <span class='int'>0</span>
+
+  <span class='kw'>while</span> <span class='id identifier rubyid_i'>i</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_bullet_line?'>bullet_line?</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_i'>i</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_item_lines'>item_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_i'>i</span> <span class='op'>=</span> <span class='id identifier rubyid_collect_list_item_lines'>collect_list_item_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_i'>i</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_result'>result</span><span class='period'>.</span><span class='id identifier rubyid_concat'>concat</span><span class='lparen'>(</span><span class='id identifier rubyid_item_lines'>item_lines</span><span class='rparen'>)</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='id identifier rubyid_i'>i</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_result'>result</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="finalize_content-class_method">
+  
+    .<strong>finalize_content</strong>(text)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Normalize release headers and ensure a trailing newline.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>text</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+140
+141
+142
+143</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 140</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_finalize_content'>finalize_content</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='id identifier rubyid_normalize_release_headers'>normalize_release_headers</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_result'>result</span><span class='period'>.</span><span class='id identifier rubyid_end_with?'>end_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_result'>result</span> <span class='op'>:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_result'>result</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="find_section_end-class_method">
+  
+    .<strong>find_section_end</strong>(lines, unrel_idx)  &#x21d2; <tt>Integer</tt><sup>?</sup> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Find the end index of the Unreleased section (exclusive).<br />
+Stops at the next version heading (<code>## [version]</code>), a top-level heading,<br />
+or a block of link reference definitions at the bottom of the file<br />
+(e.g., <code>[Unreleased]: https://...</code>).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>lines</span>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>All CHANGELOG lines</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>unrel_idx</span>
+      
+      
+        <span class='type'>(<tt>Integer</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Index of the Unreleased heading</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Integer</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>End index (inclusive)</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+232
+233
+234
+235
+236
+237
+238
+239
+240
+241
+242
+243
+244
+245
+246
+247
+248
+249
+250</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 232</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_find_section_end'>find_section_end</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_unrel_idx'>unrel_idx</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_unrel_idx'>unrel_idx</span>
+
+  <span class='id identifier rubyid_j'>j</span> <span class='op'>=</span> <span class='id identifier rubyid_unrel_idx'>unrel_idx</span> <span class='op'>+</span> <span class='int'>1</span>
+  <span class='kw'>while</span> <span class='id identifier rubyid_j'>j</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+    <span class='id identifier rubyid_ln'>ln</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_j'>j</span><span class='rbracket'>]</span>
+    <span class='comment'># Stop at the next version heading or top-level heading
+</span>    <span class='kw'>if</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^##\s+\[</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^#\s+</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^##\s+[^\[]</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+      <span class='kw'>return</span> <span class='id identifier rubyid_j'>j</span> <span class='op'>-</span> <span class='int'>1</span>
+    <span class='kw'>end</span>
+    <span class='comment'># Stop at link reference definitions (e.g., [Unreleased]: https://...)
+</span>    <span class='comment'># These live at the bottom of the file, outside any section.
+</span>    <span class='kw'>if</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^\[.+\]:\s</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+      <span class='kw'>return</span> <span class='id identifier rubyid_j'>j</span> <span class='op'>-</span> <span class='int'>1</span>
+    <span class='kw'>end</span>
+    <span class='id identifier rubyid_j'>j</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span> <span class='op'>-</span> <span class='int'>1</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="heading_entry?-class_method">
+  
+    .<strong>heading_entry?</strong>(entry)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+434
+435
+436</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 434</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_heading_entry?'>heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span>
+  <span class='qwords_beg'>%w[</span><span class='tstring_content'>heading</span><span class='words_sep'> </span><span class='tstring_content'>header</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:merge_type</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="markdown_line_count-class_method">
+  
+    .<strong>markdown_line_count</strong>(source)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+456
+457
+458</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 456</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_markdown_line_count'>markdown_line_count</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_source_to_lines'>source_to_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge-class_method">
+  
+    .<strong>merge</strong>(template_content:, destination_content:, preset: nil)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Merge CHANGELOG content.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Template content (after token replacement)</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>destination_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Existing destination content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>preset</span>
+      
+      
+        <span class='type'>(<tt>Ast::Merge::Recipe::Config</tt>, <tt>nil</tt>)</span>
+      
+      
+        <em class="default">(defaults to: <tt>nil</tt>)</em>
+      
+      
+        &mdash;
+        <div class='inline'><p>Optional executable recipe</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Merged CHANGELOG content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 57</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span><span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>destination_content:</span><span class='comma'>,</span> <span class='label'>preset:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_template_content'>template_content</span> <span class='kw'>if</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_recipe'>recipe</span> <span class='op'>=</span> <span class='id identifier rubyid_preset'>preset</span> <span class='op'>||</span> <span class='const'><span class='object_link'><a href="../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='period'>.</span><span class='id identifier rubyid_recipe'><span class='object_link'><a href="../Jem.html#recipe-class_method" title="Kettle::Jem.recipe (method)">recipe</a></span></span><span class='lparen'>(</span><span class='symbol'>:changelog</span><span class='rparen'>)</span>
+  <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>Recipe</span><span class='op'>::</span><span class='const'>Runner</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span><span class='id identifier rubyid_recipe'>recipe</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_run_content'>run_content</span><span class='lparen'>(</span>
+    <span class='label'>template_content:</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>destination_content:</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='label'>relative_path:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>CHANGELOG.md</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+  <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge_unreleased_content-class_method">
+  
+    .<strong>merge_unreleased_content</strong>(template_content, destination_content)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Build the merged content through the canonical Unreleased replacement<br />
+pass while preserving destination version history and link references.</p>
+
+<p>This is the first hybrid recipe step for CHANGELOG merging.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>destination_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104
+105
+106
+107
+108</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 76</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge_unreleased_content'>merge_unreleased_content</span><span class='lparen'>(</span><span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_src_lines'>src_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_src_lines'>src_lines</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_ln'>ln</span><span class='op'>|</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="#UNRELEASED_PATTERN-constant" title="Kettle::Jem::ChangelogMerger::UNRELEASED_PATTERN (constant)">UNRELEASED_PATTERN</a></span></span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+
+  <span class='comment'># If template has no Unreleased heading, leave later recipe steps to
+</span>  <span class='comment'># finalize the template content without trying to splice a section.
+</span>  <span class='kw'>unless</span> <span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_template_content'>template_content</span>
+  <span class='kw'>end</span>
+
+  <span class='comment'># 1) Extract template heading for the canonical Unreleased section
+</span>  <span class='id identifier rubyid_tpl_unrel_heading'>tpl_unrel_heading</span> <span class='op'>=</span> <span class='id identifier rubyid_src_lines'>src_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span><span class='rbracket'>]</span>
+
+  <span class='comment'># 2) Extract destination Unreleased body and parse list items
+</span>  <span class='id identifier rubyid_dest_context'>dest_context</span> <span class='op'>=</span> <span class='id identifier rubyid_unreleased_body_context'>unreleased_body_context</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_dest_context'>dest_context</span><span class='op'>&amp;.</span><span class='id identifier rubyid_fetch'>fetch</span><span class='lparen'>(</span><span class='symbol'>:unrel_idx</span><span class='comma'>,</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_dest_items'>dest_items</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_dest_context'>dest_context</span>
+    <span class='id identifier rubyid_parse_items'>parse_items</span><span class='lparen'>(</span><span class='id identifier rubyid_dest_context'>dest_context</span><span class='lbracket'>[</span><span class='symbol'>:body_lines</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>source:</span> <span class='id identifier rubyid_dest_context'>dest_context</span><span class='lbracket'>[</span><span class='symbol'>:body_source</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_dest_lines'>dest_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_dest_lines'>dest_lines</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_ln'>ln</span><span class='op'>|</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="#UNRELEASED_PATTERN-constant" title="Kettle::Jem::ChangelogMerger::UNRELEASED_PATTERN (constant)">UNRELEASED_PATTERN</a></span></span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+    <span class='id identifier rubyid_dest_end_idx'>dest_end_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_find_section_end'>find_section_end</span><span class='lparen'>(</span><span class='id identifier rubyid_dest_lines'>dest_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_dest_unrel_body'>dest_unrel_body</span> <span class='op'>=</span> <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span> <span class='op'>?</span> <span class='lparen'>(</span><span class='id identifier rubyid_dest_lines'>dest_lines</span><span class='lbracket'>[</span><span class='lparen'>(</span><span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span> <span class='op'>+</span> <span class='int'>1</span><span class='rparen'>)</span><span class='op'>..</span><span class='id identifier rubyid_dest_end_idx'>dest_end_idx</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='op'>:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_parse_items'>parse_items</span><span class='lparen'>(</span><span class='id identifier rubyid_dest_unrel_body'>dest_unrel_body</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='comment'># 3) Build canonical Unreleased section with destination items
+</span>  <span class='id identifier rubyid_canonical_section'>canonical_section</span> <span class='op'>=</span> <span class='id identifier rubyid_build_canonical_unreleased'>build_canonical_unreleased</span><span class='lparen'>(</span><span class='id identifier rubyid_tpl_unrel_heading'>tpl_unrel_heading</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_items'>dest_items</span><span class='rparen'>)</span>
+
+  <span class='comment'># 4) Replace destination&#39;s Unreleased section with the canonical one via PTM
+</span>  <span class='id identifier rubyid_replace_unreleased_section'>replace_unreleased_section</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='id identifier rubyid_canonical_section'>canonical_section</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize_heading_text-class_method">
+  
+    .<strong>normalize_heading_text</strong>(text)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+446
+447
+448</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 446</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize_heading_text'>normalize_heading_text</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_text'>text</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_delete_prefix'>delete_prefix</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>[</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_delete_suffix'>delete_suffix</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>]</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_downcase'>downcase</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize_release_headers-class_method">
+  
+    .<strong>normalize_release_headers</strong>(text)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Collapse repeated whitespace in version-release header lines.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>text</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>CHANGELOG content</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Content with normalized release headers</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+474
+475
+476
+477
+478
+479
+480</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 474</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize_release_headers'>normalize_release_headers</span><span class='lparen'>(</span><span class='id identifier rubyid_text'>text</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_text'>text</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_map!'>map!</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_ln'>ln</span><span class='op'>|</span>
+    <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^##\s+\[.*\]</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>[ \t]+</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'> </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>:</span> <span class='id identifier rubyid_ln'>ln</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="parse_items-class_method">
+  
+    .<strong>parse_items</strong>(body_lines, source: nil, **_options)  &#x21d2; <tt>Hash{String =&gt; Array&lt;String&gt;}</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Parse Unreleased body into map of subheading =&gt; list items.<br />
+Each list item includes its continuation lines (indented, fenced, blank).</p>
+
+<p>This is domain-specific Keep-a-Changelog logic that cannot be expressed<br />
+through SmartMerger because headings and lists are unpaired siblings in<br />
+the Markdown AST, and SmartMerger preserves destination ordering rather<br />
+than enforcing canonical template ordering.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>body_lines</span>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Lines of the Unreleased section body</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Hash{String =&gt; Array&lt;String&gt;}</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Subheading =&gt; lines (including bullets)</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+262
+263
+264
+265
+266
+267</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 262</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_parse_items'>parse_items</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='comma'>,</span> <span class='label'>source:</span> <span class='kw'>nil</span><span class='comma'>,</span> <span class='op'>**</span><span class='id identifier rubyid__options'>_options</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_ast_result'>ast_result</span> <span class='op'>=</span> <span class='id identifier rubyid_parse_items_from_source'>parse_items_from_source</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_ast_result'>ast_result</span> <span class='kw'>if</span> <span class='id identifier rubyid_ast_result'>ast_result</span>
+
+  <span class='id identifier rubyid_parse_items_from_lines'>parse_items_from_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="parse_items_from_lines-class_method">
+  
+    .<strong>parse_items_from_lines</strong>(body_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+269
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290
+291
+292
+293</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 269</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_parse_items_from_lines'>parse_items_from_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='lbrace'>{</span><span class='rbrace'>}</span>
+  <span class='id identifier rubyid_cur'>cur</span> <span class='op'>=</span> <span class='kw'>nil</span>
+  <span class='id identifier rubyid_i'>i</span> <span class='op'>=</span> <span class='int'>0</span>
+  <span class='kw'>while</span> <span class='id identifier rubyid_i'>i</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+    <span class='id identifier rubyid_ln'>ln</span> <span class='op'>=</span> <span class='id identifier rubyid_body_lines'>body_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_i'>i</span><span class='rbracket'>]</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_cur'>cur</span> <span class='op'>=</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span>
+      <span class='id identifier rubyid_result'>result</span><span class='lbracket'>[</span><span class='id identifier rubyid_cur'>cur</span><span class='rbracket'>]</span> <span class='op'>||=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+      <span class='id identifier rubyid_i'>i</span> <span class='op'>+=</span> <span class='int'>1</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='kw'>if</span> <span class='id identifier rubyid_bullet_line?'>bullet_line?</span><span class='lparen'>(</span><span class='id identifier rubyid_ln'>ln</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_result'>result</span><span class='lbracket'>[</span><span class='id identifier rubyid_cur'>cur</span><span class='rbracket'>]</span> <span class='op'>||=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+      <span class='id identifier rubyid_item_lines'>item_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_i'>i</span> <span class='op'>=</span> <span class='id identifier rubyid_collect_list_item_lines'>collect_list_item_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_body_lines'>body_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_i'>i</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_result'>result</span><span class='lbracket'>[</span><span class='id identifier rubyid_cur'>cur</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_concat'>concat</span><span class='lparen'>(</span><span class='id identifier rubyid_item_lines'>item_lines</span><span class='rparen'>)</span>
+      <span class='kw'>next</span>
+    <span class='kw'>end</span>
+
+    <span class='id identifier rubyid_i'>i</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_result'>result</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="parse_items_from_source-class_method">
+  
+    .<strong>parse_items_from_source</strong>(source)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320
+321
+322
+323
+324</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 295</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_parse_items_from_source'>parse_items_from_source</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>=</span> <span class='id identifier rubyid_changelog_analysis'>changelog_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_analysis'>analysis</span>
+
+  <span class='id identifier rubyid_entries'>entries</span> <span class='op'>=</span> <span class='id identifier rubyid_changelog_statement_entries'>changelog_statement_entries</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_subheading_indexes'>subheading_indexes</span> <span class='op'>=</span> <span class='id identifier rubyid_entries'>entries</span><span class='period'>.</span><span class='id identifier rubyid_each_index'>each_index</span><span class='period'>.</span><span class='id identifier rubyid_select'>select</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_idx'>idx</span><span class='op'>|</span> <span class='id identifier rubyid_unreleased_subheading_entry?'>unreleased_subheading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entries'>entries</span><span class='lbracket'>[</span><span class='id identifier rubyid_idx'>idx</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='kw'>if</span> <span class='id identifier rubyid_subheading_indexes'>subheading_indexes</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='lbrace'>{</span><span class='rbrace'>}</span>
+  <span class='id identifier rubyid_total_lines'>total_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_markdown_line_count'>markdown_line_count</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_subheading_indexes'>subheading_indexes</span><span class='period'>.</span><span class='id identifier rubyid_each_with_index'>each_with_index</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_entry_index'>entry_index</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='op'>|</span>
+    <span class='id identifier rubyid_entry'>entry</span> <span class='op'>=</span> <span class='id identifier rubyid_entries'>entries</span><span class='lbracket'>[</span><span class='id identifier rubyid_entry_index'>entry_index</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_next_entry_index'>next_entry_index</span> <span class='op'>=</span> <span class='id identifier rubyid_subheading_indexes'>subheading_indexes</span><span class='lbracket'>[</span><span class='id identifier rubyid_idx'>idx</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_body_end_line'>body_end_line</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_next_entry_index'>next_entry_index</span>
+      <span class='id identifier rubyid_entries'>entries</span><span class='lbracket'>[</span><span class='id identifier rubyid_next_entry_index'>next_entry_index</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span>
+    <span class='kw'>else</span>
+      <span class='id identifier rubyid_total_lines'>total_lines</span>
+    <span class='kw'>end</span>
+
+    <span class='id identifier rubyid_items'>items</span> <span class='op'>=</span> <span class='id identifier rubyid_extract_list_item_lines'>extract_list_item_lines</span><span class='lparen'>(</span>
+      <span class='id identifier rubyid_source_to_lines'>source_to_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>1</span><span class='comma'>,</span> <span class='id identifier rubyid_body_end_line'>body_end_line</span><span class='rparen'>)</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='rparen'>)</span>
+    <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_pop'>pop</span> <span class='kw'>while</span> <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_any?'>any?</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_items'>items</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+    <span class='id identifier rubyid_result'>result</span><span class='lbracket'>[</span><span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:source</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='id identifier rubyid_items'>items</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_result'>result</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="replace_header-class_method">
+  
+    .<strong>replace_header</strong>(merged, tpl_header_lines)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Replace the header (everything before the first ## heading) in merged<br />
+content with the template’s header lines.</p>
+
+<p>This is a narrow line-based operation (accepted residual text handling)<br />
+because the pre-heading content is not a section in Markdown AST terms.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>merged</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Current merged content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>tpl_header_lines</span>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Template header lines (before ## [Unreleased])</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Content with header replaced</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+212
+213
+214
+215
+216
+217
+218
+219
+220
+221
+222</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 212</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_replace_header'>replace_header</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span> <span class='id identifier rubyid_tpl_header_lines'>tpl_header_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_merged'>merged</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='comment'># Find the first ## heading in the merged content
+</span>  <span class='id identifier rubyid_first_h2_idx'>first_h2_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_ln'>ln</span><span class='op'>|</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^##\s</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_merged'>merged</span> <span class='kw'>unless</span> <span class='id identifier rubyid_first_h2_idx'>first_h2_idx</span>
+
+  <span class='comment'># Replace everything before the first ## heading with template header
+</span>  <span class='id identifier rubyid_remaining'>remaining</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_first_h2_idx'>first_h2_idx</span><span class='op'>..</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_new_lines'>new_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_tpl_header_lines'>tpl_header_lines</span> <span class='op'>+</span> <span class='id identifier rubyid_remaining'>remaining</span>
+  <span class='id identifier rubyid_new_lines'>new_lines</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="replace_header_from_template-class_method">
+  
+    .<strong>replace_header_from_template</strong>(merged, template_content)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Replace the rendered header with the template header when the template<br />
+has an Unreleased section to anchor the split point.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>merged</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+129
+130
+131
+132
+133
+134</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 129</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_replace_header_from_template'>replace_header_from_template</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_tpl_header_lines'>tpl_header_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_template_header_lines'>template_header_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_merged'>merged</span> <span class='kw'>unless</span> <span class='id identifier rubyid_tpl_header_lines'>tpl_header_lines</span>
+
+  <span class='id identifier rubyid_replace_header'>replace_header</span><span class='lparen'>(</span><span class='id identifier rubyid_merged'>merged</span><span class='comma'>,</span> <span class='id identifier rubyid_tpl_header_lines'>tpl_header_lines</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="replace_unreleased_section-class_method">
+  
+    .<strong>replace_unreleased_section</strong>(destination, canonical_section, dest_unrel_idx)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Replace the Unreleased section in destination using PTM.</p>
+
+<p>Uses PartialTemplateMerger with replace_mode to splice the canonical<br />
+section into the destination at the Unreleased heading, preserving all<br />
+content before and after (header, version history, link references).</p>
+
+<p>Falls back to simple concatenation when the destination has no<br />
+Unreleased heading (PTM would skip).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>destination</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Full destination content</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>canonical_section</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>The built canonical Unreleased section</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>dest_unrel_idx</span>
+      
+      
+        <span class='type'>(<tt>Integer</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Line index of Unreleased heading (for fallback)</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Destination with Unreleased section replaced</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 182</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_replace_unreleased_section'>replace_unreleased_section</span><span class='lparen'>(</span><span class='id identifier rubyid_destination'>destination</span><span class='comma'>,</span> <span class='id identifier rubyid_canonical_section'>canonical_section</span><span class='comma'>,</span> <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_dest_unrel_idx'>dest_unrel_idx</span>
+    <span class='comment'># PTM replaces the destination&#39;s Unreleased section with the canonical one.
+</span>    <span class='comment'># PTM &quot;template:&quot; = the canonical section content to inject;
+</span>    <span class='comment'># PTM &quot;destination:&quot; = the real destination document.
+</span>    <span class='id identifier rubyid_result'>result</span> <span class='op'>=</span> <span class='const'>Markly</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>PartialTemplateMerger</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='lparen'>(</span>
+      <span class='label'>template:</span> <span class='id identifier rubyid_canonical_section'>canonical_section</span><span class='comma'>,</span>
+      <span class='label'>destination:</span> <span class='id identifier rubyid_destination'>destination</span><span class='comma'>,</span>
+      <span class='label'>anchor:</span> <span class='lbrace'>{</span><span class='label'>type:</span> <span class='symbol'>:heading</span><span class='comma'>,</span> <span class='label'>text:</span> <span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\A\s*\[?\s*Unreleased\s*\]?\s*\z</span><span class='regexp_end'>/i</span></span><span class='rbrace'>}</span><span class='comma'>,</span>
+      <span class='label'>replace_mode:</span> <span class='kw'>true</span><span class='comma'>,</span>
+      <span class='label'>when_missing:</span> <span class='symbol'>:skip</span><span class='comma'>,</span>
+      <span class='label'>backend:</span> <span class='symbol'>:markly</span><span class='comma'>,</span>
+    <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_merge'>merge</span>
+
+    <span class='id identifier rubyid_result'>result</span><span class='period'>.</span><span class='id identifier rubyid_content'>content</span>
+  <span class='kw'>else</span>
+    <span class='comment'># No Unreleased in destination — just prepend the section
+</span>    <span class='id identifier rubyid_destination'>destination</span><span class='period'>.</span><span class='id identifier rubyid_chomp'>chomp</span> <span class='op'>+</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n\n</span><span class='tstring_end'>&quot;</span></span> <span class='op'>+</span> <span class='id identifier rubyid_canonical_section'>canonical_section</span> <span class='op'>+</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="source_to_lines-class_method">
+  
+    .<strong>source_to_lines</strong>(source)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+450
+451
+452
+453
+454</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 450</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_source_to_lines'>source_to_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_source'>source</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_pop'>pop</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_source'>source</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_end_with?'>end_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="template_header_lines-class_method">
+  
+    .<strong>template_header_lines</strong>(template_content)  &#x21d2; <tt>Array&lt;String&gt;</tt><sup>?</sup> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Extract the template header lines (everything before the Unreleased<br />
+section) for the header-replacement recipe step.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>template_content</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Array&lt;String&gt;</tt>, <tt>nil</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+115
+116
+117
+118
+119
+120
+121</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 115</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_template_header_lines'>template_header_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_src_lines'>src_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='period'>.</span><span class='id identifier rubyid_split'>split</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span> <span class='op'>-</span><span class='int'>1</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span> <span class='op'>=</span> <span class='id identifier rubyid_src_lines'>src_lines</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_ln'>ln</span><span class='op'>|</span> <span class='id identifier rubyid_ln'>ln</span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="#UNRELEASED_PATTERN-constant" title="Kettle::Jem::ChangelogMerger::UNRELEASED_PATTERN (constant)">UNRELEASED_PATTERN</a></span></span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span>
+
+  <span class='id identifier rubyid_src_lines'>src_lines</span><span class='lbracket'>[</span><span class='int'>0</span><span class='op'>...</span><span class='id identifier rubyid_tpl_unrel_idx'>tpl_unrel_idx</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unreleased_body_context-class_method">
+  
+    .<strong>unreleased_body_context</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+384
+385
+386
+387
+388
+389
+390
+391
+392
+393
+394
+395
+396
+397
+398
+399
+400</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 384</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unreleased_body_context'>unreleased_body_context</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_analysis'>analysis</span> <span class='op'>=</span> <span class='id identifier rubyid_changelog_analysis'>changelog_analysis</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_analysis'>analysis</span>
+
+  <span class='id identifier rubyid_entries'>entries</span> <span class='op'>=</span> <span class='id identifier rubyid_changelog_statement_entries'>changelog_statement_entries</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_unreleased_index'>unreleased_index</span> <span class='op'>=</span> <span class='id identifier rubyid_entries'>entries</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_entry'>entry</span><span class='op'>|</span> <span class='id identifier rubyid_unreleased_heading_entry?'>unreleased_heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_unreleased_index'>unreleased_index</span>
+
+  <span class='id identifier rubyid_unreleased_entry'>unreleased_entry</span> <span class='op'>=</span> <span class='id identifier rubyid_entries'>entries</span><span class='lbracket'>[</span><span class='id identifier rubyid_unreleased_index'>unreleased_index</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_section_end_line'>section_end_line</span> <span class='op'>=</span> <span class='id identifier rubyid_unreleased_section_end_line'>unreleased_section_end_line</span><span class='lparen'>(</span><span class='id identifier rubyid_entries'>entries</span><span class='comma'>,</span> <span class='id identifier rubyid_unreleased_index'>unreleased_index</span><span class='comma'>,</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>unrel_idx:</span> <span class='id identifier rubyid_unreleased_entry'>unreleased_entry</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span><span class='comma'>,</span>
+    <span class='label'>body_source:</span> <span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_unreleased_entry'>unreleased_entry</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>1</span><span class='comma'>,</span> <span class='id identifier rubyid_section_end_line'>section_end_line</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>body_lines:</span> <span class='id identifier rubyid_source_to_lines'>source_to_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_analysis'>analysis</span><span class='period'>.</span><span class='id identifier rubyid_source_range'>source_range</span><span class='lparen'>(</span><span class='id identifier rubyid_unreleased_entry'>unreleased_entry</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>1</span><span class='comma'>,</span> <span class='id identifier rubyid_section_end_line'>section_end_line</span><span class='rparen'>)</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unreleased_heading_entry?-class_method">
+  
+    .<strong>unreleased_heading_entry?</strong>(entry)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+426
+427
+428</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 426</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unreleased_heading_entry?'>unreleased_heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_heading_entry?'>heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='int'>2</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_normalize_heading_text'>normalize_heading_text</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:text</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>unreleased</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unreleased_section_end_line-class_method">
+  
+    .<strong>unreleased_section_end_line</strong>(entries, unreleased_index, content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+438
+439
+440
+441
+442
+443
+444</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 438</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unreleased_section_end_line'>unreleased_section_end_line</span><span class='lparen'>(</span><span class='id identifier rubyid_entries'>entries</span><span class='comma'>,</span> <span class='id identifier rubyid_unreleased_index'>unreleased_index</span><span class='comma'>,</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_boundary'>boundary</span> <span class='op'>=</span> <span class='id identifier rubyid_entries'>entries</span><span class='lbracket'>[</span><span class='lparen'>(</span><span class='id identifier rubyid_unreleased_index'>unreleased_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rparen'>)</span><span class='op'>..</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_find'>find</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_entry'>entry</span><span class='op'>|</span>
+    <span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:merge_type</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>link_definition</span><span class='tstring_end'>&quot;</span></span> <span class='op'>||</span> <span class='lparen'>(</span><span class='id identifier rubyid_heading_entry?'>heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_i'>to_i</span> <span class='op'>&lt;=</span> <span class='int'>2</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_boundary'>boundary</span> <span class='op'>?</span> <span class='lparen'>(</span><span class='id identifier rubyid_boundary'>boundary</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span><span class='rparen'>)</span> <span class='op'>:</span> <span class='id identifier rubyid_markdown_line_count'>markdown_line_count</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unreleased_subheading_entry?-class_method">
+  
+    .<strong>unreleased_subheading_entry?</strong>(entry)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+430
+431
+432</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 430</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unreleased_subheading_entry?'>unreleased_subheading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_heading_entry?'>heading_entry?</span><span class='lparen'>(</span><span class='id identifier rubyid_entry'>entry</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:level</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='int'>3</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_entry'>entry</span><span class='lbracket'>[</span><span class='symbol'>:source</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lstrip'>lstrip</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>### </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="unwrap_markdown_statement-class_method">
+  
+    .<strong>unwrap_markdown_statement</strong>(statement)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+460
+461
+462
+463
+464
+465
+466
+467
+468</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/changelog_merger.rb', line 460</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_unwrap_markdown_statement'>unwrap_markdown_statement</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='kw'>defined?</span><span class='lparen'>(</span><span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>NodeTyping</span><span class='rparen'>)</span>
+    <span class='const'>Ast</span><span class='op'>::</span><span class='const'>Merge</span><span class='op'>::</span><span class='const'>NodeTyping</span><span class='period'>.</span><span class='id identifier rubyid_unwrap'>unwrap</span><span class='lparen'>(</span><span class='id identifier rubyid_statement'>statement</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_statement'>statement</span>
+  <span class='kw'>end</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span>
+  <span class='id identifier rubyid_statement'>statement</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:03 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

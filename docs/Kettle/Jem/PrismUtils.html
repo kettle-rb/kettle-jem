@@ -6,7 +6,7 @@
 <title>
   Module: Kettle::Jem::PrismUtils
   
-    &mdash; Documentation by YARD 0.9.38
+    &mdash; Documentation by YARD 0.9.39
   
 </title>
 
@@ -278,6 +278,29 @@ use normalize_call_node instead.</p>
         <li class="public ">
   <span class="summary_signature">
     
+      <a href="#node_slice_with_trailing_comment-class_method" title="node_slice_with_trailing_comment (class method)">.<strong>node_slice_with_trailing_comment</strong>(node, source)  &#x21d2; String </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Extract the full source line(s) for a single-line node, including trailing comments that appear after the node on the same line.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
       <a href="#node_to_source-class_method" title="node_to_source (class method)">.<strong>node_to_source</strong>(node)  &#x21d2; String </a>
     
 
@@ -471,12 +494,12 @@ use normalize_call_node instead.</p>
       <pre class="lines">
 
 
-189
-190
-191</pre>
+210
+211
+212</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 189</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 210</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_block_call_to?'>block_call_to?</span><span class='lparen'>(</span><span class='id identifier rubyid_node'>node</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
   <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Prism</span><span class='op'>::</span><span class='const'>CallNode</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_name'>name</span> <span class='op'>==</span> <span class='id identifier rubyid_method_name'>method_name</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_block'>block</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span>
@@ -558,12 +581,12 @@ use normalize_call_node instead.</p>
       <pre class="lines">
 
 
-181
-182
-183</pre>
+202
+203
+204</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 181</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 202</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_call_to?'>call_to?</span><span class='lparen'>(</span><span class='id identifier rubyid_node'>node</span><span class='comma'>,</span> <span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
   <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Prism</span><span class='op'>::</span><span class='const'>CallNode</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_name'>name</span> <span class='op'>==</span> <span class='id identifier rubyid_method_name'>method_name</span>
@@ -1093,6 +1116,117 @@ Inline comments are those that appear on the same line as the statement’s end<
 </div>
     
       <div class="method_details ">
+  <h3 class="signature " id="node_slice_with_trailing_comment-class_method">
+  
+    .<strong>node_slice_with_trailing_comment</strong>(node, source)  &#x21d2; <tt>String</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Extract the full source line(s) for a single-line node, including trailing<br />
+comments that appear after the node on the same line. Prism’s <code>node.slice</code><br />
+excludes trailing comments, so replacing <code>node.slice</code> in a string leaves<br />
+orphaned comments behind. This method returns the text from the node’s<br />
+start offset to the end of the line.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  <p class="tag_title">Parameters:</p>
+<ul class="param">
+  
+    <li>
+      
+        <span class='name'>node</span>
+      
+      
+        <span class='type'>(<tt>Prism::Node</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>AST node</p>
+</div>
+      
+    </li>
+  
+    <li>
+      
+        <span class='name'>source</span>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Full source content the node belongs to</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>String</tt>)</span>
+      
+      
+      
+        &mdash;
+        <div class='inline'><p>Node text including any trailing comment on the same line</p>
+</div>
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 136</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_node_slice_with_trailing_comment'>node_slice_with_trailing_comment</span><span class='lparen'>(</span><span class='id identifier rubyid_node'>node</span><span class='comma'>,</span> <span class='id identifier rubyid_source'>source</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_slice'>slice</span> <span class='kw'>unless</span> <span class='id identifier rubyid_node'>node</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_source'>source</span>
+
+  <span class='id identifier rubyid_start'>start</span> <span class='op'>=</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_location'>location</span><span class='period'>.</span><span class='id identifier rubyid_start_offset'>start_offset</span>
+  <span class='comment'># Find the end of the line containing the node&#39;s end
+</span>  <span class='id identifier rubyid_end_pos'>end_pos</span> <span class='op'>=</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_location'>location</span><span class='period'>.</span><span class='id identifier rubyid_end_offset'>end_offset</span>
+  <span class='kw'>while</span> <span class='id identifier rubyid_end_pos'>end_pos</span> <span class='op'>&lt;</span> <span class='id identifier rubyid_source'>source</span><span class='period'>.</span><span class='id identifier rubyid_bytesize'>bytesize</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_source'>source</span><span class='period'>.</span><span class='id identifier rubyid_getbyte'>getbyte</span><span class='lparen'>(</span><span class='id identifier rubyid_end_pos'>end_pos</span><span class='rparen'>)</span> <span class='op'>!=</span> <span class='int'>10</span> <span class='comment'># 10 = &quot;\n&quot;
+</span>    <span class='id identifier rubyid_end_pos'>end_pos</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_source'>source</span><span class='period'>.</span><span class='id identifier rubyid_byteslice'>byteslice</span><span class='lparen'>(</span><span class='id identifier rubyid_start'>start</span><span class='op'>...</span><span class='id identifier rubyid_end_pos'>end_pos</span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_slice'>slice</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
   <h3 class="signature " id="node_to_source-class_method">
   
     .<strong>node_to_source</strong>(node)  &#x21d2; <tt>String</tt> 
@@ -1232,37 +1366,37 @@ Uses Prism’s native slice method which preserves the original source exactly.<
       <pre class="lines">
 
 
-148
-149
-150
-151
-152
-153
-154
-155
-156
-157
-158
-159
-160
-161
-162
-163
-164
-165
-166
-167
-168
 169
 170
 171
 172
 173
 174
-175</pre>
+175
+176
+177
+178
+179
+180
+181
+182
+183
+184
+185
+186
+187
+188
+189
+190
+191
+192
+193
+194
+195
+196</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 148</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 169</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_normalize_argument'>normalize_argument</span><span class='lparen'>(</span><span class='id identifier rubyid_arg'>arg</span><span class='rparen'>)</span>
   <span class='kw'>case</span> <span class='id identifier rubyid_arg'>arg</span>
@@ -1359,22 +1493,22 @@ Converts <code>gem "foo"</code> to <code>gem("foo")</code> style</p>
       <pre class="lines">
 
 
-131
-132
-133
-134
-135
-136
-137
-138
-139
-140
-141
-142
-143</pre>
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163
+164</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 131</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_utils.rb', line 152</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_normalize_call_node'>normalize_call_node</span><span class='lparen'>(</span><span class='id identifier rubyid_node'>node</span><span class='rparen'>)</span>
   <span class='kw'>return</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_slice'>slice</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span> <span class='kw'>unless</span> <span class='id identifier rubyid_node'>node</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Prism</span><span class='op'>::</span><span class='const'>CallNode</span><span class='rparen'>)</span>
@@ -1583,9 +1717,9 @@ Used for merge/append operations to detect duplicates</p>
 </div>
 
       <div id="footer">
-  Generated on Sun Mar  1 06:13:14 2026 by
+  Generated on Sat Apr 11 01:55:03 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
-  0.9.38 (ruby-4.0.1).
+  0.9.39 (ruby-4.0.2).
 </div>
 
     </div>

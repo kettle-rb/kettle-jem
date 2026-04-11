@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::PrismGemfile::LocalOverridePolicy
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::PrismGemfile::LocalOverridePolicy";
+  relpath = '../../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../../_index.html">Index (L)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../PrismGemfile.html" title="Kettle::Jem::PrismGemfile (module)">PrismGemfile</a></span></span>
+     &raquo; 
+    <span class="title">LocalOverridePolicy</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::PrismGemfile::LocalOverridePolicy
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/prism_gemfile/local_override_policy.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Named contract for Gemfile-local sibling override metadata (<code>local_gems</code><br />
+and the adjacent <code>VENDORED_GEMS</code> export comment).</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="VENDORED_GEMS_EXPORT_RE-constant" class="">VENDORED_GEMS_EXPORT_RE =
+          
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(?&lt;prefix&gt;[ \t]*#\s*export\s+VENDORED_GEMS=)(?&lt;body&gt;[^\n]*)$</span><span class='regexp_end'>/</span></span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge-class_method" title="merge (class method)">.<strong>merge</strong>(content, destination_content, excluded_gems: [])  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#merge_bootstrap-class_method" title="merge_bootstrap (class method)">.<strong>merge_bootstrap</strong>(source_content, destination_content, excluded_gems: [])  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="merge-class_method">
+  
+    .<strong>merge</strong>(content, destination_content, excluded_gems: [])  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96
+97
+98
+99</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/local_override_policy.rb', line 15</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_array_match'>local_gems_array_match</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_array_match'>local_gems_array_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span> <span class='op'>=</span> <span class='id identifier rubyid_vendored_gems_export_match'>vendored_gems_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span> <span class='op'>=</span> <span class='id identifier rubyid_vendored_gems_export_match'>vendored_gems_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merged_associated_export_match'>merged_associated_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_associated_local_override_export_match'>associated_local_override_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_associated_local_override_export_match'>associated_local_override_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span><span class='rparen'>)</span>
+
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span> <span class='op'>||</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span>
+
+  <span class='id identifier rubyid_excluded'>excluded</span> <span class='op'>=</span> <span class='id identifier rubyid_excluded_words_set'>excluded_words_set</span><span class='lparen'>(</span><span class='id identifier rubyid_excluded_gems'>excluded_gems</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_merged_words'>merged_words</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_words_from_match'>local_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_words'>destination_words</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_words_from_match'>local_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_vendored_words'>vendored_words</span> <span class='op'>=</span> <span class='id identifier rubyid_vendored_gems_words_from_match'>vendored_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span><span class='rparen'>)</span> <span class='op'>|</span> <span class='id identifier rubyid_vendored_gems_words_from_match'>vendored_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span><span class='rparen'>)</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_logically_equivalent_local_override_blocks?'>logically_equivalent_local_override_blocks?</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_merged_associated_export_match'>merged_associated_export_match</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_excluded'>excluded</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+    <span class='comment'># Gem lists are already equivalent — no list manipulation needed.
+</span>    <span class='comment'># Return `content` (the apply_strategy result), NOT `destination_content`,
+</span>    <span class='comment'># so that template-preference updates to non-list nodes (e.g. the
+</span>    <span class='comment'># `require` line) are preserved rather than discarded.
+</span>    <span class='comment'># Strip any excluded gems that may have been re-introduced via template
+</span>    <span class='comment'># preference (e.g. a gem that belongs in the template but is the *host*
+</span>    <span class='comment'># gem when merging into a sibling repo).  `remove_gem_dependency` only
+</span>    <span class='comment'># removes explicit `gem &quot;name&quot;` call nodes; it does not touch elements
+</span>    <span class='comment'># inside `local_gems = %w[...]`, so we must do that here.
+</span>    <span class='kw'>return</span> <span class='id identifier rubyid_excluded'>excluded</span><span class='period'>.</span><span class='id identifier rubyid_reduce'>reduce</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_c'>c</span><span class='comma'>,</span> <span class='id identifier rubyid_word'>word</span><span class='op'>|</span>
+      <span class='id identifier rubyid_c2'>c2</span> <span class='op'>=</span> <span class='id identifier rubyid_remove_word_from_local_gems_array'>remove_word_from_local_gems_array</span><span class='lparen'>(</span><span class='id identifier rubyid_c'>c</span><span class='comma'>,</span> <span class='id identifier rubyid_word'>word</span><span class='rparen'>)</span>
+      <span class='id identifier rubyid_remove_word_from_vendored_gems_export_comment'>remove_word_from_vendored_gems_export_comment</span><span class='lparen'>(</span><span class='id identifier rubyid_c2'>c2</span><span class='comma'>,</span> <span class='id identifier rubyid_word'>word</span><span class='rparen'>)</span>
+    <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_words'>words</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span> <span class='op'>||</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span>
+    <span class='lparen'>(</span><span class='id identifier rubyid_merged_words'>merged_words</span> <span class='op'>+</span> <span class='id identifier rubyid_vendored_gems_words_from_match'>vendored_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span><span class='rparen'>)</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_uniq'>uniq</span><span class='period'>.</span><span class='id identifier rubyid_reject'>reject</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_word'>word</span><span class='op'>|</span> <span class='id identifier rubyid_excluded'>excluded</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_word'>word</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>else</span>
+    <span class='lparen'>(</span><span class='id identifier rubyid_destination_words'>destination_words</span> <span class='op'>+</span> <span class='id identifier rubyid_vendored_words'>vendored_words</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_uniq'>uniq</span><span class='period'>.</span><span class='id identifier rubyid_reject'>reject</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_word'>word</span><span class='op'>|</span> <span class='id identifier rubyid_excluded'>excluded</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_word'>word</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_block_export_template'>block_export_template</span> <span class='op'>=</span> <span class='kw'>nil</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_local_override_block_equivalent?'>local_override_block_equivalent?</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_associated_export_match'>merged_associated_export_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span>
+  <span class='kw'>end</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span>
+    <span class='id identifier rubyid_block_export_template'>block_export_template</span> <span class='op'>=</span> <span class='id identifier rubyid_merged_associated_export_match'>merged_associated_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span>
+      <span class='id identifier rubyid_replace_local_override_block'>replace_local_override_block</span><span class='lparen'>(</span>
+        <span class='id identifier rubyid_out'>out</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_block_export_template'>block_export_template</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_words'>words</span><span class='comma'>,</span>
+        <span class='label'>replace_end_line:</span> <span class='lparen'>(</span><span class='id identifier rubyid_merged_associated_export_match'>merged_associated_export_match</span> <span class='op'>||</span> <span class='lbrace'>{</span><span class='rbrace'>}</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_fetch'>fetch</span><span class='lparen'>(</span><span class='symbol'>:line_number</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='period'>.</span><span class='id identifier rubyid_fetch'>fetch</span><span class='lparen'>(</span><span class='symbol'>:node</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_location'>location</span><span class='period'>.</span><span class='id identifier rubyid_end_line'>end_line</span><span class='rparen'>)</span><span class='comma'>,</span>
+      <span class='rparen'>)</span>
+    <span class='kw'>else</span>
+      <span class='id identifier rubyid_replace_local_gems_array'>replace_local_gems_array</span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span>
+    <span class='id identifier rubyid_block_export_template'>block_export_template</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_rebuild_local_override_block'>rebuild_local_override_block</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span><span class='comma'>,</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_out'>out</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>unless</span> <span class='id identifier rubyid_words'>words</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+  <span class='kw'>end</span>
+
+  <span class='kw'>return</span> <span class='id identifier rubyid_out'>out</span> <span class='kw'>if</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span>
+
+  <span class='id identifier rubyid_export_line'>export_line</span> <span class='op'>=</span> <span class='id identifier rubyid_rebuild_vendored_gems_export_line'>rebuild_vendored_gems_export_line</span><span class='lparen'>(</span><span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_vendored_match'>destination_vendored_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_array_match'>array_match</span> <span class='op'>=</span> <span class='id identifier rubyid_merged_local_gems_match'>merged_local_gems_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_local_gems_match'>destination_local_gems_match</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_replace_vendored_gems_export_line'>replace_vendored_gems_export_line</span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='comma'>,</span> <span class='id identifier rubyid_merged_vendored_match'>merged_vendored_match</span><span class='comma'>,</span> <span class='id identifier rubyid_export_line'>export_line</span><span class='rparen'>)</span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_export_line'>export_line</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_array_match'>array_match</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_export_line'>export_line</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_array_text'>array_text</span> <span class='op'>=</span> <span class='id identifier rubyid_rebuild_local_gems_array'>rebuild_local_gems_array</span><span class='lparen'>(</span><span class='id identifier rubyid_array_match'>array_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>=</span> <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span><span class='lparen'>(</span><span class='id identifier rubyid_array_text'>array_text</span><span class='rparen'>)</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_insertion'>insertion</span>
+      <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_sub!'>sub!</span><span class='lparen'>(</span><span class='id identifier rubyid_array_text'>array_text</span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_array_text'>array_text</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_export_line'>export_line</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_out'>out</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="merge_bootstrap-class_method">
+  
+    .<strong>merge_bootstrap</strong>(source_content, destination_content, excluded_gems: [])  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+101
+102
+103
+104
+105
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120
+121
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135
+136
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/local_override_policy.rb', line 101</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_merge_bootstrap'>merge_bootstrap</span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='label'>excluded_gems:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_source_local_match'>source_local_match</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_array_match'>local_gems_array_match</span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_source_export_match'>source_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_vendored_gems_export_match'>vendored_gems_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_source_associated_export_match'>source_associated_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_associated_local_override_export_match'>associated_local_override_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_source_content'>source_content</span><span class='comma'>,</span> <span class='id identifier rubyid_source_local_match'>source_local_match</span><span class='comma'>,</span> <span class='id identifier rubyid_source_export_match'>source_export_match</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_destination_content'>destination_content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_source_local_match'>source_local_match</span> <span class='op'>||</span> <span class='id identifier rubyid_source_export_match'>source_export_match</span>
+
+  <span class='id identifier rubyid_destination_local_match'>destination_local_match</span> <span class='op'>=</span> <span class='id identifier rubyid_local_gems_array_match'>local_gems_array_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_export_match'>destination_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_vendored_gems_export_match'>vendored_gems_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span> <span class='op'>=</span> <span class='id identifier rubyid_associated_local_override_export_match'>associated_local_override_export_match</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_export_match'>destination_export_match</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_excluded'>excluded</span> <span class='op'>=</span> <span class='id identifier rubyid_excluded_words_set'>excluded_words_set</span><span class='lparen'>(</span><span class='id identifier rubyid_excluded_gems'>excluded_gems</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_words'>words</span> <span class='op'>=</span> <span class='lparen'>(</span>
+    <span class='id identifier rubyid_local_gems_words_from_match'>local_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_source_local_match'>source_local_match</span><span class='rparen'>)</span> <span class='op'>+</span>
+    <span class='id identifier rubyid_vendored_gems_words_from_match'>vendored_gems_words_from_match</span><span class='lparen'>(</span><span class='id identifier rubyid_source_export_match'>source_export_match</span><span class='rparen'>)</span>
+  <span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_uniq'>uniq</span><span class='period'>.</span><span class='id identifier rubyid_reject'>reject</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_word'>word</span><span class='op'>|</span> <span class='id identifier rubyid_excluded'>excluded</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_word'>word</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+
+  <span class='kw'>if</span> <span class='id identifier rubyid_local_override_block_equivalent?'>local_override_block_equivalent?</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_destination_content'>destination_content</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_template_local_match'>template_local_match</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span> <span class='op'>||</span> <span class='id identifier rubyid_source_local_match'>source_local_match</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_destination_content'>destination_content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_template_local_match'>template_local_match</span>
+
+  <span class='id identifier rubyid_block_export_template'>block_export_template</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_source_associated_export_match'>source_associated_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_destination_export_match'>destination_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_source_export_match'>source_export_match</span>
+  <span class='id identifier rubyid_local_text'>local_text</span> <span class='op'>=</span> <span class='id identifier rubyid_rebuild_local_override_block'>rebuild_local_override_block</span><span class='lparen'>(</span><span class='id identifier rubyid_template_local_match'>template_local_match</span><span class='comma'>,</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span>
+      <span class='id identifier rubyid_replace_local_override_block'>replace_local_override_block</span><span class='lparen'>(</span>
+        <span class='id identifier rubyid_out'>out</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_destination_local_match'>destination_local_match</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_block_export_template'>block_export_template</span><span class='comma'>,</span>
+        <span class='id identifier rubyid_words'>words</span><span class='comma'>,</span>
+        <span class='label'>replace_end_line:</span> <span class='lparen'>(</span><span class='id identifier rubyid_destination_associated_export_match'>destination_associated_export_match</span> <span class='op'>||</span> <span class='lbrace'>{</span><span class='rbrace'>}</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_fetch'>fetch</span><span class='lparen'>(</span><span class='symbol'>:line_number</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span><span class='period'>.</span><span class='id identifier rubyid_fetch'>fetch</span><span class='lparen'>(</span><span class='symbol'>:node</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_location'>location</span><span class='period'>.</span><span class='id identifier rubyid_end_line'>end_line</span><span class='rparen'>)</span><span class='comma'>,</span>
+      <span class='rparen'>)</span>
+    <span class='kw'>else</span>
+      <span class='id identifier rubyid_replace_local_gems_array'>replace_local_gems_array</span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_local_match'>destination_local_match</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_local_text'>local_text</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_out'>out</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>unless</span> <span class='id identifier rubyid_words'>words</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_export_template'>export_template</span> <span class='op'>=</span> <span class='id identifier rubyid_destination_export_match'>destination_export_match</span> <span class='op'>||</span> <span class='id identifier rubyid_source_export_match'>source_export_match</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_out'>out</span> <span class='kw'>if</span> <span class='id identifier rubyid_block_export_template'>block_export_template</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_out'>out</span> <span class='kw'>unless</span> <span class='id identifier rubyid_export_template'>export_template</span>
+
+  <span class='id identifier rubyid_export_text'>export_text</span> <span class='op'>=</span> <span class='id identifier rubyid_rebuild_vendored_gems_export_line'>rebuild_vendored_gems_export_line</span><span class='lparen'>(</span><span class='id identifier rubyid_export_template'>export_template</span><span class='comma'>,</span> <span class='id identifier rubyid_words'>words</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_destination_export_match'>destination_export_match</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_replace_vendored_gems_export_line'>replace_vendored_gems_export_line</span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='comma'>,</span> <span class='id identifier rubyid_destination_export_match'>destination_export_match</span><span class='comma'>,</span> <span class='id identifier rubyid_export_text'>export_text</span><span class='rparen'>)</span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_local_text'>local_text</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_sub!'>sub!</span><span class='lparen'>(</span><span class='id identifier rubyid_local_text'>local_text</span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_local_text'>local_text</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_export_text'>export_text</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_export_text'>export_text</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_out'>out</span><span class='embexpr_end'>}</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_out'>out</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:04 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

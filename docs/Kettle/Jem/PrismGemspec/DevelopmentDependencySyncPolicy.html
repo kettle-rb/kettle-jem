@@ -1,0 +1,2645 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::PrismGemspec::DevelopmentDependencySyncPolicy
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::PrismGemspec::DevelopmentDependencySyncPolicy";
+  relpath = '../../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../../_index.html">Index (D)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../PrismGemspec.html" title="Kettle::Jem::PrismGemspec (module)">PrismGemspec</a></span></span>
+     &raquo; 
+    <span class="title">DevelopmentDependencySyncPolicy</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::PrismGemspec::DevelopmentDependencySyncPolicy
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+  <dl>
+    <dt>Included in:</dt>
+    <dd><span class='object_link'><a href="../PrismGemspec.html" title="Kettle::Jem::PrismGemspec (module)">Kettle::Jem::PrismGemspec</a></span></dd>
+  </dl>
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb</dd>
+  </dl>
+  
+</div>
+
+
+
+
+
+
+
+
+  
+    <h2>
+      Instance Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#add_missing_development_dependency_plan-instance_method" title="#add_missing_development_dependency_plan (instance method)">#<strong>add_missing_development_dependency_plan</strong>(plans, content:, lines:, insertion:, missing_count:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#add_missing_development_dependency_plans-instance_method" title="#add_missing_development_dependency_plans (instance method)">#<strong>add_missing_development_dependency_plans</strong>(plans, content:, lines:, missing_lines:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_development_dependency_replacement-instance_method" title="#apply_fallback_development_dependency_replacement (instance method)">#<strong>apply_fallback_development_dependency_replacement</strong>(updated_lines, action)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_development_dependency_replacements-instance_method" title="#apply_fallback_development_dependency_replacements (instance method)">#<strong>apply_fallback_development_dependency_replacements</strong>(lines, sync_actions)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_development_dependency_sync-instance_method" title="#apply_fallback_development_dependency_sync (instance method)">#<strong>apply_fallback_development_dependency_sync</strong>(lines, sync_snapshot)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_missing_development_dependency_insertion-instance_method" title="#apply_fallback_missing_development_dependency_insertion (instance method)">#<strong>apply_fallback_missing_development_dependency_insertion</strong>(updated_lines, missing_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_missing_development_dependency_insertions-instance_method" title="#apply_fallback_missing_development_dependency_insertions (instance method)">#<strong>apply_fallback_missing_development_dependency_insertions</strong>(lines, missing_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_missing_development_dependency_sync-instance_method" title="#apply_fallback_missing_development_dependency_sync (instance method)">#<strong>apply_fallback_missing_development_dependency_sync</strong>(updated_lines, sync_snapshot)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_fallback_replacement_development_dependency_sync-instance_method" title="#apply_fallback_replacement_development_dependency_sync (instance method)">#<strong>apply_fallback_replacement_development_dependency_sync</strong>(lines, sync_snapshot)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_development_dependency_replacement_plan-instance_method" title="#ast_development_dependency_replacement_plan (instance method)">#<strong>ast_development_dependency_replacement_plan</strong>(action, content:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_development_dependency_replacement_plans-instance_method" title="#ast_development_dependency_replacement_plans (instance method)">#<strong>ast_development_dependency_replacement_plans</strong>(sync_actions, content:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_development_dependency_sync_plans-instance_method" title="#ast_development_dependency_sync_plans (instance method)">#<strong>ast_development_dependency_sync_plans</strong>(sync_snapshot, content:, lines:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_development_dependency_sync_snapshot-instance_method" title="#ast_development_dependency_sync_snapshot (instance method)">#<strong>ast_development_dependency_sync_snapshot</strong>(desired, context)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_missing_development_dependency_plans-instance_method" title="#ast_missing_development_dependency_plans (instance method)">#<strong>ast_missing_development_dependency_plans</strong>(plans, sync_snapshot, content:, lines:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ast_replacement_development_dependency_plans-instance_method" title="#ast_replacement_development_dependency_plans (instance method)">#<strong>ast_replacement_development_dependency_plans</strong>(sync_snapshot, content:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#bootstrap_development_dependency_seed_content-instance_method" title="#bootstrap_development_dependency_seed_content (instance method)">#<strong>bootstrap_development_dependency_seed_content</strong>(content, desired)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_node_index-instance_method" title="#dependency_node_index (instance method)">#<strong>dependency_node_index</strong>(stmt_nodes, blk_param)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_insertion_payload-instance_method" title="#development_dependency_insertion_payload (instance method)">#<strong>development_dependency_insertion_payload</strong>(lines, missing_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_missing_line-instance_method" title="#development_dependency_missing_line (instance method)">#<strong>development_dependency_missing_line</strong>(action, indent: &quot;  &quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_missing_lines-instance_method" title="#development_dependency_missing_lines (instance method)">#<strong>development_dependency_missing_lines</strong>(sync_actions, indent: &quot;  &quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_replacement_actions-instance_method" title="#development_dependency_replacement_actions (instance method)">#<strong>development_dependency_replacement_actions</strong>(sync_actions)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_replacement_indent-instance_method" title="#development_dependency_replacement_indent (instance method)">#<strong>development_dependency_replacement_indent</strong>(record, content: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_replacement_payload-instance_method" title="#development_dependency_replacement_payload (instance method)">#<strong>development_dependency_replacement_payload</strong>(action, content: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_replacement_record-instance_method" title="#development_dependency_replacement_record (instance method)">#<strong>development_dependency_replacement_record</strong>(action)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_replacement_text-instance_method" title="#development_dependency_replacement_text (instance method)">#<strong>development_dependency_replacement_text</strong>(desired_line, record, content: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_sync_action-instance_method" title="#development_dependency_sync_action (instance method)">#<strong>development_dependency_sync_action</strong>(gem_name, desired_line, dependency_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_sync_actions-instance_method" title="#development_dependency_sync_actions (instance method)">#<strong>development_dependency_sync_actions</strong>(desired, dependency_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_sync_snapshot-instance_method" title="#development_dependency_sync_snapshot (instance method)">#<strong>development_dependency_sync_snapshot</strong>(desired, dependency_index, indent: &quot;  &quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_sync_snapshot_for-instance_method" title="#development_dependency_sync_snapshot_for (instance method)">#<strong>development_dependency_sync_snapshot_for</strong>(desired, lines:, context: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_sync_snapshot_payload-instance_method" title="#development_dependency_sync_snapshot_payload (instance method)">#<strong>development_dependency_sync_snapshot_payload</strong>(sync_actions, indent: &quot;  &quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ensure_development_dependencies-instance_method" title="#ensure_development_dependencies (instance method)">#<strong>ensure_development_dependencies</strong>(content, desired)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Ensure development dependency lines in a gemspec match the desired lines.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ensure_development_dependencies_ast-instance_method" title="#ensure_development_dependencies_ast (instance method)">#<strong>ensure_development_dependencies_ast</strong>(content, desired, context:, lines:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ensure_development_dependencies_fallback-instance_method" title="#ensure_development_dependencies_fallback (instance method)">#<strong>ensure_development_dependencies_fallback</strong>(content, desired, lines: content.to_s.lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Best-effort bootstrap fallback when Prism parsing/context extraction is unavailable.</p>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#fallback_development_dependency_sync_snapshot-instance_method" title="#fallback_development_dependency_sync_snapshot (instance method)">#<strong>fallback_development_dependency_sync_snapshot</strong>(desired, lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#finalize_development_dependency_sync-instance_method" title="#finalize_development_dependency_sync (instance method)">#<strong>finalize_development_dependency_sync</strong>(content:, desired:, updated:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#formatted_dependency_line-instance_method" title="#formatted_dependency_line (instance method)">#<strong>formatted_dependency_line</strong>(desired_line, indent: &quot;  &quot;)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#materialize_development_dependency_sync-instance_method" title="#materialize_development_dependency_sync (instance method)">#<strong>materialize_development_dependency_sync</strong>(content, lines:, sync_snapshot:, context: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#materialize_development_dependency_sync_plans-instance_method" title="#materialize_development_dependency_sync_plans (instance method)">#<strong>materialize_development_dependency_sync_plans</strong>(content, plans)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#missing_development_dependency_insertion_text-instance_method" title="#missing_development_dependency_insertion_text (instance method)">#<strong>missing_development_dependency_insertion_text</strong>(missing_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#rename_desired_lines_to_target_var-instance_method" title="#rename_desired_lines_to_target_var (instance method)">#<strong>rename_desired_lines_to_target_var</strong>(desired, context)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="instance_method_details" class="method_details_list">
+    <h2>Instance Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="add_missing_development_dependency_plan-instance_method">
+  
+    #<strong>add_missing_development_dependency_plan</strong>(plans, content:, lines:, insertion:, missing_count:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+292
+293
+294
+295
+296
+297
+298
+299
+300
+301
+302
+303
+304
+305
+306
+307
+308
+309
+310</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 292</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_add_missing_development_dependency_plan'>add_missing_development_dependency_plan</span><span class='lparen'>(</span><span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span> <span class='label'>content:</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='comma'>,</span> <span class='label'>insertion:</span><span class='comma'>,</span> <span class='label'>missing_count:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_anchor_line'>anchor_line</span> <span class='op'>=</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='int'>1</span>
+  <span class='id identifier rubyid_insertion_text'>insertion_text</span> <span class='op'>=</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='lbracket'>[</span><span class='symbol'>:insertion_text</span><span class='rbracket'>]</span>
+
+  <span class='id identifier rubyid_add_anchor_splice_plan'>add_anchor_splice_plan</span><span class='lparen'>(</span>
+    <span class='label'>plans:</span> <span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+    <span class='label'>anchor_line:</span> <span class='id identifier rubyid_anchor_line'>anchor_line</span><span class='comma'>,</span>
+    <span class='label'>insertion_text:</span> <span class='id identifier rubyid_insertion_text'>insertion_text</span><span class='comma'>,</span>
+    <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+      <span class='label'>source:</span> <span class='symbol'>:kettle_jem_prism_gemspec</span><span class='comma'>,</span>
+      <span class='label'>edit:</span> <span class='symbol'>:ensure_development_dependency_insert</span><span class='comma'>,</span>
+      <span class='label'>inserted_missing_dependencies:</span> <span class='id identifier rubyid_missing_count'>missing_count</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_plan'>plan</span><span class='op'>|</span>
+    <span class='id identifier rubyid_plan'>plan</span><span class='period'>.</span><span class='id identifier rubyid_metadata'>metadata</span><span class='period'>.</span><span class='id identifier rubyid_merge'>merge</span><span class='lparen'>(</span><span class='label'>inserted_missing_dependencies:</span> <span class='id identifier rubyid_missing_count'>missing_count</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="add_missing_development_dependency_plans-instance_method">
+  
+    #<strong>add_missing_development_dependency_plans</strong>(plans, content:, lines:, missing_lines:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+279
+280
+281
+282
+283
+284
+285
+286
+287
+288
+289
+290</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 279</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_add_missing_development_dependency_plans'>add_missing_development_dependency_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span> <span class='label'>content:</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='comma'>,</span> <span class='label'>missing_lines:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_insertion_payload'>development_dependency_insertion_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_plans'>plans</span> <span class='kw'>unless</span> <span class='id identifier rubyid_insertion'>insertion</span>
+
+  <span class='id identifier rubyid_add_missing_development_dependency_plan'>add_missing_development_dependency_plan</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+    <span class='label'>insertion:</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='comma'>,</span>
+    <span class='label'>missing_count:</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='period'>.</span><span class='id identifier rubyid_size'>size</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_development_dependency_replacement-instance_method">
+  
+    #<strong>apply_fallback_development_dependency_replacement</strong>(updated_lines, action)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+222
+223
+224
+225
+226
+227</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 222</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_development_dependency_replacement'>apply_fallback_development_dependency_replacement</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_payload'>payload</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_replacement_payload'>development_dependency_replacement_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_payload'>payload</span>
+
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:record</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:replacement_text</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_development_dependency_replacements-instance_method">
+  
+    #<strong>apply_fallback_development_dependency_replacements</strong>(lines, sync_actions)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+212
+213
+214
+215
+216
+217
+218
+219
+220</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 212</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_development_dependency_replacements'>apply_fallback_development_dependency_replacements</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+
+  <span class='id identifier rubyid_development_dependency_replacement_actions'>development_dependency_replacement_actions</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_action'>action</span><span class='op'>|</span>
+    <span class='id identifier rubyid_apply_fallback_development_dependency_replacement'>apply_fallback_development_dependency_replacement</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_development_dependency_sync-instance_method">
+  
+    #<strong>apply_fallback_development_dependency_sync</strong>(lines, sync_snapshot)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+123
+124
+125
+126
+127</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 123</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_development_dependency_sync'>apply_fallback_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_apply_fallback_replacement_development_dependency_sync'>apply_fallback_replacement_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_apply_fallback_missing_development_dependency_sync'>apply_fallback_missing_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_missing_development_dependency_insertion-instance_method">
+  
+    #<strong>apply_fallback_missing_development_dependency_insertion</strong>(updated_lines, missing_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+235
+236
+237
+238
+239
+240</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 235</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_missing_development_dependency_insertion'>apply_fallback_missing_development_dependency_insertion</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_insertion_payload'>development_dependency_insertion_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_insertion'>insertion</span>
+
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='period'>.</span><span class='id identifier rubyid_insert'>insert</span><span class='lparen'>(</span><span class='id identifier rubyid_insertion'>insertion</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='lbracket'>[</span><span class='symbol'>:insertion_text</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_missing_development_dependency_insertions-instance_method">
+  
+    #<strong>apply_fallback_missing_development_dependency_insertions</strong>(lines, missing_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+229
+230
+231
+232
+233</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 229</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_missing_development_dependency_insertions'>apply_fallback_missing_development_dependency_insertions</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_apply_fallback_missing_development_dependency_insertion'>apply_fallback_missing_development_dependency_insertion</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_missing_development_dependency_sync-instance_method">
+  
+    #<strong>apply_fallback_missing_development_dependency_sync</strong>(updated_lines, sync_snapshot)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+134
+135
+136
+137</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 134</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_missing_development_dependency_sync'>apply_fallback_missing_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_missing_lines'>missing_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:missing_lines</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_apply_fallback_missing_development_dependency_insertions'>apply_fallback_missing_development_dependency_insertions</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_fallback_replacement_development_dependency_sync-instance_method">
+  
+    #<strong>apply_fallback_replacement_development_dependency_sync</strong>(lines, sync_snapshot)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+129
+130
+131
+132</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 129</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_fallback_replacement_development_dependency_sync'>apply_fallback_replacement_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sync_actions'>sync_actions</span> <span class='op'>=</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:sync_actions</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_apply_fallback_development_dependency_replacements'>apply_fallback_development_dependency_replacements</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_development_dependency_replacement_plan-instance_method">
+  
+    #<strong>ast_development_dependency_replacement_plan</strong>(action, content:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205
+206
+207
+208
+209
+210</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 195</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_development_dependency_replacement_plan'>ast_development_dependency_replacement_plan</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>content:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_payload'>payload</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_replacement_payload'>development_dependency_replacement_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_payload'>payload</span>
+
+  <span class='id identifier rubyid_build_splice_plan'>build_splice_plan</span><span class='lparen'>(</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>replacement:</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:replacement_text</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>start_line:</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:record</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>end_line:</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:record</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='symbol'>:end_line</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+      <span class='label'>source:</span> <span class='symbol'>:kettle_jem_prism_gemspec</span><span class='comma'>,</span>
+      <span class='label'>edit:</span> <span class='symbol'>:ensure_development_dependency_replace</span><span class='comma'>,</span>
+      <span class='label'>gem_name:</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:gem_name</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_development_dependency_replacement_plans-instance_method">
+  
+    #<strong>ast_development_dependency_replacement_plans</strong>(sync_actions, content:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+189
+190
+191
+192
+193</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 189</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_development_dependency_replacement_plans'>ast_development_dependency_replacement_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>content:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_development_dependency_replacement_actions'>development_dependency_replacement_actions</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_filter_map'>filter_map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_action'>action</span><span class='op'>|</span>
+    <span class='id identifier rubyid_ast_development_dependency_replacement_plan'>ast_development_dependency_replacement_plan</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_development_dependency_sync_plans-instance_method">
+  
+    #<strong>ast_development_dependency_sync_plans</strong>(sync_snapshot, content:, lines:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+87
+88
+89
+90
+91
+92
+93
+94
+95
+96</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 87</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_development_dependency_sync_plans'>ast_development_dependency_sync_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>content:</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_plans'>plans</span> <span class='op'>=</span> <span class='id identifier rubyid_ast_replacement_development_dependency_plans'>ast_replacement_development_dependency_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_ast_missing_development_dependency_plans'>ast_missing_development_dependency_plans</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_development_dependency_sync_snapshot-instance_method">
+  
+    #<strong>ast_development_dependency_sync_snapshot</strong>(desired, context)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+58
+59
+60
+61</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 58</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_development_dependency_sync_snapshot'>ast_development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dependency_index'>dependency_index</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_node_index'>dependency_node_index</span><span class='lparen'>(</span><span class='id identifier rubyid_context'>context</span><span class='lbracket'>[</span><span class='symbol'>:stmt_nodes</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='lbracket'>[</span><span class='symbol'>:blk_param</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_development_dependency_sync_snapshot'>development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_missing_development_dependency_plans-instance_method">
+  
+    #<strong>ast_missing_development_dependency_plans</strong>(plans, sync_snapshot, content:, lines:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+103
+104
+105
+106
+107
+108
+109
+110
+111</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 103</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_missing_development_dependency_plans'>ast_missing_development_dependency_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>content:</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_missing_lines'>missing_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:missing_lines</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_add_missing_development_dependency_plans'>add_missing_development_dependency_plans</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+    <span class='label'>missing_lines:</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ast_replacement_development_dependency_plans-instance_method">
+  
+    #<strong>ast_replacement_development_dependency_plans</strong>(sync_snapshot, content:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+98
+99
+100
+101</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 98</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ast_replacement_development_dependency_plans'>ast_replacement_development_dependency_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>content:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sync_actions'>sync_actions</span> <span class='op'>=</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:sync_actions</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_ast_development_dependency_replacement_plans'>ast_development_dependency_replacement_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="bootstrap_development_dependency_seed_content-instance_method">
+  
+    #<strong>bootstrap_development_dependency_seed_content</strong>(content, desired)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+253
+254
+255
+256
+257
+258
+259
+260</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 253</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_bootstrap_development_dependency_seed_content'>bootstrap_development_dependency_seed_content</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>unless</span> <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_end_with?'>end_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>||</span> <span class='id identifier rubyid_out'>out</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid__gem'>_gem</span><span class='comma'>,</span> <span class='id identifier rubyid_line'>line</span><span class='op'>|</span>
+    <span class='id identifier rubyid_out'>out</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_out'>out</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_node_index-instance_method">
+  
+    #<strong>dependency_node_index</strong>(stmt_nodes, blk_param)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+262
+263
+264</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 262</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_node_index'>dependency_node_index</span><span class='lparen'>(</span><span class='id identifier rubyid_stmt_nodes'>stmt_nodes</span><span class='comma'>,</span> <span class='id identifier rubyid_blk_param'>blk_param</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="DependencySectionPolicy.html" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy (module)">DependencySectionPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_build_dependency_index'><span class='object_link'><a href="DependencySectionPolicy.html#build_dependency_index-class_method" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy.build_dependency_index (method)">build_dependency_index</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_dependency_node_records'>dependency_node_records</span><span class='lparen'>(</span><span class='id identifier rubyid_stmt_nodes'>stmt_nodes</span><span class='comma'>,</span> <span class='id identifier rubyid_blk_param'>blk_param</span><span class='rparen'>)</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_insertion_payload-instance_method">
+  
+    #<strong>development_dependency_insertion_payload</strong>(lines, missing_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+316
+317
+318
+319
+320
+321
+322
+323</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 316</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_insertion_payload'>development_dependency_insertion_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>if</span> <span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>line_index:</span> <span class='const'><span class='object_link'><a href="DependencySectionPolicy.html" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy (module)">DependencySectionPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_insertion_line_index'><span class='object_link'><a href="DependencySectionPolicy.html#insertion_line_index-class_method" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy.insertion_line_index (method)">insertion_line_index</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>insertion_text:</span> <span class='id identifier rubyid_missing_development_dependency_insertion_text'>missing_development_dependency_insertion_text</span><span class='lparen'>(</span><span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_missing_line-instance_method">
+  
+    #<strong>development_dependency_missing_line</strong>(action, indent: &quot;  &quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+170
+171
+172
+173
+174</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 170</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_missing_line'>development_dependency_missing_line</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>  </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:action</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='symbol'>:insert_missing</span>
+
+  <span class='id identifier rubyid_formatted_dependency_line'>formatted_dependency_line</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:desired_line</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='id identifier rubyid_indent'>indent</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_missing_lines-instance_method">
+  
+    #<strong>development_dependency_missing_lines</strong>(sync_actions, indent: &quot;  &quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+164
+165
+166
+167
+168</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 164</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_missing_lines'>development_dependency_missing_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>  </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_filter_map'>filter_map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_action'>action</span><span class='op'>|</span>
+    <span class='id identifier rubyid_development_dependency_missing_line'>development_dependency_missing_line</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='id identifier rubyid_indent'>indent</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_replacement_actions-instance_method">
+  
+    #<strong>development_dependency_replacement_actions</strong>(sync_actions)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+342
+343
+344
+345
+346</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 342</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_replacement_actions'>development_dependency_replacement_actions</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_select'>select</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_action'>action</span><span class='op'>|</span>
+    <span class='id identifier rubyid_development_dependency_replacement_record'>development_dependency_replacement_record</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_replacement_indent-instance_method">
+  
+    #<strong>development_dependency_replacement_indent</strong>(record, content: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+348
+349
+350
+351
+352
+353
+354
+355
+356</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 348</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_replacement_indent'>development_dependency_replacement_indent</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_content'>content</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:start_line</span><span class='rbracket'>]</span> <span class='op'>-</span> <span class='int'>1</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='lbracket'>[</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(\s*)</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='int'>1</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:node</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_dependency_indent'>dependency_indent</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:node</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:line</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(\s*)</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='int'>1</span><span class='rbracket'>]</span> <span class='op'>||</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_replacement_payload-instance_method">
+  
+    #<strong>development_dependency_replacement_payload</strong>(action, content: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 325</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_replacement_payload'>development_dependency_replacement_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_record'>record</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_replacement_record'>development_dependency_replacement_record</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_record'>record</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>gem_name:</span> <span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:gem_name</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>record:</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span>
+    <span class='label'>replacement_text:</span> <span class='id identifier rubyid_development_dependency_replacement_text'>development_dependency_replacement_text</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:desired_line</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_replacement_record-instance_method">
+  
+    #<strong>development_dependency_replacement_record</strong>(action)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+336
+337
+338
+339
+340</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 336</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_replacement_record'>development_dependency_replacement_record</span><span class='lparen'>(</span><span class='id identifier rubyid_action'>action</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:action</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='symbol'>:replace_existing_dev</span>
+
+  <span class='id identifier rubyid_action'>action</span><span class='lbracket'>[</span><span class='symbol'>:record</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_replacement_text-instance_method">
+  
+    #<strong>development_dependency_replacement_text</strong>(desired_line, record, content: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+358
+359
+360
+361
+362</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 358</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_replacement_text'>development_dependency_replacement_text</span><span class='lparen'>(</span><span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_indent'>indent</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_replacement_indent'>development_dependency_replacement_indent</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_formatted_dependency_line'>formatted_dependency_line</span><span class='lparen'>(</span><span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='id identifier rubyid_indent'>indent</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_sync_action-instance_method">
+  
+    #<strong>development_dependency_sync_action</strong>(gem_name, desired_line, dependency_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+145
+146
+147
+148
+149
+150
+151
+152
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 145</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_sync_action'>development_dependency_sync_action</span><span class='lparen'>(</span><span class='id identifier rubyid_gem_name'>gem_name</span><span class='comma'>,</span> <span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='lbracket'>[</span><span class='symbol'>:runtime_gems</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_gem_name'>gem_name</span><span class='rparen'>)</span>
+    <span class='lbrace'>{</span>
+      <span class='label'>action:</span> <span class='symbol'>:skip_runtime</span><span class='comma'>,</span>
+      <span class='label'>gem_name:</span> <span class='id identifier rubyid_gem_name'>gem_name</span><span class='comma'>,</span>
+      <span class='label'>desired_line:</span> <span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_dev_record'>dev_record</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='lbracket'>[</span><span class='symbol'>:development_by_gem</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='id identifier rubyid_gem_name'>gem_name</span><span class='rbracket'>]</span>
+
+    <span class='lbrace'>{</span>
+      <span class='label'>action:</span> <span class='id identifier rubyid_dev_record'>dev_record</span> <span class='op'>?</span> <span class='symbol'>:replace_existing_dev</span> <span class='op'>:</span> <span class='symbol'>:insert_missing</span><span class='comma'>,</span>
+      <span class='label'>gem_name:</span> <span class='id identifier rubyid_gem_name'>gem_name</span><span class='comma'>,</span>
+      <span class='label'>desired_line:</span> <span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span>
+      <span class='label'>record:</span> <span class='id identifier rubyid_dev_record'>dev_record</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_sync_actions-instance_method">
+  
+    #<strong>development_dependency_sync_actions</strong>(desired, dependency_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+139
+140
+141
+142
+143</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 139</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_sync_actions'>development_dependency_sync_actions</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_map'>map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_gem_name'>gem_name</span><span class='comma'>,</span> <span class='id identifier rubyid_desired_line'>desired_line</span><span class='op'>|</span>
+    <span class='id identifier rubyid_development_dependency_sync_action'>development_dependency_sync_action</span><span class='lparen'>(</span><span class='id identifier rubyid_gem_name'>gem_name</span><span class='comma'>,</span> <span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_sync_snapshot-instance_method">
+  
+    #<strong>development_dependency_sync_snapshot</strong>(desired, dependency_index, indent: &quot;  &quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+176
+177
+178
+179
+180</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 176</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_sync_snapshot'>development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>  </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sync_actions'>sync_actions</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_sync_actions'>development_dependency_sync_actions</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_index'>dependency_index</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_development_dependency_sync_snapshot_payload'>development_dependency_sync_snapshot_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='id identifier rubyid_indent'>indent</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_sync_snapshot_for-instance_method">
+  
+    #<strong>development_dependency_sync_snapshot_for</strong>(desired, lines:, context: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+63
+64
+65
+66
+67</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 63</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_sync_snapshot_for'>development_dependency_sync_snapshot_for</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_fallback_development_dependency_sync_snapshot'>fallback_development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span> <span class='kw'>unless</span> <span class='id identifier rubyid_context'>context</span>
+
+  <span class='id identifier rubyid_ast_development_dependency_sync_snapshot'>ast_development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_sync_snapshot_payload-instance_method">
+  
+    #<strong>development_dependency_sync_snapshot_payload</strong>(sync_actions, indent: &quot;  &quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+182
+183
+184
+185
+186
+187</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 182</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_sync_snapshot_payload'>development_dependency_sync_snapshot_payload</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>  </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='lbrace'>{</span>
+    <span class='label'>sync_actions:</span> <span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span>
+    <span class='label'>missing_lines:</span> <span class='id identifier rubyid_development_dependency_missing_lines'>development_dependency_missing_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_actions'>sync_actions</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='id identifier rubyid_indent'>indent</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ensure_development_dependencies-instance_method">
+  
+    #<strong>ensure_development_dependencies</strong>(content, desired)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Ensure development dependency lines in a gemspec match the desired lines.<br />
+<code>desired</code> is a hash mapping gem_name =&gt; desired_line (string, without leading indentation).</p>
+
+<p>Normal operation prefers a Prism-backed edit because that lets setup/bootstrap<br />
+update real Gem::Specification bodies structurally. We still keep a narrow,<br />
+line-oriented fallback for the bootstrap case where the target file exists but<br />
+Prism cannot provide a usable gemspec context yet (for example: empty content,<br />
+a fragment missing the final <code>end</code>, or a file that is temporarily mid-edit).<br />
+That fallback is intentionally best-effort resilience for early setup flows,<br />
+not a claim that arbitrary malformed gemspecs are a first-class supported API.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 17</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ensure_development_dependencies'>ensure_development_dependencies</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_desired'>desired</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>||</span> <span class='id identifier rubyid_desired'>desired</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_bootstrap_development_dependency_seed_content'>bootstrap_development_dependency_seed_content</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='rparen'>)</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_context'>context</span> <span class='op'>=</span> <span class='id identifier rubyid_safe_gemspec_context'>safe_gemspec_context</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+
+  <span class='comment'># Rename the block variable in desired lines to match the target gemspec&#39;s
+</span>  <span class='comment'># block parameter. The desired lines come from the template (which uses &quot;spec&quot;),
+</span>  <span class='comment'># but the target may use a different name (e.g. &quot;gem&quot;, &quot;s&quot;).
+</span>  <span class='id identifier rubyid_desired'>desired</span> <span class='op'>=</span> <span class='id identifier rubyid_rename_desired_lines_to_target_var'>rename_desired_lines_to_target_var</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span> <span class='kw'>if</span> <span class='id identifier rubyid_context'>context</span>
+
+  <span class='kw'>return</span> <span class='id identifier rubyid_ensure_development_dependencies_fallback'>ensure_development_dependencies_fallback</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span> <span class='kw'>unless</span> <span class='id identifier rubyid_context'>context</span>
+
+  <span class='id identifier rubyid_ensure_development_dependencies_ast'>ensure_development_dependencies_ast</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='id identifier rubyid_context'>context</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ensure_development_dependencies_ast-instance_method">
+  
+    #<strong>ensure_development_dependencies_ast</strong>(content, desired, context:, lines:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+69
+70
+71
+72
+73
+74
+75
+76
+77
+78</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 69</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ensure_development_dependencies_ast'>ensure_development_dependencies_ast</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>context:</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_sync_snapshot_for'>development_dependency_sync_snapshot_for</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated'>updated</span> <span class='op'>=</span> <span class='id identifier rubyid_materialize_development_dependency_sync'>materialize_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='label'>sync_snapshot:</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_finalize_development_dependency_sync'>finalize_development_dependency_sync</span><span class='lparen'>(</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>desired:</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span>
+    <span class='label'>updated:</span> <span class='id identifier rubyid_updated'>updated</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ensure_development_dependencies_fallback-instance_method">
+  
+    #<strong>ensure_development_dependencies_fallback</strong>(content, desired, lines: content.to_s.lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Best-effort bootstrap fallback when Prism parsing/context extraction is<br />
+unavailable. This only syncs dependency lines conservatively so SetupCLI can<br />
+seed or repair development dependencies without hard-failing on an incomplete<br />
+gemspec that may be normalized later in the same workflow.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 42</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ensure_development_dependencies_fallback'>ensure_development_dependencies_fallback</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span> <span class='op'>=</span> <span class='id identifier rubyid_development_dependency_sync_snapshot_for'>development_dependency_sync_snapshot_for</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated'>updated</span> <span class='op'>=</span> <span class='id identifier rubyid_materialize_development_dependency_sync'>materialize_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='label'>sync_snapshot:</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_finalize_development_dependency_sync'>finalize_development_dependency_sync</span><span class='lparen'>(</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>desired:</span> <span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span>
+    <span class='label'>updated:</span> <span class='id identifier rubyid_updated'>updated</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="fallback_development_dependency_sync_snapshot-instance_method">
+  
+    #<strong>fallback_development_dependency_sync_snapshot</strong>(desired, lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+53
+54
+55
+56</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 53</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_fallback_development_dependency_sync_snapshot'>fallback_development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_index'>index</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="DependencySectionPolicy.html" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy (module)">DependencySectionPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_dependency_record_index'><span class='object_link'><a href="DependencySectionPolicy.html#dependency_record_index-class_method" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy.dependency_record_index (method)">dependency_record_index</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_development_dependency_sync_snapshot'>development_dependency_sync_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_index'>index</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="finalize_development_dependency_sync-instance_method">
+  
+    #<strong>finalize_development_dependency_sync</strong>(content:, desired:, updated:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+242
+243
+244
+245
+246
+247
+248
+249
+250
+251</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 242</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_finalize_development_dependency_sync'>finalize_development_dependency_sync</span><span class='lparen'>(</span><span class='label'>content:</span><span class='comma'>,</span> <span class='label'>desired:</span><span class='comma'>,</span> <span class='label'>updated:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_desired_content'>desired_content</span> <span class='op'>=</span> <span class='id identifier rubyid_desired'>desired</span><span class='period'>.</span><span class='id identifier rubyid_values'>values</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_normalize_dependency_sections'>normalize_dependency_sections</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_updated'>updated</span><span class='comma'>,</span>
+    <span class='label'>template_content:</span> <span class='id identifier rubyid_desired_content'>desired_content</span><span class='comma'>,</span>
+    <span class='label'>destination_content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>prefer_template:</span> <span class='kw'>true</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="formatted_dependency_line-instance_method">
+  
+    #<strong>formatted_dependency_line</strong>(desired_line, indent: &quot;  &quot;)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+275
+276
+277</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 275</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_formatted_dependency_line'>formatted_dependency_line</span><span class='lparen'>(</span><span class='id identifier rubyid_desired_line'>desired_line</span><span class='comma'>,</span> <span class='label'>indent:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>  </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_indent'>indent</span><span class='embexpr_end'>}</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_desired_line'>desired_line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="materialize_development_dependency_sync-instance_method">
+  
+    #<strong>materialize_development_dependency_sync</strong>(content, lines:, sync_snapshot:, context: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+80
+81
+82
+83
+84
+85</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 80</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_materialize_development_dependency_sync'>materialize_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>lines:</span><span class='comma'>,</span> <span class='label'>sync_snapshot:</span><span class='comma'>,</span> <span class='label'>context:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_apply_fallback_development_dependency_sync'>apply_fallback_development_dependency_sync</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span> <span class='kw'>unless</span> <span class='id identifier rubyid_context'>context</span>
+
+  <span class='id identifier rubyid_plans'>plans</span> <span class='op'>=</span> <span class='id identifier rubyid_ast_development_dependency_sync_plans'>ast_development_dependency_sync_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_sync_snapshot'>sync_snapshot</span><span class='comma'>,</span> <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_materialize_development_dependency_sync_plans'>materialize_development_dependency_sync_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_plans'>plans</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="materialize_development_dependency_sync_plans-instance_method">
+  
+    #<strong>materialize_development_dependency_sync_plans</strong>(content, plans)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+113
+114
+115
+116
+117
+118
+119
+120
+121</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 113</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_materialize_development_dependency_sync_plans'>materialize_development_dependency_sync_plans</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_plans'>plans</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_plans'>plans</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_merged_content_from_plans'>merged_content_from_plans</span><span class='lparen'>(</span>
+    <span class='label'>content:</span> <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>plans:</span> <span class='id identifier rubyid_plans'>plans</span><span class='comma'>,</span>
+    <span class='label'>metadata:</span> <span class='lbrace'>{</span><span class='label'>source:</span> <span class='symbol'>:kettle_jem_prism_gemspec</span><span class='comma'>,</span> <span class='label'>edit:</span> <span class='symbol'>:ensure_development_dependencies</span><span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="missing_development_dependency_insertion_text-instance_method">
+  
+    #<strong>missing_development_dependency_insertion_text</strong>(missing_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+312
+313
+314</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 312</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_missing_development_dependency_insertion_text'>missing_development_dependency_insertion_text</span><span class='lparen'>(</span><span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_missing_lines'>missing_lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="rename_desired_lines_to_target_var-instance_method">
+  
+    #<strong>rename_desired_lines_to_target_var</strong>(desired, context)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+266
+267
+268
+269
+270
+271
+272
+273</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/development_dependency_sync_policy.rb', line 266</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_rename_desired_lines_to_target_var'>rename_desired_lines_to_target_var</span><span class='lparen'>(</span><span class='id identifier rubyid_desired'>desired</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_target_var'>target_var</span> <span class='op'>=</span> <span class='id identifier rubyid_context'>context</span><span class='lbracket'>[</span><span class='symbol'>:blk_param</span><span class='rbracket'>]</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_desired'>desired</span> <span class='kw'>unless</span> <span class='id identifier rubyid_target_var'>target_var</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_target_var'>target_var</span> <span class='op'>!=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>spec</span><span class='tstring_end'>&quot;</span></span>
+
+  <span class='id identifier rubyid_desired'>desired</span><span class='period'>.</span><span class='id identifier rubyid_transform_values'>transform_values</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_line'>line</span><span class='op'>|</span>
+    <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\bspec\.</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_target_var'>target_var</span><span class='embexpr_end'>}</span><span class='tstring_content'>.</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:05 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

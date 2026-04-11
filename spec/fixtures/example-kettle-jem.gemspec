@@ -102,7 +102,6 @@ Gem::Specification.new do |spec|
     ".rubocop.yml",
     ".rubocop_rspec.yml",
     ".simplecov",
-    ".tool-versions",
     ".yardopts",
     ".yardignore",
     "Appraisal.root.gemfile",

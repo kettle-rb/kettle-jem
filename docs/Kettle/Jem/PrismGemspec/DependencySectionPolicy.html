@@ -1,0 +1,2882 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::PrismGemspec::DependencySectionPolicy
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::PrismGemspec::DependencySectionPolicy";
+  relpath = '../../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../../_index.html">Index (D)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../PrismGemspec.html" title="Kettle::Jem::PrismGemspec (module)">PrismGemspec</a></span></span>
+     &raquo; 
+    <span class="title">DependencySectionPolicy</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::PrismGemspec::DependencySectionPolicy
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/prism_gemspec/dependency_section_policy.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Explicit contract for gemspec dependency-section normalization.</p>
+
+<p>Given merged gemspec content plus template/destination source content,<br />
+this helper normalizes dependency sections by restoring preferred<br />
+formatting for matched dependency signatures, suppressing development<br />
+dependencies that are now runtime dependencies, and keeping runtime<br />
+dependency blocks above the development-dependency note block while<br />
+carrying attached comments and spacing.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+  
+    <h2>
+      Constant Summary
+      <small><a href="#" class="constants_summary_toggle">collapse</a></small>
+    </h2>
+
+    <dl class="constants">
+      
+        <dt id="GEMSPEC_DEPENDENCY_LINE_RE-constant" class="">GEMSPEC_DEPENDENCY_LINE_RE =
+          
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^(?&lt;indent&gt;\s*)\w+\.(?&lt;method&gt;add_(?:development_|runtime_)?dependency)\s*\(?\s*(?&lt;args&gt;(?&lt;quote&gt;[&quot;&#39;])(?&lt;gem&gt;[^&quot;&#39;]+)\k&lt;quote&gt;.*?)(?:\s*\))?\s*(?&lt;comment&gt;#.*)?(?:\n|\z)</span><span class='regexp_end'>/</span></span></pre></dd>
+      
+        <dt id="GEMSPEC_NOTE_BLOCK_START_RE-constant" class="">GEMSPEC_NOTE_BLOCK_START_RE =
+          
+        </dt>
+        <dd><pre class="code"><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^\s*# NOTE: It is preferable to list development dependencies in the gemspec due to increased</span><span class='regexp_end'>/</span></span></pre></dd>
+      
+    </dl>
+  
+
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_preferred_dependency_line-class_method" title="apply_preferred_dependency_line (class method)">.<strong>apply_preferred_dependency_line</strong>(updated_lines, record, preferred_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#apply_preferred_dependency_lines-class_method" title="apply_preferred_dependency_lines (class method)">.<strong>apply_preferred_dependency_lines</strong>(lines, records, preferred_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#attached_comment_start_index-class_method" title="attached_comment_start_index (class method)">.<strong>attached_comment_start_index</strong>(lines, line_index, stop_above_index: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#block_ends_with_separator%3F-class_method" title="block_ends_with_separator? (class method)">.<strong>block_ends_with_separator?</strong>(block)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_dependency_block_insertion-class_method" title="build_dependency_block_insertion (class method)">.<strong>build_dependency_block_insertion</strong>(blocks, before_line:, after_line:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#build_dependency_index-class_method" title="build_dependency_index (class method)">.<strong>build_dependency_index</strong>(records)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#collapse_line_ranges-class_method" title="collapse_line_ranges (class method)">.<strong>collapse_line_ranges</strong>(ranges)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_block_range-class_method" title="dependency_block_range (class method)">.<strong>dependency_block_range</strong>(lines, line_index, stop_above_index: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_line_lookup-class_method" title="dependency_line_lookup (class method)">.<strong>dependency_line_lookup</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_line_match-class_method" title="dependency_line_match (class method)">.<strong>dependency_line_match</strong>(line)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_line_source-class_method" title="dependency_line_source (class method)">.<strong>dependency_line_source</strong>(lines_or_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_lookup_key-class_method" title="dependency_lookup_key (class method)">.<strong>dependency_lookup_key</strong>(match)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_record_index-class_method" title="dependency_record_index (class method)">.<strong>dependency_record_index</strong>(lines_or_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_records-class_method" title="dependency_records (class method)">.<strong>dependency_records</strong>(lines_or_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_scan-class_method" title="dependency_scan (class method)">.<strong>dependency_scan</strong>(lines_or_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#dependency_scan_record-class_method" title="dependency_scan_record (class method)">.<strong>dependency_scan_record</strong>(line, idx)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#development_dependency_records-class_method" title="development_dependency_records (class method)">.<strong>development_dependency_records</strong>(lines_or_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#duplicate_runtime_shadowed_development_dependency_range-class_method" title="duplicate_runtime_shadowed_development_dependency_range (class method)">.<strong>duplicate_runtime_shadowed_development_dependency_range</strong>(lines, record, runtime_gems:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#duplicate_runtime_shadowed_development_dependency_ranges-class_method" title="duplicate_runtime_shadowed_development_dependency_ranges (class method)">.<strong>duplicate_runtime_shadowed_development_dependency_ranges</strong>(lines, records)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#ensure_note_block_trailing_separator-class_method" title="ensure_note_block_trailing_separator (class method)">.<strong>ensure_note_block_trailing_separator</strong>(content, preserve_separator:)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#extract_runtime_dependency_block_after_note-class_method" title="extract_runtime_dependency_block_after_note (class method)">.<strong>extract_runtime_dependency_block_after_note</strong>(lines, record, note_end_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#extract_runtime_dependency_blocks_after_note-class_method" title="extract_runtime_dependency_blocks_after_note (class method)">.<strong>extract_runtime_dependency_blocks_after_note</strong>(lines, runtime_after_note, note_end_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#fill_preferred_dependency_lookup-class_method" title="fill_preferred_dependency_lookup (class method)">.<strong>fill_preferred_dependency_lookup</strong>(preferred_lines, fallback_lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#index_dependency_record-class_method" title="index_dependency_record (class method)">.<strong>index_dependency_record</strong>(memo, record)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#insert_blocks_before_note-class_method" title="insert_blocks_before_note (class method)">.<strong>insert_blocks_before_note</strong>(lines, blocks)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#insertion_line_index-class_method" title="insertion_line_index (class method)">.<strong>insertion_line_index</strong>(lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#needs_separator_after_blocks%3F-class_method" title="needs_separator_after_blocks? (class method)">.<strong>needs_separator_after_blocks?</strong>(after_line, insertion)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#needs_separator_before_blocks%3F-class_method" title="needs_separator_before_blocks? (class method)">.<strong>needs_separator_before_blocks?</strong>(before_line)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize-class_method" title="normalize (class method)">.<strong>normalize</strong>(content:, template_content:, destination_content:, prefer_template: false)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#normalize_dependency_signature-class_method" title="normalize_dependency_signature (class method)">.<strong>normalize_dependency_signature</strong>(args_source)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#note_block_end_index-class_method" title="note_block_end_index (class method)">.<strong>note_block_end_index</strong>(lines, note_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#note_block_start_index-class_method" title="note_block_start_index (class method)">.<strong>note_block_start_index</strong>(lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#preferred_dependency_line_lookup-class_method" title="preferred_dependency_line_lookup (class method)">.<strong>preferred_dependency_line_lookup</strong>(template_content:, destination_content:, prefer_template: false)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#preferred_dependency_lookup_sources-class_method" title="preferred_dependency_lookup_sources (class method)">.<strong>preferred_dependency_lookup_sources</strong>(template_content:, destination_content:, prefer_template: false)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#relocate_runtime_dependency_blocks_before_note-class_method" title="relocate_runtime_dependency_blocks_before_note (class method)">.<strong>relocate_runtime_dependency_blocks_before_note</strong>(lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#remove_runtime_shadowed_development_dependency_blocks-class_method" title="remove_runtime_shadowed_development_dependency_blocks (class method)">.<strong>remove_runtime_shadowed_development_dependency_blocks</strong>(lines, records)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#runtime_dependency_method%3F-class_method" title="runtime_dependency_method? (class method)">.<strong>runtime_dependency_method?</strong>(method_name)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#runtime_dependency_relocation_snapshot-class_method" title="runtime_dependency_relocation_snapshot (class method)">.<strong>runtime_dependency_relocation_snapshot</strong>(lines)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#runtime_record_after_note%3F-class_method" title="runtime_record_after_note? (class method)">.<strong>runtime_record_after_note?</strong>(record, note_index)  &#x21d2; Boolean </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#runtime_records_after_note-class_method" title="runtime_records_after_note (class method)">.<strong>runtime_records_after_note</strong>(lines, note_index, records: nil)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#trailing_blank_line_end_index-class_method" title="trailing_blank_line_end_index (class method)">.<strong>trailing_blank_line_end_index</strong>(lines, line_index)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="apply_preferred_dependency_line-class_method">
+  
+    .<strong>apply_preferred_dependency_line</strong>(updated_lines, record, preferred_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+49
+50
+51
+52</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 49</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_preferred_dependency_line'>apply_preferred_dependency_line</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_preferred'>preferred</span> <span class='op'>=</span> <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_dependency_lookup_key'>dependency_lookup_key</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='rparen'>)</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span><span class='rbracket'>]</span> <span class='op'>=</span> <span class='id identifier rubyid_preferred'>preferred</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span> <span class='kw'>if</span> <span class='id identifier rubyid_preferred'>preferred</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="apply_preferred_dependency_lines-class_method">
+  
+    .<strong>apply_preferred_dependency_lines</strong>(lines, records, preferred_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+39
+40
+41
+42
+43
+44
+45
+46
+47</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 39</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_apply_preferred_dependency_lines'>apply_preferred_dependency_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='comma'>,</span> <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='op'>|</span>
+    <span class='id identifier rubyid_apply_preferred_dependency_line'>apply_preferred_dependency_line</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="attached_comment_start_index-class_method">
+  
+    .<strong>attached_comment_start_index</strong>(lines, line_index, stop_above_index: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+372
+373
+374
+375
+376
+377
+378
+379
+380
+381
+382
+383</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 372</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_attached_comment_start_index'>attached_comment_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_line_index'>line_index</span><span class='comma'>,</span> <span class='label'>stop_above_index:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>=</span> <span class='id identifier rubyid_line_index'>line_index</span>
+  <span class='kw'>while</span> <span class='id identifier rubyid_start_index'>start_index</span><span class='period'>.</span><span class='id identifier rubyid_positive?'>positive?</span>
+    <span class='kw'>break</span> <span class='kw'>if</span> <span class='op'>!</span><span class='id identifier rubyid_stop_above_index'>stop_above_index</span><span class='period'>.</span><span class='id identifier rubyid_nil?'>nil?</span> <span class='op'>&amp;&amp;</span> <span class='lparen'>(</span><span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>-</span> <span class='int'>1</span><span class='rparen'>)</span> <span class='op'>&lt;=</span> <span class='id identifier rubyid_stop_above_index'>stop_above_index</span>
+
+    <span class='id identifier rubyid_previous_line'>previous_line</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>-</span> <span class='int'>1</span><span class='rbracket'>]</span>
+    <span class='kw'>break</span> <span class='kw'>unless</span> <span class='id identifier rubyid_previous_line'>previous_line</span><span class='period'>.</span><span class='id identifier rubyid_lstrip'>lstrip</span><span class='period'>.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>#</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+    <span class='id identifier rubyid_start_index'>start_index</span> <span class='op'>-=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+  <span class='id identifier rubyid_start_index'>start_index</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="block_ends_with_separator?-class_method">
+  
+    .<strong>block_ends_with_separator?</strong>(block)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+391
+392
+393</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 391</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_block_ends_with_separator?'>block_ends_with_separator?</span><span class='lparen'>(</span><span class='id identifier rubyid_block'>block</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_block'>block</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="build_dependency_block_insertion-class_method">
+  
+    .<strong>build_dependency_block_insertion</strong>(blocks, before_line:, after_line:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+357
+358
+359
+360
+361
+362
+363
+364
+365
+366
+367
+368
+369
+370</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 357</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_dependency_block_insertion'>build_dependency_block_insertion</span><span class='lparen'>(</span><span class='id identifier rubyid_blocks'>blocks</span><span class='comma'>,</span> <span class='label'>before_line:</span><span class='comma'>,</span> <span class='label'>after_line:</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>if</span> <span class='id identifier rubyid_needs_separator_before_blocks?'>needs_separator_before_blocks?</span><span class='lparen'>(</span><span class='id identifier rubyid_before_line'>before_line</span><span class='rparen'>)</span>
+
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_blocks'>blocks</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each_with_index'>each_with_index</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_block'>block</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='op'>|</span>
+    <span class='id identifier rubyid_insertion'>insertion</span><span class='period'>.</span><span class='id identifier rubyid_concat'>concat</span><span class='lparen'>(</span><span class='id identifier rubyid_block'>block</span><span class='rparen'>)</span>
+    <span class='kw'>next</span> <span class='kw'>if</span> <span class='id identifier rubyid_idx'>idx</span> <span class='op'>==</span> <span class='id identifier rubyid_blocks'>blocks</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span> <span class='op'>-</span> <span class='int'>1</span>
+
+    <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>unless</span> <span class='id identifier rubyid_block_ends_with_separator?'>block_ends_with_separator?</span><span class='lparen'>(</span><span class='id identifier rubyid_block'>block</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>&lt;&lt;</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span> <span class='kw'>if</span> <span class='id identifier rubyid_needs_separator_after_blocks?'>needs_separator_after_blocks?</span><span class='lparen'>(</span><span class='id identifier rubyid_after_line'>after_line</span><span class='comma'>,</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_insertion'>insertion</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="build_dependency_index-class_method">
+  
+    .<strong>build_dependency_index</strong>(records)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+279
+280
+281
+282
+283</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 279</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_build_dependency_index'>build_dependency_index</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each_with_object'>each_with_object</span><span class='lparen'>(</span><span class='lbrace'>{</span><span class='label'>development_by_gem:</span> <span class='lbrace'>{</span><span class='rbrace'>}</span><span class='comma'>,</span> <span class='label'>runtime_gems:</span> <span class='const'>Set</span><span class='period'>.</span><span class='id identifier rubyid_new'>new</span><span class='rbrace'>}</span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_memo'>memo</span><span class='op'>|</span>
+    <span class='id identifier rubyid_index_dependency_record'>index_dependency_record</span><span class='lparen'>(</span><span class='id identifier rubyid_memo'>memo</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="collapse_line_ranges-class_method">
+  
+    .<strong>collapse_line_ranges</strong>(ranges)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+92
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+104</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 92</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_collapse_line_ranges'>collapse_line_ranges</span><span class='lparen'>(</span><span class='id identifier rubyid_ranges'>ranges</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_sorted'>sorted</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_ranges'>ranges</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_sort_by'>sort_by</span><span class='lparen'>(</span><span class='op'>&amp;</span><span class='symbol'>:begin</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='lbracket'>[</span><span class='rbracket'>]</span> <span class='kw'>if</span> <span class='id identifier rubyid_sorted'>sorted</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_sorted'>sorted</span><span class='period'>.</span><span class='id identifier rubyid_each_with_object'>each_with_object</span><span class='lparen'>(</span><span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_range'>range</span><span class='comma'>,</span> <span class='id identifier rubyid_merged'>merged</span><span class='op'>|</span>
+    <span class='kw'>if</span> <span class='id identifier rubyid_merged'>merged</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>||</span> <span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span> <span class='op'>&gt;</span> <span class='id identifier rubyid_merged'>merged</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_end'>end</span> <span class='op'>+</span> <span class='int'>1</span>
+      <span class='id identifier rubyid_merged'>merged</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_range'>range</span>
+    <span class='kw'>else</span>
+      <span class='id identifier rubyid_previous'>previous</span> <span class='op'>=</span> <span class='id identifier rubyid_merged'>merged</span><span class='period'>.</span><span class='id identifier rubyid_pop'>pop</span>
+      <span class='id identifier rubyid_merged'>merged</span> <span class='op'>&lt;&lt;</span> <span class='lparen'>(</span><span class='id identifier rubyid_previous'>previous</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span><span class='op'>..</span><span class='lbracket'>[</span><span class='id identifier rubyid_previous'>previous</span><span class='period'>.</span><span class='id identifier rubyid_end'>end</span><span class='comma'>,</span> <span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_end'>end</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_max'>max</span><span class='rparen'>)</span>
+    <span class='kw'>end</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_block_range-class_method">
+  
+    .<strong>dependency_block_range</strong>(lines, line_index, stop_above_index: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+353
+354
+355</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 353</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_block_range'>dependency_block_range</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_line_index'>line_index</span><span class='comma'>,</span> <span class='label'>stop_above_index:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_attached_comment_start_index'>attached_comment_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_line_index'>line_index</span><span class='comma'>,</span> <span class='label'>stop_above_index:</span> <span class='id identifier rubyid_stop_above_index'>stop_above_index</span><span class='rparen'>)</span><span class='op'>..</span><span class='id identifier rubyid_trailing_blank_line_end_index'>trailing_blank_line_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_line_index'>line_index</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_line_lookup-class_method">
+  
+    .<strong>dependency_line_lookup</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+236
+237
+238</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 236</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_line_lookup'>dependency_line_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dependency_scan'>dependency_scan</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span><span class='lbracket'>[</span><span class='symbol'>:lookup</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_line_match-class_method">
+  
+    .<strong>dependency_line_match</strong>(line)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+330
+331
+332
+333
+334
+335
+336
+337
+338
+339</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 330</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_line_match'>dependency_line_match</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='const'><span class='object_link'><a href="#GEMSPEC_DEPENDENCY_LINE_RE-constant" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy::GEMSPEC_DEPENDENCY_LINE_RE (constant)">GEMSPEC_DEPENDENCY_LINE_RE</a></span></span><span class='period'>.</span><span class='id identifier rubyid_match'>match</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_match'>match</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>method:</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>gem:</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:gem</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='label'>signature:</span> <span class='id identifier rubyid_normalize_dependency_signature'>normalize_dependency_signature</span><span class='lparen'>(</span><span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:args</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_line_source-class_method">
+  
+    .<strong>dependency_line_source</strong>(lines_or_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+322
+323
+324
+325
+326
+327
+328</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 322</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_line_source'>dependency_line_source</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='period'>.</span><span class='id identifier rubyid_is_a?'>is_a?</span><span class='lparen'>(</span><span class='const'>Array</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='period'>.</span><span class='id identifier rubyid_each_with_index'>each_with_index</span>
+  <span class='kw'>else</span>
+    <span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_each_line'>each_line</span><span class='period'>.</span><span class='id identifier rubyid_with_index'>with_index</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_lookup_key-class_method">
+  
+    .<strong>dependency_lookup_key</strong>(match)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+341
+342
+343</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 341</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_lookup_key'>dependency_lookup_key</span><span class='lparen'>(</span><span class='id identifier rubyid_match'>match</span><span class='rparen'>)</span>
+  <span class='lbracket'>[</span><span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:signature</span><span class='rbracket'>]</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_record_index-class_method">
+  
+    .<strong>dependency_record_index</strong>(lines_or_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+275
+276
+277</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 275</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_record_index'>dependency_record_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_build_dependency_index'>build_dependency_index</span><span class='lparen'>(</span><span class='id identifier rubyid_dependency_records'>dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_records-class_method">
+  
+    .<strong>dependency_records</strong>(lines_or_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+266
+267
+268</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 266</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_records'>dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dependency_scan'>dependency_scan</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span><span class='lbracket'>[</span><span class='symbol'>:records</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_scan-class_method">
+  
+    .<strong>dependency_scan</strong>(lines_or_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+295
+296
+297
+298
+299
+300
+301
+302
+303</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 295</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_scan'>dependency_scan</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dependency_line_source'>dependency_line_source</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_each_with_object'>each_with_object</span><span class='lparen'>(</span><span class='lbrace'>{</span><span class='label'>lookup:</span> <span class='lbrace'>{</span><span class='rbrace'>}</span><span class='comma'>,</span> <span class='label'>records:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='rbrace'>}</span><span class='rparen'>)</span> <span class='kw'>do</span> <span class='op'>|</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='rparen'>)</span><span class='comma'>,</span> <span class='id identifier rubyid_memo'>memo</span><span class='op'>|</span>
+    <span class='id identifier rubyid_payload'>payload</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_scan_record'>dependency_scan_record</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='rparen'>)</span>
+    <span class='kw'>next</span> <span class='kw'>unless</span> <span class='id identifier rubyid_payload'>payload</span>
+
+    <span class='id identifier rubyid_memo'>memo</span><span class='lbracket'>[</span><span class='symbol'>:lookup</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:lookup_key</span><span class='rbracket'>]</span><span class='rbracket'>]</span> <span class='op'>||=</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:normalized_line</span><span class='rbracket'>]</span>
+    <span class='id identifier rubyid_memo'>memo</span><span class='lbracket'>[</span><span class='symbol'>:records</span><span class='rbracket'>]</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_payload'>payload</span><span class='lbracket'>[</span><span class='symbol'>:record</span><span class='rbracket'>]</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="dependency_scan_record-class_method">
+  
+    .<strong>dependency_scan_record</strong>(line, idx)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+305
+306
+307
+308
+309
+310
+311
+312
+313
+314
+315
+316
+317
+318
+319
+320</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 305</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_dependency_scan_record'>dependency_scan_record</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='comma'>,</span> <span class='id identifier rubyid_idx'>idx</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_match'>match</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_line_match'>dependency_line_match</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_match'>match</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>lookup_key:</span> <span class='id identifier rubyid_dependency_lookup_key'>dependency_lookup_key</span><span class='lparen'>(</span><span class='id identifier rubyid_match'>match</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>normalized_line:</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_end_with?'>end_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span> <span class='op'>?</span> <span class='id identifier rubyid_line'>line</span> <span class='op'>:</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='embexpr_beg'>#{</span><span class='id identifier rubyid_line'>line</span><span class='embexpr_end'>}</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='comma'>,</span>
+    <span class='label'>record:</span> <span class='lbrace'>{</span>
+      <span class='label'>line_index:</span> <span class='id identifier rubyid_idx'>idx</span><span class='comma'>,</span>
+      <span class='label'>method:</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span><span class='comma'>,</span>
+      <span class='label'>gem:</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:gem</span><span class='rbracket'>]</span><span class='comma'>,</span>
+      <span class='label'>line:</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='comma'>,</span>
+      <span class='label'>signature:</span> <span class='id identifier rubyid_match'>match</span><span class='lbracket'>[</span><span class='symbol'>:signature</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="development_dependency_records-class_method">
+  
+    .<strong>development_dependency_records</strong>(lines_or_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+270
+271
+272
+273</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 270</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_development_dependency_records'>development_dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_dependency_records'>dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines_or_content'>lines_or_content</span><span class='rparen'>)</span>
+    <span class='period'>.</span><span class='id identifier rubyid_select'>select</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='op'>|</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>add_development_dependency</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="duplicate_runtime_shadowed_development_dependency_range-class_method">
+  
+    .<strong>duplicate_runtime_shadowed_development_dependency_range</strong>(lines, record, runtime_gems:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+77
+78
+79
+80
+81
+82
+83
+84
+85
+86
+87
+88
+89
+90</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 77</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_duplicate_runtime_shadowed_development_dependency_range'>duplicate_runtime_shadowed_development_dependency_range</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>runtime_gems:</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>add_development_dependency</span><span class='tstring_end'>&quot;</span></span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_runtime_gems'>runtime_gems</span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:gem</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_range'>range</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_block_range'>dependency_block_range</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_range'>range</span> <span class='kw'>unless</span> <span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span><span class='period'>.</span><span class='id identifier rubyid_positive?'>positive?</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_range'>range</span> <span class='kw'>unless</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span> <span class='op'>-</span> <span class='int'>1</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_note_block_end_index'>note_block_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span> <span class='op'>==</span> <span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span> <span class='op'>-</span> <span class='int'>1</span>
+    <span class='kw'>return</span> <span class='id identifier rubyid_range'>range</span>
+  <span class='kw'>end</span>
+
+  <span class='lparen'>(</span><span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_begin'>begin</span> <span class='op'>-</span> <span class='int'>1</span><span class='rparen'>)</span><span class='op'>..</span><span class='id identifier rubyid_range'>range</span><span class='period'>.</span><span class='id identifier rubyid_end'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="duplicate_runtime_shadowed_development_dependency_ranges-class_method">
+  
+    .<strong>duplicate_runtime_shadowed_development_dependency_ranges</strong>(lines, records)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+67
+68
+69
+70
+71
+72
+73
+74
+75</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 67</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_duplicate_runtime_shadowed_development_dependency_ranges'>duplicate_runtime_shadowed_development_dependency_ranges</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_index'>index</span> <span class='op'>=</span> <span class='id identifier rubyid_build_dependency_index'>build_dependency_index</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_ranges'>ranges</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_filter_map'>filter_map</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='op'>|</span>
+    <span class='id identifier rubyid_duplicate_runtime_shadowed_development_dependency_range'>duplicate_runtime_shadowed_development_dependency_range</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='label'>runtime_gems:</span> <span class='id identifier rubyid_index'>index</span><span class='lbracket'>[</span><span class='symbol'>:runtime_gems</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_collapse_line_ranges'>collapse_line_ranges</span><span class='lparen'>(</span><span class='id identifier rubyid_ranges'>ranges</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="ensure_note_block_trailing_separator-class_method">
+  
+    .<strong>ensure_note_block_trailing_separator</strong>(content, preserve_separator:)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+137
+138
+139
+140
+141
+142
+143
+144
+145
+146
+147
+148
+149
+150
+151</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 137</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_ensure_note_block_trailing_separator'>ensure_note_block_trailing_separator</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='label'>preserve_separator:</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_preserve_separator'>preserve_separator</span>
+
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span>
+  <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_note_index'>note_index</span>
+
+  <span class='id identifier rubyid_note_end_index'>note_end_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_end_index'>note_block_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_strip'>strip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_following_line'>following_line</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_end_index'>note_end_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>unless</span> <span class='id identifier rubyid_following_line'>following_line</span><span class='op'>&amp;.</span><span class='id identifier rubyid_lstrip'>lstrip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_start_with?'>start_with?</span><span class='lparen'>(</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>#</span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+
+  <span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='int'>0</span><span class='op'>..</span><span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='lbracket'>[</span><span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>\n</span><span class='tstring_end'>&quot;</span></span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='lparen'>(</span><span class='id identifier rubyid_note_end_index'>note_end_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rparen'>)</span><span class='op'>..</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="extract_runtime_dependency_block_after_note-class_method">
+  
+    .<strong>extract_runtime_dependency_block_after_note</strong>(lines, record, note_end_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+165
+166
+167
+168
+169
+170
+171
+172
+173
+174
+175
+176
+177
+178
+179
+180
+181
+182</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 165</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_extract_runtime_dependency_block_after_note'>extract_runtime_dependency_block_after_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_range'>range</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_block_range'>dependency_block_range</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>stop_above_index:</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_moved_block'>moved_block</span> <span class='op'>=</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_range'>range</span><span class='rbracket'>]</span><span class='period'>.</span><span class='id identifier rubyid_map'>map</span><span class='lparen'>(</span><span class='op'>&amp;</span><span class='symbol'>:dup</span><span class='rparen'>)</span>
+
+  <span class='lbracket'>[</span>
+    <span class='id identifier rubyid_moved_block'>moved_block</span><span class='comma'>,</span>
+    <span class='const'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../PrismGemspec.html" title="Kettle::Jem::PrismGemspec (module)">PrismGemspec</a></span></span><span class='period'>.</span><span class='id identifier rubyid_remove_line_ranges_with_plans'><span class='object_link'><a href="StructuralEditPolicy.html#remove_line_ranges_with_plans-instance_method" title="Kettle::Jem::PrismGemspec::StructuralEditPolicy#remove_line_ranges_with_plans (method)">remove_line_ranges_with_plans</a></span></span><span class='lparen'>(</span>
+      <span class='label'>content:</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='comma'>,</span>
+      <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+      <span class='label'>ranges:</span> <span class='lbracket'>[</span><span class='id identifier rubyid_range'>range</span><span class='rbracket'>]</span><span class='comma'>,</span>
+      <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+        <span class='label'>source:</span> <span class='symbol'>:kettle_jem_prism_gemspec_dependency_section</span><span class='comma'>,</span>
+        <span class='label'>reason:</span> <span class='symbol'>:runtime_dependency_relocation</span><span class='comma'>,</span>
+        <span class='label'>dependency_signature:</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:signature</span><span class='rbracket'>]</span><span class='comma'>,</span>
+      <span class='rbrace'>}</span><span class='comma'>,</span>
+    <span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="extract_runtime_dependency_blocks_after_note-class_method">
+  
+    .<strong>extract_runtime_dependency_blocks_after_note</strong>(lines, runtime_after_note, note_end_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+153
+154
+155
+156
+157
+158
+159
+160
+161
+162
+163</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 153</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_extract_runtime_dependency_blocks_after_note'>extract_runtime_dependency_blocks_after_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_runtime_after_note'>runtime_after_note</span><span class='comma'>,</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_dup'>dup</span>
+  <span class='id identifier rubyid_moved_blocks'>moved_blocks</span> <span class='op'>=</span> <span class='lbracket'>[</span><span class='rbracket'>]</span>
+
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_runtime_after_note'>runtime_after_note</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_reverse_each'>reverse_each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='op'>|</span>
+    <span class='id identifier rubyid_moved_block'>moved_block</span><span class='comma'>,</span> <span class='id identifier rubyid_updated_lines'>updated_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_extract_runtime_dependency_block_after_note'>extract_runtime_dependency_block_after_note</span><span class='lparen'>(</span><span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_moved_blocks'>moved_blocks</span><span class='period'>.</span><span class='id identifier rubyid_unshift'>unshift</span><span class='lparen'>(</span><span class='id identifier rubyid_moved_block'>moved_block</span><span class='rparen'>)</span>
+  <span class='kw'>end</span>
+
+  <span class='lbracket'>[</span><span class='id identifier rubyid_moved_blocks'>moved_blocks</span><span class='comma'>,</span> <span class='id identifier rubyid_updated_lines'>updated_lines</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="fill_preferred_dependency_lookup-class_method">
+  
+    .<strong>fill_preferred_dependency_lookup</strong>(preferred_lines, fallback_lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+258
+259
+260
+261
+262
+263
+264</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 258</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_fill_preferred_dependency_lookup'>fill_preferred_dependency_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_fallback_lines'>fallback_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_fallback_lines'>fallback_lines</span><span class='period'>.</span><span class='id identifier rubyid_each'>each</span> <span class='kw'>do</span> <span class='op'>|</span><span class='id identifier rubyid_signature'>signature</span><span class='comma'>,</span> <span class='id identifier rubyid_line'>line</span><span class='op'>|</span>
+    <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_signature'>signature</span><span class='rbracket'>]</span> <span class='op'>||=</span> <span class='id identifier rubyid_line'>line</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_preferred_lines'>preferred_lines</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="index_dependency_record-class_method">
+  
+    .<strong>index_dependency_record</strong>(memo, record)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+285
+286
+287
+288
+289
+290
+291
+292
+293</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 285</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_index_dependency_record'>index_dependency_record</span><span class='lparen'>(</span><span class='id identifier rubyid_memo'>memo</span><span class='comma'>,</span> <span class='id identifier rubyid_record'>record</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_runtime_dependency_method?'>runtime_dependency_method?</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_memo'>memo</span><span class='lbracket'>[</span><span class='symbol'>:runtime_gems</span><span class='rbracket'>]</span> <span class='op'>&lt;&lt;</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:gem</span><span class='rbracket'>]</span>
+  <span class='kw'>elsif</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>add_development_dependency</span><span class='tstring_end'>&quot;</span></span>
+    <span class='id identifier rubyid_memo'>memo</span><span class='lbracket'>[</span><span class='symbol'>:development_by_gem</span><span class='rbracket'>]</span><span class='lbracket'>[</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:gem</span><span class='rbracket'>]</span><span class='rbracket'>]</span> <span class='op'>||=</span> <span class='id identifier rubyid_record'>record</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_memo'>memo</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="insert_blocks_before_note-class_method">
+  
+    .<strong>insert_blocks_before_note</strong>(lines, blocks)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 216</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_insert_blocks_before_note'>insert_blocks_before_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_blocks'>blocks</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span> <span class='kw'>unless</span> <span class='id identifier rubyid_note_index'>note_index</span>
+
+  <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>=</span> <span class='id identifier rubyid_build_dependency_block_insertion'>build_dependency_block_insertion</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_blocks'>blocks</span><span class='comma'>,</span>
+    <span class='label'>before_line:</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='period'>.</span><span class='id identifier rubyid_positive?'>positive?</span> <span class='op'>?</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>-</span> <span class='int'>1</span><span class='rbracket'>]</span> <span class='op'>:</span> <span class='kw'>nil</span><span class='comma'>,</span>
+    <span class='label'>after_line:</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_index'>note_index</span><span class='rbracket'>]</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+
+  <span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='int'>0</span><span class='op'>...</span><span class='id identifier rubyid_note_index'>note_index</span><span class='rbracket'>]</span> <span class='op'>+</span> <span class='id identifier rubyid_insertion'>insertion</span> <span class='op'>+</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_index'>note_index</span><span class='op'>..</span><span class='rbracket'>]</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="insertion_line_index-class_method">
+  
+    .<strong>insertion_line_index</strong>(lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+229
+230
+231
+232
+233
+234</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 229</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_insertion_line_index'>insertion_line_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_note_block_end_index'>note_block_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span> <span class='op'>+</span> <span class='int'>1</span> <span class='kw'>if</span> <span class='id identifier rubyid_note_index'>note_index</span>
+
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_rindex'>rindex</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_line'>line</span><span class='op'>|</span> <span class='id identifier rubyid_line'>line</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span> <span class='op'>==</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'>end</span><span class='tstring_end'>&quot;</span></span> <span class='rbrace'>}</span> <span class='op'>||</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_length'>length</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="needs_separator_after_blocks?-class_method">
+  
+    .<strong>needs_separator_after_blocks?</strong>(after_line, insertion)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+399
+400
+401</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 399</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_needs_separator_after_blocks?'>needs_separator_after_blocks?</span><span class='lparen'>(</span><span class='id identifier rubyid_after_line'>after_line</span><span class='comma'>,</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_after_line'>after_line</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_after_line'>after_line</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_insertion'>insertion</span><span class='period'>.</span><span class='id identifier rubyid_last'>last</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span> <span class='op'>!=</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_end'>&quot;</span></span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="needs_separator_before_blocks?-class_method">
+  
+    .<strong>needs_separator_before_blocks?</strong>(before_line)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+395
+396
+397</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 395</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_needs_separator_before_blocks?'>needs_separator_before_blocks?</span><span class='lparen'>(</span><span class='id identifier rubyid_before_line'>before_line</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_before_line'>before_line</span> <span class='op'>&amp;&amp;</span> <span class='op'>!</span><span class='id identifier rubyid_before_line'>before_line</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize-class_method">
+  
+    .<strong>normalize</strong>(content:, template_content:, destination_content:, prefer_template: false)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 22</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize'>normalize</span><span class='lparen'>(</span><span class='label'>content:</span><span class='comma'>,</span> <span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>destination_content:</span><span class='comma'>,</span> <span class='label'>prefer_template:</span> <span class='kw'>false</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_content'>content</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_lines'>lines</span>
+  <span class='kw'>return</span> <span class='id identifier rubyid_content'>content</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_preferred_lines'>preferred_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_preferred_dependency_line_lookup'>preferred_dependency_line_lookup</span><span class='lparen'>(</span>
+    <span class='label'>template_content:</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>destination_content:</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='label'>prefer_template:</span> <span class='id identifier rubyid_prefer_template'>prefer_template</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_records'>records</span> <span class='op'>=</span> <span class='id identifier rubyid_dependency_records'>dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_apply_preferred_dependency_lines'>apply_preferred_dependency_lines</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='comma'>,</span> <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_lines'>lines</span> <span class='op'>=</span> <span class='id identifier rubyid_remove_runtime_shadowed_development_dependency_blocks'>remove_runtime_shadowed_development_dependency_blocks</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_relocate_runtime_dependency_blocks_before_note'>relocate_runtime_dependency_blocks_before_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="normalize_dependency_signature-class_method">
+  
+    .<strong>normalize_dependency_signature</strong>(args_source)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+345
+346
+347</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 345</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_normalize_dependency_signature'>normalize_dependency_signature</span><span class='lparen'>(</span><span class='id identifier rubyid_args_source'>args_source</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_args_source'>args_source</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='period'>.</span><span class='id identifier rubyid_strip'>strip</span><span class='period'>.</span><span class='id identifier rubyid_gsub'>gsub</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>\s+</span><span class='regexp_end'>/</span></span><span class='comma'>,</span> <span class='tstring'><span class='tstring_beg'>&quot;</span><span class='tstring_content'> </span><span class='tstring_end'>&quot;</span></span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="note_block_end_index-class_method">
+  
+    .<strong>note_block_end_index</strong>(lines, note_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+188
+189
+190
+191
+192
+193
+194
+195
+196
+197
+198
+199
+200
+201
+202
+203
+204
+205</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 188</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_note_block_end_index'>note_block_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_index'>note_index</span>
+
+  <span class='comment'># Match NOTE-block continuation lines: either indented comment lines
+</span>  <span class='comment'># (#  two-or-more-spaces) or bare empty comment lines (# alone).
+</span>  <span class='comment'># Bare `#` lines act as blank separators within the NOTE paragraph and
+</span>  <span class='comment'># must be included so the full block boundary is computed correctly;
+</span>  <span class='comment'># otherwise the tail of the NOTE body (e.g. the required_ruby_version
+</span>  <span class='comment'># advisory) is mistakenly classified as attached comments of the next
+</span>  <span class='comment'># code node, causing those lines to be moved and duplicated on each run.
+</span>  <span class='kw'>while</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_lstrip'>lstrip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='tstring'><span class='regexp_beg'>/</span><span class='tstring_content'>^#(\s{2,}|$)</span><span class='regexp_end'>/</span></span><span class='rparen'>)</span>
+    <span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+=</span> <span class='int'>1</span>
+  <span class='kw'>end</span>
+
+  <span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+=</span> <span class='int'>1</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_strip'>strip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='id identifier rubyid_end_index'>end_index</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="note_block_start_index-class_method">
+  
+    .<strong>note_block_start_index</strong>(lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+184
+185
+186</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 184</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_index'>index</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_line'>line</span><span class='op'>|</span> <span class='const'><span class='object_link'><a href="#GEMSPEC_NOTE_BLOCK_START_RE-constant" title="Kettle::Jem::PrismGemspec::DependencySectionPolicy::GEMSPEC_NOTE_BLOCK_START_RE (constant)">GEMSPEC_NOTE_BLOCK_START_RE</a></span></span><span class='period'>.</span><span class='id identifier rubyid_match?'>match?</span><span class='lparen'>(</span><span class='id identifier rubyid_line'>line</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="preferred_dependency_line_lookup-class_method">
+  
+    .<strong>preferred_dependency_line_lookup</strong>(template_content:, destination_content:, prefer_template: false)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+240
+241
+242
+243
+244
+245
+246
+247
+248</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 240</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_preferred_dependency_line_lookup'>preferred_dependency_line_lookup</span><span class='lparen'>(</span><span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>destination_content:</span><span class='comma'>,</span> <span class='label'>prefer_template:</span> <span class='kw'>false</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_fallback_lines'>fallback_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_preferred_dependency_lookup_sources'>preferred_dependency_lookup_sources</span><span class='lparen'>(</span>
+    <span class='label'>template_content:</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>destination_content:</span> <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='label'>prefer_template:</span> <span class='id identifier rubyid_prefer_template'>prefer_template</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_fill_preferred_dependency_lookup'>fill_preferred_dependency_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_preferred_lines'>preferred_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_fallback_lines'>fallback_lines</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="preferred_dependency_lookup_sources-class_method">
+  
+    .<strong>preferred_dependency_lookup_sources</strong>(template_content:, destination_content:, prefer_template: false)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+250
+251
+252
+253
+254
+255
+256</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 250</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_preferred_dependency_lookup_sources'>preferred_dependency_lookup_sources</span><span class='lparen'>(</span><span class='label'>template_content:</span><span class='comma'>,</span> <span class='label'>destination_content:</span><span class='comma'>,</span> <span class='label'>prefer_template:</span> <span class='kw'>false</span><span class='rparen'>)</span>
+  <span class='kw'>if</span> <span class='id identifier rubyid_prefer_template'>prefer_template</span>
+    <span class='lbracket'>[</span><span class='id identifier rubyid_dependency_line_lookup'>dependency_line_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_line_lookup'>dependency_line_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span><span class='rbracket'>]</span>
+  <span class='kw'>else</span>
+    <span class='lbracket'>[</span><span class='id identifier rubyid_dependency_line_lookup'>dependency_line_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='rparen'>)</span><span class='comma'>,</span> <span class='id identifier rubyid_dependency_line_lookup'>dependency_line_lookup</span><span class='lparen'>(</span><span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span><span class='rbracket'>]</span>
+  <span class='kw'>end</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="relocate_runtime_dependency_blocks_before_note-class_method">
+  
+    .<strong>relocate_runtime_dependency_blocks_before_note</strong>(lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+106
+107
+108
+109
+110
+111
+112
+113
+114
+115
+116
+117
+118
+119
+120</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 106</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_relocate_runtime_dependency_blocks_before_note'>relocate_runtime_dependency_blocks_before_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_relocation_snapshot'>relocation_snapshot</span> <span class='op'>=</span> <span class='id identifier rubyid_runtime_dependency_relocation_snapshot'>runtime_dependency_relocation_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span> <span class='kw'>unless</span> <span class='id identifier rubyid_relocation_snapshot'>relocation_snapshot</span>
+
+  <span class='id identifier rubyid_moved_blocks'>moved_blocks</span><span class='comma'>,</span> <span class='id identifier rubyid_remaining_lines'>remaining_lines</span> <span class='op'>=</span> <span class='id identifier rubyid_extract_runtime_dependency_blocks_after_note'>extract_runtime_dependency_blocks_after_note</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_relocation_snapshot'>relocation_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:runtime_after_note</span><span class='rbracket'>]</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_relocation_snapshot'>relocation_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:note_end_index</span><span class='rbracket'>]</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+
+  <span class='id identifier rubyid_ensure_note_block_trailing_separator'>ensure_note_block_trailing_separator</span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_insert_blocks_before_note'>insert_blocks_before_note</span><span class='lparen'>(</span><span class='id identifier rubyid_remaining_lines'>remaining_lines</span><span class='comma'>,</span> <span class='id identifier rubyid_moved_blocks'>moved_blocks</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>preserve_separator:</span> <span class='id identifier rubyid_relocation_snapshot'>relocation_snapshot</span><span class='lbracket'>[</span><span class='symbol'>:note_trailing_blank</span><span class='rbracket'>]</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="remove_runtime_shadowed_development_dependency_blocks-class_method">
+  
+    .<strong>remove_runtime_shadowed_development_dependency_blocks</strong>(lines, records)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+54
+55
+56
+57
+58
+59
+60
+61
+62
+63
+64
+65</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 54</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_remove_runtime_shadowed_development_dependency_blocks'>remove_runtime_shadowed_development_dependency_blocks</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_duplicate_dev_ranges'>duplicate_dev_ranges</span> <span class='op'>=</span> <span class='id identifier rubyid_duplicate_runtime_shadowed_development_dependency_ranges'>duplicate_runtime_shadowed_development_dependency_ranges</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_records'>records</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span><span class='op'>::</span><span class='const'><span class='object_link'><a href="../PrismGemspec.html" title="Kettle::Jem::PrismGemspec (module)">PrismGemspec</a></span></span><span class='period'>.</span><span class='id identifier rubyid_remove_line_ranges_with_plans'><span class='object_link'><a href="StructuralEditPolicy.html#remove_line_ranges_with_plans-instance_method" title="Kettle::Jem::PrismGemspec::StructuralEditPolicy#remove_line_ranges_with_plans (method)">remove_line_ranges_with_plans</a></span></span><span class='lparen'>(</span>
+    <span class='label'>content:</span> <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='period'>.</span><span class='id identifier rubyid_join'>join</span><span class='comma'>,</span>
+    <span class='label'>lines:</span> <span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span>
+    <span class='label'>ranges:</span> <span class='id identifier rubyid_duplicate_dev_ranges'>duplicate_dev_ranges</span><span class='comma'>,</span>
+    <span class='label'>metadata:</span> <span class='lbrace'>{</span>
+      <span class='label'>source:</span> <span class='symbol'>:kettle_jem_prism_gemspec_dependency_section</span><span class='comma'>,</span>
+      <span class='label'>reason:</span> <span class='symbol'>:runtime_shadowed_development_dependency</span><span class='comma'>,</span>
+    <span class='rbrace'>}</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="runtime_dependency_method?-class_method">
+  
+    .<strong>runtime_dependency_method?</strong>(method_name)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+349
+350
+351</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 349</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_runtime_dependency_method?'>runtime_dependency_method?</span><span class='lparen'>(</span><span class='id identifier rubyid_method_name'>method_name</span><span class='rparen'>)</span>
+  <span class='qwords_beg'>%w[</span><span class='tstring_content'>add_dependency</span><span class='words_sep'> </span><span class='tstring_content'>add_runtime_dependency</span><span class='tstring_end'>]</span></span><span class='period'>.</span><span class='id identifier rubyid_include?'>include?</span><span class='lparen'>(</span><span class='id identifier rubyid_method_name'>method_name</span><span class='period'>.</span><span class='id identifier rubyid_to_s'>to_s</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="runtime_dependency_relocation_snapshot-class_method">
+  
+    .<strong>runtime_dependency_relocation_snapshot</strong>(lines)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+122
+123
+124
+125
+126
+127
+128
+129
+130
+131
+132
+133
+134
+135</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 122</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_runtime_dependency_relocation_snapshot'>runtime_dependency_relocation_snapshot</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_note_index'>note_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_start_index'>note_block_start_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='id identifier rubyid_note_index'>note_index</span>
+
+  <span class='id identifier rubyid_note_end_index'>note_end_index</span> <span class='op'>=</span> <span class='id identifier rubyid_note_block_end_index'>note_block_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_runtime_after_note'>runtime_after_note</span> <span class='op'>=</span> <span class='id identifier rubyid_runtime_records_after_note'>runtime_records_after_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>if</span> <span class='id identifier rubyid_runtime_after_note'>runtime_after_note</span><span class='period'>.</span><span class='id identifier rubyid_empty?'>empty?</span>
+
+  <span class='lbrace'>{</span>
+    <span class='label'>note_end_index:</span> <span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='comma'>,</span>
+    <span class='label'>note_trailing_blank:</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_note_end_index'>note_end_index</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_strip'>strip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_empty?'>empty?</span><span class='comma'>,</span>
+    <span class='label'>runtime_after_note:</span> <span class='id identifier rubyid_runtime_after_note'>runtime_after_note</span><span class='comma'>,</span>
+  <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="runtime_record_after_note?-class_method">
+  
+    .<strong>runtime_record_after_note?</strong>(record, note_index)  &#x21d2; <tt>Boolean</tt> 
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    
+
+
+  </div>
+</div>
+<div class="tags">
+  
+<p class="tag_title">Returns:</p>
+<ul class="return">
+  
+    <li>
+      
+      
+        <span class='type'>(<tt>Boolean</tt>)</span>
+      
+      
+      
+    </li>
+  
+</ul>
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+212
+213
+214</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 212</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_runtime_record_after_note?'>runtime_record_after_note?</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_runtime_dependency_method?'>runtime_dependency_method?</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:method</span><span class='rbracket'>]</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='id identifier rubyid_record'>record</span><span class='lbracket'>[</span><span class='symbol'>:line_index</span><span class='rbracket'>]</span> <span class='op'>&gt;</span> <span class='id identifier rubyid_note_index'>note_index</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="runtime_records_after_note-class_method">
+  
+    .<strong>runtime_records_after_note</strong>(lines, note_index, records: nil)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+207
+208
+209
+210</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 207</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_runtime_records_after_note'>runtime_records_after_note</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='comma'>,</span> <span class='label'>records:</span> <span class='kw'>nil</span><span class='rparen'>)</span>
+  <span class='const'>Array</span><span class='lparen'>(</span><span class='id identifier rubyid_records'>records</span> <span class='op'>||</span> <span class='id identifier rubyid_dependency_records'>dependency_records</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='rparen'>)</span><span class='rparen'>)</span>
+    <span class='period'>.</span><span class='id identifier rubyid_select'>select</span> <span class='lbrace'>{</span> <span class='op'>|</span><span class='id identifier rubyid_record'>record</span><span class='op'>|</span> <span class='id identifier rubyid_runtime_record_after_note?'>runtime_record_after_note?</span><span class='lparen'>(</span><span class='id identifier rubyid_record'>record</span><span class='comma'>,</span> <span class='id identifier rubyid_note_index'>note_index</span><span class='rparen'>)</span> <span class='rbrace'>}</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="trailing_blank_line_end_index-class_method">
+  
+    .<strong>trailing_blank_line_end_index</strong>(lines, line_index)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+385
+386
+387
+388
+389</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemspec/dependency_section_policy.rb', line 385</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_trailing_blank_line_end_index'>trailing_blank_line_end_index</span><span class='lparen'>(</span><span class='id identifier rubyid_lines'>lines</span><span class='comma'>,</span> <span class='id identifier rubyid_line_index'>line_index</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>=</span> <span class='id identifier rubyid_line_index'>line_index</span>
+  <span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+=</span> <span class='int'>1</span> <span class='kw'>if</span> <span class='id identifier rubyid_lines'>lines</span><span class='lbracket'>[</span><span class='id identifier rubyid_end_index'>end_index</span> <span class='op'>+</span> <span class='int'>1</span><span class='rbracket'>]</span><span class='op'>&amp;.</span><span class='id identifier rubyid_strip'>strip</span><span class='op'>&amp;.</span><span class='id identifier rubyid_empty?'>empty?</span>
+  <span class='id identifier rubyid_end_index'>end_index</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:04 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

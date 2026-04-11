@@ -409,18 +409,6 @@ module Kettle
                 add_template_only_nodes: true,
                 freeze_token: "kettle-jem",
               ).merge
-            elsif file_type == :tool_versions
-              # .tool-versions: text-merge with first-word signature matching.
-              # Lines match by tool name (e.g., "ruby"), so template version
-              # values replace destination values while destination-only tools
-              # are preserved.
-              Ast::Merge::Text::SmartMerger.new(
-                content,
-                dest_content,
-                preference: :template,
-                add_template_only_nodes: true,
-                signature_generator: TOOL_VERSIONS_SIGNATURE_GENERATOR,
-              ).merge
             else
               # Text files: text-merge. For .gitignore specifically, include
               # template-only lines so new ignore rules are added to existing
@@ -473,8 +461,6 @@ module Kettle
               :markdown
             elsif bash_file?(rel)
               :bash
-            elsif tool_versions_file?(rel)
-              :tool_versions
             else
               :text
             end
@@ -628,25 +614,11 @@ module Kettle
         # Tool-owned bootstrap files that should be refreshed from the template
         # rather than structurally merged.
         ACCEPT_TEMPLATE_PATHS = %w[bin/setup].freeze
-        # Basenames that use "tool version" key-value format (first word = key)
-        TOOL_VERSIONS_BASENAMES = %w[.tool-versions].freeze
         # Tree-sitter grammar languages whose paths we attempt to auto-discover
         # and write into mise.toml so they are available to subsequent runs.
         TREE_SITTER_GRAMMAR_LANGUAGES = %w[
           bash css javascript json jsonc python rbs ruby toml yaml
         ].freeze
-
-        # Custom signature generator for .tool-versions files.
-        # Matches lines by the tool name (first word) so that e.g.
-        # "ruby 3.2.0" in the destination matches "ruby 4.0.0" in the template.
-        # With preference: :template, the template version value wins while
-        # destination-only tool entries are preserved.
-        TOOL_VERSIONS_SIGNATURE_GENERATOR = ->(node) {
-          return node unless node.respond_to?(:content)
-          first_word = node.content.to_s.strip.split(/\s+/, 2).first
-          return node if first_word.nil? || first_word.empty?
-          [:line, first_word]
-        }.freeze
 
         def yaml_file?(relative_path)
           ext = File.extname(relative_path.to_s).downcase
@@ -659,11 +631,6 @@ module Kettle
           ext = File.extname(relative_path.to_s).downcase
           base = File.basename(relative_path.to_s)
           BASH_EXTENSIONS.include?(ext) || BASH_BASENAMES.include?(base)
-        end
-
-        def tool_versions_file?(relative_path)
-          base = File.basename(relative_path.to_s)
-          TOOL_VERSIONS_BASENAMES.include?(base)
         end
 
         def accept_template_path?(relative_path)

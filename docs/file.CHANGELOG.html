@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  File: CHANGELOG
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "CHANGELOG";
+  relpath = '';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="file_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="_index.html">Index</a> &raquo; 
+    <span class="title">File: CHANGELOG</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><div id='filecontents'><h1 id="changelog">Changelog</h1>
+
+<p><a href="https://semver.org/spec/v2.0.0.html"><img src="https://img.shields.io/badge/semver-2.0.0-FFDD67.svg?style=flat" alt="SemVer 2.0.0"></a> <a href="https://keepachangelog.com/en/1.0.0/"><img src="https://img.shields.io/badge/keep--a--changelog-1.0.0-FFDD67.svg?style=flat" alt="Keep-A-Changelog 1.0.0"></a></p>
+
+<p>All notable changes to this project will be documented in this file.</p>
+
+<p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,<br>
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>,<br>
+and <a href="https://tom.preston-werner.com/2022/05/23/major-version-numbers-are-not-sacred.html">yes</a>, platform and engine support are part of the <a href="https://github.com/semver/semver/issues/716#issuecomment-869336139">public API</a>.<br>
+Please file a bug if you notice a violation of semantic versioning.</p>
+
+<h2 id="unreleased"><a href="https://github.com/kettle-rb/kettle-jem/compare/v1.0.0...HEAD">Unreleased</a></h2>
+
+<h3 id="added">Added</h3>
+
+<ul>
+  <li>
+<code>PrismGemfile::CONFLICTING_GEMS</code> constant (<code>%w[appraisal]</code>) identifies gems<br>
+that conflict with the kettle-jem template ecosystem. The <code>appraisal</code> gem is<br>
+replaced by the <code>appraisal2</code> hard-fork (same <code>appraisal</code> executable,<br>
+incompatible internals); keeping both causes execution conflicts.</li>
+  <li>
+<code>SetupCLI#remove_conflicting_gems</code> strips <code>CONFLICTING_GEMS</code> from the main<br>
+Gemfile during the bootstrap <code>ensure_gemfile_from_example!</code> merge, handling<br>
+gems that carry the old <code>appraisal</code> dependency in their Gemfile.</li>
+  <li>
+<code>TemplateHelpers#remove_conflicting_gemfile_gems</code> strips <code>CONFLICTING_GEMS</code><br>
+from <code>Appraisal.root.gemfile</code> after the destination-wins merge, where the old<br>
+<code>gem "appraisal"</code> declaration would otherwise survive as a destination-only<br>
+node and conflict with <code>appraisal2</code> at runtime.</li>
+  <li>
+    <p><code>SetupCLI#remove_scaffold_default_gems</code> now removes <code>rake</code>, <code>rspec</code>, and<br>
+<code>rubocop</code> from a freshly scaffolded gem’s Gemfile during templating. These<br>
+gems are added by <code>bundle gem</code> but are redundant after kettle-jem applies:<br>
+<code>rake</code> moves to gemspec dev-deps, <code>rspec</code> is pulled in transitively by<br>
+<code>kettle-test</code>, and <code>rubocop</code> is managed by <code>standard</code> via <code>style.gemfile</code>.</p>
+  </li>
+  <li>New <code>{KJ|GEM_MAJOR}</code> token, resolved from the target gem’s gemspec version,<br>
+emitting just the major version integer (e.g. <code>"3"</code> for a <code>3.1.0</code> gem). Use<br>
+it in templates wherever a <code>"~&gt; X.0"</code> dependency constraint is needed, such<br>
+as the <code>spec.add_dependency</code> example line in README templates.</li>
+  <li>Templating now writes a dedicated per-run Markdown report under<br>
+<code>tmp/kettle-jem/</code>, capturing run status, warnings or errors, and the active<br>
+merge-gem environment.</li>
+</ul>
+
+<h3 id="changed">Changed</h3>
+
+<ul>
+  <li>Ruby templating now normalizes and applies <code>.kettle-jem.yml</code> merge settings<br>
+for Ruby/Gemfile/Rakefile merges instead of silently dropping configured<br>
+<code>preference</code>, <code>add_template_only_nodes</code>, <code>freeze_token</code>, and<br>
+<code>max_recursion_depth</code> values on the Ruby merge path.</li>
+  <li>README and CHANGELOG templating now run through recipe-backed partial-template<br>
+merges instead of manual section splitting and heading scanning, leaving only<br>
+narrow H1/header normalization and Keep-a-Changelog ordering policy local to<br>
+<code>kettle-jem</code>
+</li>
+  <li>Gemfile duplicate-conflict validation and <code>--force</code> fallback now live inside<br>
+<code>PrismGemfile.merge</code>, keeping <code>SourceMerger</code> as a dispatcher instead of a<br>
+second Gemfile-policy boundary.</li>
+  <li>Recipe-backed Gemspec and Appraisals merges now share one internal runtime<br>
+context normalizer so caller-supplied context keys are symbolized and merged<br>
+consistently before recipe execution.</li>
+  <li>Gemfile, Gemspec, and Appraisals merge flows now lean on shared recipe and<br>
+structural-edit primitives behind their existing policy seams instead of<br>
+bespoke post-merge text surgery and offset deletion paths</li>
+</ul>
+
+<h3 id="deprecated">Deprecated</h3>
+
+<h3 id="removed">Removed</h3>
+
+<h3 id="fixed">Fixed</h3>
+
+<ul>
+  <li>
+<code>Kettle::Jem::Signatures.gemfile</code> now normalizes ruby-version bucket segments<br>
+(e.g. <code>/r3/</code>, <code>/r4/</code>) when building <code>eval_gemfile</code> signatures, so template<br>
+paths like <code>../../erb/r4/v5.0.gemfile</code> and destination paths like<br>
+<code>../../erb/r3/v5.0.gemfile</code> map to the same canonical signature and the<br>
+template version replaces the destination version instead of being appended<br>
+as a duplicate. This fixes the root cause of <code>erb</code>, <code>mutex_m</code>, <code>stringio</code>,<br>
+and similar entries being duplicated in <code>x_std_libs/r4/libs.gemfile</code> (and<br>
+any other sub-gemfile merged via <code>PrismGemfile.merge</code>) after a template run.<br>
+The normalization was already present in <code>MergeEntryPolicy.signature_for</code><br>
+(used by <code>merge_gem_calls</code>) but was missing from the <code>Signatures.gemfile</code><br>
+lambda that <code>PrismGemfile.merge</code> uses for all other Gemfile-type file merges.</li>
+  <li>README templates now use <code>"~&gt; {KJ|GEM_MAJOR}.0"</code> for the <code>spec.add_dependency</code><br>
+example line instead of the hardcoded <code>"~&gt; 1.0"</code>, so the generated constraint<br>
+reflects the target gem’s actual major version.</li>
+  <li>
+<code>kettle-jem --quiet</code> now propagates into each <code>bin/setup</code> run so its<br>
+<code>bundle install</code> stays quiet, suppresses the direct <code>bundle binstubs --all</code><br>
+step during setup, trims extra setup progress banners/command echoes, and<br>
+preserves the quiet flag for the final bundled install handoff.</li>
+  <li>
+<code>ChangelogMerger</code> now inserts blank lines between subheadings in the Unreleased<br>
+section, following Keep-a-Changelog convention. Previously, the canonical<br>
+headings (Added/Changed/Deprecated/Removed/Fixed/Security) were emitted with<br>
+no blank lines between them. Also strips trailing blank lines from item groups<br>
+to prevent double blank lines between populated sections.</li>
+  <li>Modular <code>*_local.gemfile</code> templating now preserves destination workspace<br>
+override wiring (<code>local_gems</code> / <code>VENDORED_GEMS</code>) instead of stripping entries<br>
+merely because those gems also appear in the destination gemspec, while still<br>
+excluding the current gem from self-referential local override lists</li>
+  <li>Gemfile-like Ruby merges now normalize equivalent <code>nomono/bundler</code> loader<br>
+requires to one logical signature, reducing duplicate loader churn and<br>
+preserving idempotent output when local workspace bootstrap paths differ</li>
+  <li>Prism Gemfile local-override merges now leave logically equivalent<br>
+<code>local_gems</code> / <code>VENDORED_GEMS</code> metadata blocks unchanged, preserving existing<br>
+comments and blank-line layout instead of rewriting already-correct output</li>
+  <li>Markdown templating now uses low-threshold paragraph refinement for<br>
+non-README/CHANGELOG merges, preventing near-matching <code>AGENTS.md</code><br>
+paragraphs from being misclassified as separate destination-only and<br>
+template-only blocks and then both surviving output during self-merges.</li>
+  <li>
+<code>AGENTS.md</code> and other markdown files no longer duplicate the H1 document<br>
+title when the template and destination use differently-worded headings<br>
+(e.g. <code># AGENTS.md - Development Guide</code> vs <code># AGENTS.md - myGem Development Guide</code>).<br>
+H1 is now a singleton structural slot in <code>markdown-merge</code>, so the preferred<br>
+version replaces the other instead of both being kept.</li>
+</ul>
+
+<h3 id="security">Security</h3>
+
+</div></div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:03 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>
+  Module: Kettle::Jem::PrismGemfile::MergeRuntimePolicy
+  
+    &mdash; Documentation by YARD 0.9.39
+  
+</title>
+
+  <link rel="stylesheet" href="../../../css/style.css" type="text/css" />
+
+  <link rel="stylesheet" href="../../../css/common.css" type="text/css" />
+
+<script type="text/javascript">
+  pathId = "Kettle::Jem::PrismGemfile::MergeRuntimePolicy";
+  relpath = '../../../';
+</script>
+
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/jquery.js"></script>
+
+  <script type="text/javascript" charset="utf-8" src="../../../js/app.js"></script>
+
+
+  </head>
+  <body>
+    <div class="nav_wrap">
+      <iframe id="nav" src="../../../class_list.html?1"></iframe>
+      <div id="resizer"></div>
+    </div>
+
+    <div id="main" tabindex="-1">
+      <div id="header">
+        <div id="menu">
+  
+    <a href="../../../_index.html">Index (M)</a> &raquo;
+    <span class='title'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../../Jem.html" title="Kettle::Jem (module)">Jem</a></span></span> &raquo; <span class='title'><span class='object_link'><a href="../PrismGemfile.html" title="Kettle::Jem::PrismGemfile (module)">PrismGemfile</a></span></span>
+     &raquo; 
+    <span class="title">MergeRuntimePolicy</span>
+  
+</div>
+
+        <div id="search">
+  
+    <a class="full_list_link" id="class_list_link"
+        href="../../../class_list.html">
+
+        <svg width="24" height="24">
+          <rect x="0" y="4" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="12" width="24" height="4" rx="1" ry="1"></rect>
+          <rect x="0" y="20" width="24" height="4" rx="1" ry="1"></rect>
+        </svg>
+    </a>
+  
+</div>
+        <div class="clear"></div>
+      </div>
+
+      <div id="content"><h1>Module: Kettle::Jem::PrismGemfile::MergeRuntimePolicy
+  
+  
+  
+</h1>
+<div class="box_info">
+  
+
+  
+  
+  
+  
+  
+
+  
+
+  
+  <dl>
+    <dt>Defined in:</dt>
+    <dd>lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb</dd>
+  </dl>
+  
+</div>
+
+<h2>Overview</h2><div class="docstring">
+  <div class="discussion">
+    <p>Runtime contract for Gemfile-specific merge preparation/finalization.<br />
+Owns pre-filtering, tombstone collection, destination pruning, and<br />
+post-merge tombstone restoration/suppression with Gemfile-local rescue<br />
+behavior.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div>
+
+
+
+
+
+
+  
+    <h2>
+      Class Method Summary
+      <small><a href="#" class="summary_toggle">collapse</a></small>
+    </h2>
+
+    <ul class="summary">
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#collect_commented_gem_tombstones-class_method" title="collect_commented_gem_tombstones (class method)">.<strong>collect_commented_gem_tombstones</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#debug_error-class_method" title="debug_error (class method)">.<strong>debug_error</strong>(error, context)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#filter_to_top_level_gems-class_method" title="filter_to_top_level_gems (class method)">.<strong>filter_to_top_level_gems</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#finalize_merged_content-class_method" title="finalize_merged_content (class method)">.<strong>finalize_merged_content</strong>(content, template_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#prepare_destination-class_method" title="prepare_destination (class method)">.<strong>prepare_destination</strong>(content, template_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#remove_tombstoned_gem_declarations-class_method" title="remove_tombstoned_gem_declarations (class method)">.<strong>remove_tombstoned_gem_declarations</strong>(destination_content, template_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#restore_tombstone_comment_blocks-class_method" title="restore_tombstone_comment_blocks (class method)">.<strong>restore_tombstone_comment_blocks</strong>(content, template_content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+        <li class="public ">
+  <span class="summary_signature">
+    
+      <a href="#suppress_commented_gem_declarations-class_method" title="suppress_commented_gem_declarations (class method)">.<strong>suppress_commented_gem_declarations</strong>(content)  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'>
+</div></span>
+  
+</li>
+
+      
+    </ul>
+  
+
+
+
+  <div id="class_method_details" class="method_details_list">
+    <h2>Class Method Details</h2>
+
+    
+      <div class="method_details first">
+  <h3 class="signature first" id="collect_commented_gem_tombstones-class_method">
+  
+    .<strong>collect_commented_gem_tombstones</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 23</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_collect_commented_gem_tombstones'>collect_commented_gem_tombstones</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="TombstonePolicy.html" title="Kettle::Jem::PrismGemfile::TombstonePolicy (module)">TombstonePolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_collect_commented_gem_tombstones'><span class='object_link'><a href="TombstonePolicy.html#collect_commented_gem_tombstones-class_method" title="Kettle::Jem::PrismGemfile::TombstonePolicy.collect_commented_gem_tombstones (method)">collect_commented_gem_tombstones</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>collect_context_ranges:</span> <span class='const'><span class='object_link'><a href="DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_context_ranges</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>context_for_line:</span> <span class='const'><span class='object_link'><a href="DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:context_for_line</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='lbracket'>[</span><span class='rbracket'>]</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="debug_error-class_method">
+  
+    .<strong>debug_error</strong>(error, context)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+86
+87
+88
+89
+90</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 86</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_error'>error</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+  <span class='kw'>return</span> <span class='kw'>unless</span> <span class='kw'>defined?</span><span class='lparen'>(</span><span class='const'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='rparen'>)</span> <span class='op'>&amp;&amp;</span> <span class='const'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='period'>.</span><span class='id identifier rubyid_respond_to?'>respond_to?</span><span class='lparen'>(</span><span class='symbol'>:debug_error</span><span class='rparen'>)</span>
+
+  <span class='const'><span class='object_link'><a href="../../../Kettle.html" title="Kettle (module)">Kettle</a></span></span><span class='op'>::</span><span class='const'>Dev</span><span class='period'>.</span><span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_error'>error</span><span class='comma'>,</span> <span class='id identifier rubyid_context'>context</span><span class='rparen'>)</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="filter_to_top_level_gems-class_method">
+  
+    .<strong>filter_to_top_level_gems</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+13
+14
+15
+16
+17
+18
+19
+20
+21</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 13</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_filter_to_top_level_gems'>filter_to_top_level_gems</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="MergeEntryPolicy.html" title="Kettle::Jem::PrismGemfile::MergeEntryPolicy (module)">MergeEntryPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_filter_content'><span class='object_link'><a href="MergeEntryPolicy.html#filter_content-class_method" title="Kettle::Jem::PrismGemfile::MergeEntryPolicy.filter_content (method)">filter_content</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>tombstone_line_ranges:</span> <span class='const'><span class='object_link'><a href="TombstonePolicy.html" title="Kettle::Jem::PrismGemfile::TombstonePolicy (module)">TombstonePolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:commented_gem_tombstone_line_ranges</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="finalize_merged_content-class_method">
+  
+    .<strong>finalize_merged_content</strong>(content, template_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+78
+79
+80
+81
+82
+83
+84</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 78</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_finalize_merged_content'>finalize_merged_content</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_restore_tombstone_comment_blocks'>restore_tombstone_comment_blocks</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_suppress_commented_gem_declarations'>suppress_commented_gem_declarations</span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="prepare_destination-class_method">
+  
+    .<strong>prepare_destination</strong>(content, template_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+70
+71
+72
+73
+74
+75
+76</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 70</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_prepare_destination'>prepare_destination</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_out'>out</span> <span class='op'>=</span> <span class='id identifier rubyid_remove_tombstoned_gem_declarations'>remove_tombstoned_gem_declarations</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="RemovalEditPolicy.html" title="Kettle::Jem::PrismGemfile::RemovalEditPolicy (module)">RemovalEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_remove_github_git_source'><span class='object_link'><a href="RemovalEditPolicy.html#remove_github_git_source-class_method" title="Kettle::Jem::PrismGemfile::RemovalEditPolicy.remove_github_git_source (method)">remove_github_git_source</a></span></span><span class='lparen'>(</span><span class='id identifier rubyid_out'>out</span><span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="remove_tombstoned_gem_declarations-class_method">
+  
+    .<strong>remove_tombstoned_gem_declarations</strong>(destination_content, template_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 34</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_remove_tombstoned_gem_declarations'>remove_tombstoned_gem_declarations</span><span class='lparen'>(</span><span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="TombstoneEditPolicy.html" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy (module)">TombstoneEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_remove_tombstoned_gem_declarations'><span class='object_link'><a href="TombstoneEditPolicy.html#remove_tombstoned_gem_declarations-class_method" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy.remove_tombstoned_gem_declarations (method)">remove_tombstoned_gem_declarations</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_destination_content'>destination_content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>collect_commented_gem_tombstones:</span> <span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_commented_gem_tombstones</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>collect_gem_declarations:</span> <span class='const'><span class='object_link'><a href="DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_gem_declarations</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>remove_declarations:</span> <span class='const'><span class='object_link'><a href="RemovalEditPolicy.html" title="Kettle::Jem::PrismGemfile::RemovalEditPolicy (module)">RemovalEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:remove_declarations</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_destination_content'>destination_content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="restore_tombstone_comment_blocks-class_method">
+  
+    .<strong>restore_tombstone_comment_blocks</strong>(content, template_content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+47
+48
+49
+50
+51
+52
+53
+54
+55
+56</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 47</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_restore_tombstone_comment_blocks'>restore_tombstone_comment_blocks</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='comma'>,</span> <span class='id identifier rubyid_template_content'>template_content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="TombstoneEditPolicy.html" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy (module)">TombstoneEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_restore_tombstone_comment_blocks'><span class='object_link'><a href="TombstoneEditPolicy.html#restore_tombstone_comment_blocks-class_method" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy.restore_tombstone_comment_blocks (method)">restore_tombstone_comment_blocks</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='id identifier rubyid_template_content'>template_content</span><span class='comma'>,</span>
+    <span class='label'>collect_commented_gem_tombstones:</span> <span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_commented_gem_tombstones</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      <div class="method_details ">
+  <h3 class="signature " id="suppress_commented_gem_declarations-class_method">
+  
+    .<strong>suppress_commented_gem_declarations</strong>(content)  &#x21d2; <tt>Object</tt> 
+  
+
+  
+
+  
+</h3><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+58
+59
+60
+61
+62
+63
+64
+65
+66
+67
+68</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/prism_gemfile/merge_runtime_policy.rb', line 58</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_suppress_commented_gem_declarations'>suppress_commented_gem_declarations</span><span class='lparen'>(</span><span class='id identifier rubyid_content'>content</span><span class='rparen'>)</span>
+  <span class='const'><span class='object_link'><a href="TombstoneEditPolicy.html" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy (module)">TombstoneEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_suppress_commented_gem_declarations'><span class='object_link'><a href="TombstoneEditPolicy.html#suppress_commented_gem_declarations-class_method" title="Kettle::Jem::PrismGemfile::TombstoneEditPolicy.suppress_commented_gem_declarations (method)">suppress_commented_gem_declarations</a></span></span><span class='lparen'>(</span>
+    <span class='id identifier rubyid_content'>content</span><span class='comma'>,</span>
+    <span class='label'>collect_commented_gem_tombstones:</span> <span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_commented_gem_tombstones</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>collect_gem_declarations:</span> <span class='const'><span class='object_link'><a href="DeclarationContextPolicy.html" title="Kettle::Jem::PrismGemfile::DeclarationContextPolicy (module)">DeclarationContextPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:collect_gem_declarations</span><span class='rparen'>)</span><span class='comma'>,</span>
+    <span class='label'>remove_declarations:</span> <span class='const'><span class='object_link'><a href="RemovalEditPolicy.html" title="Kettle::Jem::PrismGemfile::RemovalEditPolicy (module)">RemovalEditPolicy</a></span></span><span class='period'>.</span><span class='id identifier rubyid_method'>method</span><span class='lparen'>(</span><span class='symbol'>:remove_declarations</span><span class='rparen'>)</span><span class='comma'>,</span>
+  <span class='rparen'>)</span>
+<span class='kw'>rescue</span> <span class='const'>StandardError</span> <span class='op'>=&gt;</span> <span class='id identifier rubyid_e'>e</span>
+  <span class='id identifier rubyid_debug_error'>debug_error</span><span class='lparen'>(</span><span class='id identifier rubyid_e'>e</span><span class='comma'>,</span> <span class='id identifier rubyid___method__'>__method__</span><span class='rparen'>)</span>
+  <span class='id identifier rubyid_content'>content</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+  </div>
+
+</div>
+
+      <div id="footer">
+  Generated on Sat Apr 11 01:55:04 2026 by
+  <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
+  0.9.39 (ruby-4.0.2).
+</div>
+
+    </div>
+  </body>
+</html>
