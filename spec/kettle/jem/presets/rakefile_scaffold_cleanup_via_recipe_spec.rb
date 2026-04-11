@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-RSpec.describe "Rakefile scaffold cleanup via recipe" do
+RSpec.describe Kettle::Jem::Presets::Rakefile do
   let(:scaffold_rakefile) do
     <<~RUBY
       # frozen_string_literal: true

@@ -412,7 +412,7 @@ module Kettle
           puts parser
           exit_with_status(2)
         end
-        unless ENV["force"].to_s.strip.casecmp("false").zero?
+        if ENV["force"].to_s.strip.casecmp("false").nonzero?
           @force = true if @force.nil?
           ENV["force"] = "true"
           @passthrough.unshift("force=true") unless @passthrough.include?("force=true") || @passthrough.include?("force=false")

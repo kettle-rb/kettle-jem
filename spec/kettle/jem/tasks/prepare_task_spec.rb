@@ -222,7 +222,7 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
       allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
       allow(helpers).to receive(:force_mode?).and_return(true)
       expect(helpers).not_to receive(:ask)
-      expect(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
+      allow(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
         .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
         .and_return(true)
 
@@ -234,13 +234,15 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
       )
 
       expect(result).to eq(:ready)
+      expect(Kettle::Jem::Tasks::TemplateTask).to have_received(:system)
+        .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
     end
 
     it "prompts before running mise trust in interactive mode" do
       allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
       allow(helpers).to receive(:force_mode?).and_return(false)
-      expect(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(true)
-      expect(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
+      allow(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(true)
+      allow(Kettle::Jem::Tasks::TemplateTask).to receive(:system)
         .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
         .and_return(true)
 
@@ -252,12 +254,15 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
       )
 
       expect(result).to eq(:ready)
+      expect(helpers).to have_received(:ask).with("Run `mise trust -C #{project_root}` now?", true)
+      expect(Kettle::Jem::Tasks::TemplateTask).to have_received(:system)
+        .with("mise", "trust", "-C", project_root, out: $stdout, err: $stderr)
     end
 
     it "aborts when interactive mode declines the mise trust refresh" do
       allow(helpers).to receive(:modified_by_template?).with(File.join(project_root, "mise.toml")).and_return(true)
       allow(helpers).to receive(:force_mode?).and_return(false)
-      expect(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(false)
+      allow(helpers).to receive(:ask).with("Run `mise trust -C #{project_root}` now?", true).and_return(false)
       expect(Kettle::Jem::Tasks::TemplateTask).not_to receive(:system)
 
       expect do
@@ -268,6 +273,7 @@ RSpec.describe Kettle::Jem::Tasks::PrepareTask do
           meta: meta,
         )
       end.to raise_error(Kettle::Dev::Error, /mise trust refresh required before continuing/)
+      expect(helpers).to have_received(:ask).with("Run `mise trust -C #{project_root}` now?", true)
     end
 
     it "continues without running mise trust when mise.toml was unchanged" do

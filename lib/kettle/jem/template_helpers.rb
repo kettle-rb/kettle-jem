@@ -696,7 +696,7 @@ module Kettle
       # @return [Array<String>] gemfile names (without gemfiles/ prefix)
       def framework_matrix_gemfiles
         fmc = framework_matrix_config
-        return [] unless fmc.any?
+        return [] if fmc.none?
 
         fmc["versions"].map { |v| expand_gemfile_pattern(fmc["gemfile_pattern"], v) }
       end

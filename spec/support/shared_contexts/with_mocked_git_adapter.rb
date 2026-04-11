@@ -29,10 +29,11 @@ RSpec.shared_context "with mocked git adapter" do
       fetch: true,
       ls_files: [],
     )
-    allow(adapter_double).to receive(:blame_porcelain).and_return("")
+    allow(adapter_double).to receive_messages(
+      blame_porcelain: "",
+      clean?: true,
+    )
     allow(adapter_double).to receive(:remote_url) { |name| (name == "origin") ? "git@github.com:me/repo.git" : nil }
-    # Default: working tree is clean — make_template_commit! returns nil without committing
-    allow(adapter_double).to receive(:clean?).and_return(true)
 
     # Default behavior for generic capture used by ReleaseCLI#git_output
     allow(adapter_double).to receive(:capture) do |args|

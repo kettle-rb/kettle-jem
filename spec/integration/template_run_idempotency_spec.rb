@@ -183,7 +183,7 @@ RSpec.describe "template run idempotency", :e2e do
       GEMSPEC
     end
 
-    include_examples "idempotent across successive runs"
+    it_behaves_like "idempotent across successive runs"
   end
 
   context "with multi-file template (YAML, Ruby, Bash, Markdown)" do
@@ -307,6 +307,6 @@ RSpec.describe "template run idempotency", :e2e do
       BASH
     end
 
-    include_examples "idempotent across successive runs"
+    it_behaves_like "idempotent across successive runs"
   end
 end
