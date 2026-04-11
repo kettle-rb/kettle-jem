@@ -9,7 +9,7 @@
 # {KJ|GEM_NAME} Rakefile v{KJ|KETTLE_JEM_VERSION} - {KJ|TEMPLATE_RUN_DATE}
 # Ruby 2.3 (Safe Navigation) or higher required
 #
-# MIT License (see License.txt)
+# See LICENSE.md for license information.
 #
 # Copyright (c) {KJ|TEMPLATE_RUN_YEAR} {KJ|AUTHOR:NAME} ({KJ|AUTHOR:DOMAIN})
 #

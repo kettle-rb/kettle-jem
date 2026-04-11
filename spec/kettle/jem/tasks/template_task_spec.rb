@@ -3521,7 +3521,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             FileUtils.mkdir_p(template_root)
             # Arrange template files under template_root
             File.write(File.join(template_root, ".licenserc.yaml"), "header:\n  license: REAL\n")
-            File.write(File.join(template_root, ".licenserc.yaml.example"), "header:\n  license: EXAMPLE\n")
+            File.write(File.join(template_root, ".licenserc.yaml.example"), "header:\n  license:\n    spdx-id: \"{KJ|LICENSE:PRIMARY_SPDX}\"\n")
 
             # Minimal gemspec so metadata scan works
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
@@ -3540,6 +3540,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
+              resolved_licenses: ["AGPL-3.0-only"],
             )
 
             # Exercise
@@ -3548,7 +3549,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             # Assert destination is the non-example name and content from example
             dest = File.join(project_root, ".licenserc.yaml")
             expect(File).to exist(dest)
-            expect(File.read(dest)).to include("EXAMPLE")
+            expect(File.read(dest)).to include('spdx-id: "AGPL-3.0-only"')
             expect(File.read(dest)).not_to include("REAL")
           end
         end

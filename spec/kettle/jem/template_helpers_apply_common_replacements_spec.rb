@@ -108,6 +108,29 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(result).to eq("{KJ|UNKNOWN_TOKEN} stays")
     end
 
+    it "renders README license badge and refs from the configured primary license" do
+      allow(helpers).to receive(:kettle_config).and_return(
+        {
+          "defaults" => {"freeze_token" => "kettle-jem"},
+          "tokens" => {},
+          "licenses" => ["AGPL-3.0-only"],
+        },
+      )
+
+      content = <<~MARKDOWN.chomp
+        {KJ|README:LICENSE_BADGE}
+        {KJ|README:LICENSE_REFS}
+      MARKDOWN
+
+      result = helpers.apply_common_replacements(content, **base_args)
+
+      expect(result).to include("[![License: AGPL-3.0-only][📄license-img]][📄license-ref]")
+      expect(result).to include("[📄license-ref]: AGPL-3.0-only.md")
+      expect(result).to include("[📄license-img]: https://img.shields.io/badge/License-AGPL--3.0--only-259D6C.svg")
+      expect(result).not_to include("License: MIT")
+      expect(result).not_to include("opensource.org/licenses/MIT")
+    end
+
     context "with README top logo tokens" do
       let(:content) do
         <<~MARKDOWN.chomp

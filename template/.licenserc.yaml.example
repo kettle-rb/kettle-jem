@@ -1,6 +1,6 @@
 header:
   license:
-    spdx-id: MIT
+    spdx-id: "{KJ|LICENSE:PRIMARY_SPDX}"
 
 dependency:
   files:

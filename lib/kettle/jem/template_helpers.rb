@@ -374,6 +374,7 @@ module Kettle
 
         # ── License tokens ──────────────────────────────────────────────────────
         licenses = resolved_licenses
+        primary_license = licenses.first
         has_non_mit = licenses.any? { |l| l != "MIT" }
 
         # Build the LIST of license links for LICENSE.md
@@ -424,14 +425,15 @@ module Kettle
         end
         replacements["KJ|README:LICENSE_INTRO"] = readme_license_intro
 
+        replacements["KJ|LICENSE:PRIMARY_SPDX"] = primary_license
+        replacements["KJ|README:LICENSE_BADGE"] = license_badge(primary_license)
+
         # {KJ|README:LICENSE_REFS} — reference-link definitions for the README footer
         license_refs = []
         license_refs << "[📄copyright-notice-explainer]: https://opensource.stackexchange.com/questions/5778/why-do-licenses-such-as-the-mit-license-specify-a-single-year"
         license_refs << "[📄license]: LICENSE.md"
-        if licenses.include?("MIT")
-          license_refs << "[📄license-ref]: https://opensource.org/licenses/MIT"
-          license_refs << "[📄license-img]: https://img.shields.io/badge/License-MIT-259D6C.svg"
-        end
+        license_refs << "[📄license-ref]: #{license_badge_ref(primary_license)}"
+        license_refs << "[📄license-img]: #{license_badge_img(primary_license)}"
         replacements["KJ|README:LICENSE_REFS"] = license_refs.join("\n")
 
         # {KJ|COPYRIGHT_PREFIX} — "Required Notice: " when any PolyForm license is
@@ -524,6 +526,20 @@ module Kettle
       def license_link(spdx_id)
         base = spdx_basename(spdx_id)
         "[#{base}](#{base}.md)"
+      end
+
+      def license_badge(spdx_id)
+        base = spdx_basename(spdx_id)
+        "[![License: #{base}][📄license-img]][📄license-ref]"
+      end
+
+      def license_badge_ref(spdx_id)
+        "#{spdx_basename(spdx_id)}.md"
+      end
+
+      def license_badge_img(spdx_id)
+        base = spdx_basename(spdx_id).gsub("-", "--").gsub("_", "__").tr(" ", "_")
+        "https://img.shields.io/badge/License-#{base}-259D6C.svg"
       end
 
       # Returns true when any PolyForm license is present in +licenses+.
