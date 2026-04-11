@@ -54,7 +54,7 @@ else
 
   json_path ||= File.join(project_root, "tmp", "kettle-jem", "duplicate-lines-#{Time.now.utc.strftime("%Y%m%d-%H%M%S")}.json")
   dlv.write_json(results, json_path)
-  puts "[kettle-jem] 📄  Report: #{json_path}"
+  puts "[kettle-jem] 📄  Report: #{Kettle::Jem.display_path(json_path)}"
 end
 
 exit(results.empty? ? 0 : 1)

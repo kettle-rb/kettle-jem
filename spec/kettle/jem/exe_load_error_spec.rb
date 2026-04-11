@@ -113,6 +113,8 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
       expect(status.success?).to be(false), "stdout=#{stdout.inspect}\nstderr=#{stderr.inspect}"
       expect(stderr).to eq("")
       expect(stdout).to include("duplicate line warning")
+      expect(stdout).to include("Report: #{Kettle::Jem.display_path(report_path)}")
+      expect(stdout).not_to include("Report: #{report_path}") if report_path.start_with?("/var/home/")
       expect(File).to exist(report_path)
 
       report = JSON.parse(File.read(report_path))
