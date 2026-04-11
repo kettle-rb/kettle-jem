@@ -109,7 +109,7 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
       expect(result).to include("50.0%")
       expect(result).to include("1/2 files unchanged")
-      expect(result).to include("**Divergence**: 50.0% (1/2 files changed or added)")
+      expect(result).to include("**Divergence**: 50.0% (1/2 files changed, added, or missing)")
       expect(result).to include("## Changed Files (1)")
       expect(result).to include("| b.txt | modified |")
     end
@@ -128,6 +128,15 @@ RSpec.describe Kettle::Jem::SelfTest::Reporter do
 
       expect(result).to include("## Not Templated — Unexpected (1)")
       expect(result).to include("| old.txt |")
+    end
+
+    it "counts unexpected removals against the score and divergence" do
+      comparison = {matched: %w[a.txt], changed: [], added: [], removed: %w[old.txt], skipped: []}
+      result = reporter.summary(comparison, output_dir: output_dir, diff_count: 0)
+
+      expect(result).to include("50.0%")
+      expect(result).to include("1/2 files unchanged")
+      expect(result).to include("**Divergence**: 50.0% (1/2 files changed, added, or missing)")
     end
 
     # BUG REPRO: The "Unexpected Removals" section heading and description

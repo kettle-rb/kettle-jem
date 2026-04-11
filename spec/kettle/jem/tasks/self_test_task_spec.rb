@@ -334,6 +334,26 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       expect(captured_comparison[:added]).to eq(["unexpected.txt"])
     end
 
+    it "treats expected template outputs that are missing from output as unexpected removals" do
+      template_root = File.join(gem_root, "template")
+      FileUtils.mkdir_p(File.join(template_root, ".github"))
+      File.write(File.join(template_root, ".github", ".codecov.yml.example"), "codecov:\n  require_ci_to_pass: true\n")
+
+      allow(helpers).to receive(:template_root).and_return(template_root)
+      allow(manifest).to receive(:generate).and_return({}, {})
+      allow(described_class).to receive(:run_template)
+
+      captured_comparison = nil
+      allow(reporter).to receive(:summary) do |comparison, **|
+        captured_comparison = comparison
+        "# Report\n"
+      end
+
+      expect { described_class.run }.not_to raise_error
+
+      expect(captured_comparison[:removed]).to include(".github/.codecov.yml")
+    end
+
     it "partitions expected non-templated removals into skipped and leaves only true surprises as removed" do
       allow(manifest).to receive_messages(generate: {}, compare: {
         matched: [],
@@ -463,6 +483,20 @@ RSpec.describe Kettle::Jem::Tasks::SelfTestTask do
       allow(reporter).to receive_messages(diff: "", summary: "# Report\n")
 
       expect { described_class.run }.not_to raise_error
+    end
+  end
+
+  describe ".score_and_divergence" do
+    it "counts unexpected removals against divergence" do
+      score, divergence = described_class.score_and_divergence(
+        matched: %w[a.txt],
+        changed: [],
+        added: [],
+        removed: %w[.github/.codecov.yml],
+      )
+
+      expect(score).to eq(50.0)
+      expect(divergence).to eq(50.0)
     end
   end
 

@@ -22,19 +22,7 @@ module Kettle
           source_github_dir = File.join(template_root, ".github")
           if Dir.exist?(source_github_dir)
             # Build a unique set of logical .yml paths, preferring the .example variant when present
-            candidates = Dir.glob(File.join(source_github_dir, "**", "*.yml")) +
-              Dir.glob(File.join(source_github_dir, "**", "*.yml.example"))
-            selected = {}
-            candidates.each do |path|
-              # Key by the path without the optional .example suffix
-              key = path.sub(/\.example\z/, "")
-              # Prefer example: overwrite a plain selection with .example, but do not downgrade
-              if path.end_with?(".example")
-                selected[key] = path
-              else
-                selected[key] ||= path
-              end
-            end
+            selected = discover_github_yaml_templates(source_github_dir)
             # Parse optional include patterns (comma-separated globs relative to project root)
             include_raw = ENV["include"].to_s
             include_patterns = include_raw.split(",").map { |s| s.strip }.reject(&:empty?)
@@ -202,6 +190,28 @@ module Kettle
               out.detail("Kept obsolete workflow: .github/workflows/#{wf}")
             end
           end
+        end
+
+        def discover_github_yaml_templates(source_github_dir)
+          require "find"
+
+          selected = {}
+          Find.find(source_github_dir) do |path|
+            next if File.directory?(path)
+            next unless github_yaml_template_path?(path)
+
+            key = path.sub(/\.example\z/, "")
+            if path.end_with?(".example")
+              selected[key] = path
+            else
+              selected[key] ||= path
+            end
+          end
+          selected
+        end
+
+        def github_yaml_template_path?(path)
+          path.end_with?(".yml", ".yaml", ".yml.example", ".yaml.example")
         end
       end
     end

@@ -1968,6 +1968,47 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      # BUG REPRO: Step 2 globs .github/**/*.yml, which does not match hidden
+      # files such as .github/.codecov.yml. Step 7 skips all .github/ paths, so
+      # the hidden file is silently omitted from the templated output.
+      it "templates hidden yml files under .github such as .codecov.yml" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(File.join(template_root, ".github"))
+            File.write(File.join(template_root, ".github", ".codecov.yml.example"), <<~YAML)
+              coverage:
+                status:
+                  project: true
+            YAML
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+
+            codecov_dest = File.join(project_root, ".github", ".codecov.yml")
+            expect(File).to exist(codecov_dest)
+            expect(File.read(codecov_dest)).to include("project: true")
+          end
+        end
+      end
+
       it "copies .env.local.example but does not create .env.local" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|

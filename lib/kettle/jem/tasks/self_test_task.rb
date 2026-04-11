@@ -131,7 +131,11 @@ module Kettle
           skipped, truly_removed = comparison[:removed].partition do |rel|
             ignored_selftest_artifact?(rel) || expected_non_templated_path?(rel, project_root: project_root)
           end
-          comparison[:removed] = truly_removed
+          comparison[:removed] = (truly_removed + missing_expected_template_outputs(
+            helpers: helpers,
+            project_root: project_root,
+            after_manifest: after,
+          )).uniq.sort
           comparison[:skipped] = skipped
 
           # ── Step 6: Diffs ─────────────────────────────────────────────────
@@ -170,7 +174,7 @@ module Kettle
         end
 
         def score_and_divergence(comparison)
-          total = comparison[:matched].size + comparison[:changed].size + comparison[:added].size
+          total = comparison[:matched].size + comparison[:changed].size + comparison[:added].size + comparison[:removed].size
           score = total.zero? ? 0.0 : (comparison[:matched].size.to_f / total * 100).round(1)
           divergence = (100.0 - score).round(1)
           [score, divergence]
@@ -363,6 +367,37 @@ module Kettle
             SKIPPED_PREFIXES.any? { |prefix| relative_path.start_with?(prefix) } ||
             appraisal_generated_gemfile?(relative_path) ||
             project_gemspec?(relative_path, project_root: project_root)
+        end
+
+        def missing_expected_template_outputs(helpers:, project_root:, after_manifest:)
+          expected_template_output_paths(helpers: helpers, project_root: project_root).reject do |rel|
+            after_manifest.key?(rel) || ignored_selftest_artifact?(rel)
+          end
+        end
+
+        def expected_template_output_paths(helpers:, project_root:)
+          template_root = helpers.template_root.to_s
+          return [] unless Dir.exist?(template_root)
+
+          Kettle::Jem::Tasks::TemplateTask.send(:logical_template_paths, template_root).filter_map do |rel|
+            next if helpers.skip_for_disabled_opencollective?(rel)
+            next if helpers.skip_for_disabled_engine?(rel)
+            next if rel == ".github/workflows/discord-notifier.yml" &&
+              !Kettle::Jem::Tasks::TemplateTask.send(:include_matches?, project_root, File.join(project_root, rel))
+
+            map_expected_template_output_path(rel, project_root: project_root)
+          end.uniq.sort
+        end
+
+        def map_expected_template_output_path(relative_path, project_root:)
+          case relative_path
+          when ".env.local"
+            ".env.local.example"
+          when "gem.gemspec"
+            Dir.glob(File.join(project_root, "*.gemspec")).map { |path| File.basename(path) }.sort.first || relative_path
+          else
+            relative_path
+          end
         end
 
         def appraisal_generated_gemfile?(relative_path)

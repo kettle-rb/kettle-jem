@@ -11,6 +11,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     {
       "KJ_PROJECT_EMOJI" => "⭐️",
       "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
+      "allowed" => "true",
     }
   end
   let(:duplicates_exe_path) { File.expand_path("../../exe/kettle-jem-validate-duplicates", __dir__) }
@@ -18,6 +19,39 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:dummy_gem_dir) { File.join(sandbox_root, "dummy-gem") }
   let(:duplicates_report_path) { File.join(dummy_gem_dir, "tmp", "kettle-jem", "dup-check.json") }
   let(:max_duplicate_warnings) { 1 }
+  let(:expected_hidden_directories) do
+    %w[
+      .config
+      .config/mise
+      .devcontainer
+      .devcontainer/apt-install
+      .devcontainer/scripts
+      .git-hooks
+      .github
+      .github/workflows
+      .idea
+      .qlty
+    ]
+  end
+  let(:expected_hidden_files) do
+    %w[
+      .config/mise/env.sh
+      .devcontainer/apt-install/devcontainer-feature.json
+      .devcontainer/apt-install/install.sh
+      .devcontainer/devcontainer.json
+      .devcontainer/scripts/setup-tree-sitter.sh
+      .git-hooks/commit-msg
+      .git-hooks/commit-subjects-goalie.txt
+      .git-hooks/footer-template.erb.txt
+      .git-hooks/prepare-commit-msg
+      .github/.codecov.yml
+      .github/COPILOT_INSTRUCTIONS.md
+      .github/dependabot.yml
+      .github/workflows/templating.yml
+      .idea/.gitignore
+      .qlty/qlty.toml
+    ]
+  end
 
   include_context "with simplecov spawn coverage"
 
@@ -31,9 +65,8 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     FileUtils.rm_rf(dummy_gem_dir)
   end
 
-  it "templates the scaffolded gem and stays within the expected duplicate warning threshold" do
-    # Run kettle-jem --skip-commit (CLI handles bin/setup and all preflight internally)
-    stdout, stderr, status = Open3.capture3(
+  def run_kettle_jem!
+    Open3.capture3(
       kettle_jem_env,
       RbConfig.ruby,
       exe_path,
@@ -41,6 +74,11 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
       "--accept-config",
       chdir: dummy_gem_dir,
     )
+  end
+
+  it "templates the scaffolded gem and stays within the expected duplicate warning threshold" do
+    # Run kettle-jem --skip-commit (CLI handles bin/setup and all preflight internally)
+    stdout, stderr, status = run_kettle_jem!
     expect(status.success?).to be(true),
       "kettle-jem failed\nstdout=#{stdout}\nstderr=#{stderr}"
 
@@ -66,5 +104,27 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     expect(warning_count).to be <= max_duplicate_warnings,
       "duplicate validation exceeded threshold #{max_duplicate_warnings}\nstdout=#{dup_out}\nstderr=#{dup_err}\nreport=#{report}"
     expect(dup_status.success? || warning_count <= max_duplicate_warnings).to be(true)
+  end
+
+  it "preserves hidden template directories and files across a second templating run" do
+    stdout1, stderr1, status1 = run_kettle_jem!
+    expect(status1.success?).to be(true),
+      "first kettle-jem run failed\nstdout=#{stdout1}\nstderr=#{stderr1}"
+
+    stdout2, stderr2, status2 = run_kettle_jem!
+    expect(status2.success?).to be(true),
+      "second kettle-jem run failed\nstdout=#{stdout2}\nstderr=#{stderr2}"
+
+    aggregate_failures "hidden template directories" do
+      expected_hidden_directories.each do |rel|
+        expect(Dir).to exist(File.join(dummy_gem_dir, rel)), "expected #{rel} to exist after re-templating"
+      end
+    end
+
+    aggregate_failures "hidden template files" do
+      expected_hidden_files.each do |rel|
+        expect(File).to exist(File.join(dummy_gem_dir, rel)), "expected #{rel} to exist after re-templating"
+      end
+    end
   end
 end
