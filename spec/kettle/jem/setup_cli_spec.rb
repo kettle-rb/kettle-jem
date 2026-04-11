@@ -28,6 +28,22 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "bootstrap-mode" do
+    it "treats --bootstrap-mode as stronger than bundled execution context" do
+      stub_env("BUNDLE_GEMFILE" => "/tmp/Gemfile")
+      cli = described_class.new(["--bootstrap-mode"])
+
+      expect(cli.send(:bundled_execution_context?)).to be(false)
+      expect(cli.send(:bootstrap_mode?)).to be(true)
+    end
+
+    it "does not forward --bootstrap-mode during the bundled handoff" do
+      cli = described_class.new(["--bootstrap-mode", "--skip-commit", "--verbose"])
+
+      expect(cli.send(:handoff_argv)).to eq(["--skip-commit", "--verbose"])
+    end
+  end
+
   it "updates existing add_development_dependency lines that omit parentheses, without creating duplicates" do
     Dir.mktmpdir do |dir|
       Dir.chdir(dir) do
@@ -534,10 +550,10 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
   describe "#initialize and parse!" do
     it "collects passthrough options and remaining args; shows help and exits with 0", :check_output do
-      argv = ["--allowed=foo", "--hook_templates=bar", "--only=baz", "-h"]
+      argv = ["--allowed=foo", "--hook_templates=bar", "--only=baz", "--bootstrap-mode", "-h"]
       expect do
         expect { described_class.new(argv) }.to raise_error(MockSystemExit, /exit status 0/)
-      end.to output(/Usage: kettle-jem.*--verbose/m).to_stdout
+      end.to output(/Usage: kettle-jem.*--bootstrap-mode/m).to_stdout
     ensure
       ENV.delete("KETTLE_JEM_QUIET")
     end
@@ -1530,6 +1546,20 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(load_idx).to eq(1)
       expect(install_idx).to be < commit_idx,
         "Expected run_kettle_install! (idx=#{install_idx}) to run before commit_bootstrap_changes! (idx=#{commit_idx})"
+    end
+
+    it "runs bootstrap sequencing instead of the bundled phase when --bootstrap-mode is set" do
+      cli = described_class.new(["--bootstrap-mode"])
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(cli).to receive(:say)
+      stub_env("BUNDLE_GEMFILE" => "/tmp/Gemfile")
+
+      expect(cli).not_to receive(:run_bundled_phase!)
+      expect(cli).to receive(:run_bootstrap_phase!).and_return(nil)
+
+      cli.run!
     end
   end
 

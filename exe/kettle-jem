@@ -74,6 +74,7 @@ if ARGV.include?("-h") || ARGV.include?("--help")
       --failure-mode=VAL      Merge failure handling: error (default) or rescue
       --skip-commit           Skip git commit; also bypasses git repo and clean-tree checks.
       --accept-config         Accept ENV-provided config and skip the bootstrap-only early exit.
+      --bootstrap-mode        Force the initial bootstrap path even when launched from a bundled process.
 
     Environment:
       DEBUG=true              Print backtraces on errors

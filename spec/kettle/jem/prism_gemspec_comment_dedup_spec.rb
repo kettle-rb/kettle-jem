@@ -176,4 +176,64 @@ RSpec.describe Kettle::Jem::PrismGemspec do
       end
     end
   end
+
+  describe "real-world HTTP recording comment block deduplication" do
+    let(:fixture_path) { File.expand_path("../../fixtures/yard_timekeeper_28e6c21.gemspec", __dir__) }
+    let(:destination_content) { File.read(fixture_path) }
+    let(:template_path) { File.expand_path("../../../template/gem.gemspec.example", __dir__) }
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+    let(:context) do
+      {
+        min_ruby: Gem::Version.new("3.2.0"),
+        entrypoint_require: "yard/timekeeper",
+        namespace: "Yard::Timekeeper",
+      }
+    end
+    let(:template_content) do
+      helpers.clear_tokens!
+      helpers.configure_tokens!(
+        org: "pboling",
+        gem_name: "yard-timekeeper",
+        namespace: "Yard::Timekeeper",
+        namespace_shield: "YARD_TIMEKEEPER",
+        gem_shield: "yard_timekeeper",
+        funding_org: "pboling",
+        min_ruby: "3.2.0",
+      )
+      rendered = helpers.read_template(template_path)
+      rendered = described_class.replace_gemspec_fields(
+        rendered,
+        {
+          name: "yard-timekeeper",
+          authors: ["Peter H. Boling"],
+          email: ["peter.boling@gmail.com"],
+          summary: "🍲 Preserve tracked YARD docs when only the generated timestamp changed.",
+          description: "🍲 A YARD plugin that post-processes generated docs, detects timestamp-only diffs in tracked HTML files under docs/, and restores those files from git to prevent pointless churn while keeping the footer timestamp on genuinely changed pages.",
+          licenses: ["MIT"],
+          required_ruby_version: ">= 3.2.0",
+          require_paths: ["lib"],
+          bindir: "exe",
+          executables: [],
+        },
+      )
+      described_class.remove_spec_dependency(rendered, "yard-timekeeper")
+    end
+
+    after do
+      helpers.clear_tokens!
+    end
+
+    it "collapses the repeated block instead of adding another copy on rerun" do
+      expect(destination_content.scan("HTTP recording for deterministic specs").count).to eq(9)
+
+      merged = described_class.merge(
+        template_content,
+        destination_content,
+        context: context,
+      )
+
+      expect(merged.scan("HTTP recording for deterministic specs").count).to eq(1),
+        "Merged output kept #{merged.scan("HTTP recording for deterministic specs").count} HTTP recording blocks instead of deduplicating them.\n\nMerged output:\n#{merged}"
+    end
+  end
 end

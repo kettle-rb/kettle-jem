@@ -94,6 +94,8 @@ module Kettle
       end
 
       def bundled_execution_context?
+        return false if bootstrap_mode?
+
         env_val = ENV[BUNDLED_GEMFILE_ENV].to_s.strip
         !env_val.empty?
       end
@@ -400,6 +402,9 @@ module Kettle
           opts.on("--accept-config", "Accept ENV-provided config and skip the bootstrap-only early exit (use with ENV overrides)") do
             @accept_config = true
           end
+          opts.on("--bootstrap-mode", "Force the initial bootstrap path even when launched from a bundled process") do
+            @bootstrap_mode = true
+          end
           opts.on("-h", "--help", "Show help") do
             puts opts
             exit_with_status(0)
@@ -434,6 +439,10 @@ module Kettle
 
       def accept_config?
         @accept_config || false
+      end
+
+      def bootstrap_mode?
+        @bootstrap_mode || false
       end
 
       def quiet?
@@ -997,8 +1006,12 @@ module Kettle
       end
 
       def handoff_to_bundled_phase!
-        cmd = ["bundle", "exec", "kettle-jem"] + @original_argv
+        cmd = ["bundle", "exec", "kettle-jem"] + handoff_argv
         sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
+      end
+
+      def handoff_argv
+        Array(@original_argv).reject { |arg| arg == "--bootstrap-mode" }
       end
 
       # 8. Commit template bootstrap changes if any

@@ -3,16 +3,17 @@
 require "json"
 require "open3"
 require "rbconfig"
+require "shellwords"
 require "turbo_tests2/rspec/shared_contexts/simplecov_spawn"
 
 RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:exe_path) { File.expand_path("../../exe/kettle-jem", __dir__) }
+  let(:base_env) { {"allowed" => "true"} }
   let(:kettle_jem_env) do
-    {
+    base_env.merge(
       "KJ_PROJECT_EMOJI" => "⭐️",
       "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
-      "allowed" => "true",
-    }
+    )
   end
   let(:duplicates_exe_path) { File.expand_path("../../exe/kettle-jem-validate-duplicates", __dir__) }
   let(:sandbox_root) { File.expand_path("../../../tmp/sandbox", __dir__) }
@@ -65,20 +66,33 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     FileUtils.rm_rf(dummy_gem_dir)
   end
 
-  def run_kettle_jem!
+  def run_kettle_jem!(*args, env: kettle_jem_env)
     Open3.capture3(
-      kettle_jem_env,
+      env,
       RbConfig.ruby,
       exe_path,
-      "--skip-commit",
-      "--accept-config",
+      *args,
       chdir: dummy_gem_dir,
     )
   end
 
+  def git_commit_all!(message)
+    system("git init", chdir: dummy_gem_dir, exception: true) unless Dir.exist?(File.join(dummy_gem_dir, ".git"))
+    system("git config user.name 'Test User'", chdir: dummy_gem_dir, exception: true)
+    system("git config user.email 'test@example.com'", chdir: dummy_gem_dir, exception: true)
+    system("git add -A", chdir: dummy_gem_dir, exception: true)
+    system("git commit -m #{Shellwords.escape(message)}", chdir: dummy_gem_dir, exception: true)
+  end
+
+  def set_project_emoji!(emoji)
+    config_path = File.join(dummy_gem_dir, ".kettle-jem.yml")
+    content = File.read(config_path)
+    File.write(config_path, content.sub('project_emoji: ""', %(project_emoji: "#{emoji}")))
+  end
+
   it "templates the scaffolded gem and stays within the expected duplicate warning threshold" do
     # Run kettle-jem --skip-commit (CLI handles bin/setup and all preflight internally)
-    stdout, stderr, status = run_kettle_jem!
+    stdout, stderr, status = run_kettle_jem!("--skip-commit", "--accept-config")
     expect(status.success?).to be(true),
       "kettle-jem failed\nstdout=#{stdout}\nstderr=#{stderr}"
 
@@ -107,11 +121,11 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   end
 
   it "preserves hidden template directories and files across a second templating run" do
-    stdout1, stderr1, status1 = run_kettle_jem!
+    stdout1, stderr1, status1 = run_kettle_jem!("--skip-commit", "--accept-config")
     expect(status1.success?).to be(true),
       "first kettle-jem run failed\nstdout=#{stdout1}\nstderr=#{stderr1}"
 
-    stdout2, stderr2, status2 = run_kettle_jem!
+    stdout2, stderr2, status2 = run_kettle_jem!("--skip-commit", "--accept-config")
     expect(status2.success?).to be(true),
       "second kettle-jem run failed\nstdout=#{stdout2}\nstderr=#{stderr2}"
 
@@ -126,5 +140,31 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
         expect(File).to exist(File.join(dummy_gem_dir, rel)), "expected #{rel} to exist after re-templating"
       end
     end
+  end
+
+  it "does not duplicate the trailing HTTP recording block after config bootstrap and a second full run" do
+    FileUtils.rm_rf(dummy_gem_dir)
+    system("bundle gem dummy-gem", chdir: sandbox_root, exception: true)
+    git_commit_all!("initial scaffold")
+
+    stdout1, stderr1, status1 = run_kettle_jem!("--bootstrap-mode", env: base_env)
+    expect(status1.success?).to be(true),
+      "first plain kettle-jem run failed\nstdout=#{stdout1}\nstderr=#{stderr1}"
+    expect(File).to exist(File.join(dummy_gem_dir, ".kettle-jem.yml"))
+
+    set_project_emoji!("🔔")
+    system("git add .kettle-jem.yml", chdir: dummy_gem_dir, exception: true)
+    system("git commit -m 'config'", chdir: dummy_gem_dir, exception: true)
+
+    stdout2, stderr2, status2 = run_kettle_jem!("--bootstrap-mode", env: base_env)
+    expect(status2.success?).to be(true),
+      "second plain kettle-jem run failed\nstdout=#{stdout2}\nstderr=#{stderr2}"
+
+    gemspec_path = File.join(dummy_gem_dir, "dummy-gem.gemspec")
+    gemspec = File.read(gemspec_path)
+    count = gemspec.scan("HTTP recording for deterministic specs").count
+
+    expect(count).to eq(1),
+      "Expected exactly 1 HTTP recording block after the second full CLI run, got #{count}.\n\nstdout=#{stdout2}\nstderr=#{stderr2}\n\nGemspec:\n#{gemspec}"
   end
 end
