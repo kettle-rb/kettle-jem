@@ -427,6 +427,7 @@ module Kettle
 
         replacements["KJ|LICENSE:PRIMARY_SPDX"] = primary_license
         replacements["KJ|README:LICENSE_BADGE"] = license_badge(primary_license)
+        replacements["KJ|README:LICENSE_COMPAT_BADGE"] = license_compat_badge(licenses)
 
         # {KJ|README:LICENSE_REFS} — reference-link definitions for the README footer
         license_refs = []
@@ -434,6 +435,8 @@ module Kettle
         license_refs << "[📄license]: LICENSE.md"
         license_refs << "[📄license-ref]: #{license_badge_ref(primary_license)}"
         license_refs << "[📄license-img]: #{license_badge_img(primary_license)}"
+        license_refs << "[📄license-compat]: #{license_compat_ref(licenses)}"
+        license_refs << "[📄license-compat-img]: #{license_compat_img(licenses)}"
         replacements["KJ|README:LICENSE_REFS"] = license_refs.join("\n")
 
         # {KJ|COPYRIGHT_PREFIX} — "Required Notice: " when any PolyForm license is
@@ -540,6 +543,69 @@ module Kettle
       def license_badge_img(spdx_id)
         base = spdx_basename(spdx_id).gsub("-", "--").gsub("_", "__").tr(" ", "_")
         "https://img.shields.io/badge/License-#{base}-259D6C.svg"
+      end
+
+      APACHE_LICENSE_COMPAT_CATEGORIES = {
+        "Apache-2.0" => :a,
+        "MIT" => :a,
+        "AGPL-3.0-only" => :x,
+        "PolyForm-Noncommercial-1.0.0" => :x,
+        "PolyForm-Small-Business-1.0.0" => :x,
+        "LicenseRef-Big-Time-Public-License" => :x,
+      }.freeze
+
+      APACHE_LICENSE_COMPAT_BADGE_DATA = {
+        a: {
+          alt: "Apache license compatibility: Category A",
+          label: "Apache_Compatible:_Category_A",
+          message: "\u2713",
+          color: "259D6C",
+          ref: "https://www.apache.org/legal/resolved.html#category-a",
+        },
+        b: {
+          alt: "Apache license compatibility: Category B",
+          label: "Apache_Maybe_Compatible:_Category_B",
+          message: "?",
+          color: "D9A407",
+          ref: "https://www.apache.org/legal/resolved.html#category-b",
+        },
+        x: {
+          alt: "Apache license compatibility: Category X",
+          label: "Apache_Incompatible:_Category_X",
+          message: "\u2717",
+          color: "C0392B",
+          ref: "https://www.apache.org/legal/resolved.html#category-x",
+        },
+        unknown: {
+          alt: "Apache license compatibility: Unknown",
+          label: "Apache_Compatibility",
+          message: "Unknown",
+          color: "6C757D",
+          ref: "https://www.apache.org/legal/resolved.html",
+        },
+      }.freeze
+
+      def license_compat_category(licenses)
+        categories = Array(licenses).filter_map { |license| APACHE_LICENSE_COMPAT_CATEGORIES[license.to_s] }.uniq
+        return :a if categories.include?(:a)
+        return :b if categories.include?(:b)
+        return :x if categories.any? && categories.all?(:x)
+
+        :unknown
+      end
+
+      def license_compat_badge(licenses)
+        category = license_compat_category(licenses)
+        "[![#{APACHE_LICENSE_COMPAT_BADGE_DATA.fetch(category)[:alt]}][📄license-compat-img]][📄license-compat]"
+      end
+
+      def license_compat_ref(licenses)
+        APACHE_LICENSE_COMPAT_BADGE_DATA.fetch(license_compat_category(licenses))[:ref]
+      end
+
+      def license_compat_img(licenses)
+        data = APACHE_LICENSE_COMPAT_BADGE_DATA.fetch(license_compat_category(licenses))
+        "https://img.shields.io/badge/#{data[:label]}-#{data[:message]}-#{data[:color]}.svg?style=flat&logo=Apache"
       end
 
       # Returns true when any PolyForm license is present in +licenses+.

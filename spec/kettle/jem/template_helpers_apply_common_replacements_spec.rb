@@ -131,6 +131,43 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       expect(result).not_to include("opensource.org/licenses/MIT")
     end
 
+    it "renders Apache license compatibility badge data from configured licenses" do
+      allow(helpers).to receive(:kettle_config).and_return(
+        {
+          "defaults" => {"freeze_token" => "kettle-jem"},
+          "tokens" => {},
+          "licenses" => ["AGPL-3.0-only"],
+        },
+      )
+
+      content = <<~MARKDOWN.chomp
+        {KJ|README:LICENSE_COMPAT_BADGE}
+        {KJ|README:LICENSE_REFS}
+      MARKDOWN
+
+      result = helpers.apply_common_replacements(content, **base_args)
+
+      expect(result).to include("[![Apache license compatibility: Category X][📄license-compat-img]][📄license-compat]")
+      expect(result).to include("[📄license-compat]: https://www.apache.org/legal/resolved.html#category-x")
+      expect(result).to include("[📄license-compat-img]: https://img.shields.io/badge/Apache_Incompatible:_Category_X-✗-C0392B.svg?style=flat&logo=Apache")
+      expect(result).not_to include("Category_A")
+    end
+
+    it "prefers the most Apache-compatible option when licenses are ORed" do
+      allow(helpers).to receive(:kettle_config).and_return(
+        {
+          "defaults" => {"freeze_token" => "kettle-jem"},
+          "tokens" => {},
+          "licenses" => ["AGPL-3.0-only", "MIT"],
+        },
+      )
+
+      result = helpers.apply_common_replacements("{KJ|README:LICENSE_COMPAT_BADGE}", **base_args)
+
+      expect(result).to include("Category A")
+      expect(result).not_to include("Category X")
+    end
+
     context "with README top logo tokens" do
       let(:content) do
         <<~MARKDOWN.chomp
