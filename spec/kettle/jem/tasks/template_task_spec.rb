@@ -766,6 +766,40 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         expect(merged).to include('DEBUG = "true"')
         expect(merged).to include('CUSTOM = "1"')
       end
+
+      it "keeps the preamble and env table singular during destination-preference merges", :toml_merge do
+        template = <<~TOML
+          # Shared development environment for this gem.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+
+          [env]
+          K_SOUP_COV_MIN_BRANCH = "76"
+          K_SOUP_COV_MIN_LINE = "92"
+        TOML
+        dest = <<~TOML
+          # Shared development environment for ast-merge.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+          [env]
+          K_SOUP_COV_MIN_BRANCH = "81"
+          K_SOUP_COV_MIN_LINE = "91"
+        TOML
+
+        merged = Toml::Merge::SmartMerger.new(
+          template,
+          dest,
+          preference: :destination,
+          add_template_only_nodes: true,
+          freeze_token: "kettle-jem",
+          sort_keys: true,
+        ).merge
+
+        expect(merged.scan(/^# Shared development environment/).size).to eq(1), merged
+        expect(merged.scan(/^\[env\]/).size).to eq(1), merged
+        expect(merged.scan(/^K_SOUP_COV_MIN_BRANCH = /).size).to eq(1), merged
+        expect(merged.scan(/^K_SOUP_COV_MIN_LINE = /).size).to eq(1), merged
+        expect(merged).to include('K_SOUP_COV_MIN_BRANCH = "81"')
+        expect(merged).to include('K_SOUP_COV_MIN_LINE = "91"')
+      end
     end
 
     describe ".kettle-jem.yml token backfill merging" do
