@@ -8,6 +8,7 @@ PATH
       dotenv-merge (~> 2.0)
       json-merge (~> 2.0)
       kettle-dev (~> 2.0)
+      kettle-drift (~> 0.1)
       markdown-merge (~> 2.0)
       markly-merge (~> 2.0)
       parslet (~> 2.0)
@@ -57,6 +58,12 @@ PATH
   remote: /home/pboling/src/kettle-rb/kettle-dev
   specs:
     kettle-dev (2.0.0)
+      version_gem (~> 1.1, >= 1.1.9)
+
+PATH
+  remote: /home/pboling/src/kettle-rb/kettle-drift
+  specs:
+    kettle-drift (0.1.0)
       version_gem (~> 1.1, >= 1.1.9)
 
 PATH
@@ -481,6 +488,7 @@ DEPENDENCIES
   irb (~> 1.17)
   json-merge!
   kettle-dev!
+  kettle-drift!
   kettle-jem!
   kettle-soup-cover!
   kettle-test (~> 2.0, >= 2.0.0, >= 0)!
@@ -557,6 +565,7 @@ CHECKSUMS
   json (2.19.3) sha256=289b0bb53052a1fa8c34ab33cc750b659ba14a5c45f3fcf4b18762dc67c78646
   json-merge (2.0.0)
   kettle-dev (2.0.0)
+  kettle-drift (0.1.0)
   kettle-jem (1.0.0)
   kettle-soup-cover (1.1.1)
   kettle-test (2.0.0)

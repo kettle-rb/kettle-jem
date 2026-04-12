@@ -16,6 +16,8 @@ require "kettle/jem"
 project_root = nil
 min_chars = Kettle::Jem::DuplicateLineValidator::DEFAULT_MIN_CHARS
 json_path = nil
+lock_path = nil
+mode = :update
 
 ARGV.each do |arg|
   case arg
@@ -23,9 +25,15 @@ ARGV.each do |arg|
     min_chars = $1.to_i
   when /\A--json=(.+)\z/
     json_path = $1
+  when /\A--lockfile=(.+)\z/
+    lock_path = $1
+  when "--check"
+    mode = :check
+  when "--force-update"
+    mode = :force_update
   when /\A-/
     $stderr.puts "Unknown option: #{arg}"
-    $stderr.puts "Usage: #{$PROGRAM_NAME} [PROJECT_ROOT] [--min-chars=N] [--json=PATH]"
+    $stderr.puts "Usage: #{$PROGRAM_NAME} [PROJECT_ROOT] [--min-chars=N] [--json=PATH] [--lockfile=PATH] [--check|--force-update]"
     exit(1)
   else
     project_root = arg
@@ -35,6 +43,7 @@ end
 project_root = File.expand_path(project_root || Dir.pwd)
 
 dlv = Kettle::Jem::DuplicateLineValidator
+lock_path ||= File.join(project_root, ".kettle-jem.lock")
 
 # Collect only template-managed files (files that match the template directory)
 files = dlv.template_managed_files(project_root: project_root)
@@ -57,4 +66,12 @@ else
   puts "[kettle-jem] 📄  Report: #{Kettle::Jem.display_path(json_path)}"
 end
 
-exit(results.empty? ? 0 : 1)
+exit(
+  Kettle::Drift::Process.new(
+    project_root: project_root,
+    lock_path: lock_path,
+    mode: mode,
+    results: results,
+    printer_class: nil,
+  ).call,
+)

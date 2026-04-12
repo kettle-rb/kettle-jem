@@ -1014,11 +1014,12 @@ RSpec.describe Kettle::Jem::SetupCLI do
           tree_haver
           ast-merge
           bash-merge
+          kettle-drift
           kettle-jem
           prism-merge
         ]
 
-        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-jem,prism-merge
+        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-drift,kettle-jem,prism-merge
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
@@ -1035,6 +1036,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(result).to include('require "nomono/bundler"')
       expect(result).to include("tree_haver")
       expect(result).to include("bash-merge")
+      expect(result).to include("kettle-drift")
       expect(result).to include("kettle-jem")
       expect(result).to include("prism-merge")
       expect(result).not_to include("legacy-merge")

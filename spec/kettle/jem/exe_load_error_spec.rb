@@ -84,6 +84,7 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
     Dir.mktmpdir("duplicate-validator-", tmp_root) do |dir|
       config_path = File.join(dir, ".kettle-jem.yml")
       changelog_path = File.join(dir, "CHANGELOG.md")
+      lock_path = File.join(dir, ".kettle-jem.lock")
       report_path = File.join(dir, "tmp", "kettle-jem", "duplicates.json")
 
       File.write(config_path, <<~YAML)
@@ -110,16 +111,19 @@ RSpec.describe "exe/kettle-jem bootstrap loading" do # rubocop:disable RSpec/Des
         "--json=#{report_path}",
       )
 
-      expect(status.success?).to be(false), "stdout=#{stdout.inspect}\nstderr=#{stderr.inspect}"
+      expect(status.success?).to be(true), "stdout=#{stdout.inspect}\nstderr=#{stderr.inspect}"
       expect(stderr).to eq("")
       expect(stdout).to include("duplicate line warning")
       expect(stdout).to include("Report: #{Kettle::Jem.display_path(report_path)}")
       expect(stdout).not_to include("Report: #{report_path}") if report_path.start_with?("/var/home/")
+      expect(File).to exist(lock_path)
       expect(File).to exist(report_path)
 
       report = JSON.parse(File.read(report_path))
       expect(report.values.flatten).not_to be_empty
       expect(report.values.flatten.first.fetch("file")).to eq(Kettle::Jem.display_path(changelog_path))
+      lock = JSON.parse(File.read(lock_path))
+      expect(lock.values.flatten.first.fetch("file")).to eq("CHANGELOG.md")
     end
   end
 end

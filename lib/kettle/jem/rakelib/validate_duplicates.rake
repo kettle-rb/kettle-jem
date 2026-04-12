@@ -9,6 +9,14 @@ namespace :kettle do
       dlv = Kettle::Jem::DuplicateLineValidator
       project_root = ENV.fetch("PROJECT_ROOT") { Dir.pwd }
       min_chars = ENV.fetch("MIN_CHARS", dlv::DEFAULT_MIN_CHARS).to_i
+      lock_path = ENV.fetch("LOCKFILE", File.join(project_root, ".kettle-jem.lock"))
+      mode = if ENV["FORCE_UPDATE"].to_s == "true"
+        :force_update
+      elsif ENV["CHECK"].to_s == "true"
+        :check
+      else
+        :update
+      end
 
       # Collect files: either from the last template run's results, or use
       # template_managed_files to find template-managed files on disk.
@@ -37,8 +45,18 @@ namespace :kettle do
         timestamp = Time.now.utc.strftime("%Y%m%d-%H%M%S")
         json_path = File.join(report_dir, "duplicate-lines-#{timestamp}.json")
         dlv.write_json(results, json_path)
-        puts "[kettle-jem] 📄  Report: #{json_path}"
+        puts "[kettle-jem] 📄  Report: #{Kettle::Jem.display_path(json_path)}"
       end
+
+      exit(
+        Kettle::Drift::Process.new(
+          project_root: project_root,
+          lock_path: lock_path,
+          mode: mode,
+          results: results,
+          printer_class: nil,
+        ).call,
+      )
     end
   end
 end

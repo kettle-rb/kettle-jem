@@ -150,11 +150,12 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
           tree_haver
           ast-merge
           bash-merge
+          kettle-drift
           kettle-jem
           prism-merge
         ]
 
-        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-jem,prism-merge
+        # export VENDORED_GEMS=tree_haver,ast-merge,bash-merge,kettle-drift,kettle-jem,prism-merge
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
@@ -176,11 +177,12 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       expect(out).to include("tree_haver")
       expect(out).to include("bash-merge")
+      expect(out).to include("kettle-drift")
       expect(out).to include("prism-merge")
       expect(out).to include("kettle-jem")
       expect(out).not_to include("legacy-merge")
       expect(out).not_to include("ast-merge")
-      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-jem,prism-merge")
+      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-drift,kettle-jem,prism-merge")
     end
 
     it "preserves single-line local_gems formatting while using template-owned words" do
@@ -373,11 +375,12 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
           ast-merge
           tree_haver
           bash-merge
+          kettle-drift
           kettle-jem
           prism-merge
         ]
 
-        # export VENDORED_GEMS=ast-merge,tree_haver,bash-merge,kettle-jem,prism-merge
+        # export VENDORED_GEMS=ast-merge,tree_haver,bash-merge,kettle-drift,kettle-jem,prism-merge
         platform :mri do
           eval_nomono_gems(gems: local_gems)
         end
@@ -401,11 +404,12 @@ RSpec.describe Kettle::Jem::PrismGemfile, ".remove_gem_dependency" do
 
       expect(out).to include("tree_haver")
       expect(out).to include("bash-merge")
+      expect(out).to include("kettle-drift")
       expect(out).to include("prism-merge")
       expect(out).to include("kettle-jem")
       expect(out).not_to include("legacy-merge")
       expect(out).not_to include("ast-merge")
-      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-jem,prism-merge")
+      expect(out).to include("# export VENDORED_GEMS=tree_haver,bash-merge,kettle-drift,kettle-jem,prism-merge")
     end
 
     it "leaves the destination unchanged when the source has no bootstrap override metadata" do
