@@ -13,5 +13,6 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     content = File.read(File.join(template_root, ".yardopts.example"))
 
     expect(content).to include("--plugin timekeeper")
+    expect(content.index("--plugin timekeeper")).to be < content.index("--plugin fence")
   end
 end
