@@ -45,7 +45,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
       .git-hooks/footer-template.erb.txt
       .git-hooks/prepare-commit-msg
       .github/.codecov.yml
-      .github/COPILOT_INSTRUCTIONS.md
+      .github/copilot_instructions.md
       .github/dependabot.yml
       .github/workflows/templating.yml
       .idea/.gitignore

@@ -2549,22 +2549,15 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      # BUG REPRO: Step 2 handles .github/**/*.yml files. Step 7 skips ALL
-      # .github/ files via handled_prefixes. Non-yml files like
-      # .github/COPILOT_INSTRUCTIONS.md.example are never processed by either
-      # step, even though a template exists for them.
-      it "templates non-yml files under .github/ such as COPILOT_INSTRUCTIONS.md" do
+      # BUG REPRO: Step 2 handles .github/**/*.yml files. Step 7 skips only the
+      # workflow yaml files, so non-yml files like .github/copilot_instructions.md
+      # must still be templated, and legacy uppercase destinations must be removed.
+      it "templates lowercase non-yml github files and removes legacy uppercase copilot instructions" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
-            # Source .github/ with a non-yml file (and a yml for step 2)
-            FileUtils.mkdir_p(File.join(gem_root, ".github"))
-            File.write(File.join(gem_root, ".github", "COPILOT_INSTRUCTIONS.md"), "# Instructions for {KJ|GEM_NAME}\n")
-            File.write(File.join(gem_root, ".github", "COPILOT_INSTRUCTIONS.md.example"), "# Instructions for {KJ|GEM_NAME}\n")
-            File.write(File.join(gem_root, ".github", "dependabot.yml"), "version: 2\n")
-
-            # Template entries so the template walk discovers .github/ non-yml files
-            FileUtils.mkdir_p(File.join(gem_root, "template", ".github"))
-            File.write(File.join(gem_root, "template", ".github", "COPILOT_INSTRUCTIONS.md.example"), "# Instructions for {KJ|GEM_NAME}\n")
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(File.join(template_root, ".github"))
+            File.write(File.join(template_root, ".github", "copilot_instructions.md.example"), "# Instructions for {KJ|GEM_NAME}\n")
 
             File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
               Gem::Specification.new do |spec|
@@ -2576,21 +2569,36 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
                 spec.homepage = "https://github.com/acme/demo"
               end
             GEMSPEC
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              patterns: []
+              files:
+                .github:
+                  copilot_instructions.md:
+                    strategy: accept_template
+            YAML
+            FileUtils.mkdir_p(File.join(project_root, ".github"))
+            legacy_dest = File.join(project_root, ".github", "COPILOT_INSTRUCTIONS.md")
+            File.write(legacy_dest, "# Legacy instructions\n")
 
             allow(helpers).to receive_messages(
               project_root: project_root,
-              template_root: File.join(gem_root, "template"),
+              template_root: template_root,
               ensure_clean_git!: nil,
               ask: true,
             )
 
             expect { described_class.run }.not_to raise_error
 
-            dest_md = File.join(project_root, ".github", "COPILOT_INSTRUCTIONS.md")
+            dest_md = File.join(project_root, ".github", "copilot_instructions.md")
             expect(File).to exist(dest_md)
             content = File.read(dest_md)
             expect(content).to include("demo")
             expect(content).not_to include("{KJ|GEM_NAME}")
+            expect(File).not_to exist(legacy_dest)
           end
         end
       end

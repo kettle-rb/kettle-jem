@@ -10,6 +10,9 @@ module Kettle
         PHASE_EMOJI = "📂"
         PHASE_NAME = "Remaining files"
         PHASE_DETAIL = "gemspec, README, Rakefile, …"
+        LEGACY_DESTINATION_PATHS = {
+          ".github/copilot_instructions.md" => ".github/COPILOT_INSTRUCTIONS.md",
+        }.freeze
 
         private
 
@@ -198,10 +201,15 @@ module Kettle
 
             begin
               file_strategy = helpers.strategy_for(dest)
-              next if file_strategy == :keep_destination
+              legacy_dest = legacy_destination_path_for(rel, project_root)
+              if file_strategy == :keep_destination
+                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
+                next
+              end
 
               if file_strategy == :raw_copy
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true, raw: true)
+                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
                 next
               end
 
@@ -224,6 +232,7 @@ module Kettle
                   c = Kettle::Jem::ReadmePostProcessor.process(content: c, min_ruby: min_ruby, engines: helpers.engines_config)
                   c
                 end
+                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               elsif File.basename(rel) == "CHANGELOG.md"
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                   c = content
@@ -241,6 +250,7 @@ module Kettle
                   c = Kettle::Jem::Tasks::TemplateTask.normalize_markdown_spacing(c) if Kettle::Jem::Tasks::TemplateTask.markdown_heading_file?(rel)
                   c
                 end
+                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               else
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                   c = content
@@ -261,6 +271,7 @@ module Kettle
                   end
                   c
                 end
+                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               end
             rescue StandardError => e
               Kettle::Dev.debug_error(e, __method__)
@@ -299,6 +310,29 @@ module Kettle
           raise if e.is_a?(Kettle::Dev::Error)
 
           out.warning("Could not determine env file changes: #{e.class}: #{e.message}")
+        end
+
+        def legacy_destination_path_for(rel, project_root)
+          legacy_rel = LEGACY_DESTINATION_PATHS[rel]
+          return unless legacy_rel
+
+          File.join(project_root, legacy_rel)
+        end
+
+        def cleanup_legacy_destination!(helpers, out, canonical_dest, legacy_dest)
+          return unless legacy_dest
+
+          actual_canonical = helpers.output_path(canonical_dest)
+          return unless File.exist?(actual_canonical)
+
+          actual_legacy = helpers.output_path(legacy_dest)
+          return unless File.exist?(actual_legacy)
+
+          File.delete(actual_legacy)
+          out.report_detail("Deleted legacy #{helpers.rel_path(legacy_dest)} in favor of #{helpers.rel_path(canonical_dest)}")
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          out.warning("Could not remove legacy #{helpers.rel_path(legacy_dest)}: #{e.class}: #{e.message}")
         end
       end
     end

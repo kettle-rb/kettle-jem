@@ -154,6 +154,32 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
       end
     end
 
+    it "falls back to the template default config for lowercase github copilot instructions" do
+      Dir.mktmpdir do |dir|
+        project_root = File.join(dir, "project")
+        template_root = File.join(dir, "template")
+        FileUtils.mkdir_p(project_root)
+        FileUtils.mkdir_p(template_root)
+        File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          patterns: []
+          files:
+            .github:
+              copilot_instructions.md:
+                strategy: accept_template
+        YAML
+
+        allow(described_class).to receive_messages(project_root: project_root, template_root: template_root)
+        described_class.clear_kettle_config!
+
+        path = File.join(project_root, ".github", "copilot_instructions.md")
+        expect(described_class.strategy_for(path)).to eq(:accept_template)
+      end
+    end
+
     context "when file is not found in config (defaults to merge)" do
       it "returns :merge for completely unknown file" do
         path = File.join(project_root, "some/random/unknown_file.txt")
