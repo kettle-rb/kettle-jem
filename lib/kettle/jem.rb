@@ -72,6 +72,7 @@ module Kettle
     autoload :PluginLoader, "kettle/jem/plugin_loader"
     autoload :PluginRegistrar, "kettle/jem/plugin_registrar"
     autoload :PluginRegistry, "kettle/jem/plugin_registry"
+    autoload :SnippetInjector, "kettle/jem/snippet_injector"
 
     # Templating and setup (moved from kettle-dev)
     autoload :ConfigSeeder, "kettle/jem/config_seeder"
