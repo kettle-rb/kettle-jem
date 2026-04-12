@@ -1952,6 +1952,15 @@ module Kettle
         end
       end
 
+      def merge_options_for_path(path_or_relative)
+        relative_path = path_or_relative.to_s
+        if relative_path.start_with?(project_root.to_s)
+          relative_path = rel_path(relative_path)
+        end
+
+        merge_options_for_config(config_for(relative_path))
+      end
+
       def resolve_recipe_for_config(recipe)
         return if recipe.nil?
         return recipe unless recipe.is_a?(String)

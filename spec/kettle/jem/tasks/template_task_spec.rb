@@ -2972,6 +2972,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               ensure_clean_git!: nil,
               ask: true,
             )
+            helpers.clear_kettle_config!
 
             described_class.run
 
@@ -4988,6 +4989,66 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(result).to include("/tmp/*")
             expect(result).to include("!/tmp/.gitignore")
             expect(result).to include("my_custom_dir/")
+          end
+        end
+      end
+
+      it "adds template-only lines to .yardopts when text merge defaults allow them" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(template_root)
+
+            File.write(File.join(template_root, ".yardopts.example"), <<~YARDOPTS)
+              --plugin timekeeper
+              --plugin fence
+              -e yard/fence/hoist.rb
+              --plugin yaml
+              --plugin junk
+              --plugin relative_markdown_links
+            YARDOPTS
+
+            File.write(File.join(project_root, ".yardopts"), <<~YARDOPTS)
+              --plugin fence
+              -e yard/fence/hoist.rb
+              --plugin yaml
+              --plugin junk
+              --plugin relative_markdown_links
+            YARDOPTS
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              patterns: []
+              files: {}
+            YAML
+
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test gem"
+                spec.authors = ["Test"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            described_class.run
+
+            result = File.read(File.join(project_root, ".yardopts"))
+            expect(result).to include("--plugin timekeeper")
+            expect(result.index("--plugin timekeeper")).to be < result.index("--plugin fence")
+            expect(result).to include("--plugin junk")
           end
         end
       end

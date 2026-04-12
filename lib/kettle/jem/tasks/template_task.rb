@@ -379,10 +379,14 @@ module Kettle
             else
               # Text files: text-merge. For .gitignore specifically, include
               # template-only lines so new ignore rules are added to existing
-              # destination files.
+              # destination files. Other text files should respect the same
+              # configured merge options as the AST-aware backends.
               text_merge_options = {
                 preference: :template,
               }
+              if helpers.respond_to?(:merge_options_for_path)
+                text_merge_options.merge!(helpers.merge_options_for_path(rel))
+              end
               text_merge_options[:add_template_only_nodes] = true if File.basename(rel.to_s) == ".gitignore"
 
               Ast::Merge::Text::SmartMerger.new(
