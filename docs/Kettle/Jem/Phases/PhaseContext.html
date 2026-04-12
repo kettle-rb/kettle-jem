@@ -459,6 +459,34 @@ project/template paths, and gem metadata extracted during preflight.</p>
       <li class="public ">
   <span class="summary_signature">
     
+      <a href="#plugins-instance_method" title="#plugins (instance method)">#<strong>plugins</strong>  &#x21d2; Object </a>
+    
+
+    
+  </span>
+  
+  
+  
+    
+      <span class="note title readonly">readonly</span>
+    
+    
+  
+  
+  
+  
+  
+
+  
+    <span class="summary_desc"><div class='inline'><p>Returns the value of attribute plugins.</p>
+</div></span>
+  
+</li>
+
+    
+      <li class="public ">
+  <span class="summary_signature">
+    
       <a href="#project_root-instance_method" title="#project_root (instance method)">#<strong>project_root</strong>  &#x21d2; Object </a>
     
 
@@ -556,7 +584,7 @@ project/template paths, and gem metadata extracted during preflight.</p>
         <li class="public ">
   <span class="summary_signature">
     
-      <a href="#initialize-instance_method" title="#initialize (instance method)">#<strong>initialize</strong>(helpers:, out:, project_root:, template_root:, gem_name:, namespace:, namespace_shield:, gem_shield:, forge_org:, funding_org:, min_ruby:, entrypoint_require:, meta:, removed_appraisals: [], parse_error_mode: :raise)  &#x21d2; PhaseContext </a>
+      <a href="#initialize-instance_method" title="#initialize (instance method)">#<strong>initialize</strong>(helpers:, out:, project_root:, template_root:, plugins: nil, gem_name:, namespace:, namespace_shield:, gem_shield:, forge_org:, funding_org:, min_ruby:, entrypoint_require:, meta:, removed_appraisals: [], parse_error_mode: :raise)  &#x21d2; PhaseContext </a>
     
 
     
@@ -587,7 +615,7 @@ project/template paths, and gem metadata extracted during preflight.</p>
     <div class="method_details first">
   <h3 class="signature first" id="initialize-instance_method">
   
-    #<strong>initialize</strong>(helpers:, out:, project_root:, template_root:, gem_name:, namespace:, namespace_shield:, gem_shield:, forge_org:, funding_org:, min_ruby:, entrypoint_require:, meta:, removed_appraisals: [], parse_error_mode: :raise)  &#x21d2; <tt><span class='object_link'><a href="" title="Kettle::Jem::Phases::PhaseContext (class)">PhaseContext</a></span></tt> 
+    #<strong>initialize</strong>(helpers:, out:, project_root:, template_root:, plugins: nil, gem_name:, namespace:, namespace_shield:, gem_shield:, forge_org:, funding_org:, min_ruby:, entrypoint_require:, meta:, removed_appraisals: [], parse_error_mode: :raise)  &#x21d2; <tt><span class='object_link'><a href="" title="Kettle::Jem::Phases::PhaseContext (class)">PhaseContext</a></span></tt> 
   
 
   
@@ -842,7 +870,6 @@ project/template paths, and gem metadata extracted during preflight.</p>
       <pre class="lines">
 
 
-43
 44
 45
 46
@@ -864,19 +891,22 @@ project/template paths, and gem metadata extracted during preflight.</p>
 62
 63
 64
-65</pre>
+65
+66
+67</pre>
     </td>
     <td>
-      <pre class="code"><span class="info file"># File 'lib/kettle/jem/phases/phase_context.rb', line 43</span>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/phases/phase_context.rb', line 44</span>
 
 <span class='kw'>def</span> <span class='id identifier rubyid_initialize'>initialize</span><span class='lparen'>(</span>
-  <span class='label'>helpers:</span><span class='comma'>,</span> <span class='label'>out:</span><span class='comma'>,</span> <span class='label'>project_root:</span><span class='comma'>,</span> <span class='label'>template_root:</span><span class='comma'>,</span>
+  <span class='label'>helpers:</span><span class='comma'>,</span> <span class='label'>out:</span><span class='comma'>,</span> <span class='label'>project_root:</span><span class='comma'>,</span> <span class='label'>template_root:</span><span class='comma'>,</span> <span class='label'>plugins:</span> <span class='kw'>nil</span><span class='comma'>,</span>
   <span class='label'>gem_name:</span><span class='comma'>,</span> <span class='label'>namespace:</span><span class='comma'>,</span> <span class='label'>namespace_shield:</span><span class='comma'>,</span> <span class='label'>gem_shield:</span><span class='comma'>,</span>
   <span class='label'>forge_org:</span><span class='comma'>,</span> <span class='label'>funding_org:</span><span class='comma'>,</span> <span class='label'>min_ruby:</span><span class='comma'>,</span> <span class='label'>entrypoint_require:</span><span class='comma'>,</span>
   <span class='label'>meta:</span><span class='comma'>,</span> <span class='label'>removed_appraisals:</span> <span class='lbracket'>[</span><span class='rbracket'>]</span><span class='comma'>,</span> <span class='label'>parse_error_mode:</span> <span class='symbol'>:raise</span>
 <span class='rparen'>)</span>
   <span class='ivar'>@helpers</span> <span class='op'>=</span> <span class='id identifier rubyid_helpers'>helpers</span>
   <span class='ivar'>@out</span> <span class='op'>=</span> <span class='id identifier rubyid_out'>out</span>
+  <span class='ivar'>@plugins</span> <span class='op'>=</span> <span class='id identifier rubyid_plugins'>plugins</span>
   <span class='ivar'>@project_root</span> <span class='op'>=</span> <span class='id identifier rubyid_project_root'>project_root</span>
   <span class='ivar'>@template_root</span> <span class='op'>=</span> <span class='id identifier rubyid_template_root'>template_root</span>
   <span class='ivar'>@gem_name</span> <span class='op'>=</span> <span class='id identifier rubyid_gem_name'>gem_name</span>
@@ -1409,6 +1439,48 @@ project/template paths, and gem metadata extracted during preflight.</p>
       
       <span id=""></span>
       <div class="method_details ">
+  <h3 class="signature " id="plugins-instance_method">
+  
+    #<strong>plugins</strong>  &#x21d2; <tt>Object</tt>  <span class="extras">(readonly)</span>
+  
+
+  
+
+  
+</h3><div class="docstring">
+  <div class="discussion">
+    <p>Returns the value of attribute plugins.</p>
+
+
+  </div>
+</div>
+<div class="tags">
+  
+
+</div><table class="source_code">
+  <tr>
+    <td>
+      <pre class="lines">
+
+
+12
+13
+14</pre>
+    </td>
+    <td>
+      <pre class="code"><span class="info file"># File 'lib/kettle/jem/phases/phase_context.rb', line 12</span>
+
+<span class='kw'>def</span> <span class='id identifier rubyid_plugins'>plugins</span>
+  <span class='ivar'>@plugins</span>
+<span class='kw'>end</span></pre>
+    </td>
+  </tr>
+</table>
+</div>
+    
+      
+      <span id=""></span>
+      <div class="method_details ">
   <h3 class="signature " id="project_root-instance_method">
   
     #<strong>project_root</strong>  &#x21d2; <tt>Object</tt>  <span class="extras">(readonly)</span>
@@ -1538,7 +1610,7 @@ project/template paths, and gem metadata extracted during preflight.</p>
 </div>
 
       <div id="footer">
-  Generated on Sat Apr 11 01:55:05 2026 by
+  Generated on Sun Apr 12 11:49:27 2026 by
   <a href="https://yardoc.org" title="Yay! A Ruby Documentation Tool" target="_parent">yard</a>
   0.9.39 (ruby-4.0.2).
 </div>
