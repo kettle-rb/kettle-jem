@@ -305,6 +305,7 @@ module Kettle
         def merge_by_file_type(content, dest, rel, helpers)
           dest_content = File.read(dest)
           file_type = merge_file_type_for(rel, dest, helpers)
+
           merged =
             if Kettle::Jem::SourceMerger.ruby_file_type?(file_type)
               # Ruby files: prism-merge via SourceMerger
@@ -432,6 +433,12 @@ module Kettle
               :markdown
             elsif bash_file?(rel)
               :bash
+            elsif toml_file?(rel)
+              :toml
+            elsif json_file?(rel)
+              :json
+            elsif rbs_file?(rel)
+              :rbs
             else
               :text
             end
@@ -580,11 +587,11 @@ module Kettle
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze
         BASH_EXTENSIONS = %w[.sh .bash].freeze
+        TOML_EXTENSIONS = %w[.toml].freeze
+        JSON_EXTENSIONS = %w[.json .jsonc].freeze
+        RBS_EXTENSIONS = %w[.rbs].freeze
         # Basenames that are shell scripts without a shell extension
         BASH_BASENAMES = %w[.envrc].freeze
-        # Tool-owned bootstrap files that should be refreshed from the template
-        # rather than structurally merged.
-        ACCEPT_TEMPLATE_PATHS = %w[bin/setup].freeze
         # Tree-sitter grammar languages whose paths we attempt to auto-discover
         # and write into mise.toml so they are available to subsequent runs.
         TREE_SITTER_GRAMMAR_LANGUAGES = %w[
@@ -604,8 +611,16 @@ module Kettle
           BASH_EXTENSIONS.include?(ext) || BASH_BASENAMES.include?(base)
         end
 
-        def accept_template_path?(relative_path)
-          ACCEPT_TEMPLATE_PATHS.include?(relative_path.to_s)
+        def toml_file?(relative_path)
+          TOML_EXTENSIONS.include?(File.extname(relative_path.to_s).downcase)
+        end
+
+        def json_file?(relative_path)
+          JSON_EXTENSIONS.include?(File.extname(relative_path.to_s).downcase)
+        end
+
+        def rbs_file?(relative_path)
+          RBS_EXTENSIONS.include?(File.extname(relative_path.to_s).downcase)
         end
 
         # Abort wrapper that avoids terminating the entire process during specs
@@ -718,6 +733,25 @@ module Kettle
           replaced_existing_values || merged_content != updated_content
         end
 
+        def bootstrap_bin_setup!(helpers:, project_root:, template_root:, token_options:, bootstrapped_files:)
+          setup_dest = File.join(project_root, "bin/setup")
+          return if File.exist?(setup_dest)
+
+          setup_src = helpers.prefer_example(File.join(template_root, "bin/setup"))
+          return unless File.exist?(setup_src)
+
+          began_with_tokens = helpers.tokens_configured?
+          helpers.configure_tokens!(**token_options, include_config_tokens: false) unless began_with_tokens
+          rendered_content = helpers.read_template(setup_src)
+          helpers.write_file(setup_dest, rendered_content)
+          actual_setup_dest = helpers.respond_to?(:output_path) ? helpers.output_path(setup_dest) : setup_dest
+          File.chmod(0o755, actual_setup_dest) if File.exist?(actual_setup_dest)
+          helpers.record_template_result(setup_dest, :create)
+          bootstrapped_files << setup_dest
+        ensure
+          helpers.clear_tokens! unless began_with_tokens
+        end
+
         def ensure_kettle_config_bootstrap!(helpers:, project_root:, template_root:, token_options:)
           config_src = helpers.prefer_example(File.join(template_root, ".kettle-jem.yml"))
           config_dest = File.join(project_root, ".kettle-jem.yml")
@@ -814,6 +848,14 @@ module Kettle
             helpers.record_template_result(env_sh_dest, :create)
             bootstrapped_files << env_sh_dest
           end
+
+          bootstrap_bin_setup!(
+            helpers: helpers,
+            project_root: project_root,
+            template_root: template_root,
+            token_options: token_options,
+            bootstrapped_files: bootstrapped_files,
+          )
 
           return :present if bootstrapped_files.empty?
 
@@ -975,7 +1017,7 @@ module Kettle
 
             ext = File.extname(path)
             next unless %w[.rb .gemspec .gemfile .yml .yaml .toml .md .txt .sh .json .jsonc .cff .example .lock].include?(ext) ||
-              File.basename(path).match?(/\A(Gemfile|Rakefile|Appraisals|REEK|\.envrc|\.env|\.rspec|\.yardopts|\.gitignore|\.rubocop|LICENSE)\z/i)
+              File.basename(path).match?(/\A(Gemfile|Rakefile|Appraisals|\.envrc|\.env|\.rspec|\.yardopts|\.gitignore|\.rubocop|LICENSE)\z/i)
 
             begin
               content = File.read(path)

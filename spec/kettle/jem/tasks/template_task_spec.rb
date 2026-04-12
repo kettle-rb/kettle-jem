@@ -152,9 +152,20 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         it("rejects .rb") { expect(described_class.send(:bash_file?, "lib/foo.rb")).to be false }
       end
 
-      describe "::accept_template_path?" do
-        it("detects bin/setup") { expect(described_class.send(:accept_template_path?, "bin/setup")).to be true }
-        it("rejects arbitrary files") { expect(described_class.send(:accept_template_path?, "bin/other")).to be false }
+      describe "::toml_file?" do
+        it("detects .toml") { expect(described_class.send(:toml_file?, "mise.toml")).to be true }
+        it("rejects .rb") { expect(described_class.send(:toml_file?, "lib/foo.rb")).to be false }
+      end
+
+      describe "::json_file?" do
+        it("detects .json") { expect(described_class.send(:json_file?, "config.json")).to be true }
+        it("detects .jsonc") { expect(described_class.send(:json_file?, "config.jsonc")).to be true }
+        it("rejects .rb") { expect(described_class.send(:json_file?, "lib/foo.rb")).to be false }
+      end
+
+      describe "::rbs_file?" do
+        it("detects .rbs") { expect(described_class.send(:rbs_file?, "sig/demo.rbs")).to be true }
+        it("rejects .rb") { expect(described_class.send(:rbs_file?, "lib/foo.rb")).to be false }
       end
 
       describe "::markdown_heading_file?" do
@@ -348,14 +359,17 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         let(:helpers) { double("helpers") }
         let(:dest) { "/tmp/demo.file" }
 
-        it "prefers configured file types and otherwise infers yaml markdown bash and text" do
-          allow(helpers).to receive(:configured_file_type_for).and_return(:dotenv, nil, nil, nil, nil)
+        it "prefers configured file types and otherwise infers yaml markdown bash toml json rbs and text" do
+          allow(helpers).to receive(:configured_file_type_for).and_return(:dotenv, nil, nil, nil, nil, nil, nil, nil)
           allow(helpers).to receive(:ruby_template?).with(dest).and_return(false)
 
           expect(described_class.send(:merge_file_type_for, ".env.local", dest, helpers)).to eq(:dotenv)
           expect(described_class.send(:merge_file_type_for, "config.yml", dest, helpers)).to eq(:yaml)
           expect(described_class.send(:merge_file_type_for, "README.md", dest, helpers)).to eq(:markdown)
           expect(described_class.send(:merge_file_type_for, ".envrc", dest, helpers)).to eq(:bash)
+          expect(described_class.send(:merge_file_type_for, "parsers.toml", dest, helpers)).to eq(:toml)
+          expect(described_class.send(:merge_file_type_for, "config.json", dest, helpers)).to eq(:json)
+          expect(described_class.send(:merge_file_type_for, "sig/demo.rbs", dest, helpers)).to eq(:rbs)
           expect(described_class.send(:merge_file_type_for, "notes.txt", dest, helpers)).to eq(:text)
         end
       end
@@ -585,23 +599,44 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             Dir.mktmpdir do |project_root|
               config_src = File.join(template_root, ".kettle-jem.yml.example")
               mise_src = File.join(template_root, "mise.toml")
+              setup_src = File.join(template_root, "bin/setup.example")
               env_sh_src = File.join(template_root, ".config/mise/env.sh")
+              FileUtils.mkdir_p(File.dirname(setup_src))
               FileUtils.mkdir_p(File.dirname(env_sh_src))
               File.write(config_src, "template: config\n")
               File.write(mise_src, "[tools]\n")
+              File.write(setup_src, "#!/usr/bin/env bash\nbundle install\n")
               File.write(env_sh_src, "export DEMO=1\n")
 
               allow(helpers).to receive_messages(
-                prefer_example: config_src,
                 prefer_example_with_osc_check: mise_src,
                 write_file: nil,
                 record_template_result: nil,
                 clear_kettle_config!: nil,
               )
+              allow(helpers).to receive(:prefer_example) do |path|
+                case path
+                when File.join(template_root, ".kettle-jem.yml")
+                  config_src
+                when File.join(template_root, "bin/setup")
+                  setup_src
+                else
+                  raise "unexpected prefer_example path: #{path}"
+                end
+              end
               allow(helpers).to receive(:tokens_configured?).and_return(false, true)
               allow(helpers).to receive(:configure_tokens!)
               allow(helpers).to receive(:template_run_outcome=).with(:bootstrap_only)
-              allow(helpers).to receive(:read_template).with(mise_src).and_return("[tools]\nruby = \"3.2\"\n")
+              allow(helpers).to receive(:read_template) do |path|
+                case path
+                when mise_src
+                  "[tools]\nruby = \"3.2\"\n"
+                when setup_src
+                  "#!/usr/bin/env bash\nbundle install\n"
+                else
+                  raise "unexpected read_template path: #{path}"
+                end
+              end
               allow(described_class).to receive_messages(
                 seeded_kettle_config_content: "seeded: true\n",
                 discovered_grammar_toml_fragment: "fragment",
@@ -621,8 +656,10 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               expect(result).to eq(:bootstrap_only)
               expect(helpers).to have_received(:write_file).with(File.join(project_root, ".kettle-jem.yml"), "seeded: true\n")
               expect(helpers).to have_received(:write_file).with(File.join(project_root, "mise.toml"), "merged mise\n")
+              expect(helpers).to have_received(:write_file).with(File.join(project_root, "bin/setup"), "#!/usr/bin/env bash\nbundle install\n")
               expect(helpers).to have_received(:record_template_result).with(File.join(project_root, ".kettle-jem.yml"), :create)
               expect(helpers).to have_received(:record_template_result).with(File.join(project_root, "mise.toml"), :create)
+              expect(helpers).to have_received(:record_template_result).with(File.join(project_root, "bin/setup"), :create)
               expect(helpers).to have_received(:record_template_result).with(File.join(project_root, ".config/mise/env.sh"), :create)
             end
           end
@@ -633,23 +670,44 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             Dir.mktmpdir do |project_root|
               config_src = File.join(template_root, ".kettle-jem.yml.example")
               mise_src = File.join(template_root, "mise.toml")
+              setup_src = File.join(template_root, "bin/setup.example")
               config_dest = File.join(project_root, ".kettle-jem.yml")
               mise_dest = File.join(project_root, "mise.toml")
+              FileUtils.mkdir_p(File.dirname(setup_src))
               File.write(config_src, "template: config\n")
               File.write(mise_src, "[tools]\n")
+              File.write(setup_src, "#!/usr/bin/env bash\nbundle install\n")
               File.write(config_dest, "existing: true\n")
               File.write(mise_dest, "old mise\n")
 
               allow(helpers).to receive_messages(
-                prefer_example: config_src,
                 prefer_example_with_osc_check: mise_src,
                 record_template_result: nil,
                 write_file: nil,
               )
+              allow(helpers).to receive(:prefer_example) do |path|
+                case path
+                when File.join(template_root, ".kettle-jem.yml")
+                  config_src
+                when File.join(template_root, "bin/setup")
+                  setup_src
+                else
+                  raise "unexpected prefer_example path: #{path}"
+                end
+              end
               allow(helpers).to receive(:tokens_configured?).and_return(false, true)
               allow(helpers).to receive(:configure_tokens!)
               allow(helpers).to receive(:resolve_tokens).with("old mise\n").and_return("resolved mise\n")
-              allow(helpers).to receive(:read_template).with(mise_src).and_return("[tools]\nruby = \"3.2\"\n")
+              allow(helpers).to receive(:read_template) do |path|
+                case path
+                when mise_src
+                  "[tools]\nruby = \"3.2\"\n"
+                when setup_src
+                  "#!/usr/bin/env bash\nbundle install\n"
+                else
+                  raise "unexpected read_template path: #{path}"
+                end
+              end
               allow(described_class).to receive(:discovered_grammar_toml_fragment).and_return("fragment two")
               allow(Toml::Merge::SmartMerger).to receive(:new).and_return(
                 double("first merge", merge: "merged once\n"),
@@ -666,7 +724,9 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
               expect(result).to eq(:present)
               expect(helpers).to have_received(:write_file).with(mise_dest, "merged twice\n")
+              expect(helpers).to have_received(:write_file).with(File.join(project_root, "bin/setup"), "#!/usr/bin/env bash\nbundle install\n")
               expect(helpers).to have_received(:record_template_result).with(mise_dest, :replace)
+              expect(helpers).to have_received(:record_template_result).with(File.join(project_root, "bin/setup"), :create)
             end
           end
         end
@@ -1176,7 +1236,64 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
-      it "refreshes bin/setup from the template instead of leaving a stale copy untouched" do
+      it "bootstraps bin/setup from the template when it is missing" do
+        Dir.mktmpdir do |gem_root|
+          Dir.mktmpdir do |project_root|
+            template_root = File.join(gem_root, "template")
+            FileUtils.mkdir_p(File.join(template_root, "bin"))
+
+            File.write(File.join(template_root, ".kettle-jem.yml.example"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            template_setup = File.read(File.expand_path("../../../../template/bin/setup.example", __dir__))
+            File.write(File.join(template_root, "bin", "setup.example"), template_setup)
+
+            File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+              defaults:
+                preference: template
+                add_template_only_nodes: true
+                freeze_token: kettle-jem
+              tokens:
+                forge:
+                  gh_user: ""
+              patterns: []
+              files: {}
+            YAML
+            File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+              Gem::Specification.new do |spec|
+                spec.name = "demo"
+                spec.version = "0.1.0"
+                spec.summary = "test"
+                spec.authors = ["Test User"]
+                spec.email = ["test@example.com"]
+                spec.required_ruby_version = ">= 3.1"
+                spec.homepage = "https://github.com/acme/demo"
+              end
+            GEMSPEC
+
+            allow(helpers).to receive_messages(
+              project_root: project_root,
+              template_root: template_root,
+              ensure_clean_git!: nil,
+              ask: true,
+            )
+
+            expect { described_class.run }.not_to raise_error
+            expect(File.read(File.join(project_root, "bin", "setup"))).to eq(template_setup)
+            expect(File.stat(File.join(project_root, "bin", "setup")).mode & 0o111).to be > 0
+          end
+        end
+      end
+
+      it "keeps an existing bin/setup instead of overwriting it during templating" do
         Dir.mktmpdir do |gem_root|
           Dir.mktmpdir do |project_root|
             template_root = File.join(gem_root, "template")
@@ -1219,7 +1336,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               end
             GEMSPEC
             FileUtils.mkdir_p(File.join(project_root, "bin"))
-            File.write(File.join(project_root, "bin", "setup"), <<~BASH)
+            existing_setup = <<~BASH
               #!/usr/bin/env bash
               set -euo pipefail
               IFS=$'\n\t'
@@ -1227,6 +1344,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
 
               bundle install
             BASH
+            File.write(File.join(project_root, "bin", "setup"), existing_setup)
 
             allow(helpers).to receive_messages(
               project_root: project_root,
@@ -1236,7 +1354,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             )
 
             expect { described_class.run }.not_to raise_error
-            expect(File.read(File.join(project_root, "bin", "setup"))).to eq(template_setup)
+            expect(File.read(File.join(project_root, "bin", "setup"))).to eq(existing_setup)
           end
         end
       end
@@ -3062,6 +3180,7 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
               ensure_clean_git!: nil,
               ask: true,
             )
+            helpers.clear_kettle_config!
 
             described_class.run
 

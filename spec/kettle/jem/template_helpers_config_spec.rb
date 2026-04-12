@@ -187,6 +187,34 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     end
   end
 
+  describe ".merge_options_for_path" do
+    it "falls back to default merge options for unconfigured files" do
+      Dir.mktmpdir do |dir|
+        project_root = File.join(dir, "project")
+        template_root = File.join(dir, "template")
+        FileUtils.mkdir_p(project_root)
+        FileUtils.mkdir_p(template_root)
+        File.write(File.join(project_root, ".kettle-jem.yml"), <<~YAML)
+          defaults:
+            preference: template
+            add_template_only_nodes: true
+            freeze_token: kettle-jem
+          patterns: []
+          files: {}
+        YAML
+
+        allow(described_class).to receive_messages(project_root: project_root, template_root: template_root)
+        described_class.clear_kettle_config!
+
+        expect(described_class.merge_options_for_path(".yardopts")).to include(
+          preference: :template,
+          add_template_only_nodes: true,
+          freeze_token: "kettle-jem",
+        )
+      end
+    end
+  end
+
   describe ".readme_top_logo_mode" do
     it "defaults to org_and_project when readme config is absent" do
       allow(described_class).to receive(:kettle_config).and_return({})

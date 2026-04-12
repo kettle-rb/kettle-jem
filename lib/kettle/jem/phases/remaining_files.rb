@@ -180,6 +180,11 @@ module Kettle
             dest = File.join(project_root, rel)
             next unless File.exist?(src)
 
+            if rel == "bin/setup" && File.exist?(dest)
+              out.report_detail("Keeping existing #{rel} (bootstrap-only template file)")
+              next
+            end
+
             # Raw copy: no token resolution, no merging (e.g., certs/)
             if Kettle::Jem::Tasks::TemplateTask.raw_copy?(rel)
               begin
@@ -200,9 +205,7 @@ module Kettle
                 next
               end
 
-              if Kettle::Jem::Tasks::TemplateTask.accept_template_path?(rel)
-                helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true)
-              elsif File.basename(rel) == "README.md"
+              if File.basename(rel) == "README.md"
                 prev_readme = File.exist?(dest) ? File.read(dest) : nil
 
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|

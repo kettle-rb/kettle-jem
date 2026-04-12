@@ -1958,7 +1958,11 @@ module Kettle
           relative_path = rel_path(relative_path)
         end
 
-        merge_options_for_config(config_for(relative_path))
+        config_entry = config_for(relative_path)
+        return merge_options_for_config(config_entry) if config_entry
+
+        defaults = kettle_config.fetch("defaults", {})
+        merge_options_for_config(build_config_entry(nil, {"strategy" => "merge"}.merge(defaults)))
       end
 
       def resolve_recipe_for_config(recipe)
