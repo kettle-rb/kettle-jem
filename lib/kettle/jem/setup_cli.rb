@@ -197,6 +197,7 @@ module Kettle
 
         merged = helpers.apply_strategy(template_content, @gemspec_path, context: gemspec_context)
         merged = template_content unless merged.is_a?(String) && !merged.empty?
+        merged = ensure_plugin_development_dependencies(merged)
 
         existing = File.read(@gemspec_path)
         if merged != existing
@@ -611,6 +612,7 @@ module Kettle
         wanted = wanted_entries.each_with_object({}) do |entry, memo|
           memo[entry[:gem]] = entry[:line]
         end
+        wanted.merge!(plugin_development_dependencies)
 
         # Use Prism-based gemspec edit to ensure development dependencies match
         begin
@@ -649,6 +651,27 @@ module Kettle
         doc = Token::Resolver::Document.new(seeded)
         resolver = Token::Resolver::Resolve.new(on_missing: :remove)
         resolver.resolve(doc, bootstrap_template_config_replacements)
+      end
+
+      def ensure_plugin_development_dependencies(content)
+        dependencies = plugin_development_dependencies
+        return content if dependencies.empty?
+
+        Kettle::Jem::PrismGemspec.ensure_development_dependencies(content, dependencies)
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        content
+      end
+
+      def plugin_development_dependencies
+        plugin_names = Kettle::Jem::TemplateHelpers.plugin_names
+        host_gem_name = gemspec_string_value("name")
+
+        plugin_names.each_with_object({}) do |plugin_name, memo|
+          next if plugin_name == host_gem_name
+
+          memo[plugin_name] = %(spec.add_development_dependency("#{plugin_name}"))
+        end
       end
 
       def bootstrap_template_config_values

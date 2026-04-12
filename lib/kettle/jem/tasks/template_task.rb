@@ -1106,17 +1106,7 @@ module Kettle
             end
           end
 
-          # Pre-run duplicate baseline: snapshot current state of template-managed
-          # files so we can compare after the run and detect regressions.
-          pre_dup_baseline_set = DuplicateLineValidator.baseline(
-            min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS,
-          )
-          pre_dup_files = DuplicateLineValidator.template_managed_files(project_root: project_root)
-          pre_dup_results = DuplicateLineValidator.subtract_baseline(
-            DuplicateLineValidator.scan(files: pre_dup_files, min_chars: DuplicateLineValidator::DEFAULT_MIN_CHARS),
-            baseline_set: pre_dup_baseline_set,
-          )
-          pre_dup_count = DuplicateLineValidator.warning_count(pre_dup_results)
+          plugins = Kettle::Jem::PluginLoader.load!(plugin_names: helpers.plugin_names)
 
           # Build immutable context for all phase actors.
           phase_context = Phases::PhaseContext.new(
@@ -1124,6 +1114,7 @@ module Kettle
             out: out,
             project_root: project_root,
             template_root: template_root,
+            plugins: plugins,
             gem_name: gem_name,
             namespace: namespace,
             namespace_shield: namespace_shield,
@@ -1140,8 +1131,6 @@ module Kettle
           # Run all template phases via the orchestrator actor.
           Phases::TemplateRun.call(
             context: phase_context,
-            pre_dup_baseline_set: pre_dup_baseline_set,
-            pre_dup_count: pre_dup_count,
             templating_report_path: templating_report_path,
           )
 

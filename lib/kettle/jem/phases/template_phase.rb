@@ -38,6 +38,7 @@ module Kettle
           self.phase_stats = PhaseStats.new
           phase_stats.snapshot_before!(context.helpers, context.project_root)
 
+          run_phase_hooks(:before)
           perform
         rescue Kettle::Dev::Error
           raise # Re-raise intentional task aborts
@@ -45,6 +46,7 @@ module Kettle
           Kettle::Dev.debug_error(e, self.class.name)
           context.out.warning("#{phase_name} failed: #{e.class}: #{e.message}")
         ensure
+          run_phase_hooks(:after)
           phase_stats.snapshot_after!(context.helpers)
           emit_phase_line
         end
@@ -84,6 +86,26 @@ module Kettle
         # @return [String, nil] optional detail string (path, etc.)
         def phase_detail
           self.class.const_defined?(:PHASE_DETAIL) ? self.class::PHASE_DETAIL : nil
+        end
+
+        def phase_key
+          self.class.name.split("::").last
+            .gsub(/([a-z0-9])([A-Z])/, '\1_\2')
+            .downcase
+            .to_sym
+        end
+
+        def run_phase_hooks(timing)
+          context.plugins&.run(
+            timing: timing,
+            phase: phase_key,
+            context: context,
+            actor: self,
+            phase_stats: phase_stats,
+          )
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, self.class.name)
+          context.out.warning("#{phase_name} plugin hook failed: #{e.class}: #{e.message}")
         end
       end
     end

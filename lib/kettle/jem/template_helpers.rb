@@ -1864,6 +1864,15 @@ module Kettle
         config_for(relative_path)&.fetch(:file_type, nil)
       end
 
+      def plugin_names
+        config = project_kettle_config
+        unless config.key?("plugins")
+          template_config_path = prefer_example(File.join(template_root, TEMPLATE_CONFIG_RELATIVE_PATH))
+          config = load_kettle_config_file(template_config_path)
+        end
+        normalize_plugin_names(config["plugins"])
+      end
+
       # Find configuration for a specific file in the nested files structure
       # @param relative_path [String] Path relative to project root (e.g., "gemfiles/modular/coverage.gemfile")
       # @return [Hash, nil] Configuration hash or nil if not found
@@ -2059,6 +2068,10 @@ module Kettle
 
       def project_kettle_config
         load_kettle_config_file(project_kettle_config_path)
+      end
+
+      def normalize_plugin_names(values)
+        Array(values).flatten.map { |value| value.to_s.strip }.reject(&:empty?).uniq
       end
 
       # Load the raw kettle-jem config file.

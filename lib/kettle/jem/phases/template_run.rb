@@ -21,16 +21,9 @@ module Kettle
       # Orchestrator actor that chains all template phases in order.
       #
       # Usage:
-      #   result = TemplateRun.call(
-      #     context: phase_context,
-      #     pre_dup_baseline_set: baseline_set,
-      #     pre_dup_count: count,
-      #     templating_report_path: path,
-      #   )
+      #   result = TemplateRun.call(context: phase_context, templating_report_path: path)
       class TemplateRun < Actor
         input :context, type: PhaseContext
-        input :pre_dup_baseline_set, type: Set, allow_nil: true, default: nil
-        input :pre_dup_count, type: Integer, default: 0
         input :templating_report_path, type: String, allow_nil: true, default: nil
 
         play ConfigSync,

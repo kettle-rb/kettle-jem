@@ -371,6 +371,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
       text = File.read(example_path).gsub("{KJ|KETTLE_DEV_GEM}", "kettle-dev")
       File.write("target.gemspec", text)
+      allow(Kettle::Jem::TemplateHelpers).to receive(:plugin_names).and_return([])
 
       cli = setup_cli_for_deps(example_path)
       cli.instance_variable_set(:@gemspec_path, File.join(Dir.pwd, "target.gemspec"))

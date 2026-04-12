@@ -217,6 +217,36 @@ machine_users:
 # ENV override: KJ_MIN_DIVERGENCE_THRESHOLD
 min_divergence_threshold: {KJ|MIN_DIVERGENCE_THRESHOLD}
 
+# Optional kettle-jem plugins.
+# Each entry is a gem name. During bootstrap, kettle-jem ensures each plugin is
+# added as a development dependency so it is available after bin/setup.
+# During bundled templating, kettle-jem requires the plugin and calls
+# `register_kettle_jem_plugin(registrar)` on its top-level handle.
+#
+# Phase callback names currently available:
+#   - config_sync
+#   - dev_container
+#   - github_workflows
+#   - quality_config
+#   - modular_gemfiles
+#   - spec_helper
+#   - environment_templates
+#   - remaining_files
+#   - git_hooks
+#   - license_files
+#   - duplicate_check
+#
+# Phase guarantees:
+#   - All plugin callbacks run during the bundled templating phase, after
+#     bin/setup and bundle install have completed.
+#   - kettle-jem, kettle-dev, and any plugin gems listed here are loadable.
+#   - kettle-jem's parser / merger runtime is available to callbacks.
+#   - `remaining_files` runs after the destination Rakefile, gemspec, README,
+#     and most template-managed files already exist on disk.
+#   - `duplicate_check` runs last, after all template writes are complete.
+plugins:
+  - kettle-drift
+
 # Default merge options
 defaults:
   preference: "template"

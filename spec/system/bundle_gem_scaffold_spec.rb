@@ -15,7 +15,6 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
       "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
     )
   end
-  let(:duplicates_exe_path) { File.expand_path("../../exe/kettle-jem-validate-duplicates", __dir__) }
   let(:sandbox_root) { File.expand_path("../../../tmp/sandbox", __dir__) }
   let(:dummy_gem_dir) { File.join(sandbox_root, "dummy-gem") }
   let(:duplicates_report_path) { File.join(dummy_gem_dir, "tmp", "kettle-jem", "dup-check.json") }
@@ -102,13 +101,30 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     expect(stderr).not_to include("sync_shunted_gemfile!"),
       "expected shunted gemfile generation not to emit helper-method warnings\nstdout=#{stdout}\nstderr=#{stderr}"
 
-    # Duplicate validation: selftest relies on tracked files and is not valid
-    # for this skip-commit scenario where templated files remain untracked.
     dup_out, dup_err, dup_status = Open3.capture3(
-      RbConfig.ruby,
-      duplicates_exe_path,
-      dummy_gem_dir,
-      "--json=#{duplicates_report_path}",
+      {"JSON" => duplicates_report_path},
+      "bundle",
+      "exec",
+      "ruby",
+      "-e",
+      <<~'RUBY',
+        require "kettle/jem"
+        require "kettle/drift"
+
+        outcome = Kettle::Drift.run(
+          project_root: Dir.pwd,
+          template_dir: Kettle::Jem::DuplicateLineValidator.kettle_template_dir,
+          json_path: ENV["JSON"],
+        )
+
+        if outcome.clean?
+          puts "[kettle-drift] clean"
+        else
+          puts "[kettle-drift] #{outcome.warning_count} duplicate line warning(s)"
+        end
+
+        exit(outcome.exit_code)
+      RUBY
       chdir: dummy_gem_dir,
     )
     warning_count =
@@ -124,6 +140,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     expect(warning_count).to be <= max_duplicate_warnings,
       "duplicate validation exceeded threshold #{max_duplicate_warnings}\nstdout=#{dup_out}\nstderr=#{dup_err}\nreport=#{report}"
     expect(dup_status.success? || warning_count <= max_duplicate_warnings).to be(true)
+    expect(File).to exist(File.join(dummy_gem_dir, ".kettle-drift.lock")) if warning_count.positive?
   end
 
   it "preserves hidden template directories and files across a second templating run" do

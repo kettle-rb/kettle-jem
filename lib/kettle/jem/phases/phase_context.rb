@@ -11,6 +11,7 @@ module Kettle
       class PhaseContext
         attr_reader :helpers,
           :out,
+          :plugins,
           :project_root,
           :template_root,
           :gem_name,
@@ -41,13 +42,14 @@ module Kettle
         # @param removed_appraisals [Array<String>] appraisal names pruned by min_ruby
         # @param parse_error_mode [Symbol] :skip or :raise for AST parse failures
         def initialize(
-          helpers:, out:, project_root:, template_root:,
+          helpers:, out:, project_root:, template_root:, plugins: nil,
           gem_name:, namespace:, namespace_shield:, gem_shield:,
           forge_org:, funding_org:, min_ruby:, entrypoint_require:,
           meta:, removed_appraisals: [], parse_error_mode: :raise
         )
           @helpers = helpers
           @out = out
+          @plugins = plugins
           @project_root = project_root
           @template_root = template_root
           @gem_name = gem_name

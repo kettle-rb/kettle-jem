@@ -10,8 +10,6 @@ module Kettle
         PHASE_EMOJI = "🔎"
         PHASE_NAME = "Duplicate check"
 
-        input :pre_dup_baseline_set, type: Set, allow_nil: true, default: nil
-        input :pre_dup_count, type: Integer, default: 0
         input :templating_report_path, type: String, allow_nil: true, default: nil
 
         private
@@ -52,35 +50,54 @@ module Kettle
             Kettle::Jem::Tasks::TemplateTask.task_abort(msg_lines.first)
           end
 
-          # Duplicate line validation
-          dup_results = Kettle::Jem::DuplicateLineValidator.scan_template_results(
-            template_results: helpers.template_results,
+          json_path = templating_report_path&.sub(/\.md\z/, "-duplicates.json")
+          outcome = Kettle::Drift.run(
+            project_root: project_root,
+            template_dir: Kettle::Jem::DuplicateLineValidator.kettle_template_dir,
             min_chars: Kettle::Jem::DuplicateLineValidator::DEFAULT_MIN_CHARS,
+            json_path: json_path,
+            lock_path: File.join(project_root, ".kettle-jem.lock"),
+            mode: :update,
+            printer_class: nil,
           )
-          dup_results = Kettle::Jem::DuplicateLineValidator.subtract_baseline(dup_results, baseline_set: pre_dup_baseline_set)
-          dup_count = Kettle::Jem::DuplicateLineValidator.warning_count(dup_results)
-          dup_increased = dup_count > pre_dup_count
 
-          if dup_results.empty?
-            out.phase("🔎", "Duplicate check", detail: "clean")
+          out.phase(duplicate_phase_emoji(outcome), "Duplicate check", detail: duplicate_phase_detail(outcome))
+          out.report_detail(Kettle::Jem::DuplicateLineValidator.report_summary(outcome.results, project_root: project_root)) unless outcome.results.empty?
+          out.phase("📄", "Duplicate report", detail: Kettle::Jem.display_path(outcome.json_path)) if outcome.json_path
+
+          return if outcome.exit_code.zero?
+
+          Kettle::Jem::Tasks::TemplateTask.task_abort(
+            "Duplicate drift changed for template-managed files. Review #{Kettle::Jem.display_path(outcome.lock_path)} and rerun kettle-drift.",
+          )
+        end
+
+        def duplicate_phase_emoji(outcome)
+          return "🔎" if outcome.clean? || outcome.diff.state == :no_changes
+
+          outcome.exit_code.zero? ? "⚠️" : "❌"
+        end
+
+        def duplicate_phase_detail(outcome)
+          return "clean" if outcome.clean?
+
+          "#{outcome.warning_count} warning(s) (#{duplicate_state_label(outcome.diff.state)})"
+        end
+
+        def duplicate_state_label(state)
+          case state
+          when :new
+            "first baseline"
+          when :no_changes
+            "acknowledged, unchanged"
+          when :better
+            "improved, lockfile updated"
+          when :updated
+            "changed, lockfile updated"
+          when :worse
+            "new drift, lockfile outdated"
           else
-            emoji = dup_increased ? "❌" : "🔎"
-            delta = dup_count - pre_dup_count
-            delta_label = if delta > 0
-              "+#{delta} new"
-            elsif delta < 0
-              "#{delta} fixed"
-            else
-              "unchanged"
-            end
-            out.phase(emoji, "Duplicate check", detail: "#{dup_count} warning(s) (#{pre_dup_count} pre-existing, #{delta_label})")
-            out.report_detail(Kettle::Jem::DuplicateLineValidator.report_summary(dup_results, project_root: project_root))
-
-            if templating_report_path
-              json_path = templating_report_path.sub(/\.md\z/, "-duplicates.json")
-              Kettle::Jem::DuplicateLineValidator.write_json(dup_results, json_path)
-              out.phase("📄", "Duplicate report", detail: Kettle::Jem.display_path(json_path))
-            end
+            state.to_s.tr("_", " ")
           end
         end
       end
