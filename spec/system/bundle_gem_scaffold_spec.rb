@@ -95,6 +95,12 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     stdout, stderr, status = run_kettle_jem!("--skip-commit", "--accept-config")
     expect(status.success?).to be(true),
       "kettle-jem failed\nstdout=#{stdout}\nstderr=#{stderr}"
+    expect(stderr.scan("Could not determine funding org").count).to be <= 2,
+      "expected funding warning to appear at most once per kettle-jem phase\nstdout=#{stdout}\nstderr=#{stderr}"
+    expect(stderr.scan("Could not determine forge org").count).to be <= 2,
+      "expected forge warning to appear at most once per kettle-jem phase\nstdout=#{stdout}\nstderr=#{stderr}"
+    expect(stderr).not_to include("sync_shunted_gemfile!"),
+      "expected shunted gemfile generation not to emit helper-method warnings\nstdout=#{stdout}\nstderr=#{stderr}"
 
     # Duplicate validation: selftest relies on tracked files and is not valid
     # for this skip-commit scenario where templated files remain untracked.

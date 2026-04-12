@@ -579,4 +579,47 @@ RSpec.describe Kettle::Jem::ModularGemfiles do
       end
     end
   end
+
+  describe ".sync_shunted_gemfile!" do
+    let(:helpers) { Kettle::Jem::TemplateHelpers }
+
+    before do
+      helpers.clear_warnings
+    end
+
+    it "writes shunted.gemfile without emitting helper-method warnings" do
+      Dir.mktmpdir do |proj|
+        Dir.mktmpdir do |gemroot|
+          File.write(File.join(proj, "demo.gemspec"), <<~RUBY)
+            Gem::Specification.new do |spec|
+              spec.name = "demo"
+              spec.version = "0.0.1"
+            end
+          RUBY
+
+          allow(helpers).to receive_messages(
+            project_root: proj,
+            template_root: File.join(gemroot, "template"),
+          )
+
+          allow(Kettle::Jem::GemRubyFloor::ShuntedDependencies).to receive(:compute_from_gemspec).and_return(
+            {
+              to_shunt: [
+                {name: "debug", constraint: "~> 1.9", min_ruby: "3.3"},
+              ],
+            },
+          )
+
+          expect {
+            described_class.sync_shunted_gemfile!(helpers: helpers, project_root: proj, resolver: Object.new)
+          }.not_to raise_error
+
+          shunted = File.join(proj, described_class::MODULAR_GEMFILE_DIR, "shunted.gemfile")
+          expect(File).to exist(shunted)
+          expect(File.read(shunted)).to include('gem "debug", "~> 1.9" # ruby >= 3.3')
+          expect(helpers.warnings.grep(/sync_shunted_gemfile!/)).to eq([])
+        end
+      end
+    end
+  end
 end

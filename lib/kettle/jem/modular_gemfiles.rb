@@ -251,6 +251,7 @@ module Kettle
         )
 
         dest = File.join(project_root, MODULAR_GEMFILE_DIR, "shunted.gemfile")
+        FileUtils.mkdir_p(File.dirname(dest))
         generated_block = build_shunted_generated_block(result)
 
         if File.exist?(dest)
@@ -258,14 +259,12 @@ module Kettle
           updated = replace_generated_block(existing, generated_block)
           if updated != existing
             File.write(dest, updated)
-            helpers.say("Updated #{dest} (#{result[:to_shunt].size} shunted gems)")
           end
         else
           # New file — use the template header then append the generated block
           template_src = File.join(helpers.template_root, MODULAR_GEMFILE_DIR, "shunted.gemfile.example")
           header = File.exist?(template_src) ? File.read(template_src) : default_shunted_header
           File.write(dest, header.chomp + "\n" + generated_block)
-          helpers.say("Created #{dest} (#{result[:to_shunt].size} shunted gems)")
         end
       rescue StandardError => e
         helpers.add_warning("sync_shunted_gemfile!: #{e.message}")
