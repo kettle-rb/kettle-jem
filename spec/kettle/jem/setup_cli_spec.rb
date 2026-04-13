@@ -21,7 +21,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
 
     it "treats KETTLE_JEM_SKIP_COMMIT as authoritative process state" do
-      ENV["KETTLE_JEM_SKIP_COMMIT"] = "true"
+      stub_env("KETTLE_JEM_SKIP_COMMIT" => "true")
       cli = described_class.new([])
 
       expect(cli.send(:skip_commit?)).to be(true)

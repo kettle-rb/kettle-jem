@@ -11,6 +11,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
   # Reset TemplateHelpers global state between every example to prevent
   # test-ordering pollution (class variables persist across tests).
   after do
+    ENV.delete("KETTLE_JEM_SKIP_COMMIT")
+
     helpers = Kettle::Jem::TemplateHelpers
     helpers.send(:class_variable_set, :@@template_results, {})
     helpers.send(:class_variable_set, :@@output_dir, nil)
@@ -6308,10 +6310,8 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
     let(:helpers) { Kettle::Jem::TemplateHelpers }
     let(:out) { instance_double(Kettle::Jem::TemplateOutput::Formatter, warning: nil) }
 
-    after { ENV.delete("KETTLE_JEM_SKIP_COMMIT") }
-
     it "skips the template auto-commit when KETTLE_JEM_SKIP_COMMIT is true" do
-      ENV["KETTLE_JEM_SKIP_COMMIT"] = "true"
+      stub_env("KETTLE_JEM_SKIP_COMMIT" => "true")
 
       expect(Kettle::Dev::GitAdapter).not_to receive(:new)
       expect(described_class.send(:make_template_commit!, root: "/tmp/demo", helpers: helpers, out: out)).to be_nil
