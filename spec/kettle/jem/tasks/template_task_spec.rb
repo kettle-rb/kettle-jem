@@ -50,14 +50,14 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       it "treats KETTLE_JEM_DEBUG as template-layer debug mode" do
         stub_env("KETTLE_JEM_DEBUG" => "true", "KETTLE_DEV_DEBUG" => "false", "KETTLE_JEM_VERBOSE" => "false", "KETTLE_JEM_QUIET" => "true")
 
-        expect(described_class.debug?).to be_truthy
+        expect(described_class).to be_debug
         expect(described_class.quiet?).to be(false)
       end
 
       it "treats KETTLE_DEV_DEBUG as enabling template debug mode too" do
         stub_env("KETTLE_JEM_DEBUG" => "false", "KETTLE_DEV_DEBUG" => "true", "KETTLE_JEM_VERBOSE" => "false", "KETTLE_JEM_QUIET" => "true")
 
-        expect(described_class.debug?).to be_truthy
+        expect(described_class).to be_debug
         expect(described_class.quiet?).to be(false)
       end
     end

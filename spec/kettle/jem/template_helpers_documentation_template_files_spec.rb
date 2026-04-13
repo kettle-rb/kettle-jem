@@ -6,6 +6,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
   it "includes yard-timekeeper in the documentation gemfile template" do
     content = File.read(File.join(template_root, "gemfiles/modular/documentation.gemfile.example"))
 
+    expect(content).to include('gem "yard-junk", "~> 0.1", ">= 0.1.0", require: false')
     expect(content).to include('gem "yard-timekeeper", "~> 0.1", require: false')
     expect(content).to include('gem "yard-yaml", "~> 0.1", require: false')
   end
@@ -15,6 +16,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
 
     expect(content).to include("--plugin timekeeper")
     expect(content.index("--plugin timekeeper")).to be < content.index("--plugin fence")
+    expect(content).to include("--plugin junk")
   end
 
   it "ships an empty REEK reference file" do

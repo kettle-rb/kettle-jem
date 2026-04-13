@@ -122,7 +122,7 @@ Gem::Specification.new do |spec|
 
   # Documentation
   spec.add_development_dependency("yard", "~> 0.9", ">= 0.9.37")
-  spec.add_development_dependency("yard-junk", "~> 0.0", ">= 0.0.10")
+  spec.add_development_dependency("yard-junk", "~> 0.1", ">= 0.1.0")
 
   # Linting
   spec.add_development_dependency("rubocop-lts", "~> 18.1", ">= 18.2.1") # Lint & Style Support for Ruby 2.7+
