@@ -75,6 +75,9 @@ Please file a bug if you notice a violation of semantic versioning.
 
 ### Fixed
 
+- Packaged `kettle-jem` gems now include template files nested under
+  dot-directories such as `.github/`, `.git-hooks/`, and `.devcontainer/`,
+  keeping the installed template scaffold aligned with the source tree
 - `Kettle::Jem::Signatures.gemfile` now normalizes ruby-version bucket segments
   (e.g. `/r3/`, `/r4/`) when building `eval_gemfile` signatures, so template
   paths like `../../erb/r4/v5.0.gemfile` and destination paths like

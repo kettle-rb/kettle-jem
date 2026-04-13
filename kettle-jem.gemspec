@@ -48,21 +48,25 @@ Gem::Specification.new do |spec|
   spec.metadata["discord_uri"] = "https://discord.gg/3qme4XHNKN"
   spec.metadata["rubygems_mfa_required"] = "true"
 
+  enumerate_package_files = lambda do |root|
+    Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+      File.file?(path) && ![".", ".."].include?(File.basename(path))
+    end
+  end
+
   # Specify which files are part of the released package.
-  spec.files = Dir[
+  spec.files = [
     # Code / tasks / data (NOTE: exe/ is specified via spec.bindir and spec.executables below)
-    "lib/**/*.rb",
-    "lib/**/*.rake",
-    "lib/**/*.yml",
+    *Dir["lib/**/*.rb"],
+    *Dir["lib/**/*.rake"],
+    *Dir["lib/**/*.yml"],
     # Template scaffold for gem templating
-    "template/**/*",
-    "template/**/.*",
+    *enumerate_package_files.call("template"),
     # Partial fragments (workflow snippets, etc.) used during templating
     # but NOT deployed to target gems
-    "partials/**/*",
-    "partials/**/.*",
+    *enumerate_package_files.call("partials"),
     # Signatures
-    "sig/**/*.rbs",
+    *Dir["sig/**/*.rbs"],
   ]
 
   # Automatically included with gem package, no need to list again in files.
