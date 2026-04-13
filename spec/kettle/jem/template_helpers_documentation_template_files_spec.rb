@@ -16,4 +16,10 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     expect(content).to include("--plugin timekeeper")
     expect(content.index("--plugin timekeeper")).to be < content.index("--plugin fence")
   end
+
+  it "ships an empty REEK reference file" do
+    content = File.read(File.join(template_root, "REEK"))
+
+    expect(content).to eq("")
+  end
 end

@@ -10,6 +10,10 @@ module Kettle
         PHASE_EMOJI = "📂"
         PHASE_NAME = "Remaining files"
         PHASE_DETAIL = "gemspec, README, Rakefile, …"
+        COPY_ONLY_WHEN_MISSING_PATHS = %w[
+          REEK
+          bin/setup
+        ].freeze
         LEGACY_DESTINATION_PATHS = {
           ".github/copilot_instructions.md" => ".github/COPILOT_INSTRUCTIONS.md",
         }.freeze
@@ -183,8 +187,8 @@ module Kettle
             dest = File.join(project_root, rel)
             next unless File.exist?(src)
 
-            if rel == "bin/setup" && File.exist?(dest)
-              out.report_detail("Keeping existing #{rel} (bootstrap-only template file)")
+            if copy_only_when_missing_template_file?(rel) && File.exist?(dest)
+              out.report_detail("Keeping existing #{rel} (copy-only-when-missing template file)")
               next
             end
 
@@ -331,6 +335,10 @@ module Kettle
         rescue StandardError => e
           Kettle::Dev.debug_error(e, __method__)
           out.warning("Could not remove legacy #{helpers.rel_path(legacy_dest)}: #{e.class}: #{e.message}")
+        end
+
+        def copy_only_when_missing_template_file?(relative_path)
+          COPY_ONLY_WHEN_MISSING_PATHS.include?(relative_path)
         end
       end
     end
