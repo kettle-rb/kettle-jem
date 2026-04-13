@@ -922,9 +922,54 @@ module Kettle
             rescue StandardError => e
               Kettle::Dev.debug_error(e, __method__)
             end
+            c = dedupe_kettle_config_instructional_comment_blocks(c)
             c
           end
           helpers.clear_kettle_config!
+        end
+
+        def dedupe_kettle_config_instructional_comment_blocks(content)
+          lines = content.to_s.lines
+          marker = "# To override specific files, add entries like:"
+          occurrences = []
+          index = 0
+
+          while index < lines.length
+            unless lines[index].rstrip == marker
+              index += 1
+              next
+            end
+
+            end_index = index + 1
+            while end_index < lines.length && (lines[end_index].start_with?("#") || lines[end_index].strip.empty?)
+              end_index += 1
+            end
+
+            occurrences << {
+              start: index,
+              finish: end_index,
+              block: lines[index...end_index].join,
+              normalized_block: lines[index...end_index].join.sub(/\n+\z/, "\n"),
+            }
+            index = end_index
+          end
+
+          return content if occurrences.size < 2
+
+          canonical_block = occurrences.first[:normalized_block]
+          duplicate_ranges = occurrences.drop(1)
+            .select { |occurrence| occurrence[:normalized_block] == canonical_block }
+            .map { |occurrence| occurrence[:start]...occurrence[:finish] }
+          return content if duplicate_ranges.empty?
+
+          rebuilt = []
+          lines.each_with_index do |line, line_index|
+            next if duplicate_ranges.any? { |range| range.cover?(line_index) }
+
+            rebuilt << line
+          end
+
+          rebuilt.join
         end
 
         def preflight_destination_for(rel, project_root, gem_name)
