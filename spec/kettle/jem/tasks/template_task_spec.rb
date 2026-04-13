@@ -423,6 +423,35 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
             expect(described_class.merge_by_file_type("template content", dest, "broken.yml", helpers)).to eq("destination content\n")
           end
         end
+
+        it "preserves nested YAML comment indentation during template-preference merges", :psych_merge do
+          template = <<~YAML
+            on:
+              pull_request:
+                # The branches below must be a subset of the branches above
+                branches: [ main, '*-stable' ]
+            jobs:
+              analyze:
+                strategy:
+                  matrix:
+                    language: [ 'ruby' ]
+                    # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
+                    # Learn more about CodeQL language support at https://git.io/codeql-language-support
+          YAML
+          dest = template
+
+          merged = Psych::Merge::SmartMerger.new(
+            template,
+            dest,
+            preference: :template,
+            add_template_only_nodes: true,
+          ).merge
+
+          expect(merged).to include("  pull_request:\n    # The branches below must be a subset of the branches above\n    branches: [ main, '*-stable' ]")
+          expect(merged).to include("        language: [ 'ruby' ]\n        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]")
+          expect(merged).not_to include("\npull_request:\n# The branches below")
+          expect(merged).not_to include("\nlanguage: [ 'ruby' ]\n# CodeQL supports")
+        end
       end
 
       describe "::write_templating_run_report" do
@@ -799,6 +828,45 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         expect(merged.scan(/^K_SOUP_COV_MIN_LINE = /).size).to eq(1), merged
         expect(merged).to include('K_SOUP_COV_MIN_BRANCH = "81"')
         expect(merged).to include('K_SOUP_COV_MIN_LINE = "91"')
+      end
+
+      it "does not duplicate a TOML preamble when only the header blank line differs", :toml_merge do
+        template = <<~TOML
+          # tsdl configuration - tree-sitter grammar versions
+          # https://github.com/stackmystack/tsdl
+          #
+          # Run: tsdl build --out-dir /usr/local/lib
+          # Or let .devcontainer/scripts/setup-tree-sitter.sh handle it.
+
+          out-dir = "/usr/local/lib"
+
+          [parsers]
+          json = "v0.24.8"
+        TOML
+        dest = <<~TOML
+          # tsdl configuration - tree-sitter grammar versions
+          # https://github.com/stackmystack/tsdl
+          #
+          # Run: tsdl build --out-dir /usr/local/lib
+          # Or let .devcontainer/scripts/setup-tree-sitter.sh handle it.
+          out-dir = "/usr/local/lib"
+
+          [parsers]
+          json = "v0.24.8"
+        TOML
+
+        merged = Toml::Merge::SmartMerger.new(
+          template,
+          dest,
+          preference: :template,
+          add_template_only_nodes: true,
+          freeze_token: "kettle-jem",
+        ).merge
+
+        expect(merged.scan(/^# tsdl configuration/).size).to eq(1), merged
+        expect(merged.scan(/^# https:\/\/github.com\/stackmystack\/tsdl$/).size).to eq(1), merged
+        expect(merged.scan(/^out-dir = /).size).to eq(1), merged
+        expect(merged).to include("# Or let .devcontainer/scripts/setup-tree-sitter.sh handle it.\nout-dir = \"/usr/local/lib\"")
       end
     end
 
