@@ -119,6 +119,10 @@ RSpec.describe Kettle::Jem::PluginLoader do
           task("kettle:drift:validate") do
             warn("NOTE: kettle-drift isn't installed, or is disabled for #{RUBY_VERSION} in the current environment")
           end
+          desc("(stub) kettle:drift:update is unavailable")
+          task("kettle:drift:update") do
+            warn("NOTE: kettle-drift isn't installed, or is disabled for #{RUBY_VERSION} in the current environment")
+          end
           desc("(stub) kettle:drift is unavailable")
           task("kettle:drift" => "kettle:drift:validate")
         end
@@ -140,6 +144,10 @@ RSpec.describe Kettle::Jem::PluginLoader do
         rescue LoadError
           desc("(stub) kettle:drift:validate is unavailable")
           task("kettle:drift:validate") do
+            warn("NOTE: kettle-drift isn't installed, or is disabled for \#{RUBY_VERSION} in the current environment")
+          end
+          desc("(stub) kettle:drift:update is unavailable")
+          task("kettle:drift:update") do
             warn("NOTE: kettle-drift isn't installed, or is disabled for \#{RUBY_VERSION} in the current environment")
           end
           desc("(stub) kettle:drift is unavailable")

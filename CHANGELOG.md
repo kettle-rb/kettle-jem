@@ -44,6 +44,8 @@ Please file a bug if you notice a violation of semantic versioning.
 - Templating now writes a dedicated per-run Markdown report under
   `tmp/kettle-jem/`, capturing run status, warnings or errors, and the active
   merge-gem environment.
+- Added `KETTLE_JEM_PLUGINS.md`, a root-level guide for authoring
+  `kettle-jem` plugin gems against the supported plugin API
 
 ### Changed
 

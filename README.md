@@ -37,6 +37,9 @@ every file it touches — Ruby via Prism, YAML via Psych, Markdown via Markly,
 TOML via tree-sitter, and more — so template updates land precisely where they
 belong, and project-specific additions are never clobbered.
 
+Plugin authors can now use the dedicated [plugin authoring guide](KETTLE_JEM_PLUGINS.md)
+to build `kettle-jem` extension gems against the supported plugin seam.
+
 ### Key Features
 
 - **AST-aware merging** — 10 format-specific merge engines (prism, psych, markly, toml, json, jsonc, bash, dotenv, rbs, text)
