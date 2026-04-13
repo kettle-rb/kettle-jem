@@ -94,12 +94,66 @@ RSpec.describe Kettle::Jem::SnippetInjector do
     result = described_class.inject(
       content: content,
       snippet: snippet,
-      anchor_finder: ->(_content) { injection_point },
+      anchor_finder: ->(_content) { nil },
       replace_existing: true,
     )
 
     expect(result.changed).to be(false)
     expect(result.warning).to include("found 2 matches")
     expect(result.content).to eq(content)
+  end
+
+  it "replaces a marker-matched snippet even when the managed block shape changed" do
+    content = <<~RUBY
+      ### MANAGED SNIPPET
+      puts "old"
+      task("legacy")
+
+      # frozen_string_literal: true
+      require "kettle/dev"
+
+      ### TEMPLATING TASKS
+    RUBY
+
+    result = described_class.inject(
+      content: content,
+      snippet: snippet,
+      anchor_finder: ->(_content) { nil },
+      replace_existing: true,
+    )
+
+    expect(result.changed).to be(true)
+    expect(result.relocated).to be(true)
+    expect(result.match_count).to eq(1)
+    expect(result.content.scan("### MANAGED SNIPPET").size).to eq(1)
+    expect(result.content).not_to include('task("legacy")')
+  end
+
+  it "deduplicates multiple marker-matched managed blocks into a single injected block" do
+    content = <<~RUBY
+      ### MANAGED SNIPPET
+      puts "old"
+
+      ### MANAGED SNIPPET
+      puts "managed"
+
+      # frozen_string_literal: true
+      require "kettle/dev"
+
+      ### TEMPLATING TASKS
+    RUBY
+
+    result = described_class.inject(
+      content: content,
+      snippet: snippet,
+      anchor_finder: ->(_content) { nil },
+      replace_existing: true,
+    )
+
+    expect(result.changed).to be(true)
+    expect(result.relocated).to be(true)
+    expect(result.match_count).to eq(2)
+    expect(result.content.scan("### MANAGED SNIPPET").size).to eq(1)
+    expect(result.content).not_to include('puts "old"')
   end
 end

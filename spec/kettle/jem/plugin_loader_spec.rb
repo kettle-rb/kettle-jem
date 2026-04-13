@@ -198,4 +198,60 @@ RSpec.describe Kettle::Jem::PluginLoader do
       expect(helpers).to have_received(:record_template_result).with(rakefile_path, :replace)
     end
   end
+
+  it "replaces a stale drift snippet that still uses the old validate task surface" do
+    registry = described_class.load!(plugin_names: ["kettle-drift"])
+
+    Dir.mktmpdir do |dir|
+      rakefile_path = File.join(dir, "Rakefile")
+      File.write(rakefile_path, <<~RUBY)
+        ### DUPLICATE DRIFT TASKS
+        begin
+          require "kettle/drift"
+          Kettle::Drift.install_tasks
+        rescue LoadError
+          desc("(stub) kettle:drift:validate is unavailable")
+          task("kettle:drift:validate") do
+            warn("NOTE: kettle-drift isn't installed, or is disabled for \#{RUBY_VERSION} in the current environment")
+          end
+          desc("(stub) kettle:drift is unavailable")
+          task("kettle:drift" => "kettle:drift:validate")
+        end
+
+        # frozen_string_literal: true
+
+        require "kettle/dev"
+
+        ### TEMPLATING TASKS
+        begin
+          require "kettle/jem"
+        rescue LoadError
+          nil
+        end
+      RUBY
+
+      helpers = double("helpers", record_template_result: nil)
+      out = double("out", report_detail: nil, warning: nil)
+      context = double(
+        "context",
+        project_root: dir,
+        helpers: helpers,
+        out: out,
+      )
+
+      registry.run(
+        timing: :after,
+        phase: :remaining_files,
+        context: context,
+        actor: double("phase"),
+        phase_stats: double("phase_stats"),
+      )
+
+      content = File.read(rakefile_path)
+      expect(content.scan("### DUPLICATE DRIFT TASKS").size).to eq(1)
+      expect(content).not_to include('task("kettle:drift:validate")')
+      expect(content).to include('task("kettle:drift:check")')
+      expect(content).to include('task("kettle:drift" => "kettle:drift:update")')
+    end
+  end
 end

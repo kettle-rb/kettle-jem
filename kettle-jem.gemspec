@@ -55,18 +55,12 @@ Gem::Specification.new do |spec|
   end
 
   # Specify which files are part of the released package.
-  spec.files = [
+  spec.files = Dir[
     # Code / tasks / data (NOTE: exe/ is specified via spec.bindir and spec.executables below)
-    *Dir["lib/**/*.rb"],
-    *Dir["lib/**/*.rake"],
-    *Dir["lib/**/*.yml"],
-    # Template scaffold for gem templating
-    *enumerate_package_files.call("template"),
-    # Partial fragments (workflow snippets, etc.) used during templating
-    # but NOT deployed to target gems
-    *enumerate_package_files.call("partials"),
+    "lib/**/*.rb",
+    "lib/**/*.rake",
     # Signatures
-    *Dir["sig/**/*.rbs"],
+    "sig/**/*.rbs",
   ]
 
   # Automatically included with gem package, no need to list again in files.
