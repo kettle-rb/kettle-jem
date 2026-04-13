@@ -313,9 +313,14 @@ module Kettle
       end
 
       def debug(msg)
-        return if ENV.fetch("KETTLE_DEV_DEBUG", "false").casecmp("true").nonzero?
+        return unless debug?
 
         $stderr.puts("[kettle-jem] DEBUG: #{msg}")
+      end
+
+      def debug?
+        Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_DEBUG", "false").to_s) ||
+          Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_DEV_DEBUG", "false").to_s)
       end
 
       # Attempt to derive a funding organization from the git remote 'origin' when

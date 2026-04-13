@@ -635,8 +635,14 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect { cli.send(:debug, "hi") }.to output(/DEBUG: hi/).to_stderr
     end
 
+    it "prints when KETTLE_JEM_DEBUG=true", :check_output do
+      stub_env("KETTLE_DEV_DEBUG" => "false", "KETTLE_JEM_DEBUG" => "true")
+      cli = described_class.allocate
+      expect { cli.send(:debug, "hi") }.to output(/DEBUG: hi/).to_stderr
+    end
+
     it "does not print when DEBUG=false", :check_output do
-      stub_env("KETTLE_DEV_DEBUG" => "false")
+      stub_env("KETTLE_DEV_DEBUG" => "false", "KETTLE_JEM_DEBUG" => "false")
       cli = described_class.allocate
       expect { cli.send(:debug, "hi") }.not_to output.to_stderr
     end

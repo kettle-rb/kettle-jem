@@ -571,7 +571,7 @@ module Kettle
         #
         # @return [Boolean]
         def quiet?
-          return false if verbose?
+          return false if verbose? || debug?
 
           (!Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_QUIET", "true").to_s)) ? false : true
         end
@@ -583,6 +583,18 @@ module Kettle
         # @return [Boolean]
         def verbose?
           Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_VERBOSE", "false").to_s)
+        end
+
+        # Whether template-layer debug mode is active.
+        #
+        # KETTLE_JEM_DEBUG is the narrow flag for kettle-jem orchestration and
+        # templating behavior. KETTLE_DEV_DEBUG also enables this so a single
+        # shared-stack debug flag is sufficient when debugging end-to-end runs.
+        #
+        # @return [Boolean]
+        def debug?
+          Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_JEM_DEBUG", "false").to_s) ||
+            Kettle::Dev::ENV_TRUE_RE.match?(ENV.fetch("KETTLE_DEV_DEBUG", "false").to_s)
         end
 
         YAML_EXTENSIONS = %w[.yml .yaml].freeze

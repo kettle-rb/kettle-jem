@@ -44,6 +44,22 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
       end
     end
 
+    describe "::debug? / ::quiet?" do
+      it "treats KETTLE_JEM_DEBUG as template-layer debug mode" do
+        stub_env("KETTLE_JEM_DEBUG" => "true", "KETTLE_DEV_DEBUG" => "false", "KETTLE_JEM_VERBOSE" => "false", "KETTLE_JEM_QUIET" => "true")
+
+        expect(described_class.debug?).to be_truthy
+        expect(described_class.quiet?).to be(false)
+      end
+
+      it "treats KETTLE_DEV_DEBUG as enabling template debug mode too" do
+        stub_env("KETTLE_JEM_DEBUG" => "false", "KETTLE_DEV_DEBUG" => "true", "KETTLE_JEM_VERBOSE" => "false", "KETTLE_JEM_QUIET" => "true")
+
+        expect(described_class.debug?).to be_truthy
+        expect(described_class.quiet?).to be(false)
+      end
+    end
+
     describe "::normalize_markdown_spacing", :markly_merge do
       subject(:normalize) { described_class.normalize_markdown_spacing(input) }
 
@@ -867,6 +883,89 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         expect(merged.scan(/^# https:\/\/github.com\/stackmystack\/tsdl$/).size).to eq(1), merged
         expect(merged.scan(/^out-dir = /).size).to eq(1), merged
         expect(merged).to include("# Or let .devcontainer/scripts/setup-tree-sitter.sh handle it.\nout-dir = \"/usr/local/lib\"")
+      end
+
+      it "collapses previously duplicated shared mise.toml preambles back to the destination-specific preamble", :toml_merge do
+        template = <<~TOML
+          # Shared development environment for this gem.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+ 
+          [env]
+          DEBUG = "false"
+          KETTLE_DEV_DEBUG = "false"
+          KETTLE_TEST_SILENT = "true"
+          K_SOUP_COV_COMMAND_NAME = "Test Coverage"
+          K_SOUP_COV_DO = "true"
+          K_SOUP_COV_FORMATTERS = "html,xml,rcov,lcov,json,tty"
+          K_SOUP_COV_MIN_BRANCH = "76"
+          K_SOUP_COV_MIN_HARD = "true"
+          K_SOUP_COV_MIN_LINE = "92"
+          K_SOUP_COV_MULTI_FORMATTERS = "true"
+          K_SOUP_COV_OPEN_BIN = ""
+          MAX_ROWS = "1"
+          OPENCOLLECTIVE_HANDLE = "{KJ|OPENCOLLECTIVE_ORG}"
+          RUBOCOP_LTS_LOCAL = "false"
+          _.file = { path = ".env.local", redact = true }
+          _.path = ["exe", "bin"]
+          _.source = ".config/mise/env.sh"
+ 
+          [tools]
+          ruby = "4.0.2"
+        TOML
+        dest = <<~TOML
+          # Shared development environment for this gem.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+          # Shared development environment for this gem.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+          # Shared development environment for tree_haver.
+          # Local overrides belong in .env.local (loaded via dotenvy through mise).
+          [env]
+          DEBUG = "false"
+          FLOSS_CFG_FUND_DEBUG = "false"
+          FLOSS_CFG_FUND_LOGFILE = "tmp/log/debug.log"
+          FUNDING_ORG = "kettle-rb"
+          KETTLE_DEV_DEBUG = "false"
+          KETTLE_RB_DEV = "false"
+          KETTLE_TEST_SILENT = "true"
+          KJ_PROJECT_EMOJI = "🌴"
+          K_SOUP_COV_COMMAND_NAME = "Test Coverage"
+          K_SOUP_COV_DO = "true"
+          K_SOUP_COV_FORMATTERS = "html,xml,rcov,lcov,json,tty"
+          K_SOUP_COV_MERGE_TIMEOUT = "3600"
+          K_SOUP_COV_MIN_BRANCH = "76"
+          K_SOUP_COV_MIN_HARD = "true"
+          K_SOUP_COV_MIN_LINE = "92"
+          K_SOUP_COV_MULTI_FORMATTERS = "true"
+          K_SOUP_COV_OPEN_BIN = ""
+          K_SOUP_COV_USE_MERGING = "true"
+          MAX_ROWS = "1"
+          OPENCOLLECTIVE_HANDLE = "kettle-rb"
+          RUBOCOP_LTS_LOCAL = "false"
+          _.file = { path = ".env.local", redact = true }
+          _.path = ["exe", "bin"]
+          _.source = ".config/mise/env.sh"
+ 
+          [tools]
+          ruby = "4.0.2"
+        TOML
+
+        merged = Toml::Merge::SmartMerger.new(
+          template,
+          dest,
+          preference: :destination,
+          add_template_only_nodes: true,
+          freeze_token: "kettle-jem",
+          sort_keys: true,
+        ).merge
+
+        expect(merged.scan(/^# Shared development environment for this gem\.$/).size).to eq(0), <<~MSG
+          Expected the duplicated shared template preambles to be removed so the destination-specific preamble remains authoritative:
+          #{merged}
+        MSG
+        expect(merged.scan(/^# Shared development environment for tree_haver\.$/).size).to eq(1), <<~MSG
+          Expected the destination-specific preamble to stay singular after removing duplicated shared template preambles:
+          #{merged}
+        MSG
       end
     end
 
