@@ -100,7 +100,7 @@ module Kettle
           when :better
             "improved, lockfile updated"
           when :updated
-            "new drift and fixes, lockfile outdated"
+            "new drift appeared, some acknowledged drift fixed, lockfile outdated"
           when :worse
             "new drift, lockfile outdated"
           else

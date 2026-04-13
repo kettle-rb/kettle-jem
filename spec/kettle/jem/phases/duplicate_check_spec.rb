@@ -183,7 +183,7 @@ RSpec.describe Kettle::Jem::Phases::DuplicateCheck do
         described_class.call(context: build_context(helpers: helpers, out: out, project_root: project_root))
       }.to raise_error(Kettle::Dev::Error)
 
-      expect(out).to have_received(:phase).with("❌", "Duplicate check", detail: a_string_including("new drift and fixes, lockfile outdated"))
+      expect(out).to have_received(:phase).with("❌", "Duplicate check", detail: a_string_including("new drift appeared, some acknowledged drift fixed, lockfile outdated"))
     end
   end
 end
