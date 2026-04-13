@@ -96,30 +96,12 @@ engines:
 # the project logo, or both after the shared Galtzo and ruby-lang logos.
 # Supported values: org, project, org_and_project
 # Default (when key is absent): org_and_project
-# README top logo mode.
-# Controls whether the generated README header includes the GitHub org logo,
-# the project logo, or both after the shared Galtzo and ruby-lang logos.
-# Supported values: org, project, org_and_project
-# Default (when key is absent): org_and_project
 readme:
   top_logo_mode: org_and_project
 # SPDX license identifiers for this project.
 # See template/.kettle-jem.yml.example for the full list of accepted values.
-# SPDX license identifiers for this project.
-# See template/.kettle-jem.yml.example for the full list of accepted values.
 licenses:
   - AGPL-3.0-only
-# Machine / automation accounts to exclude from generated copyright output.
-#
-# When kettle-jem collects copyright information via `git blame`, it filters
-# out known GitHub/GitLab bot accounts automatically.  Use this list to also
-# exclude internal automation accounts that are not bots in the git sense
-# (i.e. they do not follow the "[bot]" naming convention).
-#
-# Each entry is matched case-insensitively against the commit author name AND
-# the commit author email, so you can list either form.
-#
-# Default (when key is absent or empty): ["autobolt"]
 # Machine / automation accounts to exclude from generated copyright output.
 #
 # When kettle-jem collects copyright information via `git blame`, it filters
@@ -138,31 +120,15 @@ machine_users:
 # divergence exceeds that percent. Leave blank to report only.
 # Divergence is currently measured as the percent of produced files that would
 # change or be added during templating (100 - unchanged-file score).
-# Self-test / templating CI threshold.
-# Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once
-# divergence exceeds that percent. Leave blank to report only.
-# Divergence is currently measured as the percent of produced files that would
-# change or be added during templating (100 - unchanged-file score).
 min_divergence_threshold: 5
 
 plugins:
   - kettle-drift
 # Default merge options
-# Default merge options
 defaults:
   preference: "template"
   add_template_only_nodes: true
   freeze_token: "kettle-jem"
-# Token replacement values.
-#
-# General rules:
-#   - Empty strings are treated as unset.
-#   - Use the bare identifier/slug/handle expected by the inline comment.
-#   - Do NOT paste full URLs unless the comment explicitly says to.
-#
-# Tip:
-#   The author fields in a newly created destination config are normally seeded
-#   from the gemspec via safe derivation. After that, destination values win.
 # Token replacement values.
 #
 # General rules:
@@ -200,12 +166,9 @@ tokens:
     linktree: "pboling"     # Linktree username only. Used as https://linktr.ee/<value>. ENV: KJ_SOCIAL_LINKTREE
     devto: "galtzo"         # DEV Community username only. Used as https://dev.to/<value>. ENV: KJ_SOCIAL_DEVTO
 # Glob patterns evaluated in order (first match wins)
-# Glob patterns evaluated in order (first match wins)
 patterns:
   - path: "certs/**"
     strategy: raw_copy
-# Per-file configuration (nested directory structure)
-# Only files that need overrides belong here. Everything else defaults to merge.
 # Per-file configuration (nested directory structure)
 # Only files that need overrides belong here. Everything else defaults to merge.
 files:
@@ -220,28 +183,6 @@ files:
         strategy: accept_template
       templating_local.gemfile:
         strategy: accept_template
-# To override specific files, add entries like:
-#
-# files:
-#   README.md:
-#     strategy: accept_template
-#
-#   SECURITY.md:
-#     strategy: keep_destination
-#
-#   certs:
-#     pboling.pem:
-#       strategy: raw_copy
-#
-#   .git-hooks:
-#     commit-msg:
-#       strategy: merge
-#       file_type: ruby
-#
-#   Rakefile:
-#     strategy: merge
-#     preference: destination
-#     add_template_only_nodes: false
 # To override specific files, add entries like:
 #
 # files:
