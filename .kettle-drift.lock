@@ -1,11 +1,355 @@
 {
+  "#       strategy: merge\n#       file_type: ruby": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        238,
+        260,
+        430
+      ]
+    }
+  ],
+  "#     commit-msg:\n#       strategy: merge": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        237,
+        259,
+        429
+      ]
+    }
+  ],
+  "#     pboling.pem:\n#       strategy: raw_copy": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        233,
+        255,
+        425
+      ]
+    }
+  ],
+  "#     preference: destination\n#     add_template_only_nodes: false": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        243,
+        265,
+        435
+      ]
+    }
+  ],
+  "#     strategy: merge\n#     preference: destination": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        242,
+        264,
+        434
+      ]
+    }
+  ],
+  "#   - Empty strings are treated as unset.\n#   - Use the bare identifier/slug/handle expected by the inline comment.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        159,
+        169
+      ]
+    }
+  ],
+  "#   - Use the bare identifier/slug/handle expected by the inline comment.\n#   - Do NOT paste full URLs unless the comment explicitly says to.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        160,
+        170
+      ]
+    }
+  ],
+  "#   .git-hooks:\n#     commit-msg:": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        236,
+        258,
+        428
+      ]
+    }
+  ],
+  "#   README.md:\n#     strategy: accept_template": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        226,
+        248,
+        418
+      ]
+    }
+  ],
+  "#   Rakefile:\n#     strategy: merge": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        241,
+        263,
+        433
+      ]
+    }
+  ],
+  "#   SECURITY.md:\n#     strategy: keep_destination": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        229,
+        251,
+        421
+      ]
+    }
+  ],
+  "#   The author fields in a newly created destination config are normally seeded\n#   from the gemspec via safe derivation. After that, destination values win.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        164,
+        174
+      ]
+    }
+  ],
+  "#   certs:\n#     pboling.pem:": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        232,
+        254,
+        424
+      ]
+    }
+  ],
+  "#   typically consumed as binaries; enable weak-compatibility\n#   so permissive and weak-copyleft combinations are treated as compatible.": [
+    {
+      "file": ".github/workflows/license-eye.yml",
+      "lines": [
+        38,
+        41
+      ]
+    }
+  ],
+  "# Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).\n# If this step fails, then you should remove it and run the build manually (see below)": [
+    {
+      "file": ".github/workflows/codeql-analysis.yml",
+      "lines": [
+        54,
+        61
+      ]
+    }
+  ],
+  "# Build will fail here if coverage upload fails\n#   which will hopefully be noticed for the lack of code coverage comments": [
+    {
+      "file": ".github/workflows/coverage.yml",
+      "lines": [
+        103,
+        105
+      ]
+    }
+  ],
+  "# By default, queries listed here will override any specified in a config file.\n# Prefix the list here with \"+\" to use these queries and those in the config file.": [
+    {
+      "file": ".github/workflows/codeql-analysis.yml",
+      "lines": [
+        50,
+        57
+      ]
+    }
+  ],
+  "# CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]\n# Learn more about CodeQL language support at https://git.io/codeql-language-support": [
+    {
+      "file": ".github/workflows/codeql-analysis.yml",
+      "lines": [
+        36,
+        38
+      ]
+    }
+  ],
+  "# Controls whether the generated README header includes the GitHub org logo,\n# the project logo, or both after the shared Galtzo and ruby-lang logos.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        95,
+        100
+      ]
+    }
+  ],
+  "# Divergence is currently measured as the percent of produced files that would\n# change or be added during templating (100 - unchanged-file score).": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        139,
+        144
+      ]
+    }
+  ],
+  "# Each entry is matched case-insensitively against the commit author name AND\n# the commit author email, so you can list either form.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        119,
+        130
+      ]
+    }
+  ],
+  "# General rules:\n#   - Empty strings are treated as unset.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        158,
+        168
+      ]
+    }
+  ],
+  "# If you wish to specify custom queries, you can do so here or in a config file.\n# By default, queries listed here will override any specified in a config file.": [
+    {
+      "file": ".github/workflows/codeql-analysis.yml",
+      "lines": [
+        49,
+        56
+      ]
+    }
+  ],
+  "# Per-file configuration (nested directory structure)\n# Only files that need overrides belong here. Everything else defaults to merge.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        207,
+        209
+      ]
+    }
+  ],
+  "# Prefix the list here with \"+\" to use these queries and those in the config file.\n# queries: ./path/to/local/query, your-org/your-repo/queries@main": [
+    {
+      "file": ".github/workflows/codeql-analysis.yml",
+      "lines": [
+        51,
+        58
+      ]
+    }
+  ],
+  "# README top logo mode.\n# Controls whether the generated README header includes the GitHub org logo,": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        94,
+        99
+      ]
+    }
+  ],
+  "# Ruby packages declared as dependencies in gemspecs or Gemfiles are\n#   typically consumed as binaries; enable weak-compatibility": [
+    {
+      "file": ".github/workflows/license-eye.yml",
+      "lines": [
+        37,
+        40
+      ]
+    }
+  ],
+  "# SPDX license identifiers for this project.\n# See template/.kettle-jem.yml.example for the full list of accepted values.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        106,
+        108
+      ]
+    }
+  ],
+  "# Self-test / templating CI threshold.\n# Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        136,
+        141
+      ]
+    }
+  ],
+  "# Set to a number from 0 to 100 to fail `rake kettle:jem:selftest` once\n# divergence exceeds that percent. Leave blank to report only.": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        137,
+        142
+      ]
+    }
+  ],
+  "# Supported values: org, project, org_and_project\n# Default (when key is absent): org_and_project": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        97,
+        102
+      ]
+    }
+  ],
+  "# When kettle-jem collects copyright information via `git blame`, it filters\n# out known GitHub/GitLab bot accounts automatically.  Use this list to also": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        114,
+        125
+      ]
+    }
+  ],
+  "# divergence exceeds that percent. Leave blank to report only.\n# Divergence is currently measured as the percent of produced files that would": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        138,
+        143
+      ]
+    }
+  ],
+  "# exclude internal automation accounts that are not bots in the git sense\n# (i.e. they do not follow the \"[bot]\" naming convention).": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        116,
+        127
+      ]
+    }
+  ],
+  "# files:\n#   README.md:": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        225,
+        247,
+        417
+      ]
+    }
+  ],
+  "# out known GitHub/GitLab bot accounts automatically.  Use this list to also\n# exclude internal automation accounts that are not bots in the git sense": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        115,
+        126
+      ]
+    }
+  ],
+  "# the project logo, or both after the shared Galtzo and ruby-lang logos.\n# Supported values: org, project, org_and_project": [
+    {
+      "file": ".kettle-jem.yml",
+      "lines": [
+        96,
+        101
+      ]
+    }
+  ],
   "appraisal: \"current\"\nexec_cmd: \"rake test\"": [
     {
       "file": ".github/workflows/current.yml",
       "lines": [
-        42,
-        49,
-        56
+        43,
+        51,
+        59
       ]
     }
   ]
