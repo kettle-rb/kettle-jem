@@ -161,4 +161,29 @@ RSpec.describe Kettle::Jem::Phases::DuplicateCheck do
       expect(out).to have_received(:report_detail).with(a_string_including("New since lockfile: 1"))
     end
   end
+
+  it "reports mixed drift as outdated instead of updated" do
+    Dir.mktmpdir do |project_root|
+      current_lock = File.join(project_root, ".kettle-drift.lock")
+
+      allow(Kettle::Drift).to receive(:run).and_return(
+        drift_outcome(
+          project_root: project_root,
+          results: {"alpha\nbeta" => [{file: File.join(project_root, "lib/new.rb"), lines: [3, 7]}]},
+          warning_count: 2,
+          diff_state: :updated,
+          lock_path: current_lock,
+          exit_code: 1,
+          new_entries: [{chunk: "alpha\nbeta", file: File.join(project_root, "lib/new.rb"), lines: [3, 7]}],
+          fixed_entries: [{chunk: "old\nchunk", file: File.join(project_root, "lib/old.rb"), lines: [1, 4]}],
+        ),
+      )
+
+      expect {
+        described_class.call(context: build_context(helpers: helpers, out: out, project_root: project_root))
+      }.to raise_error(Kettle::Dev::Error)
+
+      expect(out).to have_received(:phase).with("❌", "Duplicate check", detail: a_string_including("new drift and fixes, lockfile outdated"))
+    end
+  end
 end
