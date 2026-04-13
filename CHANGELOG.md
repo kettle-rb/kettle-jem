@@ -64,6 +64,8 @@ Please file a bug if you notice a violation of semantic versioning.
 - Gemfile, Gemspec, and Appraisals merge flows now lean on shared recipe and
   structural-edit primitives behind their existing policy seams instead of
   bespoke post-merge text surgery and offset deletion paths
+- Documentation templates now generate a `documentation_local.gemfile` companion
+  so sibling YARD plugins can be loaded from source in workspace mode
 
 ### Deprecated
 
@@ -113,6 +115,8 @@ Please file a bug if you notice a violation of semantic versioning.
   (e.g. `# AGENTS.md - Development Guide` vs `# AGENTS.md - myGem Development Guide`).
   H1 is now a singleton structural slot in `markdown-merge`, so the preferred
   version replaces the other instead of both being kept.
+- Existing duplicated instructional comment blocks in `.kettle-jem.yml` are now
+  normalized away during config sync so duplicate-drift corruption can self-heal
 
 ### Security
 
