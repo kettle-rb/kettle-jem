@@ -7,6 +7,7 @@ RSpec.describe Kettle::Jem::TemplateHelpers do
     content = File.read(File.join(template_root, "gemfiles/modular/documentation.gemfile.example"))
 
     expect(content).to include('gem "yard-timekeeper", "~> 0.1", require: false')
+    expect(content).to include('gem "yard-yaml", "~> 0.1", require: false')
   end
 
   it "enables the timekeeper YARD plugin in the yardopts template" do

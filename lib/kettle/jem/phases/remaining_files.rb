@@ -232,7 +232,6 @@ module Kettle
                   c = Kettle::Jem::ReadmePostProcessor.process(content: c, min_ruby: min_ruby, engines: helpers.engines_config)
                   c
                 end
-                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               elsif File.basename(rel) == "CHANGELOG.md"
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                   c = content
@@ -250,7 +249,6 @@ module Kettle
                   c = Kettle::Jem::Tasks::TemplateTask.normalize_markdown_spacing(c) if Kettle::Jem::Tasks::TemplateTask.markdown_heading_file?(rel)
                   c
                 end
-                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               else
                 helpers.copy_file_with_prompt(src, dest, allow_create: true, allow_replace: true) do |content|
                   c = content
@@ -271,8 +269,8 @@ module Kettle
                   end
                   c
                 end
-                cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
               end
+              cleanup_legacy_destination!(helpers, out, dest, legacy_dest)
             rescue StandardError => e
               Kettle::Dev.debug_error(e, __method__)
               out.warning("Could not template #{rel}: #{e.class}: #{e.message}")
