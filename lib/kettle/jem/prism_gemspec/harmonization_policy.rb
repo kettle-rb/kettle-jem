@@ -20,6 +20,11 @@ module Kettle
             template_content: template_content,
             destination_content: destination_content,
           )
+          updated = preserve_files_assignment_helpers(
+            updated,
+            field: "files",
+            destination_content: destination_content,
+          )
           updated = collapse_duplicate_field_assignments(updated, field: "files")
 
           updated = normalize_dependency_sections(
@@ -88,6 +93,49 @@ module Kettle
             metadata: {
               source: :kettle_jem_prism_gemspec,
               edit: :remove_duplicate_field_assignments,
+              field: field,
+            },
+          )
+        rescue StandardError => e
+          debug_error(e, __method__)
+          content
+        end
+
+        def preserve_files_assignment_helpers(content, field:, destination_content:)
+          return content unless field.to_s == "files"
+          return content unless content.include?("enumerate_package_files.call(")
+          return content if content.include?("enumerate_package_files = lambda do |root|")
+
+          helper_source = destination_content[/^\s*enumerate_package_files\s*=\s*lambda do \|root\|\n(?:.*\n)*?^\s*end\n/m]
+          return content unless helper_source
+
+          context = safe_gemspec_context(content)
+          return content unless context
+
+          field_node = find_field_node(context[:stmt_nodes], context[:blk_param], field)
+          return content unless field_node
+
+          lines = content.lines
+          plans = add_anchor_splice_plan(
+            plans: [],
+            content: content,
+            lines: lines,
+            anchor_line: field_node.location.start_line,
+            insertion_text: "#{helper_source}\n",
+            position: :before,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :preserve_files_assignment_helper,
+              field: field,
+            },
+          )
+
+          merged_content_from_plans(
+            content: content,
+            plans: plans,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :preserve_files_assignment_helper,
               field: field,
             },
           )

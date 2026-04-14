@@ -343,6 +343,7 @@ RSpec.describe "Gemspec Templating Integration" do
       merged = merge_gemspec(src: template, dest: destination)
 
       expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include("enumerate_package_files = lambda do |root|")
       expect(merged).to include('*enumerate_package_files.call("template")')
       expect(merged).to include('*enumerate_package_files.call("partials")')
       expect(merged).to include('*Dir["lib/**/*.yml"]')
