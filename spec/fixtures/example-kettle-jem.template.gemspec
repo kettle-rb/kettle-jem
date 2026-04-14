@@ -112,7 +112,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency("kettle-test", "~> 1.0", ">= 1.0.6")
 
   # Releasing
-  spec.add_dependency("ruby-progress", "~> 1.3", ">= 1.3.6")
   spec.add_development_dependency("ruby-progressbar", "~> 1.13")
   spec.add_development_dependency("stone_checksums", "~> 1.0", ">= 1.0.3")
 

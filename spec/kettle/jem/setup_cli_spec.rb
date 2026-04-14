@@ -670,17 +670,20 @@ RSpec.describe Kettle::Jem::SetupCLI do
   describe "#sh!" do
     it "prints command and stderr, and aborts on non-zero", :check_output do
       cli = described_class.allocate
-      allow(Open3).to receive(:capture3).and_return(["", "err", instance_double(Process::Status, success?: false)])
+
       expect do
-        expect { cli.send(:sh!, "echo hi") }.to raise_error(MockSystemExit, /Command failed/)
-      end.to output(/exec: echo hi/).to_stdout.and output("err").to_stderr
+        expect {
+          cli.send(:sh!, "ruby -e '$stderr.print(%q{err}); exit 1'")
+        }.to raise_error(MockSystemExit, /Command failed/)
+      end.to output(/exec: ruby -e/).to_stdout.and output("err").to_stderr
     end
 
-    it "passes env to capture3 and succeeds", :check_output do
+    it "passes env to the streaming command runner and succeeds", :check_output do
       cli = described_class.allocate
-      status = instance_double(Process::Status, success?: true)
-      allow(Open3).to receive(:capture3).with({"A" => "1"}, "cmd").and_return(["", "", status])
-      expect { cli.send(:sh!, "cmd", env: {"A" => "1"}) }.to output(/exec: cmd/).to_stdout
+
+      expect {
+        cli.send(:sh!, "ruby -e 'exit(ENV.fetch(%q{A}) == %q{1} ? 0 : 1)'", env: {"A" => "1"})
+      }.to output(/exec: ruby -e/).to_stdout
     end
 
     it "suppresses successful command logging and output when requested", :check_output do
@@ -694,10 +697,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
     it "suppresses successful command logging while still streaming subprocess output", :check_output do
       cli = described_class.allocate
-      status = instance_double(Process::Status, success?: true)
-      allow(Open3).to receive(:capture3).with({}, "bin/setup --quiet").and_return(["out", "err", status])
 
-      expect { cli.send(:sh!, "bin/setup --quiet", suppress_command_log: true) }
+      expect { cli.send(:sh!, "ruby -e '$stdout.print(%q{out}); $stderr.print(%q{err})'", suppress_command_log: true) }
         .to output("out").to_stdout.and output("err").to_stderr
     end
 

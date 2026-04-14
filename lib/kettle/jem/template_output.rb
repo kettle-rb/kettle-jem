@@ -40,7 +40,7 @@ module Kettle
         # @param quiet [Boolean] suppress non-phase output on CLI
         # @param report_io [IO, nil] IO for report file (opened by caller)
         # @param cli_io [IO] IO for CLI output (default: $stdout)
-        def initialize(quiet: false, report_io: nil, cli_io: $stdout, progress: nil)
+        def initialize(quiet: false, report_io: nil, cli_io: $stdout)
           @quiet = quiet
           @report_io = report_io
           @cli_io = cli_io

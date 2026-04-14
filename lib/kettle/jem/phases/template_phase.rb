@@ -49,7 +49,6 @@ module Kettle
           run_phase_hooks(:after)
           phase_stats.snapshot_after!(context.helpers)
           emit_phase_line
-          context.progress&.advance!(label: phase_name)
         end
 
         private

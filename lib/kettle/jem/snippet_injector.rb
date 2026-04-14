@@ -99,7 +99,7 @@ module Kettle
             finish_index = managed_block_finish_line(lines, index)
             matches << {
               start: line_offsets.fetch(index),
-              finish: finish_index < lines.length ? line_offsets.fetch(finish_index) : content.length,
+              finish: (finish_index < lines.length) ? line_offsets.fetch(finish_index) : content.length,
             }
             index = finish_index
           else

@@ -2527,15 +2527,15 @@ RSpec.describe Kettle::Jem::PrismGemspec do
           destination_content: destination_content,
         ),
       ).to eq(
-        replacement: "  # Specify which files are part of the released package.\n" \
-          "  spec.files = [\n" \
-          "    *Dir[\"lib/**/*.rb\"],\n" \
-          "    *Dir[\"lib/**/*.rake\"],\n" \
-          "    *Dir[\"lib/**/*.yml\"],\n" \
-          "    *enumerate_package_files.call(\"template\"),\n" \
-          "    *enumerate_package_files.call(\"partials\"),\n" \
-          "    *Dir[\"sig/**/*.rbs\"],\n" \
-          "  ]\n",
+        replacement: "  # Specify which files are part of the released package.\n  " \
+          "spec.files = [\n    " \
+          "*Dir[\"lib/**/*.rb\"],\n    " \
+          "*Dir[\"lib/**/*.rake\"],\n    " \
+          "*Dir[\"lib/**/*.yml\"],\n    " \
+          "*enumerate_package_files.call(\"template\"),\n    " \
+          "*enumerate_package_files.call(\"partials\"),\n    " \
+          "*Dir[\"sig/**/*.rbs\"],\n  " \
+          "]\n",
         start_line: 8,
         end_line: 12,
       )

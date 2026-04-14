@@ -127,7 +127,6 @@ Gem::Specification.new do |spec|
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
-  spec.add_dependency("ruby-progress", "~> 1.3", ">= 1.3.6")            # ruby >= 2.5.0
 
   # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
   spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0

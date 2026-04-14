@@ -11,7 +11,6 @@ module Kettle
       class PhaseContext
         attr_reader :helpers,
           :out,
-          :progress,
           :plugins,
           :project_root,
           :template_root,
@@ -29,7 +28,6 @@ module Kettle
 
         # @param helpers [Module] TemplateHelpers module
         # @param out [TemplateOutput::Formatter] CLI/report output formatter
-        # @param progress [TemplateProgress, nil] optional CLI progress tracker
         # @param project_root [String] absolute path to destination project
         # @param template_root [String] absolute path to template scaffold
         # @param gem_name [String] the gem's name
@@ -44,14 +42,13 @@ module Kettle
         # @param removed_appraisals [Array<String>] appraisal names pruned by min_ruby
         # @param parse_error_mode [Symbol] :skip or :raise for AST parse failures
         def initialize(
-          helpers:, out:, project_root:, template_root:, progress: nil, plugins: nil,
+          helpers:, out:, project_root:, template_root:, plugins: nil,
           gem_name:, namespace:, namespace_shield:, gem_shield:,
           forge_org:, funding_org:, min_ruby:, entrypoint_require:,
           meta:, removed_appraisals: [], parse_error_mode: :raise
         )
           @helpers = helpers
           @out = out
-          @progress = progress
           @plugins = plugins
           @project_root = project_root
           @template_root = template_root

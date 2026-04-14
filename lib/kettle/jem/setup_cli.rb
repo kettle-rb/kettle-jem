@@ -26,7 +26,7 @@ module Kettle
       BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE"
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
-      DEFAULT_BIN_SETUP_CONTENT = <<~BASH.freeze
+      DEFAULT_BIN_SETUP_CONTENT = <<~BASH
         #!/usr/bin/env bash
         set -euo pipefail
         IFS=$'\\n\\t'
@@ -544,19 +544,49 @@ module Kettle
       def sh!(cmd, env: {}, suppress_output: false, suppress_command_log: false)
         say("exec: #{cmd}") unless suppress_command_log
         debug_bundler_env(env, cmd)
-        stdout_str, stderr_str, status = Open3.capture3(env, cmd)
-        if status.success?
-          unless suppress_output
-            $stdout.print(stdout_str) unless stdout_str.empty?
-            $stderr.print(stderr_str) unless stderr_str.empty?
+
+        if suppress_output
+          stdout_str, stderr_str, status = Open3.capture3(env, cmd)
+          if status.success?
+            unless suppress_output
+              $stdout.print(stdout_str) unless stdout_str.empty?
+              $stderr.print(stderr_str) unless stderr_str.empty?
+            end
+            return
           end
+
+          say("exec: #{cmd}") if suppress_command_log
+          $stdout.print(stdout_str) unless stdout_str.empty?
+          $stderr.print(stderr_str) unless stderr_str.empty?
+          abort!("Command failed: #{cmd}") unless status.success?
           return
         end
 
+        status = nil
+        Open3.popen3(env, cmd) do |stdin, stdout, stderr, wait_thr|
+          stdin.close
+          out_thread = Thread.new { stream_subprocess_io(stdout, $stdout) }
+          err_thread = Thread.new { stream_subprocess_io(stderr, $stderr) }
+          out_thread.join
+          err_thread.join
+          status = wait_thr.value
+        end
+        return if status&.success?
+
         say("exec: #{cmd}") if suppress_command_log
-        $stdout.print(stdout_str) unless stdout_str.empty?
-        $stderr.print(stderr_str) unless stderr_str.empty?
-        abort!("Command failed: #{cmd}") unless status.success?
+        abort!("Command failed: #{cmd}")
+      end
+
+      def stream_subprocess_io(source, destination)
+        loop do
+          chunk = source.readpartial(4096)
+          destination.print(chunk)
+          destination.flush if destination.respond_to?(:flush)
+        end
+      rescue EOFError
+        nil
+      ensure
+        source.close unless source.closed?
       end
 
       # Log environment variables relevant to bundler when DEBUG=true.
