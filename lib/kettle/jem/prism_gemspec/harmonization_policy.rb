@@ -20,6 +20,7 @@ module Kettle
             template_content: template_content,
             destination_content: destination_content,
           )
+          updated = collapse_duplicate_field_assignments(updated, field: "files")
 
           updated = normalize_dependency_sections(
             updated,
@@ -47,6 +48,49 @@ module Kettle
           )
         rescue Kettle::Jem::Error
           raise
+        rescue StandardError => e
+          debug_error(e, __method__)
+          content
+        end
+
+        def collapse_duplicate_field_assignments(content, field:)
+          context = safe_gemspec_context(content)
+          return content unless context
+
+          field_nodes = context[:stmt_nodes].select do |node|
+            node.is_a?(Prism::CallNode) &&
+              node.receiver&.slice&.strip&.end_with?(context[:blk_param]) &&
+              node.name.to_s.start_with?(field)
+          end
+          return content if field_nodes.length < 2
+
+          kept_node = field_nodes.find do |node|
+            !literal_dir_assignment_parts(node, content: content) && !generic_bundler_files_assignment?(node, content)
+          end || field_nodes.last
+
+          removal_plans = field_nodes.reject { |node| node.equal?(kept_node) }.map do |node|
+            Ast::Merge::StructuralEdit::RemovePlan.new(
+              source: content,
+              remove_start_line: field_source_start_line_with_attached_comments(node, content),
+              remove_end_line: node.location.end_line,
+              metadata: {
+                source: :kettle_jem_prism_gemspec,
+                edit: :remove_duplicate_field_assignment,
+                field: field,
+              },
+            )
+          end
+          return content if removal_plans.empty?
+
+          merged_content_from_plans(
+            content: content,
+            plans: removal_plans,
+            metadata: {
+              source: :kettle_jem_prism_gemspec,
+              edit: :remove_duplicate_field_assignments,
+              field: field,
+            },
+          )
         rescue StandardError => e
           debug_error(e, __method__)
           content

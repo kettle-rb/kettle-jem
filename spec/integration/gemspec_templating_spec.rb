@@ -346,6 +346,7 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).to include('*enumerate_package_files.call("template")')
       expect(merged).to include('*enumerate_package_files.call("partials")')
       expect(merged).to include('*Dir["lib/**/*.yml"]')
+      expect(merged.scan(/^\s*spec\.files\s*=/).length).to eq(1)
       expect(merged).not_to include("spec.files = Dir[\n    \"lib/**/*.rb\",\n    \"sig/**/*.rbs\",")
     end
 
