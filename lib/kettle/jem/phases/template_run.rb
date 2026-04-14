@@ -23,10 +23,8 @@ module Kettle
       # Usage:
       #   result = TemplateRun.call(context: phase_context, templating_report_path: path)
       class TemplateRun < Actor
-        input :context, type: PhaseContext
-        input :templating_report_path, type: String, allow_nil: true, default: nil
-
-        play ConfigSync,
+        PHASES = [
+          ConfigSync,
           DevContainer,
           GithubWorkflows,
           QualityConfig,
@@ -36,7 +34,17 @@ module Kettle
           RemainingFiles,
           GitHooks,
           LicenseFiles,
-          DuplicateCheck
+          DuplicateCheck,
+        ].freeze
+
+        input :context, type: PhaseContext
+        input :templating_report_path, type: String, allow_nil: true, default: nil
+
+        play(*PHASES)
+
+        def self.phase_count
+          PHASES.length
+        end
       end
     end
   end

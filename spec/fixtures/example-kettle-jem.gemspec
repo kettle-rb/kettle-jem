@@ -153,6 +153,7 @@ Gem::Specification.new do |spec|
   #       The kettle-dev-setup script and kettle:dev:install rake task ensure libraries meet the requirements.
 
   # Utilities
+  spec.add_dependency("ruby-progress", "~> 1.3", ">= 1.3.6")            # ruby >= 2.5.0
   # spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
   # kettle-jem:unfreeze
 

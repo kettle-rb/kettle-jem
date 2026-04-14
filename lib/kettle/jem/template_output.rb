@@ -40,7 +40,7 @@ module Kettle
         # @param quiet [Boolean] suppress non-phase output on CLI
         # @param report_io [IO, nil] IO for report file (opened by caller)
         # @param cli_io [IO] IO for CLI output (default: $stdout)
-        def initialize(quiet: false, report_io: nil, cli_io: $stdout)
+        def initialize(quiet: false, report_io: nil, cli_io: $stdout, progress: nil)
           @quiet = quiet
           @report_io = report_io
           @cli_io = cli_io
@@ -59,7 +59,7 @@ module Kettle
         # @param detail [String, nil] optional short detail (file count, etc.)
         def phase(emoji, message, detail: nil)
           line = detail ? "[kettle-jem] #{emoji}  #{message} - #{detail}" : "[kettle-jem] #{emoji}  #{message}"
-          @cli_io.puts(line)
+          emit_cli_line(line)
           report_line(line)
           @phase_results << {emoji: emoji, message: message, detail: detail}
         end
@@ -69,7 +69,7 @@ module Kettle
         #
         # @param message [String] the detail message
         def detail(message)
-          @cli_io.puts(message) unless @quiet
+          emit_cli_line(message) unless @quiet
           report_line(message)
         end
 
@@ -79,7 +79,7 @@ module Kettle
         # @param message [String] warning text
         def warning(message)
           line = "[kettle-jem] ⚠️  #{message}"
-          @cli_io.puts(line)
+          emit_cli_line(line)
           report_line(line)
         end
 
@@ -95,7 +95,7 @@ module Kettle
         # @param message [String] error text
         def error(message)
           line = "[kettle-jem] ❌  #{message}"
-          @cli_io.puts(line)
+          emit_cli_line(line)
           report_line(line)
         end
 
@@ -108,6 +108,10 @@ module Kettle
         attr_reader :phase_results
 
         private
+
+        def emit_cli_line(line)
+          @cli_io.puts(line)
+        end
 
         def report_line(line)
           @report_io&.puts(line)

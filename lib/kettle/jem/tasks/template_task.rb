@@ -5,6 +5,7 @@ require "set"
 require "find"
 
 require_relative "../template_output"
+require_relative "../template_progress"
 require_relative "../template_checksums"
 require_relative "../duplicate_line_validator"
 require_relative "../phases"
@@ -1127,7 +1128,8 @@ module Kettle
           helpers.clear_warnings
           helpers.clear_template_run_outcome!
 
-          out = Kettle::Jem::TemplateOutput::Formatter.new(quiet: quiet?)
+          progress = Kettle::Jem::TemplateProgress.new(total_steps: Phases::TemplateRun.phase_count)
+          out = Kettle::Jem::TemplateOutput::Formatter.new(quiet: quiet?, progress: progress)
 
           # Initialized early so the ensure block can always reference them,
           # even if an exception occurs before they are assigned below.
@@ -1217,6 +1219,7 @@ module Kettle
             out: out,
             project_root: project_root,
             template_root: template_root,
+            progress: progress,
             plugins: plugins,
             gem_name: gem_name,
             namespace: namespace,
@@ -1232,6 +1235,7 @@ module Kettle
           )
 
           # Run all template phases via the orchestrator actor.
+          progress.start!
           Phases::TemplateRun.call(
             context: phase_context,
             templating_report_path: templating_report_path,
@@ -1276,6 +1280,8 @@ module Kettle
 
           nil
         ensure
+          progress&.stop!
+
           if project_root && run_started_at && templating_environment
             error = $!
             write_templating_run_report(
