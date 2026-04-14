@@ -1503,6 +1503,15 @@ RSpec.describe Kettle::Jem::SetupCLI do
           File.read(File.expand_path("../../../template/bin/setup.example", __dir__)),
         )
       end
+
+      it "writes the built-in setup script when the installed template asset is missing" do
+        allow(cli).to receive(:say)
+        allow(cli).to receive(:installed_path).with(File.join("bin", "setup")).and_return(nil)
+
+        cli.send(:ensure_bin_setup!)
+
+        expect(File.read("bin/setup")).to eq(described_class::DEFAULT_BIN_SETUP_CONTENT)
+      end
     end
   end
 

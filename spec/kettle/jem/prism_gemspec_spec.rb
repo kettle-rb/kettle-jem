@@ -2468,6 +2468,78 @@ RSpec.describe Kettle::Jem::PrismGemspec do
         end_line: 9,
       )
     end
+
+    it "preserves a custom nonliteral destination assignment instead of replacing it with the template Dir list" do
+      merged_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          enumerate_package_files = lambda do |root|
+            Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+              File.file?(path) && ![".", ".."].include?(File.basename(path))
+            end
+          end
+
+          # Specify which files are part of the released package.
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
+
+      template_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          # Specify which files are part of the released package.
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
+
+      destination_content = <<~RUBY
+        Gem::Specification.new do |spec|
+          enumerate_package_files = lambda do |root|
+            Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+              File.file?(path) && ![".", ".."].include?(File.basename(path))
+            end
+          end
+
+          # Specify which files are part of the released package.
+          spec.files = [
+            *Dir["lib/**/*.rb"],
+            *Dir["lib/**/*.rake"],
+            *Dir["lib/**/*.yml"],
+            *enumerate_package_files.call("template"),
+            *enumerate_package_files.call("partials"),
+            *Dir["sig/**/*.rbs"],
+          ]
+        end
+      RUBY
+
+      expect(
+        described_class.send(
+          :replace_destination_nonliteral_assignment_source,
+          merged_node: gemspec_field_node_for(merged_content),
+          merged_content: merged_content,
+          template_node: gemspec_field_node_for(template_content),
+          template_content: template_content,
+          destination_node: gemspec_field_node_for(destination_content),
+          destination_content: destination_content,
+        ),
+      ).to eq(
+        replacement: "  # Specify which files are part of the released package.\n" \
+          "  spec.files = [\n" \
+          "    *Dir[\"lib/**/*.rb\"],\n" \
+          "    *Dir[\"lib/**/*.rake\"],\n" \
+          "    *Dir[\"lib/**/*.yml\"],\n" \
+          "    *enumerate_package_files.call(\"template\"),\n" \
+          "    *enumerate_package_files.call(\"partials\"),\n" \
+          "    *Dir[\"sig/**/*.rbs\"],\n" \
+          "  ]\n",
+        start_line: 8,
+        end_line: 12,
+      )
+    end
   end
 
   describe ".literal_dir_assignment_parts" do

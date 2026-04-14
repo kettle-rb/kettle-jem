@@ -303,6 +303,52 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).not_to include("IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL)")
     end
 
+    it "preserves a custom nonliteral destination spec.files assignment" do
+      template = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+
+          # Specify which files are part of the released package.
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "sig/**/*.rbs",
+          ]
+        end
+      RUBY
+
+      destination = <<~RUBY
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "1.0.0"
+
+          enumerate_package_files = lambda do |root|
+            Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+              File.file?(path) && ![".", ".."].include?(File.basename(path))
+            end
+          end
+
+          # Specify which files are part of the released package.
+          spec.files = [
+            *Dir["lib/**/*.rb"],
+            *Dir["lib/**/*.rake"],
+            *Dir["lib/**/*.yml"],
+            *enumerate_package_files.call("template"),
+            *enumerate_package_files.call("partials"),
+            *Dir["sig/**/*.rbs"],
+          ]
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true)
+      expect(merged).to include('*enumerate_package_files.call("template")')
+      expect(merged).to include('*enumerate_package_files.call("partials")')
+      expect(merged).to include('*Dir["lib/**/*.yml"]')
+      expect(merged).not_to include("spec.files = Dir[\n    \"lib/**/*.rb\",\n    \"sig/**/*.rbs\",")
+    end
+
     it "keeps template-owned blank-line boundaries around inserted gemspec sections" do
       template = <<~RUBY
         # coding: utf-8

@@ -236,6 +236,17 @@ module Kettle
           lines[start_index...(field_node.location.start_line - 1)]
         end
 
+        def field_source_start_line_with_attached_comments(field_node, content)
+          lines = content.lines
+          start_index = field_node.location.start_line - 1
+
+          while start_index.positive? && lines[start_index - 1].lstrip.start_with?("#")
+            start_index -= 1
+          end
+
+          start_index + 1
+        end
+
         def generic_bundler_files_boilerplate_start_line(field_node, content, preserved_comment_lines: [])
           lines = content.lines
           current_index = field_node.location.start_line - 2
@@ -271,6 +282,11 @@ module Kettle
           line.to_s.match?(/^\s*gemspec\s*=\s*File\.basename\(__FILE__\)\s*$/)
         end
 
+        def generic_bundler_files_assignment?(field_node, content)
+          source = full_field_assignment_source(field_node, content)
+          source.include?("IO.popen(%w[git ls-files -z]") || source.include?("IO.popen(%w[git ls-files")
+        end
+
         def replace_destination_nonliteral_assignment_source(
           merged_node:,
           merged_content:,
@@ -281,6 +297,18 @@ module Kettle
         )
           return if literal_dir_assignment_parts(destination_node, content: destination_content)
           return unless literal_dir_assignment_parts(template_node, content: template_content)
+
+          unless generic_bundler_files_assignment?(destination_node, destination_content)
+            replacement = field_source_with_attached_comments(destination_node, destination_content)
+            cleanup_start_line = field_source_start_line_with_attached_comments(destination_node, destination_content)
+            return if cleanup_start_line.nil? && field_source_with_attached_comments(merged_node, merged_content) == replacement
+
+            return {
+              replacement: replacement,
+              start_line: cleanup_start_line || merged_node.location.start_line,
+              end_line: merged_node.location.end_line,
+            }
+          end
 
           replacement = field_source_with_attached_comments(template_node, template_content)
           cleanup_start_line = generic_bundler_files_boilerplate_start_line(

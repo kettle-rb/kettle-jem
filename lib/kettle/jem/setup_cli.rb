@@ -26,6 +26,44 @@ module Kettle
       BUNDLED_GEMFILE_ENV = "BUNDLE_GEMFILE"
       TEMPLATE_CONFIG_RELATIVE_PATH = ".kettle-jem.yml"
       BOOTSTRAP_GEMFILE_EVAL_PATHS = ["gemfiles/modular/templating.gemfile"].freeze
+      DEFAULT_BIN_SETUP_CONTENT = <<~BASH.freeze
+        #!/usr/bin/env bash
+        set -euo pipefail
+        IFS=$'\\n\\t'
+
+        quiet=false
+        bundle_args=(install)
+
+        for arg in "$@"; do
+          case "$arg" in
+            --quiet)
+              quiet=true
+              bundle_args+=(--quiet)
+              ;;
+            -h|--help)
+              cat <<'USAGE'
+        Usage: bin/setup [--quiet]
+
+        Options:
+          --quiet   Pass --quiet to bundle install and suppress shell tracing.
+        USAGE
+              exit 0
+              ;;
+            *)
+              printf 'bin/setup: unknown option: %s\\n' "$arg" >&2
+              exit 2
+              ;;
+          esac
+        done
+
+        if [ "$quiet" != "true" ]; then
+          set -vx
+        fi
+
+        bundle "${bundle_args[@]}"
+
+        # Do any other automated setup that you need to do here
+      BASH
 
       # Gems added by `bundle gem` scaffold that are covered by the kettle-jem template.
       # These are removed from the Gemfile during templating because they are either:
@@ -782,9 +820,12 @@ module Kettle
         end
 
         source = installed_path(File.join("bin", "setup"))
-        abort!("Internal error: source bin/setup not found within installed gem.") unless source && File.exist?(source)
         FileUtils.mkdir_p("bin")
-        FileUtils.cp(source, target)
+        if source && File.exist?(source)
+          FileUtils.cp(source, target)
+        else
+          File.write(target, DEFAULT_BIN_SETUP_CONTENT)
+        end
         FileUtils.chmod("+x", target)
         say(existed_before ? "Overwrote bin/setup." : "Copied bin/setup.", verbose_only: true)
       end

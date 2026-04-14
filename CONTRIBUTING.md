@@ -153,7 +153,11 @@ tmp/template_test/
     diffs/          # Per-file unified diffs for changed files
 ```
 
-The **score** (percentage of unchanged files) is printed to the terminal and recorded in `summary.md`.
+## Developer Certificate of Origin
+
+In order to protect users of this project, we require all contributors to comply with the
+[Developer Certificate of Origin](https://developercertificate.org/).
+This ensures that all contributions are properly licensed and attributed.
 
 ### Setting a pass/fail threshold
 
