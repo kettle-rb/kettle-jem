@@ -167,7 +167,7 @@ RSpec.describe Kettle::Jem::PrismGemspec do
 
       expect {
         described_class.merge(template, dest)
-      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content after recipe execution/)
+      }.to raise_error(Kettle::Jem::Error, /Malformed merged gemspec content while harmonizing "files"/)
     end
 
     it "rewrites the version loader via recipe execution when runtime metadata is provided", :prism_merge_only do

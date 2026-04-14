@@ -29,6 +29,15 @@ module Kettle
             namespace: namespace,
           )
           return template_content if dest_content.strip.empty? && runtime_context.empty?
+          if preserve_destination_nonliteral_files_assignment?(dest_content)
+            preserved_content = merge_preserving_destination_structure(
+              template_content: template_content,
+              destination_content: dest_content,
+              runtime_context: runtime_context,
+              resolver: resolver,
+            )
+            return preserved_content if preserved_content
+          end
 
           recipe = preset || Kettle::Jem.recipe(:gemspec)
           run_options = {
@@ -39,13 +48,17 @@ module Kettle
           run_options[:context] = runtime_context unless runtime_context.empty?
 
           merged_content = Ast::Merge::Recipe::Runner.new(recipe, **options).run_content(**run_options).content
-          validate_merged_gemspec_content!(merged_content)
 
           harmonized_content = harmonize_merged_content(
             merged_content,
             template_content: template_content,
             destination_content: dest_content,
           )
+          # The raw recipe output can be temporarily malformed for gemspec-specific
+          # constructs that harmonization repairs (for example, restoring helper
+          # statements that a preserved assignment depends on). Validate only after
+          # those repair passes have run.
+          #
           # Post-merge harmonization (DependencySectionPolicy) manipulates lines
           # and can re-introduce consecutive blank lines. Normalize as a final pass.
           harmonized_content = normalize_consecutive_blank_lines(harmonized_content)
@@ -57,6 +70,46 @@ module Kettle
         rescue StandardError => e
           Kernel.warn("[#{__method__}] Gemspec recipe merge failed: #{e.message}")
           template_content
+        end
+
+        def preserve_destination_nonliteral_files_assignment?(content)
+          context = safe_gemspec_context(content)
+          return false unless context
+
+          field_node = find_field_node(context[:stmt_nodes], context[:blk_param], "files")
+          return false unless field_node
+
+          literal_dir_assignment_parts(field_node, content: content).nil?
+        rescue StandardError => e
+          debug_error(e, __method__)
+          false
+        end
+
+        def merge_preserving_destination_structure(template_content:, destination_content:, runtime_context:, resolver:)
+          content = destination_content
+
+          if runtime_context[:min_ruby] && runtime_context[:entrypoint_require].to_s.strip != "" && runtime_context[:namespace].to_s.strip != ""
+            content = rewrite_version_loader(
+              content,
+              min_ruby: runtime_context[:min_ruby],
+              entrypoint_require: runtime_context[:entrypoint_require],
+              namespace: runtime_context[:namespace],
+            )
+          end
+
+          harmonized_content = harmonize_merged_content(
+            content,
+            template_content: template_content,
+            destination_content: destination_content,
+          )
+          harmonized_content = normalize_consecutive_blank_lines(harmonized_content)
+          harmonized_content = align_dependency_ruby_comments(harmonized_content, resolver: resolver)
+          validate_merged_gemspec_content!(harmonized_content)
+        rescue Kettle::Jem::Error
+          raise
+        rescue StandardError => e
+          debug_error(e, __method__)
+          nil
         end
 
         def validate_merged_gemspec_content!(content)

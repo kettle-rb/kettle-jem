@@ -262,6 +262,88 @@ RSpec.describe "Gemspec Templating Integration" do
       expect(merged).to include('"sig/**/*.rbs"')
     end
 
+    it "preserves kettle-jem-style version, files, and runtime dependency customizations" do
+      template = <<~RUBY
+        # coding: utf-8
+        # frozen_string_literal: true
+
+        gem_version =
+          if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
+            Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/dev/version.rb", mod) }::Kettle::Dev::Version::VERSION
+          else
+            lib = File.expand_path("lib", __dir__)
+            $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+            require "kettle/dev/version"
+            Kettle::Dev::Version::VERSION
+          end
+
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = gem_version
+          spec.required_ruby_version = ">= 3.2.0"
+
+          # Specify which files are part of the released package.
+          spec.files = Dir[
+            "lib/**/*.rb",
+            "lib/**/*.rake",
+            "sig/**/*.rbs",
+          ]
+
+          spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")
+        end
+      RUBY
+
+      destination = <<~RUBY
+        # coding: utf-8
+        # frozen_string_literal: true
+
+        Gem::Specification.new do |spec|
+          spec.name = "kettle-jem"
+          spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/jem/version.rb", mod) }::Kettle::Jem::Version::VERSION
+          spec.required_ruby_version = ">= 3.2.0"
+
+          enumerate_package_files = lambda do |root|
+            Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+              File.file?(path) && ![".", ".."].include?(File.basename(path))
+            end
+          end
+
+          # Specify which files are part of the released package.
+          spec.files = [
+            *Dir["lib/**/*.rb"],
+            *Dir["lib/**/*.rake"],
+            *Dir["lib/**/*.yml"],
+            *enumerate_package_files.call("template"),
+            *enumerate_package_files.call("partials"),
+            *Dir["sig/**/*.rbs"],
+          ]
+
+          spec.add_dependency("ast-merge", "~> 5.0", ">= 5.0.0")
+          spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.2")
+          spec.add_dependency("tree_haver", "~> 6.0", ">= 6.0.0")
+          spec.add_dependency("service_actor", "~> 3.9")
+          spec.add_dependency("service_actor-promptable", "~> 1.0")
+          spec.add_dependency("kettle-dev", "~> 2.0")
+          spec.add_dependency("kettle-drift", "~> 0.1")
+          spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")
+        end
+      RUBY
+
+      merged = merge_gemspec(src: template, dest: destination)
+
+      expect(Prism.parse(merged).success?).to be(true), merged
+      expect(merged).to include('enumerate_package_files = lambda do |root|')
+      expect(merged).to include('*enumerate_package_files.call("template")')
+      expect(merged).to include('*enumerate_package_files.call("partials")')
+      expect(merged).to include('spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.2")')
+      expect(merged).to include('spec.add_dependency("service_actor", "~> 3.9")')
+      expect(merged).to include('spec.add_dependency("kettle-drift", "~> 0.1")')
+      expect(merged).to include('spec.add_dependency("kettle-dev", "~> 2.0")')
+      expect(merged).to match(/spec\.version = Module\.new\.tap \{ \|mod\| Kernel\.load\(".*\/lib\/kettle\/jem\/version\.rb", mod\) \}::Kettle::Jem::Version::VERSION/)
+      expect(merged).not_to include("gem_version =")
+      expect(merged.scan(/^\s*spec\.files\s*=/).length).to eq(1)
+    end
+
     it "replaces executable destination spec.files with the template Dir assignment" do
       template = <<~RUBY
         Gem::Specification.new do |spec|

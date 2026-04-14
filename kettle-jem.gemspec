@@ -7,25 +7,9 @@
 # kettle-jem will then preserve content between those markers across template runs.
 # kettle-jem:unfreeze
 
-gem_version =
-  if RUBY_VERSION >= "3.1" # rubocop:disable Gemspec/RubyVersionGlobalsUsage
-    # Loading Version into an anonymous module allows version.rb to get code coverage from SimpleCov!
-    # See: https://github.com/simplecov-ruby/simplecov/issues/557#issuecomment-2630782358
-    # See: https://github.com/panorama-ed/memo_wise/pull/397
-    Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/jem/version.rb", mod) }::Kettle::Jem::Version::VERSION
-  else
-    # NOTE: Use __FILE__ or __dir__ until removal of Ruby 1.x support
-    # __dir__ introduced in Ruby 1.9.1
-    # lib = File.expand_path("../lib", __FILE__)
-    lib = File.expand_path("lib", __dir__)
-    $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-    require "kettle/jem/version"
-    Kettle::Jem::Version::VERSION
-  end
-
 Gem::Specification.new do |spec|
   spec.name = "kettle-jem"
-  spec.version = gem_version
+  spec.version = Module.new.tap { |mod| Kernel.load("#{__dir__}/lib/kettle/jem/version.rb", mod) }::Kettle::Jem::Version::VERSION
   spec.authors = ["Peter H. Boling"]
   spec.email = ["floss@galtzo.com"]
 
@@ -64,13 +48,25 @@ Gem::Specification.new do |spec|
   spec.metadata["discord_uri"] = "https://discord.gg/3qme4XHNKN"
   spec.metadata["rubygems_mfa_required"] = "true"
 
+  enumerate_package_files = lambda do |root|
+    Dir.glob(File.join(root, "**", "*"), File::FNM_DOTMATCH).select do |path|
+      File.file?(path) && ![".", ".."].include?(File.basename(path))
+    end
+  end
+
   # Specify which files are part of the released package.
-  spec.files = Dir[
+  spec.files = [
     # Code / tasks / data (NOTE: exe/ is specified via spec.bindir and spec.executables below)
-    "lib/**/*.rb",
-    "lib/**/*.rake",
+    *Dir["lib/**/*.rb"],
+    *Dir["lib/**/*.rake"],
+    *Dir["lib/**/*.yml"],
+    # Template scaffold for gem templating
+    *enumerate_package_files.call("template"),
+    # Partial fragments (workflow snippets, etc.) used during templating
+    # but NOT deployed to target gems
+    *enumerate_package_files.call("partials"),
     # Signatures
-    "sig/**/*.rbs",
+    *Dir["sig/**/*.rbs"],
   ]
 
   # Automatically included with gem package, no need to list again in files.
@@ -97,13 +93,45 @@ Gem::Specification.new do |spec|
     "--inline-source",
     "--quiet",
   ]
+  spec.require_paths = ["lib"]
   spec.bindir = "exe"
   # Listed files are the relative paths from bindir above.
   spec.executables = ["kettle-jem"]
-  spec.require_paths = ["lib"]
+
+  # Shared merge infrastructure
+  spec.add_dependency("ast-merge", "~> 5.0", ">= 5.0.0")                # ruby >= 3.2.0
+
+  # Token parsing and resolution for template ETL
+  spec.add_dependency("token-resolver", "~> 1.0", ">= 1.0.2")           # ruby >= 3.2.0
+
+  # Unified markdown parsing via tree_haver backends (Commonmarker, Markly)
+  spec.add_dependency("tree_haver", "~> 6.0", ">= 6.0.0")               # ruby >= 3.2.0
+
+  # Merge infrastructure
+  spec.add_dependency("bash-merge", "~> 3.0")                           # ruby >= 3.2.0
+  spec.add_dependency("citrus", "~> 3.0", ">= 3.0.2")                   # ruby >= 0
+  spec.add_dependency("dotenv-merge", "~> 2.0")                         # ruby >= 3.2.0
+  spec.add_dependency("json-merge", "~> 2.0")                           # ruby >= 3.2.0
+  spec.add_dependency("markdown-merge", "~> 2.0")                       # ruby >= 3.2.0
+  spec.add_dependency("markly-merge", "~> 2.0")                         # ruby >= 3.2.0
+  spec.add_dependency("parslet", "~> 2.0")                              # ruby >= 0
+  spec.add_dependency("prism-merge", "~> 3.0")                          # ruby >= 3.2.0
+  spec.add_dependency("psych-merge", "~> 2.0")                          # ruby >= 3.2.0
+  spec.add_dependency("rbs-merge", "~> 3.0")                            # ruby >= 3.2.0
+  spec.add_dependency("toml-merge", "~> 3.0")                           # ruby >= 3.2.0
+  spec.add_dependency("toml-rb", "~> 4.1")                              # ruby >= 2.3.0
+
+  # Actor pattern for composable template phases
+  spec.add_dependency("service_actor", "~> 3.9")                        # ruby >= 3.0.0
+  spec.add_dependency("service_actor-promptable", "~> 1.0")             # ruby >= 2.6.0
 
   # Utilities
   spec.add_dependency("version_gem", "~> 1.1", ">= 1.1.9")              # ruby >= 2.2.0
+
+  # Dev tooling (runtime dep — kettle-jem extends kettle-dev's functionality)
+  spec.add_dependency("kettle-dev", "~> 2.0")                            # ruby >= 2.3.0
+
+  spec.add_dependency("kettle-drift", "~> 0.1")                          # ruby >= 3.2.0
 
   # NOTE: It is preferable to list development dependencies in the gemspec due to increased
   #       visibility and discoverability.
@@ -117,9 +145,6 @@ Gem::Specification.new do |spec|
   #
   #       Development dependencies that require strictly newer Ruby versions should be in a "gemfile",
   #       and preferably a modular one (see gemfiles/modular/*.gemfile).
-
-  # Dev, Test, & Release Tasks
-  spec.add_development_dependency("kettle-dev", "~> 2.0")                  # ruby >= 2.3.0
 
   # Security
   spec.add_development_dependency("bundler-audit", "~> 0.9.3")                      # ruby >= 2.0.0
