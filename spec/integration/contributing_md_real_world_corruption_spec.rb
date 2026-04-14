@@ -133,4 +133,79 @@ RSpec.describe "real-world CONTRIBUTING.md corruption repair" do
 
     expect(result2).to eq(result1)
   end
+
+  it "repairs the version_gem adjacent-section hijack without duplicating the help section" do
+    template = <<~MARKDOWN
+      ## Developer Certificate of Origin
+
+      In order to protect users of this project, we require all contributors to comply with the
+      [Developer Certificate of Origin](https://developercertificate.org/).
+      This ensures that all contributions are properly licensed and attributed.
+
+      ## Help out!
+
+      Take a look at the open issues and pull requests, or use the gem and find something to improve.
+
+      Follow these instructions:
+
+      1. Join the Discord: [![Live Chat on Discord][img]][invite]
+      2. Fork the repository
+      3. Create your feature branch (`git checkout -b my-new-feature`)
+      4. Make some fixes.
+      5. Commit your changes (`git commit -am 'Added some feature'`)
+      6. Push to the branch (`git push origin my-new-feature`)
+      7. Make sure to add tests for it. This is important, so it doesn't break in a future release.
+      8. Create new Pull Request.
+      9. Announce it in the channel for this org in the [Discord][invite]!
+
+      ## Executables vs Rake tasks
+    MARKDOWN
+
+    destination = <<~MARKDOWN
+      ## Help out!
+
+      ## Developer Certificate of Origin
+
+      In order to protect users of this project, we require all contributors to comply with the
+      [Developer Certificate of Origin](https://developercertificate.org/).
+      This ensures that all contributions are properly licensed and attributed.
+
+      Follow these instructions:
+
+      1. Join the Discord: [![Live Chat on Discord][img]][invite]
+      2. Fork the repository
+      3. Create your feature branch (`git checkout -b my-new-feature`)
+      4. Make some fixes.
+      5. Commit your changes (`git commit -am 'Added some feature'`)
+      6. Push to the branch (`git push origin my-new-feature`)
+      7. Make sure to add tests for it. This is important, so it doesn't break in a future release.
+      8. Create new Pull Request.
+      9. Announce it in the channel for this org in the [Discord][invite]!
+
+      ## The Reek List
+
+      Take a look at the open issues and pull requests, or use the gem and find something to improve.
+
+      To refresh the `reek` list:
+
+      ## Executables vs Rake tasks
+    MARKDOWN
+
+    result = do_merge(template, destination)
+    help_section = result[/^## Help out!\n+(.*?)(?=^## |\z)/m, 1]
+    dco_section = result[/^## Developer Certificate of Origin\n+(.*?)(?=^## |\z)/m, 1]
+    reek_section = result[/^## The Reek List\n+(.*?)(?=^## |\z)/m, 1]
+
+    expect(result.scan("Take a look at the open issues").length).to eq(2)
+    expect(result.scan("Follow these instructions:").length).to eq(1)
+    expect(result.scan("Join the Discord").length).to eq(1)
+    expect(result).to include("## Developer Certificate of Origin")
+    expect(result).to include("## Help out!")
+    expect(help_section).to include("Take a look at the open issues")
+    expect(help_section).to include("Follow these instructions:")
+    expect(help_section).to include("Join the Discord")
+    expect(dco_section).not_to include("Follow these instructions:")
+    expect(reek_section).to include("Take a look at the open issues")
+    expect(reek_section).not_to include("Follow these instructions:")
+  end
 end

@@ -234,6 +234,10 @@ module Kettle
 
           template_text = normalize_markdown_match_text(template_node&.text)
           dest_text = normalize_markdown_match_text(dest_node&.text)
+          if markdown_prefix_containment_match?(template_text, dest_text)
+            score = [score, MARKDOWN_PARAGRAPH_BASE_REFINER.threshold + 0.1].max
+          end
+
           if label_style_markdown_paragraph?(template_text) || label_style_markdown_paragraph?(dest_text)
             overlap_count = (markdown_significant_tokens(template_text) & markdown_significant_tokens(dest_text)).size
             score = [score + [overlap_count * 0.05, 0.25].min, 1.0].min
@@ -256,6 +260,13 @@ module Kettle
 
         def label_style_markdown_paragraph?(text)
           MARKDOWN_LABEL_STYLE_PARAGRAPH_RE.match?(text.to_s.strip)
+        end
+
+        def markdown_prefix_containment_match?(template_text, dest_text)
+          shorter, longer = [template_text.to_s, dest_text.to_s].sort_by(&:length)
+          return false if shorter.length < 48
+
+          longer.start_with?(shorter)
         end
 
         def markdown_significant_tokens(text)

@@ -172,7 +172,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     system("bundle gem dummy-gem", chdir: sandbox_root, exception: true)
     git_commit_all!("initial scaffold")
 
-    stdout1, stderr1, status1 = run_kettle_jem!("--bootstrap-mode", env: base_env)
+    stdout1, stderr1, status1 = run_kettle_jem!("--bootstrap-mode")
     expect(status1.success?).to be(true),
       "first plain kettle-jem run failed\nstdout=#{stdout1}\nstderr=#{stderr1}"
     expect(File).to exist(File.join(dummy_gem_dir, ".kettle-jem.yml"))
@@ -181,7 +181,7 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
     system("git add .kettle-jem.yml", chdir: dummy_gem_dir, exception: true)
     system("git commit -m 'config'", chdir: dummy_gem_dir, exception: true)
 
-    stdout2, stderr2, status2 = run_kettle_jem!("--bootstrap-mode", env: base_env)
+    stdout2, stderr2, status2 = run_kettle_jem!("--bootstrap-mode")
     expect(status2.success?).to be(true),
       "second plain kettle-jem run failed\nstdout=#{stdout2}\nstderr=#{stderr2}"
 
