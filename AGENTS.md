@@ -143,8 +143,6 @@ If the command is complicated write a script in local tmp/ and then run the scri
 captures all output to `tmp/kettle-test/rspec-TIMESTAMP.log`, and prints a structured highlight block:
 timing, seed, pass/fail count, failing examples, and SimpleCov coverage percentages.
 
-**Do not finish a task without running the full suite** via `kettle-test`. Focused specs are useful while iterating, but task completion requires a full-suite pass because bootstrap/template regressions can hide outside the targeted files.
-
 Full suite:
 
 ```bash

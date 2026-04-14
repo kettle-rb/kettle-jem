@@ -8,11 +8,6 @@ gem "prism", "~> 1.6"
 gem "toml"
 gem "unparser", "~> 0.8", ">= 0.8.1"
 
-if remote
-  gem "ast-crispr", "~> 0.1"
-  gem "ast-crispr-ruby-prism", "~> 0.1"
-end
-
 platform :mri do
   # MRI only Parsers:
   # kettle-jem currently uses markly instead of commonmarker, but these can easily be swapped.
@@ -28,7 +23,6 @@ platform :mri do
   if remote
     # AST parsing for advanced templating.
     # Kettle-rb's Merge Recipes (released)
-    gem "ast-crispr-markdown-markly", "~> 0.1"
   end
 end
 
