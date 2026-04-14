@@ -88,35 +88,13 @@ module Kettle
         return [content, []] if min_ruby.nil? || min_ruby.to_s.strip.empty?
 
         min_version = Gem::Version.new(min_ruby.to_s)
-        result = PrismUtils.parse_with_comments(content)
-        return [content, []] unless result&.success?
-
-        stmts = PrismUtils.extract_statements(result.value.statements)
-        nodes_to_remove = []
-        removed = []
-
-        stmts.each do |node|
-          next unless appraise_call?(node)
-          next unless node.arguments&.arguments&.first
-
-          name = PrismUtils.extract_literal_value(node.arguments.arguments.first)
-          next unless name
-
-          if (m = name.to_s.match(/\Aruby-(\d+)-(\d+)\z/))
-            version = Gem::Version.new("#{m[1]}.#{m[2]}")
-            if version < min_version
-              removed << name.to_s
-              nodes_to_remove << node
-            end
-          end
-        end
-
-        pruned = remove_nodes(content, nodes_to_remove, source: :kettle_jem_prism_appraisals_prune) do |node|
-          {
-            appraisal_name: PrismUtils.extract_literal_value(node.arguments.arguments.first).to_s,
-            appraisal_line: node.location.start_line,
-          }
-        end
+        actor = Kettle::Jem::Crispr::Delete.call(
+          content: content,
+          target: ruby_appraisal_prune_selector(min_version),
+          source_label: "Appraisals",
+        )
+        removed = actor.matches.filter_map { |match| match.metadata[:appraisal_name] }
+        pruned = actor.updated_content
 
         # Collapse runs of 3+ consecutive newlines down to 2 (one blank line)
         pruned.gsub!(/\n{3,}/, "\n\n")
@@ -132,6 +110,30 @@ module Kettle
       # Helper: Check if node is an appraise block call
       def appraise_call?(node)
         PrismUtils.block_call_to?(node, :appraise)
+      end
+
+      def ruby_appraisal_prune_selector(min_version)
+        Kettle::Jem::Crispr::Selectors.owner_filter(
+          id: "appraisals_ruby_min_prune",
+          limit: {at_least: 0},
+        ) do |_context, owner|
+          next unless appraise_call?(owner)
+          next unless owner.arguments&.arguments&.first
+
+          name = PrismUtils.extract_literal_value(owner.arguments.arguments.first)
+          next unless name
+
+          match = name.to_s.match(/\Aruby-(\d+)-(\d+)\z/)
+          next unless match
+
+          version = Gem::Version.new("#{match[1]}.#{match[2]}")
+          next unless version < min_version
+
+          {
+            appraisal_name: name.to_s,
+            appraisal_line: owner.location.start_line,
+          }
+        end
       end
 
       def build_runtime_context(context, min_ruby:)

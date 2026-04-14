@@ -19,20 +19,13 @@ module Kettle
     #
     # === Migration note (Phase 6 — AST over regex)
     #
-    # Section preservation uses PartialTemplateMerger (PTM) from markly-merge
-    # with swapped template/destination roles:
+    # Section preservation is CRISPR-backed: Markly provides heading ownership,
+    # CRISPR selects the heading-owned section span, and the destination body is
+    # spliced over that owned range while keeping the template heading text.
     #
-    # - PTM +destination:+ = the running document (starts as the token-resolved template)
-    # - PTM +template:+ = the extracted section content from the original destination
-    # - PTM +replace_mode: true+ stamps the destination's section over the template's
-    #
-    # This is conceptually inverted (the "template" argument holds destination content),
-    # but mechanically correct: PTM locates a section in its +destination:+ argument and
-    # replaces it with its +template:+ argument.
-    #
-    # H1 preservation remains line-based because an H1 section spans the entire document
-    # in Markdown heading-level semantics, making PTM section replacement unsuitable.
-    # This is an accepted narrow text operation per the migration plan.
+    # H1 preservation remains line-based because an H1 section spans the entire
+    # document in Markdown heading-level semantics, making a whole-section
+    # replacement unsuitable for a single-line H1 swap.
     #
     # @example
     #   merged = MarkdownMerger.merge(
@@ -90,12 +83,7 @@ module Kettle
       end
 
       # Replace designated sections in the template with their destination
-      # counterparts using PartialTemplateMerger in replace_mode.
-      #
-      # For each preserved section found in both template and destination,
-      # PTM is invoked with roles swapped:
-      #   PTM destination: = running document (template being modified)
-      #   PTM template:    = section content extracted from original destination
+      # counterparts using CRISPR heading-section ownership.
       #
       # @param template [String] The resolved template content (base document)
       # @param destination [String] The original destination content
@@ -114,8 +102,8 @@ module Kettle
         running = template
 
         # Process each section that should be preserved from destination.
-        # Order doesn't matter because each PTM call re-parses the running
-        # document and targets by heading text, not by line index.
+        # Order doesn't matter because each CRISPR replacement re-parses the
+        # running document and targets by structural heading ownership.
         src_sections[:sections].each do |sec|
           next unless preserve_targets.include?(sec[:base])
 
@@ -127,19 +115,17 @@ module Kettle
           # Build the replacement content: heading (from template) + body (from destination)
           replacement_content = [sec[:heading], dest_entry[:body_branch]].join("\n")
 
-          # Use PTM with replace_mode to swap the template's section with destination's.
-          # Roles are inverted: PTM "template:" holds the destination content to inject,
-          # and PTM "destination:" holds the running document being modified.
-          result = Markly::Merge::PartialTemplateMerger.new(
-            template: replacement_content,
-            destination: running,
-            anchor: {type: :heading, text: build_anchor_pattern(sec[:heading_text])},
-            replace_mode: true,
-            when_missing: :skip,
-            backend: :markly,
-          ).merge
+          result = Kettle::Jem::Crispr::Replace.call(
+            content: running,
+            target: Kettle::Jem::Crispr::Selectors.heading_section(
+              heading_text: sec[:heading_text],
+              level: sec[:level],
+            ),
+            replacement: replacement_content,
+            source_label: "README.md",
+          )
 
-          running = result.content if result.changed
+          running = result.updated_content if result.changed
         end
 
         running
@@ -150,7 +136,7 @@ module Kettle
       #
       # This remains line-based because an H1 heading section encompasses the
       # entire Markdown document (no same-or-higher-level heading follows), so
-      # PTM section replacement cannot be used for a single-line H1 swap.
+      # whole-section replacement cannot be used for a single-line H1 swap.
       #
       # @param merged [String] Current merged content
       # @param destination [String] Original destination content
@@ -185,24 +171,11 @@ module Kettle
         ).merged_content
       end
 
-      # Build an anchor pattern for matching a heading by its exact rendered text.
-      #
-      # Markly heading nodes expose text with a trailing newline, so the pattern
-      # uses +\s*\z+ to absorb any trailing whitespace.
-      #
-      # @param text [String] Heading text content without the leading markdown hashes
-      # @return [Regexp] Pattern that matches the heading content
-      def build_anchor_pattern(text)
-        /\A\s*#{Regexp.escape(text.to_s.strip)}\s*\z/i
-      end
-
       # ----------------------------------------------------------------
       # Section extraction helpers
       #
-      # These parse destination content to extract section bodies for use
-      # as PTM replacement templates. They use lightweight line-scanning
-      # (not AST parsing) because the extraction is simple and the heavy
-      # structural work (splicing) is delegated to PTM.
+      # These parse destination content to extract section bodies for CRISPR
+      # replacement templates and H1 preservation decisions.
       # ----------------------------------------------------------------
 
       # Parse Markdown into a sections structure.

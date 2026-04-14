@@ -2,5 +2,10 @@
 
 lambda do |content:, context:, **|
   min_ruby = context[:min_ruby]
-  Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(content, min_ruby: min_ruby).first
+  pruned_content, removed = Kettle::Jem::PrismAppraisals.prune_ruby_appraisals(content, min_ruby: min_ruby)
+  {
+    content: pruned_content,
+    changed: pruned_content != content,
+    stats: {removed_appraisals: removed},
+  }
 end
