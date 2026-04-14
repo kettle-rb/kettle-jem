@@ -107,6 +107,16 @@ To run all tests
 bundle exec rake test
 ```
 
+Run tests via `kettle-test` (provided by `kettle-test`). It runs RSpec, writes the full log to
+`tmp/kettle-test/rspec-TIMESTAMP.log`, and prints a compact highlight block with timing, seed,
+pass/fail count, failing example list, and SimpleCov coverage percentages.
+
+```console
+bundle exec kettle-test
+```
+
+For targeted runs, disable the hard coverage threshold to avoid false failures:
+
 ```console
 K_SOUP_COV_MIN_HARD=false bundle exec kettle-test spec/path/to/spec.rb
 ```
@@ -118,9 +128,8 @@ K_SOUP_COV_MIN_HARD=false bundle exec kettle-test spec/path/to/spec.rb
 
 ## Self-Test (Template Validation)
 
-Run tests via `kettle-test` (provided by `kettle-test`). It runs RSpec, writes the full log to
-`tmp/kettle-test/rspec-TIMESTAMP.log`, and prints a compact highlight block with timing, seed,
-pass/fail count, failing example list, and SimpleCov coverage percentages.
+For ordinary local spec runs, use the `kettle-test` commands in the [Run Tests](#run-tests)
+section above. The steps below are only for validating `kettle-jem` templating itself.
 
 ### Running the self-test
 
