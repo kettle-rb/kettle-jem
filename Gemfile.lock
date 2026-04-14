@@ -24,6 +24,31 @@ PATH
       version_gem (~> 1.1, >= 1.1.9)
 
 PATH
+  remote: /home/pboling/src/kettle-rb/ast-crispr-markdown-markly
+  specs:
+    ast-crispr-markdown-markly (0.1.0)
+      ast-crispr (~> 0.1)
+      ast-merge (~> 5.0, >= 5.0.0)
+      markly-merge (~> 2.0)
+      version_gem (~> 1.1, >= 1.1.9)
+
+PATH
+  remote: /home/pboling/src/kettle-rb/ast-crispr-ruby-prism
+  specs:
+    ast-crispr-ruby-prism (0.1.0)
+      ast-crispr (~> 0.1)
+      prism (~> 1.6)
+      version_gem (~> 1.1, >= 1.1.9)
+
+PATH
+  remote: /home/pboling/src/kettle-rb/ast-crispr
+  specs:
+    ast-crispr (0.1.0)
+      ast-merge (~> 5.0, >= 5.0.0)
+      service_actor (~> 3.9)
+      version_gem (~> 1.1, >= 1.1.9)
+
+PATH
   remote: /home/pboling/src/kettle-rb/ast-merge
   specs:
     ast-merge (5.0.0)
@@ -491,6 +516,9 @@ PLATFORMS
 DEPENDENCIES
   addressable (>= 2.8, < 3)
   appraisal2 (~> 3.0, >= 3.0.6)
+  ast-crispr!
+  ast-crispr-markdown-markly!
+  ast-crispr-ruby-prism!
   ast-merge!
   bash-merge!
   benchmark (~> 0.5, >= 0.5.0)
@@ -551,6 +579,9 @@ CHECKSUMS
   ansi (1.6.0) sha256=ac9ea0c0ea8d32fb4e271348e609963ac78882f34b73836c2a02b3622e666658
   appraisal2 (3.0.6) sha256=09387896b6c8c8c0ff0749af691ddff5e3168de2f06b591a80d8fd8b6394d147
   ast (2.4.3) sha256=954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383
+  ast-crispr (0.1.0)
+  ast-crispr-markdown-markly (0.1.0)
+  ast-crispr-ruby-prism (0.1.0)
   ast-merge (5.0.0)
   backports (3.25.3) sha256=94298d32dc3c40ca15633b54e282780b49e2db0c045f602ea1907e4f63a17235
   bash-merge (3.0.0)
