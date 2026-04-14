@@ -588,6 +588,31 @@ RSpec.describe Kettle::Jem::Tasks::InstallTask do
       end
     end
 
+    it "updates homepage using FORGE_ORG when origin is unavailable" do
+      Dir.mktmpdir do |project_root|
+        gemspec = File.join(project_root, "demo.gemspec")
+        File.write(gemspec, <<~G)
+          Gem::Specification.new do |spec|
+            spec.name = "demo"
+            spec.homepage = "http://example.com/demo"
+          end
+        G
+
+        allow(helpers).to receive_messages(
+          project_root: project_root,
+          modified_by_template?: false,
+          template_results: {},
+        )
+
+        fake_git = instance_double(Kettle::Dev::GitAdapter, remote_url: nil, remotes_with_urls: {})
+        allow(Kettle::Dev::GitAdapter).to receive(:new).and_return(fake_git)
+
+        stub_env("force" => "true", "allowed" => "true", "FORGE_ORG" => "env-org")
+        described_class.run
+        expect(File.read(gemspec)).to match(/spec.homepage\s*=\s*"https:\/\/github.com\/env-org\/demo"/)
+      end
+    end
+
     it "skips homepage update when declined" do
       Dir.mktmpdir do |project_root|
         gemspec = File.join(project_root, "demo.gemspec")

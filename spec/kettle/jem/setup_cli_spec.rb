@@ -120,7 +120,6 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["include=foo/bar/**"])
       cli.instance_variable_set(:@verbose, true)
-      allow(cli).to receive(:rake_invocation).and_return(["bin/rake"])
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
@@ -196,6 +195,27 @@ RSpec.describe Kettle::Jem::SetupCLI do
       expect(cli).to receive(:handoff_to_bundled_phase!).ordered.and_return(nil)
 
       expect { cli.run! }.not_to raise_error
+    end
+
+    it "syncs development dependencies during preflight before the first bundle install" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@argv, [])
+      cli.instance_variable_set(:@original_argv, [])
+      cli.instance_variable_set(:@passthrough, [])
+      cli.send(:parse!)
+
+      allow(cli).to receive(:debug_bundler_env)
+      allow(cli).to receive(:debug_git_status)
+      allow(Kettle::Jem::TemplateHelpers).to receive(:gemspec_metadata).and_return({gem_name: "demo"})
+      allow(cli).to receive(:configure_preflight_tokens!)
+
+      expect(cli).to receive(:preflight_version_gem_bootstrap!).ordered
+      expect(cli).to receive(:preflight_merge_gemspec!).ordered
+      expect(cli).to receive(:ensure_dev_deps!).ordered
+      expect(cli).to receive(:preflight_merge_gemfile!).ordered
+      expect(cli).to receive(:preflight_merge_modular_gemfiles!).ordered
+
+      cli.send(:run_preflight_templating!)
     end
 
     it "runs the heavy setup steps only after bundler is active" do
@@ -364,6 +384,22 @@ RSpec.describe Kettle::Jem::SetupCLI do
 
       content = File.read("target.gemspec")
       # Expect at least one development dependency line to be present (from example)
+      expect(content).to match(/add_development_dependency\(\s*"rake"/)
+    end
+
+    it "falls back to the cwd gemspec when prechecks have not seeded @gemspec_path" do
+      File.write("target.gemspec", <<~RUBY)
+        Gem::Specification.new do |spec|
+          spec.name = "demo"
+          spec.version = "0.0.1"
+        end
+      RUBY
+      example_path = File.expand_path("../../../template/gem.gemspec.example", __dir__)
+      cli = setup_cli_for_deps(example_path)
+
+      cli.send(:ensure_dev_deps!)
+
+      content = File.read("target.gemspec")
       expect(content).to match(/add_development_dependency\(\s*"rake"/)
     end
 
@@ -1442,7 +1478,6 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
-      allow(cli).to receive(:rake_invocation).and_return(["bundle", "exec", "rake"])
       expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
@@ -1451,21 +1486,8 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@quiet, true)
       cli.instance_variable_set(:@passthrough, ["--quiet", "only=hooks"])
-      allow(cli).to receive(:rake_invocation).and_return(["bundle", "exec", "rake"])
 
       expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install --quiet only\\=hooks"), suppress_command_log: true)
-      cli.send(:run_kettle_install!)
-    end
-
-    it "falls back to plain rake when the bundle does not expose a rake executable yet" do
-      cli = described_class.allocate
-      cli.instance_variable_set(:@verbose, true)
-      cli.instance_variable_set(:@passthrough, ["only=hooks"])
-      allow(cli).to receive(:rake_invocation).and_call_original
-      allow(File).to receive(:exist?).with("bin/rake").and_return(false)
-      allow(cli).to receive(:bundle_includes_rake?).and_return(false)
-
-      expect(cli).to receive(:sh!).with(a_string_including("rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
   end

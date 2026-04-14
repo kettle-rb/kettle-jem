@@ -11,6 +11,8 @@ RSpec.describe "bundle gem scaffold + kettle-jem", :system do
   let(:base_env) { {"allowed" => "true"} }
   let(:kettle_jem_env) do
     base_env.merge(
+      "FORGE_ORG" => "kettle-rb",
+      "FUNDING_ORG" => "kettle-rb",
       "KJ_PROJECT_EMOJI" => "⭐️",
       "KJ_MIN_DIVERGENCE_THRESHOLD" => "0",
     )

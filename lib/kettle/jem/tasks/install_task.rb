@@ -16,6 +16,28 @@ module Kettle
           raise Kettle::Dev::Error, msg
         end
 
+        def explicit_env_org(env_key)
+          value = ENV[env_key].to_s.strip
+          return if value.empty?
+          return if value.match?(Kettle::Dev::ENV_FALSE_RE)
+          return if value.match?(/\{KJ\|[^}]+}/)
+
+          value
+        end
+
+        def gemspec_name_from_source(content, gemspec_path)
+          spec = Gem::Specification.load(gemspec_path)
+          name = spec&.name.to_s.strip
+          return name unless name.empty?
+
+          File.basename(gemspec_path, ".gemspec")
+        rescue StandardError
+          match = content.match(/\bspec\.name\s*=\s*["']([^"']+)["']/)
+          return match[1].strip if match
+
+          File.basename(gemspec_path, ".gemspec")
+        end
+
         def mise_installed?
           path = ENV.fetch("PATH", "").to_s
           return false if path.empty?
@@ -215,17 +237,23 @@ module Kettle
                   end
 
                   org_repo = github_repo_from_url.call(origin_url)
-                  unless org_repo
-                    puts "ERROR: git remote 'origin' is not a GitHub URL (or not found): #{origin_url.empty? ? "(none)" : origin_url}"
-                    puts "To complete installation: set your GitHub repository as the 'origin' remote, and move any other forge to an alternate name."
-                    puts "Example:"
-                    puts "  git remote rename origin something_else"
-                    puts "  git remote add origin https://github.com/<org>/<repo>.git"
-                    puts "After fixing, re-run: rake kettle:jem:install"
-                    task_abort("Aborting: homepage cannot be corrected without a GitHub origin remote.")
+                  if org_repo
+                    org, repo = org_repo
+                  else
+                    org = explicit_env_org("FORGE_ORG")
+                    repo = gemspec_name_from_source(content, gemspec_path)
+                    unless org && !repo.to_s.strip.empty?
+                      puts "ERROR: git remote 'origin' is not a GitHub URL (or not found): #{origin_url.empty? ? "(none)" : origin_url}"
+                      puts "To complete installation: either set ENV['FORGE_ORG'] or configure a GitHub 'origin' remote."
+                      puts "Examples:"
+                      puts "  FORGE_ORG=<org> rake kettle:jem:install"
+                      puts "  git remote rename origin something_else"
+                      puts "  git remote add origin https://github.com/<org>/<repo>.git"
+                      puts "After fixing, re-run: rake kettle:jem:install"
+                      task_abort("Aborting: homepage cannot be corrected without FORGE_ORG or a GitHub origin remote.")
+                    end
                   end
 
-                  org, repo = org_repo
                   suggested = "https://github.com/#{org}/#{repo}"
 
                   unless TemplateTask.quiet?

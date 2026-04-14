@@ -172,6 +172,10 @@ module Kettle
         # pattern can resolve the constant immediately when bundler evaluates it.
         preflight_version_gem_bootstrap!(helpers, meta)
         preflight_merge_gemspec!(helpers, meta, gem_name)
+        # Ensure the first bundle install sees the template-required toolchain.
+        # The bundled handoff assumes pre-flight has already made the gemspec
+        # bundler-safe, including development deps like rake.
+        ensure_dev_deps!
         preflight_merge_gemfile!(helpers, gem_name)
         preflight_merge_modular_gemfiles!(helpers, gem_name)
       end
@@ -670,6 +674,8 @@ module Kettle
       def ensure_dev_deps!
         source_example = installed_path("gem.gemspec.example")
         abort!("Internal error: gem.gemspec.example not found within the installed gem.") unless source_example && File.exist?(source_example)
+        @gemspec_path ||= Dir["*.gemspec"].first
+        abort!("No gemspec found in current directory.") unless @gemspec_path && File.exist?(@gemspec_path)
 
         example = File.read(source_example)
         doc = Token::Resolver::Document.new(example)
@@ -1152,27 +1158,9 @@ module Kettle
 
       # 9. Invoke rake install task with passthrough
       def run_kettle_install!
-        cmd = kettle_install_command
+        rake_cmd = File.exist?("bin/rake") ? ["bin/rake"] : ["bundle", "exec", "rake"]
+        cmd = rake_cmd + ["kettle:jem:install"] + Array(@passthrough)
         sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
-      end
-
-      def kettle_install_command
-        rake_invocation + ["kettle:jem:install"] + Array(@passthrough)
-      end
-
-      def rake_invocation
-        return ["bin/rake"] if File.exist?("bin/rake")
-        return ["bundle", "exec", "rake"] if bundle_includes_rake?
-
-        ["rake"]
-      end
-
-      def bundle_includes_rake?
-        return false unless defined?(Bundler)
-
-        Bundler.load.specs.any? { |spec| spec.name == "rake" }
-      rescue StandardError
-        false
       end
 
       # Resolve a path to a templated asset shipped within the installed gem or repo checkout.
