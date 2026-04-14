@@ -120,6 +120,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@passthrough, ["include=foo/bar/**"])
       cli.instance_variable_set(:@verbose, true)
+      allow(cli).to receive(:rake_invocation).and_return(["bin/rake"])
       expect(cli).to receive(:sh!).with(a_string_including("bin/rake kettle:jem:install include\\=foo/bar/\\*\\*"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
@@ -1441,6 +1442,7 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@verbose, true)
       cli.instance_variable_set(:@passthrough, ["only=hooks"])
+      allow(cli).to receive(:rake_invocation).and_return(["bundle", "exec", "rake"])
       expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
@@ -1449,8 +1451,21 @@ RSpec.describe Kettle::Jem::SetupCLI do
       cli = described_class.allocate
       cli.instance_variable_set(:@quiet, true)
       cli.instance_variable_set(:@passthrough, ["--quiet", "only=hooks"])
+      allow(cli).to receive(:rake_invocation).and_return(["bundle", "exec", "rake"])
 
       expect(cli).to receive(:sh!).with(a_string_including("bundle exec rake kettle:jem:install --quiet only\\=hooks"), suppress_command_log: true)
+      cli.send(:run_kettle_install!)
+    end
+
+    it "falls back to plain rake when the bundle does not expose a rake executable yet" do
+      cli = described_class.allocate
+      cli.instance_variable_set(:@verbose, true)
+      cli.instance_variable_set(:@passthrough, ["only=hooks"])
+      allow(cli).to receive(:rake_invocation).and_call_original
+      allow(File).to receive(:exist?).with("bin/rake").and_return(false)
+      allow(cli).to receive(:bundle_includes_rake?).and_return(false)
+
+      expect(cli).to receive(:sh!).with(a_string_including("rake kettle:jem:install only\\=hooks"), suppress_command_log: false)
       cli.send(:run_kettle_install!)
     end
   end

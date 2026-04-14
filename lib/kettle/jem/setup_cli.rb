@@ -1152,9 +1152,27 @@ module Kettle
 
       # 9. Invoke rake install task with passthrough
       def run_kettle_install!
-        rake_cmd = File.exist?("bin/rake") ? ["bin/rake"] : ["bundle", "exec", "rake"]
-        cmd = rake_cmd + ["kettle:jem:install"] + Array(@passthrough)
+        cmd = kettle_install_command
         sh!(Shellwords.join(cmd), suppress_command_log: quiet?)
+      end
+
+      def kettle_install_command
+        rake_invocation + ["kettle:jem:install"] + Array(@passthrough)
+      end
+
+      def rake_invocation
+        return ["bin/rake"] if File.exist?("bin/rake")
+        return ["bundle", "exec", "rake"] if bundle_includes_rake?
+
+        ["rake"]
+      end
+
+      def bundle_includes_rake?
+        return false unless defined?(Bundler)
+
+        Bundler.load.specs.any? { |spec| spec.name == "rake" }
+      rescue StandardError
+        false
       end
 
       # Resolve a path to a templated asset shipped within the installed gem or repo checkout.
