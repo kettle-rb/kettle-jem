@@ -1,0 +1,21 @@
+{
+  "KETTLE_JEM_PLUGINS.md:2415586296": [
+    [59, 98, 1, "Lint/Syntax: unexpected token tRCURLY\n(Using Ruby 3.2 parser; configure using `TargetRubyVersion` parameter, under `AllCops`)", 177624],
+    [60, 98, 1, "Lint/Syntax: unexpected token tRCURLY\n(Using Ruby 3.2 parser; configure using `TargetRubyVersion` parameter, under `AllCops`)", 177624],
+    [61, 53, 3, "Lint/Syntax: unexpected token tBDOT3\n(Using Ruby 3.2 parser; configure using `TargetRubyVersion` parameter, under `AllCops`)", 193347403],
+    [140, 1, 0, "Lint/Syntax: unexpected token $end\n(Using Ruby 3.2 parser; configure using `TargetRubyVersion` parameter, under `AllCops`)", 5381]
+  ],
+  "lib/kettle/jem/phases/template_run.rb:15010465": [
+    [45, 9, 56, "Style/ClassMethodsDefinitions: Use `class << self` to define a class method.", 3761473645]
+  ],
+  "lib/kettle/jem/prism_appraisals.rb:302090562": [
+    [130, 11, 33, "Style/InvertibleUnlessCondition: Prefer `if version >= min_version` over `unless version < min_version`.", 180366297]
+  ],
+  "lib/kettle/jem/setup_cli.rb:3519142599": [
+    [572, 24, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361],
+    [573, 24, 10, "ThreadSafety/NewThread: Avoid starting new threads.", 3411682361]
+  ],
+  "spec/kettle/jem/gemspec_packaging_spec.rb:727211560": [
+    [3, 16, 30, "RSpec/DescribeClass: The first argument to describe should be the class or module being tested.", 3255969944]
+  ]
+}
