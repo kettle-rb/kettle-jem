@@ -426,7 +426,7 @@ module Kettle
                     node: owner,
                     start_line: owner.location.start_line,
                     end_line: end_line,
-                    metadata: (match == true ? {} : match.to_h),
+                    metadata: ((match == true) ? {} : match.to_h),
                   )
                 end
               end
