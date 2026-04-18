@@ -4800,6 +4800,110 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
           end
         end
 
+        it "merges legacy commit-msg hooks as ruby even without explicit file_type config" do
+          Dir.mktmpdir do |gem_root|
+            Dir.mktmpdir do |project_root|
+              template_root = File.join(gem_root, "template")
+              hooks_src = File.join(template_root, ".git-hooks")
+              FileUtils.mkdir_p(hooks_src)
+
+              hook_template = <<~RUBY
+                #!/usr/bin/env ruby
+                # vim: set syntax=ruby
+
+                # kettle-jem:freeze
+                # To retain chunks of comments & code during kettle-jem templating:
+                # Wrap custom sections with freeze markers (e.g., as above and below this comment chunk).
+                # kettle-jem will then preserve content between those markers across template runs.
+                # kettle-jem:unfreeze
+
+                # Do not rely on Bundler; allow running outside a Bundler context
+                begin
+                  require "rubygems"
+                rescue LoadError
+                  # continue
+                end
+
+                begin
+                  # External gems
+                  require "gitmoji/regex"
+
+                  full_text = File.read(ARGV[0])
+                  # Is the first character a GitMoji?
+                  gitmoji_index = full_text =~ Gitmoji::Regex::REGEX
+                  if gitmoji_index == 0
+                    exit(0)
+                  else
+                    denied = <<~EOM
+                      Oh snap, think again...
+                    EOM
+                    puts denied
+                    exit(1)
+                  end
+                rescue LoadError => e
+                  warn(e.message)
+                  exit(0)
+                end
+              RUBY
+              File.write(File.join(hooks_src, "commit-msg.example"), hook_template)
+
+              FileUtils.mkdir_p(File.join(project_root, ".git-hooks"))
+              File.write(File.join(project_root, ".git-hooks", "commit-msg"), <<~RUBY)
+                #!/usr/bin/env ruby
+                # vim: set syntax=ruby
+
+                ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+
+                require "rubygems"
+                require "bundler/setup"
+
+                # External gems
+                require "gitmoji/regex"
+
+                full_text = File.read(ARGV[0])
+                # Is the first character a GitMoji?
+                gitmoji_index = full_text =~ Gitmoji::Regex::REGEX
+                if gitmoji_index == 0
+                  exit 0
+                else
+                  denied = <<EOM
+                Oh snap, think again...
+                EOM
+                  puts denied
+                  exit 1
+                end
+              RUBY
+
+              File.write(File.join(project_root, "demo.gemspec"), <<~GEMSPEC)
+                Gem::Specification.new do |spec|
+                  spec.name = "demo"
+                  spec.version = "0.1.0"
+                  spec.summary = "test"
+                  spec.authors = ["Test User"]
+                  spec.email = ["test@example.com"]
+                  spec.required_ruby_version = ">= 3.1"
+                  spec.homepage = "https://github.com/acme/demo"
+                end
+              GEMSPEC
+
+              allow(helpers).to receive_messages(
+                project_root: project_root,
+                template_root: template_root,
+                ensure_clean_git!: nil,
+                ask: true,
+              )
+
+              described_class.run
+
+              result = File.read(File.join(project_root, ".git-hooks", "commit-msg"))
+              expect(Prism.parse(result).errors).to be_empty
+              expect(result).to include('rescue LoadError => e')
+              expect(result).not_to include('require "bundler/setup"')
+              expect(result).not_to include("rescue LoadError\n  # continue\nbegin")
+            end
+          end
+        end
+
         it "prefers prepare-commit-msg.example over prepare-commit-msg when both exist" do
           Dir.mktmpdir do |gem_root|
             Dir.mktmpdir do |project_root|

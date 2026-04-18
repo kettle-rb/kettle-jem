@@ -427,7 +427,8 @@ module Kettle
         end
 
         def merge_file_type_for(rel, dest, helpers)
-          helpers.configured_file_type_for(dest) ||
+          standard_hook_file_type(rel) ||
+            helpers.configured_file_type_for(dest) ||
             if helpers.ruby_template?(dest)
               :ruby
             elsif yaml_file?(rel)
@@ -445,6 +446,17 @@ module Kettle
             else
               :text
             end
+        end
+
+        def standard_hook_file_type(rel)
+          normalized = rel.to_s.delete_prefix("./")
+
+          case normalized
+          when ".git-hooks/commit-msg"
+            :ruby
+          when ".git-hooks/prepare-commit-msg"
+            :bash
+          end
         end
 
         def write_templating_run_report(
