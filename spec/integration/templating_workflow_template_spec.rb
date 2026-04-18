@@ -16,4 +16,12 @@ RSpec.describe "templating workflow template" do # rubocop:disable RSpec/Describ
     expect(content.scan("Run tests via `kettle-test`").size).to eq(1)
     expect(content).to include("For ordinary local spec runs, use the `kettle-test` commands in the [Run Tests](#run-tests)")
   end
+
+  it "does not path-pin the current gem in the documentation local gemfile template" do
+    gemfile_path = File.join(Kettle::Jem::TemplateHelpers.template_root, "gemfiles", "modular", "documentation_local.gemfile.example")
+    content = File.read(gemfile_path)
+
+    expect(content).to include("local_gems = %w[yard-fence yard-timekeeper]")
+    expect(content).not_to include("yard-timekeeper yard-yaml")
+  end
 end

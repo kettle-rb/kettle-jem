@@ -104,4 +104,31 @@ RSpec.describe Kettle::Jem::Phases::DevContainer do
       end
     end
   end
+
+  it "falls back to template content when the destination JSON is unparseable" do
+    Dir.mktmpdir do |project_root|
+      Dir.mktmpdir do |template_root|
+        devcontainer_root = File.join(template_root, ".devcontainer")
+        FileUtils.mkdir_p(devcontainer_root)
+        File.write(File.join(devcontainer_root, "devcontainer.json.example"), %({"name":"template"}\n))
+
+        dest = File.join(project_root, ".devcontainer", "devcontainer.json")
+        FileUtils.mkdir_p(File.dirname(dest))
+        File.write(dest, "{ invalid json }\n")
+
+        template_results = {}
+        helpers = double("helpers", template_results: template_results)
+        out = double("out", phase: nil)
+        install_copy_stub(helpers, template_results)
+        allow(helpers).to receive(:prefer_example) { |path| path }
+        allow(helpers).to receive(:strategy_for).and_return(:merge)
+        allow(Json::Merge::SmartMerger).to receive(:new).and_raise(Json::Merge::DestinationParseError.new("bad destination"))
+        allow(Kernel).to receive(:warn)
+
+        described_class.call(context: build_context(helpers: helpers, out: out, project_root: project_root, template_root: template_root))
+
+        expect(File.read(dest)).to eq(%({"name":"template"}\n))
+      end
+    end
+  end
 end

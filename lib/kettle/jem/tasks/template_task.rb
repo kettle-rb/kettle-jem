@@ -330,24 +330,16 @@ module Kettle
                 add_template_only_nodes: true,
               ).merge
             elsif file_type == :markdown
-              # Markdown files (not README/CHANGELOG, which have dedicated steps):
-              # use SmartMerger with template preference. Fuzzy paragraph
-              # matching helps near-matching unmatched paragraphs align so they
-              # are not emitted separately. Fuzzy list matching pairs lists with
-              # similar content across minor wording differences; inner_merge_lists
-              # then merges those paired lists at the individual item level, using
-              # destination preference per item (preserving project customisations)
-              # and preventing the "growing list" bug caused by the CommonMark parser
-              # silently merging adjacent ordered lists into one larger list.
-              Markdown::Merge::SmartMerger.new(
-                content,
-                dest_content,
-                backend: :markly,
-                preference: :template,
-                add_template_only_nodes: true,
-                match_refiner: MARKDOWN_MATCH_REFINER,
-                inner_merge_lists: true,
-              ).merge
+              # Generic template-managed markdown documents converge more reliably
+              # when merged by heading section than by raw block alignment.
+              # Reuse the section-aware README merger with destination-preservation
+              # disabled so the template still wins structurally without growing
+              # repeated paragraphs, lists, or code blocks on successive runs.
+              Kettle::Jem::MarkdownMerger.merge(
+                template_content: content,
+                destination_content: dest_content,
+                preserve_config: {sections: [], patterns: []},
+              )
             elsif file_type == :bash
               # Shell / bash files: bash-merge
               Bash::Merge::SmartMerger.new(

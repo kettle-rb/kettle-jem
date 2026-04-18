@@ -54,10 +54,11 @@ module Kettle
                       freeze_token: "kettle-jem",
                     ).merge
                   end
-                rescue Ast::Merge::DestinationParseError => e
-                  Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; destination is unparseable, using template content")
                 rescue Ast::Merge::ParseError => e
-                  if Kettle::Jem::Tasks::TemplateTask.parse_error_mode == :skip
+                  if destination_parse_error?(e)
+                    Kernel.warn("[kettle-jem] #{File.basename(dest)}: #{e.message}; destination is unparseable, using template content")
+                    c = content
+                  elsif Kettle::Jem::Tasks::TemplateTask.parse_error_mode == :skip
                     Kernel.warn("[kettle-jem] #{File.basename(dest)}: SKIPPED — #{e.message}")
                     c = File.read(dest)
                   else
@@ -71,6 +72,10 @@ module Kettle
               c
             end
           end
+        end
+
+        def destination_parse_error?(error)
+          error.is_a?(Ast::Merge::DestinationParseError) || error.class.name.end_with?("::DestinationParseError")
         end
       end
     end

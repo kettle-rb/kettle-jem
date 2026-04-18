@@ -55,7 +55,8 @@ module Kettle
         )
 
         validated = validate_merged_result(merged, template_content: src_content, path: path, force: force)
-        normalize_leading_spacing_after_magic_comments(validated)
+        normalized = normalize_leading_spacing_after_magic_comments(validated)
+        preserve_leading_comment_block_gap(normalized, reference_content: dest_content)
       end
 
       # Merge top-level Gemfile declarations from src_content into dest_content.
@@ -153,6 +154,60 @@ module Kettle
         normalized_tail = tail[first_nonempty_index..]
         normalized = lines.first(header_end_index) + ["\n"] + normalized_tail
         normalized.join
+      end
+
+      def preserve_leading_comment_block_gap(content, reference_content:)
+        reference_info = leading_comment_block_gap_info(reference_content)
+        merged_info = leading_comment_block_gap_info(content)
+        return content unless reference_info && merged_info
+        return content if reference_info[:gap_count] == merged_info[:gap_count]
+        return content unless reference_info[:comment_lines] == merged_info[:comment_lines]
+
+        lines = content.to_s.lines
+        prefix = lines[0..merged_info[:comment_end_index]]
+        suffix = lines[merged_info[:first_code_index]..] || []
+
+        (prefix + Array.new(reference_info[:gap_count], "\n") + suffix).join
+      end
+
+      def leading_comment_block_gap_info(content)
+        lines = content.to_s.lines
+        return if lines.empty?
+
+        cursor = Prism::Merge::MagicCommentSupport.shebang_line?(lines.first) ? 1 : 0
+        header_magic_types = Prism::Merge::MagicCommentSupport.header_magic_comment_types_for_lines(lines)
+        cursor = [cursor, header_magic_types.keys.max.to_i].max
+
+        while cursor < lines.length && lines[cursor].strip.empty?
+          cursor += 1
+        end
+
+        comment_start_index = cursor
+
+        while cursor < lines.length
+          line = lines[cursor]
+          break if line.strip.empty? || !line.lstrip.start_with?("#")
+
+          cursor += 1
+        end
+
+        return if cursor == comment_start_index
+
+        comment_end_index = cursor - 1
+        gap_start_index = cursor
+
+        while cursor < lines.length && lines[cursor].strip.empty?
+          cursor += 1
+        end
+
+        return if cursor >= lines.length
+
+        {
+          comment_end_index: comment_end_index,
+          first_code_index: cursor,
+          gap_count: cursor - gap_start_index,
+          comment_lines: lines[comment_start_index..comment_end_index],
+        }
       end
     end
   end

@@ -492,6 +492,208 @@ RSpec.describe Kettle::Jem::Tasks::TemplateTask do
         end
       end
 
+      describe "workflow/license helper methods" do
+        describe "::migrate_license_txt!" do
+          it "moves MIT copyright lines into LICENSE.md and deletes LICENSE.txt" do
+            Dir.mktmpdir do |dir|
+              File.write(File.join(dir, "LICENSE.txt"), <<~TEXT)
+                Copyright (c) 2026 Example Dev
+
+                Permission is hereby granted, free of charge, to any person obtaining a copy
+                of this software and associated documentation files (the "Software"), to deal
+                in the Software without restriction.
+              TEXT
+              File.write(File.join(dir, "LICENSE.md"), <<~MARKDOWN)
+                # License
+
+                Copyright (c) 2026 Template Fallback
+              MARKDOWN
+
+              helpers = double("helpers", resolved_licenses: ["MIT"])
+              allow(helpers).to receive(:polyform_licenses?).with(["MIT"]).and_return(false)
+
+              described_class.send(:migrate_license_txt!, helpers: helpers, project_root: dir)
+
+              expect(File.exist?(File.join(dir, "LICENSE.txt"))).to be(false)
+              expect(File.read(File.join(dir, "LICENSE.md"))).to eq(<<~MARKDOWN)
+                # License
+
+
+                ## Copyright Notice
+
+                Copyright (c) 2026 Example Dev
+              MARKDOWN
+            end
+          end
+
+          it "prefixes migrated copyright lines for polyform license sets" do
+            Dir.mktmpdir do |dir|
+              File.write(File.join(dir, "LICENSE.txt"), <<~TEXT)
+                Copyright (c) 2026 Example Dev
+
+                Permission is hereby granted, free of charge, to any person obtaining a copy
+                of this software and associated documentation files (the "Software"), to deal
+                in the Software without restriction.
+              TEXT
+              File.write(File.join(dir, "LICENSE.md"), <<~MARKDOWN)
+                # License
+
+                Required Notice: Copyright (c) 2026 Template Fallback
+              MARKDOWN
+
+              helpers = double("helpers", resolved_licenses: ["PolyForm-Perimeter-1.0.0", "MIT"])
+              allow(helpers).to receive(:polyform_licenses?).with(["PolyForm-Perimeter-1.0.0", "MIT"]).and_return(true)
+
+              described_class.send(:migrate_license_txt!, helpers: helpers, project_root: dir)
+
+              expect(File.read(File.join(dir, "LICENSE.md"))).to include("Required Notice: Copyright (c) 2026 Example Dev")
+            end
+          end
+
+          it "leaves non-MIT LICENSE.txt files in place" do
+            Dir.mktmpdir do |dir|
+              File.write(File.join(dir, "LICENSE.txt"), "All rights reserved.\n")
+              helpers = double("helpers", resolved_licenses: ["Proprietary"])
+              allow(helpers).to receive(:polyform_licenses?).and_return(false)
+
+              described_class.send(:migrate_license_txt!, helpers: helpers, project_root: dir)
+
+              expect(File.exist?(File.join(dir, "LICENSE.txt"))).to be(true)
+              expect(File.exist?(File.join(dir, "LICENSE.md"))).to be(false)
+            end
+          end
+        end
+
+        describe "::prune_workflow_matrix_by_appraisals" do
+          let(:workflow) do
+            <<~YAML
+              jobs:
+                test:
+                  strategy:
+                    matrix:
+                      include:
+                        # keep
+                        - appraisal: rails_7
+                          ruby: ruby
+                        # remove
+                        - appraisal: rails_6
+                          ruby: ruby
+            YAML
+          end
+
+          it "removes matching appraisal entries and their leading comments" do
+            content, removed_count, total_count, empty = described_class.send(
+              :prune_workflow_matrix_by_appraisals,
+              workflow,
+              %w[rails_6],
+            )
+
+            expect(content).to include("rails_7")
+            expect(content).not_to include("rails_6")
+            expect(content).not_to include("# remove")
+            expect(removed_count).to eq(1)
+            expect(total_count).to eq(2)
+            expect(empty).to be(false)
+          end
+
+          it "reports an empty matrix when all appraisal entries are removed" do
+            _content, removed_count, total_count, empty = described_class.send(
+              :prune_workflow_matrix_by_appraisals,
+              workflow,
+              %w[rails_7 rails_6],
+            )
+
+            expect(removed_count).to eq(2)
+            expect(total_count).to eq(2)
+            expect(empty).to be(true)
+          end
+
+          it "returns the original content when parsing fails or nothing is requested" do
+            expect(
+              described_class.send(:prune_workflow_matrix_by_appraisals, workflow, []),
+            ).to eq([workflow, 0, 0, false])
+            expect(
+              described_class.send(:prune_workflow_matrix_by_appraisals, "jobs:\n  test: [\n", %w[rails_6]),
+            ).to eq(["jobs:\n  test: [\n", 0, 0, false])
+          end
+        end
+
+        describe "::prune_workflow_matrix_by_engines" do
+          let(:workflow) do
+            <<~YAML
+              jobs:
+                test:
+                  strategy:
+                    matrix:
+                      include:
+                        # keep
+                        - ruby: ruby
+                          appraisal: default
+                        # remove
+                        - ruby: jruby-head
+                          appraisal: jruby
+            YAML
+          end
+
+          it "removes matrix entries for disabled engines and their leading comments" do
+            content, removed_count, total_count, empty = described_class.send(
+              :prune_workflow_matrix_by_engines,
+              workflow,
+              %w[ruby],
+            )
+
+            expect(content).to include("ruby: ruby")
+            expect(content).not_to include("jruby-head")
+            expect(content).not_to include("# remove")
+            expect(removed_count).to eq(1)
+            expect(total_count).to eq(2)
+            expect(empty).to be(false)
+          end
+
+          it "returns the original content when all engines remain enabled or parsing fails" do
+            expect(
+              described_class.send(:prune_workflow_matrix_by_engines, workflow, %w[ruby jruby]),
+            ).to eq([workflow, 0, 0, false])
+            expect(
+              described_class.send(:prune_workflow_matrix_by_engines, "jobs:\n  test: [\n", %w[ruby]),
+            ).to eq(["jobs:\n  test: [\n", 0, 0, false])
+          end
+        end
+
+        describe "::discovered_grammar_toml_fragment" do
+          it "builds an env fragment for newly discovered grammar paths only" do
+            stub_const("#{described_class}::TREE_SITTER_GRAMMAR_LANGUAGES", %w[ruby bash])
+            bash_finder = instance_double(TreeHaver::GrammarFinder, find_library_path: "/tmp/libtree-sitter-bash.so")
+
+            allow(TreeHaver::GrammarFinder).to receive(:new).with("bash").and_return(bash_finder)
+
+            fragment = described_class.send(
+              :discovered_grammar_toml_fragment,
+              "[env]\nTREE_SITTER_RUBY_PATH = \"/tmp/libtree-sitter-ruby.so\"\n",
+            )
+
+            expect(fragment).to eq(<<~TOML)
+              [env]
+              TREE_SITTER_BASH_PATH = "/tmp/libtree-sitter-bash.so"
+            TOML
+          end
+
+          it "returns nil when no new grammar paths are found" do
+            stub_const("#{described_class}::TREE_SITTER_GRAMMAR_LANGUAGES", %w[ruby bash])
+            ruby_finder = instance_double(TreeHaver::GrammarFinder, find_library_path: nil)
+            bash_finder = instance_double(TreeHaver::GrammarFinder)
+
+            allow(TreeHaver::GrammarFinder).to receive(:new).with("ruby").and_return(ruby_finder)
+            allow(TreeHaver::GrammarFinder).to receive(:new).with("bash").and_return(bash_finder)
+            allow(bash_finder).to receive(:find_library_path).and_raise(StandardError, "boom")
+
+            fragment = described_class.send(:discovered_grammar_toml_fragment, "")
+
+            expect(fragment).to be_nil
+          end
+        end
+      end
+
       describe "::templating_run_status" do
         let(:helpers) { double("helpers") }
 

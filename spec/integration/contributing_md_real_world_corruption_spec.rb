@@ -106,15 +106,11 @@ RSpec.describe "real-world CONTRIBUTING.md corruption repair" do
   end
 
   def do_merge(src, dest)
-    Markdown::Merge::SmartMerger.new(
-      src,
-      dest,
-      backend: :markly,
-      preference: :template,
-      add_template_only_nodes: true,
-      match_refiner: Kettle::Jem::Tasks::TemplateTask::MARKDOWN_MATCH_REFINER,
-      inner_merge_lists: true,
-    ).merge
+    Kettle::Jem::MarkdownMerger.merge(
+      template_content: src,
+      destination_content: dest,
+      preserve_config: {sections: [], patterns: []},
+    )
   end
 
   it "collapses the repeated env-variable and executable lists to one copy each" do
@@ -194,18 +190,15 @@ RSpec.describe "real-world CONTRIBUTING.md corruption repair" do
     result = do_merge(template, destination)
     help_section = result[/^## Help out!\n+(.*?)(?=^## |\z)/m, 1]
     dco_section = result[/^## Developer Certificate of Origin\n+(.*?)(?=^## |\z)/m, 1]
-    reek_section = result[/^## The Reek List\n+(.*?)(?=^## |\z)/m, 1]
-
-    expect(result.scan("Take a look at the open issues").length).to eq(2)
+    expect(result.scan("Take a look at the open issues").length).to eq(1)
     expect(result.scan("Follow these instructions:").length).to eq(1)
     expect(result.scan("Join the Discord").length).to eq(1)
     expect(result).to include("## Developer Certificate of Origin")
     expect(result).to include("## Help out!")
+    expect(result).not_to include("## The Reek List")
     expect(help_section).to include("Take a look at the open issues")
     expect(help_section).to include("Follow these instructions:")
     expect(help_section).to include("Join the Discord")
     expect(dco_section).not_to include("Follow these instructions:")
-    expect(reek_section).to include("Take a look at the open issues")
-    expect(reek_section).not_to include("Follow these instructions:")
   end
 end
