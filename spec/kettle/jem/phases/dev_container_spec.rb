@@ -131,4 +131,51 @@ RSpec.describe Kettle::Jem::Phases::DevContainer do
       end
     end
   end
+
+  it "retries JSON merge after stripping destination trailing commas" do
+    Dir.mktmpdir do |project_root|
+      Dir.mktmpdir do |template_root|
+        devcontainer_root = File.join(template_root, ".devcontainer")
+        FileUtils.mkdir_p(devcontainer_root)
+        File.write(File.join(devcontainer_root, "devcontainer.json.example"), %({"name":"template"}\n))
+
+        dest = File.join(project_root, ".devcontainer", "devcontainer.json")
+        FileUtils.mkdir_p(File.dirname(dest))
+        File.write(dest, <<~JSONC)
+          {
+            "customizations": {
+              "jetbrains": {
+                "backend": "RubyMine"
+              }
+            },
+
+            // "remoteUser": "root"
+          }
+        JSONC
+
+        template_results = {}
+        helpers = double("helpers", template_results: template_results)
+        out = double("out", phase: nil)
+        install_copy_stub(helpers, template_results)
+        allow(helpers).to receive(:prefer_example) { |path| path }
+        allow(helpers).to receive(:strategy_for).and_return(:merge)
+
+        allow(Json::Merge::SmartMerger).to receive(:new).and_wrap_original do |_orig, template_content, destination_content, **options|
+          if destination_content.include?("},")
+            raise Json::Merge::DestinationParseError.new("bad destination")
+          end
+
+          instance_double(Json::Merge::SmartMerger, merge: destination_content)
+        end
+        allow(Kernel).to receive(:warn)
+
+        described_class.call(context: build_context(helpers: helpers, out: out, project_root: project_root, template_root: template_root))
+
+        result = File.read(dest)
+        expect(result).to include('"backend": "RubyMine"')
+        expect(result).not_to include("},\n\n  // \"remoteUser\"")
+        expect(Kernel).to have_received(:warn).with(include("retrying merge with sanitized JSON"))
+      end
+    end
+  end
 end
