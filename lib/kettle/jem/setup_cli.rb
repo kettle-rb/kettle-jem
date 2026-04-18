@@ -263,8 +263,7 @@ module Kettle
         target_content = File.read("Gemfile")
 
         merged = Kettle::Jem::PrismGemfile.merge_gem_calls(template_content, target_content)
-        merged = remove_scaffold_default_gems(merged)
-        merged = remove_conflicting_gems(merged)
+        merged = remove_preflight_managed_gems(merged, helpers)
 
         if merged != target_content
           File.write("Gemfile", ensure_trailing_newline(merged))
@@ -282,11 +281,7 @@ module Kettle
         source_dir = installed_path(File.join("gemfiles", "modular"))
         return unless source_dir && File.directory?(source_dir)
 
-        # Walk every template file in the installed modular gemfiles tree.
-        # installed_path / prefer_example already resolves .example variants,
-        # so we glob for *.gemfile.example and strip the .example suffix to
-        # derive the destination path.
-        Dir.glob(File.join(source_dir, "**", "*.gemfile.example")).sort.each do |source|
+        preflight_modular_template_sources(source_dir).each do |source|
           rel_from_modular = source
             .delete_prefix(source_dir + File::SEPARATOR)
             .delete_suffix(".example")
@@ -912,6 +907,71 @@ module Kettle
         Kettle::Jem::PrismGemfile::CONFLICTING_GEMS.reduce(content) do |acc, gem_name|
           Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
         end
+      end
+
+      def remove_preflight_managed_gems(content, helpers)
+        preflight_managed_gem_names(helpers).reduce(content) do |acc, gem_name|
+          Kettle::Jem::PrismGemfile.remove_gem_dependency(acc, gem_name)
+        end
+      end
+
+      def preflight_managed_gem_names(helpers)
+        @preflight_managed_gem_names ||= begin
+          names = []
+          names.concat(SCAFFOLD_DEFAULT_GEMS)
+          names.concat(Kettle::Jem::PrismGemfile::CONFLICTING_GEMS)
+          names.concat(modular_template_gem_names(helpers))
+          names.reject(&:nil?).map(&:to_s).reject(&:empty?).uniq.sort
+        end
+      end
+
+      def modular_template_gem_names(helpers)
+        source_dir = installed_path(File.join("gemfiles", "modular"))
+        return [] unless source_dir && File.directory?(source_dir)
+
+        preflight_modular_template_sources(source_dir).flat_map do |source|
+          extract_gem_names_from_gemfile_content(helpers.read_template(source))
+        rescue StandardError => e
+          Kettle::Dev.debug_error(e, __method__)
+          []
+        end
+      end
+
+      def preflight_modular_template_sources(source_dir)
+        candidates = Dir.glob([
+          File.join(source_dir, "**", "*.gemfile"),
+          File.join(source_dir, "**", "*.gemfile.example"),
+        ]).sort
+
+        candidates.each_with_object({}) do |path, selected|
+          rel = path.delete_prefix(source_dir + File::SEPARATOR).delete_suffix(".example")
+          current = selected[rel]
+          selected[rel] = path if current.nil? || path.end_with?(".example")
+        end.values.sort
+      end
+
+      def extract_gem_names_from_gemfile_content(content)
+        root = Prism.parse(content.to_s).value
+        return [] unless root
+
+        names = []
+        queue = [root]
+
+        until queue.empty?
+          node = queue.shift
+          if node.is_a?(Prism::CallNode) && node.name == :gem
+            first_arg = node.arguments&.arguments&.first
+            gem_name = Kettle::Jem::PrismUtils.extract_literal_value(first_arg)
+            names << gem_name.to_s if gem_name
+          end
+
+          queue.concat(node.child_nodes.compact) if node.respond_to?(:child_nodes)
+        end
+
+        names.reject(&:empty?).uniq
+      rescue StandardError => e
+        Kettle::Dev.debug_error(e, __method__)
+        []
       end
 
       # Text-based bootstrap-safe version of adding the templating eval_gemfile line.

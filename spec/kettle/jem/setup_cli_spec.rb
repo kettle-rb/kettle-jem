@@ -1178,6 +1178,115 @@ RSpec.describe Kettle::Jem::SetupCLI do
     end
   end
 
+  describe "#preflight_merge_gemfile!" do
+    around do |ex|
+      Dir.mktmpdir do |dir|
+        Dir.chdir(dir) { ex.run }
+      end
+    end
+
+    def stub_preflight_gemfile_sources(cli, gemfile_source:, modular_source_dir:)
+      allow(cli).to receive(:installed_path).and_wrap_original do |orig, rel|
+        case rel
+        when "Gemfile"
+          gemfile_source
+        when File.join("gemfiles", "modular")
+          modular_source_dir
+        else
+          orig.call(rel)
+        end
+      end
+    end
+
+    it "removes gems managed by modular gemfiles during preflight" do
+      File.write("Gemfile", <<~RUBY)
+        source "https://rubygems.org"
+
+        gem "debug"
+        gem "yard"
+        gem "future-new"
+        gem "local-only"
+        gem "appraisal"
+        gem "rake"
+        gem "custom"
+      RUBY
+
+      source_root = File.join(Dir.pwd, "template")
+      modular_source_dir = File.join(source_root, "gemfiles", "modular")
+      FileUtils.mkdir_p(modular_source_dir)
+
+      File.write(File.join(source_root, "Gemfile"), <<~RUBY)
+        source "https://gem.coop"
+
+        eval_gemfile "gemfiles/modular/templating.gemfile"
+      RUBY
+
+      File.write(File.join(modular_source_dir, "debug.gemfile.example"), <<~RUBY)
+        gem "debug"
+      RUBY
+      File.write(File.join(modular_source_dir, "documentation.gemfile.example"), <<~RUBY)
+        gem "yard"
+      RUBY
+      File.write(File.join(modular_source_dir, "future.gemfile.example"), <<~RUBY)
+        gem "future-new"
+      RUBY
+      File.write(File.join(modular_source_dir, "templating_local.gemfile.example"), <<~RUBY)
+        local_gems = %w[
+          local-only
+        ]
+      RUBY
+
+      cli = described_class.allocate
+      stub_preflight_gemfile_sources(
+        cli,
+        gemfile_source: File.join(source_root, "Gemfile"),
+        modular_source_dir: modular_source_dir,
+      )
+
+      cli.send(:preflight_merge_gemfile!, Kettle::Jem::TemplateHelpers, nil)
+
+      result = File.read("Gemfile")
+      expect(result).not_to include('gem "debug"')
+      expect(result).not_to include('gem "yard"')
+      expect(result).not_to include('gem "future-new"')
+      expect(result).not_to include('gem "appraisal"')
+      expect(result).not_to include('gem "rake"')
+      expect(result).to include('gem "local-only"')
+      expect(result).to include('gem "custom"')
+      expect(result).to include('eval_gemfile "gemfiles/modular/templating.gemfile"')
+    end
+
+    it "prefers .example modular sources when deriving managed gems" do
+      File.write("Gemfile", <<~RUBY)
+        source "https://rubygems.org"
+
+        gem "future-new"
+        gem "legacy-debug"
+      RUBY
+
+      source_root = File.join(Dir.pwd, "template")
+      modular_source_dir = File.join(source_root, "gemfiles", "modular")
+      FileUtils.mkdir_p(modular_source_dir)
+
+      File.write(File.join(source_root, "Gemfile"), "source \"https://gem.coop\"\n")
+      File.write(File.join(modular_source_dir, "future.gemfile"), "gem \"legacy-debug\"\n")
+      File.write(File.join(modular_source_dir, "future.gemfile.example"), "gem \"future-new\"\n")
+
+      cli = described_class.allocate
+      stub_preflight_gemfile_sources(
+        cli,
+        gemfile_source: File.join(source_root, "Gemfile"),
+        modular_source_dir: modular_source_dir,
+      )
+
+      cli.send(:preflight_merge_gemfile!, Kettle::Jem::TemplateHelpers, nil)
+
+      result = File.read("Gemfile")
+      expect(result).not_to include('gem "future-new"')
+      expect(result).to include('gem "legacy-debug"')
+    end
+  end
+
   describe "#ensure_bootstrap_eval_gemfile!" do
     around do |ex|
       Dir.mktmpdir do |dir|
